@@ -65,3 +65,166 @@ h1 {
   white-space: pre-wrap;
   font-size: 13px;
 }
+.page-top {
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.reader-layout {
+  width: 100%;
+  max-width: 760px;
+  padding: 20px 16px 40px;
+}
+
+.reader-header {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.fox.small {
+  font-size: 32px;
+  margin: 0;
+}
+
+.novel-list,
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.novel-card {
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.1);
+}
+
+.novel-cover {
+  width: 82px;
+  height: 116px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #f3e7dc;
+}
+
+.novel-cover.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+}
+
+.novel-cover.large {
+  width: 120px;
+  height: 170px;
+}
+
+.novel-info h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.novel-info p {
+  margin: 0 0 10px;
+  line-height: 1.45;
+  color: #6b5a50;
+}
+
+.badge {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #f3e7dc;
+  color: #6b5a50;
+  font-size: 13px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: #f28c38;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.novel-page-header {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.section-title {
+  margin: 0 0 14px;
+  font-size: 22px;
+}
+
+.chapter-row {
+  display: grid;
+  grid-template-columns: 52px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  color: inherit;
+  text-decoration: none;
+}
+
+.chapter-number {
+  color: #9a7d6b;
+  font-weight: 700;
+}
+
+.chapter-title {
+  font-weight: 700;
+}
+
+.chapter-access {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #f3e7dc;
+  color: #6b5a50;
+  font-size: 12px;
+}
+
+.empty {
+  padding: 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #6b5a50;
+}
+
+.chapter-layout h1 {
+  margin-top: 0;
+}
+
+.link-button {
+  display: inline-block;
+  text-decoration: none;
+  text-align: center;
+  margin-top: 16px;
+}
+
+@media (max-width: 520px) {
+  .novel-page-header {
+    flex-direction: column;
+  }
+
+  .chapter-row {
+    grid-template-columns: 44px 1fr;
+  }
+
+  .chapter-access {
+    grid-column: 2;
+    width: fit-content;
+  }
+}
