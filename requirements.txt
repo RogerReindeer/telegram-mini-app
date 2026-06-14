@@ -3,3 +3,4 @@ uvicorn
 python-dotenv
 jinja2
 requests
+supabase
