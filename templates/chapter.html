@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>{{ chapter.title }} — {{ app_title }}</title>
+
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+
+<body>
+  <main class="page page-top">
+    <article class="reader-layout chapter-layout">
+      <a class="back-link" href="/novel/{{ chapter.novels.slug }}">← {{ chapter.novels.title }}</a>
+
+      <h1>{{ chapter.title }}</h1>
+
+      <p class="subtitle">
+        Уровень доступа: {{ chapter.access_level }}
+      </p>
+
+      {% if chapter.free_url %}
+        <a class="button link-button" href="{{ chapter.free_url }}" target="_blank">
+          Открыть главу в Telegraph
+        </a>
+      {% else %}
+        <div class="empty">
+          Для этой главы пока не указана ссылка.
+        </div>
+      {% endif %}
+    </article>
+  </main>
+</body>
+</html>
