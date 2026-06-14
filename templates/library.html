@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Библиотека — {{ app_title }}</title>
+
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+
+<body>
+  <main class="page page-top">
+    <section class="reader-layout">
+      <header class="reader-header">
+        <div class="fox small">🦊</div>
+        <div>
+          <h1>Библиотека</h1>
+          <p class="subtitle">Выберите новеллу для чтения.</p>
+        </div>
+      </header>
+
+      {% if novels %}
+        <div class="novel-list">
+          {% for novel in novels %}
+            <a class="novel-card" href="/novel/{{ novel.slug }}">
+              {% if novel.cover_url %}
+                <img class="novel-cover" src="{{ novel.cover_url }}" alt="{{ novel.title }}">
+              {% else %}
+                <div class="novel-cover placeholder">📖</div>
+              {% endif %}
+
+              <div class="novel-info">
+                <h2>{{ novel.title }}</h2>
+
+                {% if novel.description %}
+                  <p>{{ novel.description }}</p>
+                {% endif %}
+
+                {% if novel.total_chapters %}
+                  <span class="badge">Всего глав: {{ novel.total_chapters }}</span>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">
+          В библиотеке пока нет активных новелл.
+        </div>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
