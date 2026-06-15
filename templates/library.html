@@ -23,17 +23,6 @@
         <img class="catalog-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
       </header>
 
-      <div class="catalog-toolbar">
-        <label class="catalog-search">
-          <span>🔍</span>
-          <input type="search" placeholder="Поиск по названию" disabled>
-        </label>
-
-        <div class="catalog-sort-label">
-          ⚙️ Настройки каталога
-        </div>
-      </div>
-
       {% if novels %}
         <div class="novel-list" data-library-list>
           {% for novel in novels %}
@@ -43,21 +32,22 @@
               data-library-card
               data-title="{{ novel.title }}"
               data-chapters="{{ novel.total_chapters or 0 }}"
-              data-translator="Зефиркины баоцзы"
               data-sort="{{ novel.sort_order or novel.id }}"
             >
               {% if novel.cover_url %}
-                <img class="novel-cover" src="{{ novel.cover_url }}" alt="{{ novel.title }}">
+                <img
+                  class="novel-cover"
+                  src="{{ novel.cover_url }}"
+                  alt="{{ novel.title }}"
+                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                >
+                <div class="novel-cover placeholder" style="display:none;">📖</div>
               {% else %}
                 <div class="novel-cover placeholder">📖</div>
               {% endif %}
 
               <div class="novel-info">
                 <h2>{{ novel.title }}</h2>
-
-                <div class="novel-meta translator-meta">
-                  Перевод: Зефиркины баоцзы
-                </div>
 
                 {% if novel.tags %}
                   <div class="novel-tags">
@@ -85,7 +75,7 @@
       {% else %}
         <div class="empty">
           <img class="empty-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
-          <div>В библиотеке пока нет активных новелл.</div>
+          <div>В каталоге пока нет активных новелл.</div>
         </div>
       {% endif %}
     </section>
