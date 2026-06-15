@@ -13,15 +13,23 @@
 <body>
   <main class="page page-top">
     <article class="reader-layout chapter-layout">
-      <a class="back-link" href="/novel/{{ chapter.novels.slug }}">← {{ chapter.novels.title }}</a>
+      {% if chapter.novels.slug.startswith("sheet-") %}
+        <a class="back-link" href="/library">← Библиотека</a>
+      {% else %}
+        <a class="back-link" href="/novel/{{ chapter.novels.slug }}">← {{ chapter.novels.title }}</a>
+      {% endif %}
 
       <h1>{{ chapter.title }}</h1>
 
       <p class="subtitle">
-        Уровень доступа: {{ chapter.access_level }}
+        Глава {{ chapter.chapter_no }} · Уровень доступа: {{ chapter.access_level }}
       </p>
 
-      {% if chapter.free_url %}
+      {% if telegraph_content %}
+        <section class="chapter-content">
+          {{ telegraph_content.content_html | safe }}
+        </section>
+      {% elif chapter.free_url %}
         <a class="button link-button" href="{{ chapter.free_url }}" target="_blank">
           Открыть главу в Telegraph
         </a>
