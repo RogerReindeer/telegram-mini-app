@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>Библиотека — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
@@ -13,12 +12,19 @@
 <body>
   <main class="page page-top">
     <section class="reader-layout">
-      <header class="reader-header">
-        <div class="fox small">🦊</div>
-        <div>
-          <h1>Библиотека</h1>
-          <p class="subtitle">Выберите новеллу для чтения.</p>
+      <header class="page-hero">
+        <div class="page-hero__text">
+          <div class="brand-line">
+            <img class="brand-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
+            <div>
+              <div class="brand-kicker">Мини-читалка</div>
+              <h1>Библиотека</h1>
+              <p class="subtitle">Выберите новеллу для чтения.</p>
+            </div>
+          </div>
         </div>
+
+        <img class="hero-fox" src="/static/fox_hearts.png" alt="Лисичка с сердечками" data-fox>
       </header>
 
       {% if novels %}
@@ -62,7 +68,6 @@
                   {% if novel.total_chapters %}
                     <span class="badge chapters-meta">Всего глав: {{ novel.total_chapters }}</span>
                   {% endif %}
-
                   <span class="badge age-meta">18+</span>
                 </div>
               </div>
@@ -71,7 +76,8 @@
         </div>
       {% else %}
         <div class="empty">
-          В библиотеке пока нет активных новелл.
+          <img class="empty-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
+          <div>В библиотеке пока нет активных новелл.</div>
         </div>
       {% endif %}
     </section>
