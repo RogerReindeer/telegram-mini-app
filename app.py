@@ -1,6 +1,6 @@
 import csv
 import os
-from datetime import date, datetime
+from datetime import datetime
 from io import StringIO
 from urllib.parse import urlparse
 
@@ -17,12 +17,14 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-GOOGLE_SHEET_ID = os.getenv(
-    "GOOGLE_SHEET_ID",
-    "1ussa5hwhayj9Trzlz0GzSXHYkBUmul8FGdbmp-vfvHM",
+MINIAPP_SHEET_ID = os.getenv(
+    "MINIAPP_SHEET_ID",
+    "1-dHdJEnBai_ZAcdZKwgTryoQ-uAfSgP52qTnbU4amHs",
 )
-GOOGLE_SHEET_GID = os.getenv("GOOGLE_SHEET_GID", "838963845")
+
+SYNC_TOKEN = os.getenv("SYNC_TOKEN")
 
 app = FastAPI(title="Zefirki Reader Mini App")
 
@@ -30,23 +32,35 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
+# -----------------------------
+# Supabase
+# -----------------------------
+
 def get_supabase() -> Client:
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise RuntimeError("SUPABASE_URL or SUPABASE_KEY is not set")
+
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
-def get_sheet_csv_url() -> str:
-    return (
-        f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq"
-        f"?tqx=out:csv&gid={GOOGLE_SHEET_GID}"
+def get_admin_supabase() -> Client:
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        raise RuntimeError("SUPABASE_URL or SUPABASE_SERVICE_KEY is not set")
+
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+
+# -----------------------------
+# Google Sheets → Supabase sync
+# -----------------------------
+
+def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
+    url = (
+        f"https://docs.google.com/spreadsheets/d/{MINIAPP_SHEET_ID}/gviz/tq"
+        f"?tqx=out:csv&sheet={sheet_name}"
     )
 
-
-def fetch_sheet_rows() -> list[dict]:
-    url = get_sheet_csv_url()
-
-    response = requests.get(url, timeout=20)
+    response = requests.get(url, timeout=30)
     response.raise_for_status()
 
     text = response.content.decode("utf-8-sig")
@@ -55,58 +69,158 @@ def fetch_sheet_rows() -> list[dict]:
     return list(reader)
 
 
-def find_chapter_in_sheet(novel_id: int, chapter_no: int) -> dict:
-    rows = fetch_sheet_rows()
+def clean_value(value):
+    if value is None:
+        return ""
 
-    for row in rows:
-        try:
-            row_novel_id = int(str(row.get("NovelID", "")).strip())
-            row_chapter_no = int(float(str(row.get("ChapterNo", "")).strip()))
-        except ValueError:
-            continue
-
-        if row_novel_id == novel_id and row_chapter_no == chapter_no:
-            return row
-
-    raise HTTPException(
-        status_code=404,
-        detail=f"Chapter not found in sheet: NovelID={novel_id}, ChapterNo={chapter_no}",
-    )
+    return str(value).strip()
 
 
-def parse_date(value: str) -> date | None:
-    value = (value or "").strip()
+def to_int(value):
+    value = clean_value(value)
+
+    if not value:
+        return None
+
+    try:
+        return int(float(value.replace(",", ".")))
+    except ValueError:
+        return None
+
+
+def to_float(value):
+    value = clean_value(value).replace("%", "").replace(",", ".")
+
+    if not value:
+        return None
+
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def to_bool(value):
+    value = clean_value(value).lower()
+
+    return value in ("true", "1", "yes", "да", "истина", "✅")
+
+
+def normalize_date(value):
+    value = clean_value(value)
 
     if not value:
         return None
 
     for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
         try:
-            return datetime.strptime(value, fmt).date()
+            return datetime.strptime(value[:10], fmt).date().isoformat()
         except ValueError:
             pass
 
     return None
 
 
-def is_free_chapter_available(row: dict) -> bool:
-    free_url = (row.get("TelegraphFreeURL") or "").strip()
+def sync_novels_to_db(db: Client) -> int:
+    rows = fetch_miniapp_sheet("Novels")
+    payload = []
 
-    if not free_url:
-        return False
+    for row in rows:
+        novel_id = to_int(row.get("NovelID"))
 
-    free_release_date = parse_date(row.get("FreeReleaseDate", ""))
+        if not novel_id:
+            continue
 
-    # Для теста можно пускать, если ссылка уже есть.
-    # Когда включим полноценный доступ, здесь будем строго проверять дату и подписку.
-    if free_release_date is None:
-        return True
+        is_visible = to_bool(row.get("IsVisible"))
 
-    return free_release_date <= date.today()
+        payload.append({
+            "id": novel_id,
+            "code": clean_value(row.get("Code")),
+            "slug": clean_value(row.get("Slug")) or f"novel-{novel_id}",
+            "title": clean_value(row.get("Title")) or f"Novel {novel_id}",
+            "title_en": clean_value(row.get("TitleEN")),
+            "cover_url": clean_value(row.get("CoverURL")),
+            "description": clean_value(row.get("Description")),
+            "tags": clean_value(row.get("Tags")),
+            "original_language": clean_value(row.get("OriginalLanguage")),
+            "total_chapters": to_int(row.get("TotalChapters")),
+            "translated_chapters": to_int(row.get("TranslatedChapters")),
+            "progress_percent": to_float(row.get("ProgressPercent")),
+            "status": clean_value(row.get("Status")),
+            "access_model": clean_value(row.get("AccessModel")),
+            "schedule_mode": clean_value(row.get("ScheduleMode")),
+            "sort_order": to_float(row.get("SortOrder")) or novel_id,
+            "is_visible": is_visible,
+            "is_active": is_visible,
+        })
 
+    if payload:
+        db.table("novels").upsert(payload, on_conflict="id").execute()
+
+    return len(payload)
+
+
+def sync_chapters_to_db(db: Client) -> int:
+    rows = fetch_miniapp_sheet("Chapters")
+    payload = []
+
+    for row in rows:
+        chapter_code = clean_value(row.get("ChapterID"))
+        novel_id = to_int(row.get("NovelID"))
+        chapter_no = to_float(row.get("ChapterNo"))
+        telegraph_url = clean_value(row.get("TelegraphURL"))
+        access_level = clean_value(row.get("AccessLevel")) or "reader"
+
+        if not chapter_code or not novel_id or chapter_no is None:
+            continue
+
+        is_visible = to_bool(row.get("IsVisible"))
+
+        free_url = telegraph_url if access_level == "reader" else ""
+        premium_url = telegraph_url if access_level in ("boosty", "early") else ""
+
+        payload.append({
+            "chapter_code": chapter_code,
+            "novel_id": novel_id,
+            "chapter_no": chapter_no,
+            "title": clean_value(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
+            "slug": clean_value(row.get("Slug")) or f"chapter-{chapter_no:g}",
+            "access_level": access_level,
+            "release_date": normalize_date(row.get("ReleaseDate")),
+            "telegraph_url": telegraph_url,
+            "free_url": free_url,
+            "premium_url": premium_url,
+            "source_type": clean_value(row.get("SourceType")) or "telegraph",
+            "is_visible": is_visible,
+            "is_active": is_visible,
+            "sort_order": to_float(row.get("SortOrder")) or chapter_no,
+        })
+
+    if payload:
+        db.table("chapters").upsert(payload, on_conflict="chapter_code").execute()
+
+    return len(payload)
+
+
+def sync_miniapp_sheets_to_db() -> dict:
+    db = get_admin_supabase()
+
+    novels_count = sync_novels_to_db(db)
+    chapters_count = sync_chapters_to_db(db)
+
+    return {
+        "status": "ok",
+        "novels": novels_count,
+        "chapters": chapters_count,
+    }
+
+
+# -----------------------------
+# Telegraph
+# -----------------------------
 
 def normalize_telegraph_url(url: str) -> str:
-    url = (url or "").strip()
+    url = clean_value(url)
 
     if not url:
         raise HTTPException(status_code=404, detail="Telegraph URL is empty")
@@ -119,10 +233,49 @@ def normalize_telegraph_url(url: str) -> str:
 
     parsed = urlparse(url)
 
-    if parsed.netloc not in ("telegra.ph", "telegra.ph"):
+    if parsed.netloc != "telegra.ph":
         raise HTTPException(status_code=400, detail="Only telegra.ph links are allowed")
 
     return url
+
+
+def clean_telegraph_article(article):
+    """
+    Убирает служебный хвост из Telegraph-глав:
+    ссылки на Boosty/BLlate, благодарности, подписи переводчика.
+    """
+
+    stop_phrases = [
+        "тгк зефиркины баоцзы",
+        "зефиркины баоцзы",
+        "спасибо, что читаете",
+        "спасибо что читаете",
+        "полный перевод",
+        "доступен на бусти",
+        "доступен на boosty",
+        "boosty",
+        "бусти",
+        "bllate",
+        "bl late",
+        "bl-late",
+    ]
+
+    content_tags = article.find_all(["p", "div", "blockquote", "h3", "h4", "a"])
+
+    for tag in content_tags:
+        text = tag.get_text(" ", strip=True).lower()
+
+        if any(phrase in text for phrase in stop_phrases):
+            current = tag
+
+            while current:
+                next_tag = current.find_next_sibling()
+                current.decompose()
+                current = next_tag
+
+            break
+
+    return article
 
 
 def fetch_telegraph_article(url: str) -> dict:
@@ -138,17 +291,14 @@ def fetch_telegraph_article(url: str) -> dict:
     response.raise_for_status()
 
     soup = BeautifulSoup(response.text, "html.parser")
-
     article = soup.find("article")
 
     if not article:
         raise HTTPException(status_code=502, detail="Telegraph article not found")
 
-    # Убираем служебные элементы Telegraph, если попадутся.
     for tag in article.select("address, aside, script, style"):
         tag.decompose()
 
-    # Убираем заголовок внутри article, потому что свой заголовок мы выводим сами.
     first_h1 = article.find("h1")
     if first_h1:
         first_h1.decompose()
@@ -157,13 +307,17 @@ def fetch_telegraph_article(url: str) -> dict:
     if first_h2:
         first_h2.decompose()
 
-    content_html = str(article)
+    article = clean_telegraph_article(article)
 
     return {
         "source_url": url,
-        "content_html": content_html,
+        "content_html": str(article),
     }
 
+
+# -----------------------------
+# Routes
+# -----------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
@@ -183,8 +337,8 @@ async def library(request: Request):
     result = (
         db.table("novels")
         .select("*")
-        .eq("is_active", True)
-        .order("id")
+        .eq("is_visible", True)
+        .order("sort_order")
         .execute()
     )
 
@@ -208,7 +362,7 @@ async def novel_page(request: Request, slug: str):
         db.table("novels")
         .select("*")
         .eq("slug", slug)
-        .eq("is_active", True)
+        .eq("is_visible", True)
         .limit(1)
         .execute()
     )
@@ -224,8 +378,8 @@ async def novel_page(request: Request, slug: str):
         db.table("chapters")
         .select("*")
         .eq("novel_id", novel["id"])
-        .eq("is_active", True)
-        .order("chapter_no")
+        .eq("is_visible", True)
+        .order("sort_order")
         .execute()
     )
 
@@ -250,7 +404,7 @@ async def chapter_page(request: Request, chapter_id: int):
         db.table("chapters")
         .select("*, novels(title, slug)")
         .eq("id", chapter_id)
-        .eq("is_active", True)
+        .eq("is_visible", True)
         .limit(1)
         .execute()
     )
@@ -262,44 +416,17 @@ async def chapter_page(request: Request, chapter_id: int):
 
     chapter = chapters[0]
 
-    return templates.TemplateResponse(
-        request,
-        "chapter.html",
-        {
-            "app_title": "Зефиркины баоцзы",
-            "chapter": chapter,
-            "telegraph_content": None,
-        },
+    telegraph_url = (
+        chapter.get("telegraph_url")
+        or chapter.get("free_url")
+        or chapter.get("premium_url")
+        or ""
     )
 
+    telegraph_content = None
 
-@app.get("/chapter/{novel_id}/{chapter_no}", response_class=HTMLResponse)
-async def chapter_from_sheet(request: Request, novel_id: int, chapter_no: int):
-    row = find_chapter_in_sheet(novel_id=novel_id, chapter_no=chapter_no)
-
-    if not is_free_chapter_available(row):
-        raise HTTPException(
-            status_code=403,
-            detail="Chapter is not available in free access",
-        )
-
-    telegraph_url = (row.get("TelegraphFreeURL") or "").strip()
-
-    if not telegraph_url:
-        raise HTTPException(status_code=404, detail="TelegraphFreeURL is empty")
-
-    telegraph_content = fetch_telegraph_article(telegraph_url)
-
-    chapter = {
-        "title": row.get("ChapterTitle") or f"Глава {chapter_no}",
-        "chapter_no": chapter_no,
-        "access_level": "reader",
-        "free_url": telegraph_url,
-        "novels": {
-            "title": f"NovelID {novel_id}",
-            "slug": f"sheet-{novel_id}",
-        },
-    }
+    if telegraph_url:
+        telegraph_content = fetch_telegraph_article(telegraph_url)
 
     return templates.TemplateResponse(
         request,
@@ -310,6 +437,19 @@ async def chapter_from_sheet(request: Request, novel_id: int, chapter_no: int):
             "telegraph_content": telegraph_content,
         },
     )
+
+
+@app.post("/admin/sync-from-sheets")
+async def admin_sync_from_sheets(request: Request):
+    if not SYNC_TOKEN:
+        raise HTTPException(status_code=500, detail="SYNC_TOKEN is not set")
+
+    token = request.headers.get("X-Sync-Token")
+
+    if token != SYNC_TOKEN:
+        raise HTTPException(status_code=403, detail="Invalid sync token")
+
+    return sync_miniapp_sheets_to_db()
 
 
 @app.get("/health")
