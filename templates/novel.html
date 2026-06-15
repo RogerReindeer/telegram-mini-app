@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>{{ novel.title }} — {{ app_title }}</title>
+
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+
+<body>
+  <main class="page page-top">
+    <section class="reader-layout">
+      <a class="back-link" href="/library">← Библиотека</a>
+
+      <header class="novel-page-header">
+        {% if novel.cover_url %}
+          <img class="novel-cover large" src="{{ novel.cover_url }}" alt="{{ novel.title }}">
+        {% else %}
+          <div class="novel-cover large placeholder">📖</div>
+        {% endif %}
+
+        <div>
+          <h1>{{ novel.title }}</h1>
+
+          {% if novel.description %}
+            <p class="subtitle">{{ novel.description }}</p>
+          {% endif %}
+        </div>
+      </header>
+
+      <h2 class="section-title">Главы</h2>
+
+      {% if chapters %}
+        <div class="chapter-list">
+          {% for chapter in chapters %}
+            <a class="chapter-row" href="/chapter/{{ chapter.id }}">
+              <span class="chapter-number">{{ chapter.chapter_no }}</span>
+              <span class="chapter-title">{{ chapter.title }}</span>
+              <span class="chapter-access">{{ chapter.access_level }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">
+          Главы пока не добавлены.
+        </div>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>
