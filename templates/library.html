@@ -3,29 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Библиотека — {{ app_title }}</title>
+
+  <title>Каталог — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body>
+<body class="page-library">
   <main class="page page-top">
-    <section class="reader-layout">
-      <header class="page-hero">
-        <div class="page-hero__text">
-          <div class="brand-line">
-            <img class="brand-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
-            <div>
-              <div class="brand-kicker">Мини-читалка</div>
-              <h1>Библиотека</h1>
-              <p class="subtitle">Выберите новеллу для чтения.</p>
-            </div>
-          </div>
+    <section class="reader-layout catalog-layout">
+      <header class="catalog-header">
+        <div>
+          <div class="brand-kicker">Зефиркины баоцзы</div>
+          <h1>Каталог</h1>
+          <p class="subtitle">Выберите новеллу для чтения.</p>
         </div>
 
-        <img class="hero-fox" src="/static/fox_hearts.png" alt="Лисичка с сердечками" data-fox>
+        <img class="catalog-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
       </header>
+
+      <div class="catalog-toolbar">
+        <label class="catalog-search">
+          <span>🔍</span>
+          <input type="search" placeholder="Поиск по названию" disabled>
+        </label>
+
+        <div class="catalog-sort-label">
+          ⚙️ Настройки каталога
+        </div>
+      </div>
 
       {% if novels %}
         <div class="novel-list" data-library-list>
@@ -66,8 +73,9 @@
 
                 <div class="novel-badges">
                   {% if novel.total_chapters %}
-                    <span class="badge chapters-meta">Всего глав: {{ novel.total_chapters }}</span>
+                    <span class="badge chapters-meta">Глав: {{ novel.total_chapters }}</span>
                   {% endif %}
+
                   <span class="badge age-meta">18+</span>
                 </div>
               </div>
