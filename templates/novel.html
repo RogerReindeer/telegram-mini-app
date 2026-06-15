@@ -36,7 +36,7 @@
       {% if chapters %}
         <div class="chapter-list">
           {% for chapter in chapters %}
-            <a class="chapter-row" href="/chapter/{{ chapter.id }}">
+            <a class="chapter-row" href="/chapter/{{ novel.id }}/{{ chapter.chapter_no | int }}">
               <span class="chapter-number">{{ chapter.chapter_no }}</span>
               <span class="chapter-title">{{ chapter.title }}</span>
               <span class="chapter-access">{{ chapter.access_level }}</span>
