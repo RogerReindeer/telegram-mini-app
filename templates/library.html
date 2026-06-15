@@ -22,9 +22,17 @@
       </header>
 
       {% if novels %}
-        <div class="novel-list">
+        <div class="novel-list" data-library-list>
           {% for novel in novels %}
-            <a class="novel-card" href="/novel/{{ novel.slug }}">
+            <a
+              class="novel-card"
+              href="/novel/{{ novel.slug }}"
+              data-library-card
+              data-title="{{ novel.title }}"
+              data-chapters="{{ novel.total_chapters or 0 }}"
+              data-translator="Зефиркины баоцзы"
+              data-sort="{{ novel.sort_order or novel.id }}"
+            >
               {% if novel.cover_url %}
                 <img class="novel-cover" src="{{ novel.cover_url }}" alt="{{ novel.title }}">
               {% else %}
@@ -34,13 +42,29 @@
               <div class="novel-info">
                 <h2>{{ novel.title }}</h2>
 
-                {% if novel.description %}
-                  <p>{{ novel.description }}</p>
+                <div class="novel-meta translator-meta">
+                  Перевод: Зефиркины баоцзы
+                </div>
+
+                {% if novel.tags %}
+                  <div class="novel-tags">
+                    {% for tag in novel.tags.split(',')[:3] %}
+                      <span class="tag">{{ tag.strip() }}</span>
+                    {% endfor %}
+                  </div>
                 {% endif %}
 
-                {% if novel.total_chapters %}
-                  <span class="badge">Всего глав: {{ novel.total_chapters }}</span>
+                {% if novel.description %}
+                  <p class="novel-description">{{ novel.description }}</p>
                 {% endif %}
+
+                <div class="novel-badges">
+                  {% if novel.total_chapters %}
+                    <span class="badge chapters-meta">Всего глав: {{ novel.total_chapters }}</span>
+                  {% endif %}
+
+                  <span class="badge age-meta">18+</span>
+                </div>
               </div>
             </a>
           {% endfor %}
@@ -52,5 +76,7 @@
       {% endif %}
     </section>
   </main>
+
+  <script src="/static/settings.js"></script>
 </body>
 </html>
