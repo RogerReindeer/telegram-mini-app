@@ -1,4 +1,4 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v2";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v3";
 
 const DEFAULT_SETTINGS = {
   readerMode: "standard",
@@ -197,7 +197,7 @@ function createSettingsPanel() {
           </section>
 
           <section class="settings-section" data-section="library">
-            ${selectField("libraryView", "Вид библиотеки", [
+            ${selectField("libraryView", "Вид каталога", [
               ["grid-small", "Плитка 2 / 4 колонки"],
               ["grid-large", "Плитка 1 / 2 колонки"],
               ["list", "Список"],
@@ -281,7 +281,7 @@ function createSettingsPanel() {
               <img class="about-fox" src="/static/fox_hearts.png" alt="Лисичка" data-fox>
               <h3>Зефиркины баоцзы</h3>
               <p>
-                Мини-читалка переводов с настройками чтения, библиотекой и уютными лисичками.
+                Мини-читалка переводов с настройками чтения, каталогом и уютными лисичками.
               </p>
 
               <div class="about-links">
