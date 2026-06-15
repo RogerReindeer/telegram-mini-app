@@ -1,4 +1,4 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v3";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v4";
 
 const DEFAULT_SETTINGS = {
   readerMode: "standard",
@@ -9,14 +9,6 @@ const DEFAULT_SETTINGS = {
   fontSize: "16",
   lineHeight: "1.6",
   paragraphSpacing: "16",
-
-  libraryView: "grid-small",
-  libraryDensity: "standard",
-  showCover: true,
-  showTags: true,
-  showChapters: true,
-  showAge: true,
-  librarySort: "added",
 
   tagMode: "list",
   tagColorScheme: "pastel",
@@ -63,8 +55,6 @@ function applySettings() {
 
   document.body.dataset.readerMode = readerSettings.readerMode;
   document.body.dataset.textAlign = readerSettings.textAlign;
-  document.body.dataset.libraryView = readerSettings.libraryView;
-  document.body.dataset.libraryDensity = readerSettings.libraryDensity;
   document.body.dataset.siteTheme = readerSettings.siteTheme;
   document.body.dataset.cardShadow = readerSettings.cardShadow;
   document.body.dataset.animations = readerSettings.animations;
@@ -73,44 +63,13 @@ function applySettings() {
   document.body.dataset.tagColorScheme = readerSettings.tagColorScheme;
   document.body.dataset.tagGrouping = readerSettings.tagGrouping;
 
-  document.body.classList.toggle("hide-cover", !readerSettings.showCover);
-  document.body.classList.toggle("hide-tags", !readerSettings.showTags);
-  document.body.classList.toggle("hide-chapters", !readerSettings.showChapters);
-  document.body.classList.toggle("hide-age", !readerSettings.showAge);
   document.body.classList.toggle("hide-foxes", !readerSettings.showFoxes);
-
-  sortLibraryCards();
 }
 
 function updateSetting(key, value) {
   readerSettings[key] = value;
   saveSettings(readerSettings);
   applySettings();
-}
-
-function sortLibraryCards() {
-  const list = document.querySelector("[data-library-list]");
-  if (!list) return;
-
-  const cards = Array.from(list.querySelectorAll("[data-library-card]"));
-
-  cards.sort((a, b) => {
-    if (readerSettings.librarySort === "title") {
-      return (a.dataset.title || "").localeCompare(b.dataset.title || "", "ru");
-    }
-
-    if (readerSettings.librarySort === "chapters") {
-      return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
-    }
-
-    if (readerSettings.librarySort === "translator") {
-      return (a.dataset.translator || "").localeCompare(b.dataset.translator || "", "ru");
-    }
-
-    return Number(a.dataset.sort || 0) - Number(b.dataset.sort || 0);
-  });
-
-  cards.forEach(card => list.appendChild(card));
 }
 
 function createSettingsPanel() {
@@ -133,7 +92,6 @@ function createSettingsPanel() {
 
         <div class="settings-tabs">
           <button class="settings-tab active" data-tab="reader">Читалка</button>
-          <button class="settings-tab" data-tab="library">Библиотека</button>
           <button class="settings-tab" data-tab="appearance">Внешний вид</button>
           <button class="settings-tab" data-tab="tags">Теги</button>
           <button class="settings-tab" data-tab="about">О проекте</button>
@@ -196,32 +154,6 @@ function createSettingsPanel() {
             ])}
           </section>
 
-          <section class="settings-section" data-section="library">
-            ${selectField("libraryView", "Вид каталога", [
-              ["grid-small", "Плитка 2 / 4 колонки"],
-              ["grid-large", "Плитка 1 / 2 колонки"],
-              ["list", "Список"],
-            ])}
-
-            ${selectField("libraryDensity", "Плотность", [
-              ["compact", "Компактная"],
-              ["standard", "Стандартная"],
-              ["loose", "Свободная"],
-            ])}
-
-            ${checkboxField("showCover", "Показывать обложку")}
-            ${checkboxField("showTags", "Показывать теги")}
-            ${checkboxField("showChapters", "Показывать количество глав")}
-            ${checkboxField("showAge", "Показывать 18+")}
-
-            ${selectField("librarySort", "Сортировка", [
-              ["added", "По дате добавления"],
-              ["title", "По названию А-Я"],
-              ["chapters", "По количеству глав"],
-              ["translator", "По автору перевода"],
-            ])}
-          </section>
-
           <section class="settings-section" data-section="appearance">
             ${selectField("siteTheme", "Тема сайта", [
               ["light", "Светлая"],
@@ -281,7 +213,7 @@ function createSettingsPanel() {
               <img class="about-fox" src="/static/fox_hearts.png" alt="Лисичка" data-fox>
               <h3>Зефиркины баоцзы</h3>
               <p>
-                Мини-читалка переводов с настройками чтения, каталогом и уютными лисичками.
+                Мини-читалка переводов с настройками чтения и уютными лисичками.
               </p>
 
               <div class="about-links">
@@ -359,6 +291,7 @@ function fillSettingsControls() {
       const hasOption = Array.from(control.options).some(
         option => option.value === readerSettings[key]
       );
+
       control.value = hasOption ? readerSettings[key] : "custom";
       return;
     }
@@ -438,9 +371,11 @@ function handleSettingControl(control) {
       updateSetting(key, picker.value);
     } else {
       updateSetting(key, control.value);
+
       const picker = document.querySelector(`[data-color-picker="${key}"]`);
       if (picker) picker.value = control.value;
     }
+
     return;
   }
 
