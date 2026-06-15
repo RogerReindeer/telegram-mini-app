@@ -3,64 +3,73 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>{{ novel.title }} — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body>
+<body class="page-novel">
   <main class="page page-top">
-    <section class="reader-layout">
-      <a class="back-link" href="/library">← Библиотека</a>
+    <section class="reader-layout title-layout">
+      <a class="back-link" href="/library">← Каталог</a>
 
-      <header class="novel-page-header">
+      <header class="title-hero">
         {% if novel.cover_url %}
-          <img class="novel-cover large" src="{{ novel.cover_url }}" alt="{{ novel.title }}">
-        {% else %}
-          <div class="novel-cover large placeholder">📖</div>
+          <div class="title-hero-bg" style="background-image: url('{{ novel.cover_url }}');"></div>
         {% endif %}
 
-        <div class="novel-page-info">
-          <div class="novel-page-title-line">
-            <img class="inline-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
-            <div>
+        <div class="title-hero-content">
+          {% if novel.cover_url %}
+            <img class="title-cover" src="{{ novel.cover_url }}" alt="{{ novel.title }}">
+          {% else %}
+            <div class="title-cover placeholder">📖</div>
+          {% endif %}
+
+          <div class="title-info">
+            <div class="brand-kicker">Новелла</div>
+
+            <div class="novel-page-title-line">
               <h1>{{ novel.title }}</h1>
+              <img class="inline-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
+            </div>
 
-              {% if novel.title_en %}
-                <p class="novel-title-en">{{ novel.title_en }}</p>
+            {% if novel.title_en %}
+              <p class="novel-title-en">{{ novel.title_en }}</p>
+            {% endif %}
+
+            <div class="novel-meta translator-meta always-visible">
+              Перевод: Зефиркины баоцзы
+            </div>
+
+            {% if novel.tags %}
+              <div class="novel-tags">
+                {% for tag in novel.tags.split(',') %}
+                  <span class="tag">{{ tag.strip() }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if novel.description %}
+              <p class="subtitle">{{ novel.description }}</p>
+            {% endif %}
+
+            <div class="novel-badges">
+              {% if novel.total_chapters %}
+                <span class="badge">Глав: {{ novel.total_chapters }}</span>
               {% endif %}
+
+              {% if novel.translated_chapters %}
+                <span class="badge">Переведено: {{ novel.translated_chapters }}</span>
+              {% endif %}
+
+              {% if novel.progress_percent %}
+                <span class="badge">Готово: {{ novel.progress_percent }}%</span>
+              {% endif %}
+
+              <span class="badge age-meta">18+</span>
             </div>
-          </div>
-
-          <div class="novel-meta translator-meta always-visible">
-            Перевод: Зефиркины баоцзы
-          </div>
-
-          {% if novel.tags %}
-            <div class="novel-tags">
-              {% for tag in novel.tags.split(',') %}
-                <span class="tag">{{ tag.strip() }}</span>
-              {% endfor %}
-            </div>
-          {% endif %}
-
-          {% if novel.description %}
-            <p class="subtitle">{{ novel.description }}</p>
-          {% endif %}
-
-          <div class="novel-badges">
-            {% if novel.total_chapters %}
-              <span class="badge">Всего глав: {{ novel.total_chapters }}</span>
-            {% endif %}
-
-            {% if novel.translated_chapters %}
-              <span class="badge">Переведено: {{ novel.translated_chapters }}</span>
-            {% endif %}
-
-            {% if novel.progress_percent %}
-              <span class="badge">Готово: {{ novel.progress_percent }}%</span>
-            {% endif %}
           </div>
         </div>
       </header>
