@@ -1,0 +1,386 @@
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v1";
+
+const DEFAULT_SETTINGS = {
+  readerMode: "standard",
+  textAlign: "left",
+  textColor: "#111111",
+  readerBg: "#fffaf3",
+  linkColor: "#2563eb",
+  fontSize: "16",
+  lineHeight: "1.6",
+  paragraphSpacing: "16",
+
+  libraryView: "grid-small",
+  libraryDensity: "standard",
+  showCover: true,
+  showTranslator: false,
+  showTags: true,
+  showChapters: true,
+  showAge: true,
+  librarySort: "added",
+
+  tagMode: "list",
+  tagColorScheme: "pastel",
+  tagGrouping: "flat",
+
+  siteTheme: "light",
+  cardRadius: "16",
+  cardShadow: "light",
+  animations: "off",
+  interfaceFont: "system",
+};
+
+function loadSettings() {
+  const raw = localStorage.getItem(READER_SETTINGS_KEY);
+
+  if (!raw) {
+    return { ...DEFAULT_SETTINGS };
+  }
+
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings(settings) {
+  localStorage.setItem(READER_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+let readerSettings = loadSettings();
+
+function applySettings() {
+  const root = document.documentElement;
+
+  root.style.setProperty("--reader-text-color", readerSettings.textColor);
+  root.style.setProperty("--reader-bg", readerSettings.readerBg);
+  root.style.setProperty("--reader-link-color", readerSettings.linkColor);
+  root.style.setProperty("--reader-font-size", `${readerSettings.fontSize}px`);
+  root.style.setProperty("--reader-line-height", readerSettings.lineHeight);
+  root.style.setProperty("--reader-paragraph-spacing", `${readerSettings.paragraphSpacing}px`);
+  root.style.setProperty("--card-radius", `${readerSettings.cardRadius}px`);
+
+  document.body.dataset.readerMode = readerSettings.readerMode;
+  document.body.dataset.textAlign = readerSettings.textAlign;
+  document.body.dataset.libraryView = readerSettings.libraryView;
+  document.body.dataset.libraryDensity = readerSettings.libraryDensity;
+  document.body.dataset.siteTheme = readerSettings.siteTheme;
+  document.body.dataset.cardShadow = readerSettings.cardShadow;
+  document.body.dataset.animations = readerSettings.animations;
+  document.body.dataset.interfaceFont = readerSettings.interfaceFont;
+  document.body.dataset.tagMode = readerSettings.tagMode;
+  document.body.dataset.tagColorScheme = readerSettings.tagColorScheme;
+  document.body.dataset.tagGrouping = readerSettings.tagGrouping;
+
+  document.body.classList.toggle("hide-cover", !readerSettings.showCover);
+  document.body.classList.toggle("hide-translator", !readerSettings.showTranslator);
+  document.body.classList.toggle("hide-tags", !readerSettings.showTags);
+  document.body.classList.toggle("hide-chapters", !readerSettings.showChapters);
+  document.body.classList.toggle("hide-age", !readerSettings.showAge);
+
+  sortLibraryCards();
+}
+
+function updateSetting(key, value) {
+  readerSettings[key] = value;
+  saveSettings(readerSettings);
+  applySettings();
+}
+
+function sortLibraryCards() {
+  const list = document.querySelector("[data-library-list]");
+
+  if (!list) {
+    return;
+  }
+
+  const cards = Array.from(list.querySelectorAll("[data-library-card]"));
+
+  cards.sort((a, b) => {
+    if (readerSettings.librarySort === "title") {
+      return (a.dataset.title || "").localeCompare(b.dataset.title || "", "ru");
+    }
+
+    if (readerSettings.librarySort === "chapters") {
+      return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
+    }
+
+    if (readerSettings.librarySort === "translator") {
+      return (a.dataset.translator || "").localeCompare(b.dataset.translator || "", "ru");
+    }
+
+    return Number(a.dataset.sort || 0) - Number(b.dataset.sort || 0);
+  });
+
+  cards.forEach(card => list.appendChild(card));
+}
+
+function createSettingsPanel() {
+  const panel = document.createElement("div");
+
+  panel.innerHTML = `
+    <button class="settings-fab" id="settingsFab" type="button" aria-label="Настройки">
+      ⚙️
+    </button>
+
+    <div class="settings-overlay" id="settingsOverlay" hidden>
+      <div class="settings-modal">
+        <div class="settings-header">
+          <div>
+            <h2>Настройки</h2>
+            <p>Изменения сохраняются автоматически.</p>
+          </div>
+          <button class="settings-close" id="settingsClose" type="button">×</button>
+        </div>
+
+        <div class="settings-tabs">
+          <button class="settings-tab active" data-tab="reader">Читалка</button>
+          <button class="settings-tab" data-tab="library">Библиотека</button>
+          <button class="settings-tab" data-tab="appearance">Внешний вид</button>
+          <button class="settings-tab" data-tab="tags">Теги</button>
+        </div>
+
+        <div class="settings-content">
+          <section class="settings-section active" data-section="reader">
+            ${selectField("readerMode", "Режим чтения", [
+              ["standard", "Стандартный"],
+              ["center", "По центру"],
+              ["wide", "На всю ширину"],
+            ])}
+
+            ${selectField("textAlign", "Выравнивание текста", [
+              ["left", "По левому краю"],
+              ["justify", "По ширине"],
+            ])}
+
+            ${colorField("textColor", "Цвет текста")}
+            ${colorField("readerBg", "Цвет фона читалки")}
+            ${colorField("linkColor", "Цвет ссылок")}
+
+            ${selectField("fontSize", "Размер шрифта", [
+              ["14", "14px"],
+              ["16", "16px"],
+              ["18", "18px"],
+              ["20", "20px"],
+              ["22", "22px"],
+              ["24", "24px"],
+            ])}
+
+            ${selectField("lineHeight", "Межстрочный интервал", [
+              ["1.4", "1.4"],
+              ["1.6", "1.6"],
+              ["1.8", "1.8"],
+              ["2.0", "2.0"],
+            ])}
+
+            ${selectField("paragraphSpacing", "Отступы между абзацами", [
+              ["0", "0px"],
+              ["8", "8px"],
+              ["16", "16px"],
+              ["24", "24px"],
+            ])}
+          </section>
+
+          <section class="settings-section" data-section="library">
+            ${selectField("libraryView", "Вид библиотеки", [
+              ["grid-small", "Плитка 2 / 4 колонки"],
+              ["grid-large", "Плитка 1 / 2 колонки"],
+              ["list", "Список"],
+            ])}
+
+            ${selectField("libraryDensity", "Плотность", [
+              ["compact", "Компактная"],
+              ["standard", "Стандартная"],
+              ["loose", "Свободная"],
+            ])}
+
+            ${checkboxField("showCover", "Показывать обложку")}
+            ${checkboxField("showTranslator", "Показывать автора перевода")}
+            ${checkboxField("showTags", "Показывать теги")}
+            ${checkboxField("showChapters", "Показывать количество глав")}
+            ${checkboxField("showAge", "Показывать 18+")}
+
+            ${selectField("librarySort", "Сортировка", [
+              ["added", "По дате добавления"],
+              ["title", "По названию А-Я"],
+              ["chapters", "По количеству глав"],
+              ["translator", "По автору перевода"],
+            ])}
+          </section>
+
+          <section class="settings-section" data-section="appearance">
+            ${selectField("siteTheme", "Тема сайта", [
+              ["light", "Светлая"],
+              ["dark", "Тёмная"],
+              ["system", "Системная"],
+              ["contrast", "Контрастная"],
+            ])}
+
+            ${selectField("cardRadius", "Скругление карточек", [
+              ["0", "0px"],
+              ["8", "8px"],
+              ["16", "16px"],
+              ["24", "24px"],
+            ])}
+
+            ${selectField("cardShadow", "Тени карточек", [
+              ["none", "Без тени"],
+              ["light", "Лёгкая"],
+              ["medium", "Средняя"],
+              ["deep", "Глубокая"],
+            ])}
+
+            ${selectField("animations", "Анимации", [
+              ["off", "Отключены"],
+            ])}
+
+            ${selectField("interfaceFont", "Шрифт интерфейса", [
+              ["system", "Системный"],
+              ["sans", "Sans-serif"],
+              ["serif", "Serif"],
+              ["mono", "Monospace"],
+            ])}
+          </section>
+
+          <section class="settings-section" data-section="tags">
+            ${selectField("tagMode", "Отображение тегов", [
+              ["list", "Обычный список"],
+              ["cloud", "Облако тегов"],
+            ])}
+
+            ${selectField("tagColorScheme", "Цветовая схема тегов", [
+              ["pastel", "Пастельная"],
+              ["mono", "Монохромная"],
+              ["contrast", "Контрастная"],
+            ])}
+
+            ${selectField("tagGrouping", "Группировка тегов", [
+              ["flat", "Плоский список"],
+              ["grouped", "По категориям"],
+            ])}
+          </section>
+        </div>
+
+        <div class="settings-footer">
+          <button class="settings-reset" id="settingsReset" type="button">
+            Сбросить настройки
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+
+  bindSettingsPanel();
+  fillSettingsControls();
+}
+
+function selectField(key, label, options) {
+  return `
+    <label class="settings-field">
+      <span>${label}</span>
+      <select data-setting="${key}">
+        ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
+      </select>
+    </label>
+  `;
+}
+
+function colorField(key, label) {
+  return `
+    <label class="settings-field">
+      <span>${label}</span>
+      <input type="color" data-setting="${key}" />
+    </label>
+  `;
+}
+
+function checkboxField(key, label) {
+  return `
+    <label class="settings-check">
+      <input type="checkbox" data-setting="${key}" />
+      <span>${label}</span>
+    </label>
+  `;
+}
+
+function fillSettingsControls() {
+  document.querySelectorAll("[data-setting]").forEach(control => {
+    const key = control.dataset.setting;
+
+    if (control.type === "checkbox") {
+      control.checked = Boolean(readerSettings[key]);
+    } else {
+      control.value = readerSettings[key];
+    }
+  });
+}
+
+function bindSettingsPanel() {
+  const overlay = document.getElementById("settingsOverlay");
+  const fab = document.getElementById("settingsFab");
+  const close = document.getElementById("settingsClose");
+  const reset = document.getElementById("settingsReset");
+
+  fab.addEventListener("click", () => {
+    overlay.hidden = false;
+  });
+
+  close.addEventListener("click", () => {
+    overlay.hidden = true;
+  });
+
+  overlay.addEventListener("click", event => {
+    if (event.target === overlay) {
+      overlay.hidden = true;
+    }
+  });
+
+  document.querySelectorAll(".settings-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      const tabName = tab.dataset.tab;
+
+      document.querySelectorAll(".settings-tab").forEach(item => {
+        item.classList.toggle("active", item === tab);
+      });
+
+      document.querySelectorAll(".settings-section").forEach(section => {
+        section.classList.toggle("active", section.dataset.section === tabName);
+      });
+    });
+  });
+
+  document.querySelectorAll("[data-setting]").forEach(control => {
+    control.addEventListener("input", () => {
+      const key = control.dataset.setting;
+      const value = control.type === "checkbox" ? control.checked : control.value;
+      updateSetting(key, value);
+    });
+
+    control.addEventListener("change", () => {
+      const key = control.dataset.setting;
+      const value = control.type === "checkbox" ? control.checked : control.value;
+      updateSetting(key, value);
+    });
+  });
+
+  reset.addEventListener("click", () => {
+    const confirmed = confirm("Сбросить все настройки к стандартным?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    readerSettings = { ...DEFAULT_SETTINGS };
+    saveSettings(readerSettings);
+    fillSettingsControls();
+    applySettings();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  createSettingsPanel();
+  applySettings();
+});
