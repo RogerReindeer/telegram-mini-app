@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>{{ novel.title }} — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
@@ -23,11 +22,20 @@
         {% endif %}
 
         <div class="novel-page-info">
-          <h1>{{ novel.title }}</h1>
+          <div class="novel-page-title-line">
+            <img class="inline-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
+            <div>
+              <h1>{{ novel.title }}</h1>
 
-          {% if novel.title_en %}
-            <p class="novel-title-en">{{ novel.title_en }}</p>
-          {% endif %}
+              {% if novel.title_en %}
+                <p class="novel-title-en">{{ novel.title_en }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="novel-meta translator-meta always-visible">
+            Перевод: Зефиркины баоцзы
+          </div>
 
           {% if novel.tags %}
             <div class="novel-tags">
@@ -57,7 +65,10 @@
         </div>
       </header>
 
-      <h2 class="section-title">Главы</h2>
+      <div class="section-header">
+        <h2 class="section-title">Главы</h2>
+        <img class="section-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
+      </div>
 
       {% if chapters %}
         <div class="chapter-list">
