@@ -228,3 +228,35 @@ h1 {
     width: fit-content;
   }
 }
+.chapter-content {
+  margin-top: 22px;
+  padding: 22px 18px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+  line-height: 1.75;
+  font-size: 18px;
+}
+
+.chapter-content article {
+  max-width: 100%;
+}
+
+.chapter-content p {
+  margin: 0 0 1em;
+}
+
+.chapter-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 14px;
+  display: block;
+  margin: 18px auto;
+}
+
+.chapter-content blockquote {
+  margin: 18px 0;
+  padding-left: 16px;
+  border-left: 4px solid #f28c38;
+  color: #6b5a50;
+}
