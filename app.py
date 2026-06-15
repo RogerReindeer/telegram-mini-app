@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from supabase import create_client, Client
@@ -39,14 +39,12 @@ templates = Jinja2Templates(directory="templates")
 def get_supabase() -> Client:
     if not SUPABASE_URL or not SUPABASE_KEY:
         raise RuntimeError("SUPABASE_URL or SUPABASE_KEY is not set")
-
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def get_admin_supabase() -> Client:
     if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
         raise RuntimeError("SUPABASE_URL or SUPABASE_SERVICE_KEY is not set")
-
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
@@ -72,13 +70,11 @@ def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
 def clean_value(value):
     if value is None:
         return ""
-
     return str(value).strip()
 
 
 def to_int(value):
     value = clean_value(value)
-
     if not value:
         return None
 
@@ -90,7 +86,6 @@ def to_int(value):
 
 def to_float(value):
     value = clean_value(value).replace("%", "").replace(",", ".")
-
     if not value:
         return None
 
@@ -102,13 +97,11 @@ def to_float(value):
 
 def to_bool(value):
     value = clean_value(value).lower()
-
     return value in ("true", "1", "yes", "да", "истина", "✅")
 
 
 def normalize_date(value):
     value = clean_value(value)
-
     if not value:
         return None
 
@@ -240,11 +233,6 @@ def normalize_telegraph_url(url: str) -> str:
 
 
 def clean_telegraph_article(article):
-    """
-    Убирает служебный хвост из Telegraph-глав:
-    ссылки на Boosty/BLlate, благодарности, подписи переводчика.
-    """
-
     stop_phrases = [
         "тгк зефиркины баоцзы",
         "зефиркины баоцзы",
@@ -320,14 +308,8 @@ def fetch_telegraph_article(url: str) -> dict:
 # -----------------------------
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        {
-            "app_title": "Зефиркины баоцзы",
-        },
-    )
+async def home():
+    return RedirectResponse(url="/library", status_code=302)
 
 
 @app.get("/library", response_class=HTMLResponse)
