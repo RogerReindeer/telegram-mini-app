@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from supabase import create_client, Client
@@ -51,7 +51,12 @@ def mask_env_value(value: str | None):
         "length": len(value),
         "prefix": value[:12],
         "has_extra_spaces": value.strip() != value,
-        "has_quotes": value.startswith('"') or value.endswith('"') or value.startswith("'") or value.endswith("'"),
+        "has_quotes": (
+            value.startswith('"')
+            or value.endswith('"')
+            or value.startswith("'")
+            or value.endswith("'")
+        ),
     }
 
 
@@ -62,7 +67,12 @@ def validate_env_value(name: str, value: str | None):
     if value.strip() != value:
         raise RuntimeError(f"{name} has extra spaces at the beginning or end")
 
-    if value.startswith('"') or value.endswith('"') or value.startswith("'") or value.endswith("'"):
+    if (
+        value.startswith('"')
+        or value.endswith('"')
+        or value.startswith("'")
+        or value.endswith("'")
+    ):
         raise RuntimeError(f"{name} must not include quotes")
 
 
@@ -123,11 +133,13 @@ def get_admin_supabase() -> Client:
 def clean_value(value):
     if value is None:
         return ""
+
     return str(value).strip()
 
 
 def to_int(value):
     value = clean_value(value)
+
     if not value:
         return None
 
@@ -139,6 +151,7 @@ def to_int(value):
 
 def to_float(value):
     value = clean_value(value).replace("%", "").replace(",", ".")
+
     if not value:
         return None
 
@@ -150,11 +163,13 @@ def to_float(value):
 
 def to_bool(value):
     value = clean_value(value).lower()
+
     return value in ("true", "1", "yes", "да", "истина", "✅")
 
 
 def normalize_date(value):
     value = clean_value(value)
+
     if not value:
         return None
 
@@ -190,7 +205,9 @@ def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
 
     text = response.content.decode("utf-8-sig")
 
-    if "<html" in text.lower() or "google" in text.lower() and "sign in" in text.lower():
+    text_lower = text.lower()
+
+    if "<html" in text_lower or ("google" in text_lower and "sign in" in text_lower):
         raise RuntimeError(
             f"MiniApp sheet '{sheet_name}' returned an HTML page instead of CSV. "
             f"Most likely the sheet is not public. "
@@ -315,7 +332,7 @@ def normalize_telegraph_url(url: str) -> str:
     if url.startswith("/chapter/"):
         raise HTTPException(
             status_code=400,
-            detail="Old internal /chapter/... link found instead of Telegraph URL"
+            detail="Old internal /chapter/... link found instead of Telegraph URL",
         )
 
     if url.startswith("http://"):
@@ -329,7 +346,7 @@ def normalize_telegraph_url(url: str) -> str:
     if parsed.netloc != "telegra.ph":
         raise HTTPException(
             status_code=400,
-            detail=f"Only telegra.ph links are allowed. Got: {parsed.netloc}"
+            detail=f"Only telegra.ph links are allowed. Got: {parsed.netloc}",
         )
 
     return url
@@ -383,7 +400,7 @@ def fetch_telegraph_article(url: str) -> dict:
     if response.status_code != 200:
         raise HTTPException(
             status_code=502,
-            detail=f"Telegraph returned HTTP {response.status_code}"
+            detail=f"Telegraph returned HTTP {response.status_code}",
         )
 
     soup = BeautifulSoup(response.text, "html.parser")
@@ -418,6 +435,11 @@ def fetch_telegraph_article(url: str) -> dict:
 @app.get("/", response_class=HTMLResponse)
 async def home():
     return RedirectResponse(url="/library", status_code=302)
+
+
+@app.head("/")
+async def home_head():
+    return Response(status_code=200)
 
 
 @app.get("/library", response_class=HTMLResponse)
@@ -573,6 +595,11 @@ async def admin_sync_from_sheets(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.head("/health")
+async def health_head():
+    return Response(status_code=200)
 
 
 @app.get("/debug/env")
