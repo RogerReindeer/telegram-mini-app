@@ -49,23 +49,8 @@ def get_admin_supabase() -> Client:
 
 
 # -----------------------------
-# Google Sheets → Supabase sync
+# Helpers
 # -----------------------------
-
-def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
-    url = (
-        f"https://docs.google.com/spreadsheets/d/{MINIAPP_SHEET_ID}/gviz/tq"
-        f"?tqx=out:csv&sheet={sheet_name}"
-    )
-
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()
-
-    text = response.content.decode("utf-8-sig")
-    reader = csv.DictReader(StringIO(text))
-
-    return list(reader)
-
 
 def clean_value(value):
     if value is None:
@@ -112,6 +97,25 @@ def normalize_date(value):
             pass
 
     return None
+
+
+# -----------------------------
+# Google Sheets → Supabase sync
+# -----------------------------
+
+def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
+    url = (
+        f"https://docs.google.com/spreadsheets/d/{MINIAPP_SHEET_ID}/gviz/tq"
+        f"?tqx=out:csv&sheet={sheet_name}"
+    )
+
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+
+    text = response.content.decode("utf-8-sig")
+    reader = csv.DictReader(StringIO(text))
+
+    return list(reader)
 
 
 def sync_novels_to_db(db: Client) -> int:
