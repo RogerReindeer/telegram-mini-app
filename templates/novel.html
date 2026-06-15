@@ -22,12 +22,38 @@
           <div class="novel-cover large placeholder">📖</div>
         {% endif %}
 
-        <div>
+        <div class="novel-page-info">
           <h1>{{ novel.title }}</h1>
+
+          {% if novel.title_en %}
+            <p class="novel-title-en">{{ novel.title_en }}</p>
+          {% endif %}
+
+          {% if novel.tags %}
+            <div class="novel-tags">
+              {% for tag in novel.tags.split(',') %}
+                <span class="tag">{{ tag.strip() }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
 
           {% if novel.description %}
             <p class="subtitle">{{ novel.description }}</p>
           {% endif %}
+
+          <div class="novel-badges">
+            {% if novel.total_chapters %}
+              <span class="badge">Всего глав: {{ novel.total_chapters }}</span>
+            {% endif %}
+
+            {% if novel.translated_chapters %}
+              <span class="badge">Переведено: {{ novel.translated_chapters }}</span>
+            {% endif %}
+
+            {% if novel.progress_percent %}
+              <span class="badge">Готово: {{ novel.progress_percent }}%</span>
+            {% endif %}
+          </div>
         </div>
       </header>
 
@@ -36,7 +62,7 @@
       {% if chapters %}
         <div class="chapter-list">
           {% for chapter in chapters %}
-            <a class="chapter-row" href="/chapter/{{ novel.id }}/{{ chapter.chapter_no | int }}">
+            <a class="chapter-row" href="/chapter/{{ chapter.id }}">
               <span class="chapter-number">{{ chapter.chapter_no }}</span>
               <span class="chapter-title">{{ chapter.title }}</span>
               <span class="chapter-access">{{ chapter.access_level }}</span>
@@ -50,5 +76,7 @@
       {% endif %}
     </section>
   </main>
+
+  <script src="/static/settings.js"></script>
 </body>
 </html>
