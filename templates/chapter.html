@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
   <title>{{ chapter.title }} — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
@@ -15,11 +14,18 @@
     <article class="reader-layout chapter-layout">
       <a class="back-link" href="/novel/{{ chapter.novels.slug }}">← {{ chapter.novels.title }}</a>
 
-      <h1>{{ chapter.title }}</h1>
+      <header class="chapter-header">
+        <div>
+          <div class="chapter-kicker">Глава {{ chapter.chapter_no }}</div>
+          <h1>{{ chapter.title }}</h1>
 
-      <p class="subtitle">
-        Глава {{ chapter.chapter_no }} · Уровень доступа: {{ chapter.access_level }}
-      </p>
+          <p class="subtitle chapter-subtitle">
+            Уровень доступа: {{ chapter.access_level }}
+          </p>
+        </div>
+
+        <img class="chapter-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
+      </header>
 
       {% if telegraph_content %}
         <section class="chapter-content">
@@ -30,6 +36,10 @@
           Для этой главы пока не указан текст.
         </div>
       {% endif %}
+
+      <div class="chapter-footer-fox-wrap">
+        <img class="chapter-footer-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
+      </div>
     </article>
   </main>
 
