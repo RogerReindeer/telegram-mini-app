@@ -314,84 +314,34 @@ body[data-tag-mode="cloud"] .tag:nth-child(3n) {
   color: #a33a16;
 }
 
-/* Library view settings — only catalog page */
+/* Catalog is always a list */
 
-body.page-library[data-library-view="grid-small"] .novel-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-body.page-library[data-library-view="grid-large"] .novel-list {
-  grid-template-columns: 1fr;
-}
-
-body.page-library[data-library-view="list"] .novel-list {
+.page-library .novel-list {
   display: flex;
   flex-direction: column;
-}
-
-@media (min-width: 760px) {
-  body.page-library[data-library-view="grid-small"] .novel-list {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  body.page-library[data-library-view="grid-large"] .novel-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-body.page-library[data-library-view="grid-small"] .novel-card {
-  flex-direction: column;
-}
-
-body.page-library[data-library-view="grid-small"] .novel-cover {
-  width: 100%;
-  height: auto;
-  aspect-ratio: 2 / 3;
-}
-
-body.page-library[data-library-view="grid-large"] .novel-card,
-body.page-library[data-library-view="list"] .novel-card {
-  flex-direction: row;
-}
-
-body.page-library[data-library-density="compact"] .novel-list {
-  gap: 8px;
-}
-
-body.page-library[data-library-density="compact"] .novel-card {
-  padding: 8px;
-}
-
-body.page-library[data-library-density="standard"] .novel-list {
   gap: 14px;
 }
 
-body.page-library[data-library-density="standard"] .novel-card {
+.page-library .novel-card {
+  flex-direction: row;
   padding: 14px;
 }
 
-body.page-library[data-library-density="loose"] .novel-list {
-  gap: 22px;
+.page-library .novel-cover {
+  width: 92px;
+  height: 130px;
+  aspect-ratio: auto;
 }
 
-body.page-library[data-library-density="loose"] .novel-card {
-  padding: 22px;
-}
+@media (max-width: 520px) {
+  .page-library .novel-card {
+    gap: 12px;
+  }
 
-body.hide-cover .page-library .novel-cover {
-  display: none;
-}
-
-body.hide-tags .novel-tags {
-  display: none;
-}
-
-body.hide-chapters .chapters-meta {
-  display: none;
-}
-
-body.hide-age .age-meta {
-  display: none;
+  .page-library .novel-cover {
+    width: 78px;
+    height: 112px;
+  }
 }
 
 /* Title page */
