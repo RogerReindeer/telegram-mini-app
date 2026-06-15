@@ -1,4 +1,4 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v1";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v2";
 
 const DEFAULT_SETTINGS = {
   readerMode: "standard",
@@ -13,7 +13,6 @@ const DEFAULT_SETTINGS = {
   libraryView: "grid-small",
   libraryDensity: "standard",
   showCover: true,
-  showTranslator: false,
   showTags: true,
   showChapters: true,
   showAge: true,
@@ -28,6 +27,7 @@ const DEFAULT_SETTINGS = {
   cardShadow: "light",
   animations: "off",
   interfaceFont: "system",
+  showFoxes: true,
 };
 
 function loadSettings() {
@@ -74,10 +74,10 @@ function applySettings() {
   document.body.dataset.tagGrouping = readerSettings.tagGrouping;
 
   document.body.classList.toggle("hide-cover", !readerSettings.showCover);
-  document.body.classList.toggle("hide-translator", !readerSettings.showTranslator);
   document.body.classList.toggle("hide-tags", !readerSettings.showTags);
   document.body.classList.toggle("hide-chapters", !readerSettings.showChapters);
   document.body.classList.toggle("hide-age", !readerSettings.showAge);
+  document.body.classList.toggle("hide-foxes", !readerSettings.showFoxes);
 
   sortLibraryCards();
 }
@@ -90,10 +90,7 @@ function updateSetting(key, value) {
 
 function sortLibraryCards() {
   const list = document.querySelector("[data-library-list]");
-
-  if (!list) {
-    return;
-  }
+  if (!list) return;
 
   const cards = Array.from(list.querySelectorAll("[data-library-card]"));
 
@@ -129,9 +126,9 @@ function createSettingsPanel() {
         <div class="settings-header">
           <div>
             <h2>Настройки</h2>
-            <p>Изменения сохраняются автоматически.</p>
+            <p>Все изменения сохраняются автоматически.</p>
           </div>
-          <button class="settings-close" id="settingsClose" type="button">×</button>
+          <button class="settings-close" id="settingsClose" type="button" aria-label="Закрыть">×</button>
         </div>
 
         <div class="settings-tabs">
@@ -139,6 +136,7 @@ function createSettingsPanel() {
           <button class="settings-tab" data-tab="library">Библиотека</button>
           <button class="settings-tab" data-tab="appearance">Внешний вид</button>
           <button class="settings-tab" data-tab="tags">Теги</button>
+          <button class="settings-tab" data-tab="about">О проекте</button>
         </div>
 
         <div class="settings-content">
@@ -154,9 +152,25 @@ function createSettingsPanel() {
               ["justify", "По ширине"],
             ])}
 
-            ${colorField("textColor", "Цвет текста")}
-            ${colorField("readerBg", "Цвет фона читалки")}
-            ${colorField("linkColor", "Цвет ссылок")}
+            ${presetAndColorField("textColor", "Цвет текста", [
+              ["#111111", "Чёрный"],
+              ["#333333", "Тёмно-серый"],
+              ["#666666", "Серый"],
+            ])}
+
+            ${presetAndColorField("readerBg", "Цвет фона читалки", [
+              ["#ffffff", "Белый"],
+              ["#fffaf3", "Кремовый"],
+              ["#f4ecd8", "Сепия"],
+              ["#222222", "Тёмно-серый"],
+              ["#000000", "Чёрный"],
+            ])}
+
+            ${presetAndColorField("linkColor", "Цвет ссылок", [
+              ["#2563eb", "Синий"],
+              ["#15803d", "Зелёный"],
+              ["#f28c38", "Оранжевый"],
+            ])}
 
             ${selectField("fontSize", "Размер шрифта", [
               ["14", "14px"],
@@ -196,7 +210,6 @@ function createSettingsPanel() {
             ])}
 
             ${checkboxField("showCover", "Показывать обложку")}
-            ${checkboxField("showTranslator", "Показывать автора перевода")}
             ${checkboxField("showTags", "Показывать теги")}
             ${checkboxField("showChapters", "Показывать количество глав")}
             ${checkboxField("showAge", "Показывать 18+")}
@@ -241,6 +254,8 @@ function createSettingsPanel() {
               ["serif", "Serif"],
               ["mono", "Monospace"],
             ])}
+
+            ${checkboxField("showFoxes", "Показывать лисичек")}
           </section>
 
           <section class="settings-section" data-section="tags">
@@ -259,6 +274,22 @@ function createSettingsPanel() {
               ["flat", "Плоский список"],
               ["grouped", "По категориям"],
             ])}
+          </section>
+
+          <section class="settings-section" data-section="about">
+            <div class="about-box">
+              <img class="about-fox" src="/static/fox_hearts.png" alt="Лисичка" data-fox>
+              <h3>Зефиркины баоцзы</h3>
+              <p>
+                Мини-читалка переводов с настройками чтения, библиотекой и уютными лисичками.
+              </p>
+
+              <div class="about-links">
+                <a href="https://t.me/" target="_blank" rel="noopener noreferrer">Telegram</a>
+                <a href="https://boosty.to/" target="_blank" rel="noopener noreferrer">Boosty</a>
+                <a href="https://www.bllate.pro/" target="_blank" rel="noopener noreferrer">BLlate</a>
+              </div>
+            </div>
           </section>
         </div>
 
@@ -288,11 +319,15 @@ function selectField(key, label, options) {
   `;
 }
 
-function colorField(key, label) {
+function presetAndColorField(key, label, options) {
   return `
     <label class="settings-field">
       <span>${label}</span>
-      <input type="color" data-setting="${key}" />
+      <select data-setting="${key}" data-color-select="${key}">
+        ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
+        <option value="custom">Пользовательский</option>
+      </select>
+      <input type="color" data-setting="${key}" data-color-picker="${key}" />
     </label>
   `;
 }
@@ -312,9 +347,23 @@ function fillSettingsControls() {
 
     if (control.type === "checkbox") {
       control.checked = Boolean(readerSettings[key]);
-    } else {
-      control.value = readerSettings[key];
+      return;
     }
+
+    if (control.dataset.colorPicker) {
+      control.value = readerSettings[key];
+      return;
+    }
+
+    if (control.dataset.colorSelect) {
+      const hasOption = Array.from(control.options).some(
+        option => option.value === readerSettings[key]
+      );
+      control.value = hasOption ? readerSettings[key] : "custom";
+      return;
+    }
+
+    control.value = readerSettings[key];
   });
 }
 
@@ -338,6 +387,12 @@ function bindSettingsPanel() {
     }
   });
 
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      overlay.hidden = true;
+    }
+  });
+
   document.querySelectorAll(".settings-tab").forEach(tab => {
     tab.addEventListener("click", () => {
       const tabName = tab.dataset.tab;
@@ -353,31 +408,49 @@ function bindSettingsPanel() {
   });
 
   document.querySelectorAll("[data-setting]").forEach(control => {
-    control.addEventListener("input", () => {
-      const key = control.dataset.setting;
-      const value = control.type === "checkbox" ? control.checked : control.value;
-      updateSetting(key, value);
-    });
-
-    control.addEventListener("change", () => {
-      const key = control.dataset.setting;
-      const value = control.type === "checkbox" ? control.checked : control.value;
-      updateSetting(key, value);
-    });
+    control.addEventListener("input", () => handleSettingControl(control));
+    control.addEventListener("change", () => handleSettingControl(control));
   });
 
   reset.addEventListener("click", () => {
     const confirmed = confirm("Сбросить все настройки к стандартным?");
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     readerSettings = { ...DEFAULT_SETTINGS };
     saveSettings(readerSettings);
     fillSettingsControls();
     applySettings();
   });
+}
+
+function handleSettingControl(control) {
+  const key = control.dataset.setting;
+
+  if (control.type === "checkbox") {
+    updateSetting(key, control.checked);
+    return;
+  }
+
+  if (control.dataset.colorSelect) {
+    if (control.value === "custom") {
+      const picker = document.querySelector(`[data-color-picker="${key}"]`);
+      updateSetting(key, picker.value);
+    } else {
+      updateSetting(key, control.value);
+      const picker = document.querySelector(`[data-color-picker="${key}"]`);
+      if (picker) picker.value = control.value;
+    }
+    return;
+  }
+
+  if (control.dataset.colorPicker) {
+    updateSetting(key, control.value);
+    fillSettingsControls();
+    return;
+  }
+
+  updateSetting(key, control.value);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
