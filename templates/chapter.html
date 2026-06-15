@@ -33,6 +33,12 @@
         <section class="chapter-content">
           {{ telegraph_content.content_html | safe }}
         </section>
+      {% elif telegraph_error %}
+        <div class="empty">
+          <strong>Не удалось загрузить текст главы.</strong>
+          <br>
+          {{ telegraph_error }}
+        </div>
       {% else %}
         <div class="empty">
           Для этой главы пока не указан текст.
