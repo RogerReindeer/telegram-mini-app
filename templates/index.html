@@ -7,13 +7,12 @@
   <title>{{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
-
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
 <body>
   <main class="page">
-    <section class="card">
+    <section class="card start-card">
       <div class="fox">🦊</div>
 
       <h1>{{ app_title }}</h1>
@@ -30,35 +29,35 @@
     </section>
   </main>
 
-<script>
-  const tg = window.Telegram?.WebApp;
+  <script>
+    const tg = window.Telegram?.WebApp;
 
-  if (tg) {
-    tg.ready();
-    tg.expand();
+    if (tg) {
+      tg.ready();
+      tg.expand();
 
-    document.body.style.background = tg.themeParams.bg_color || "#f7efe7";
+      const user = tg.initDataUnsafe?.user;
 
-    const user = tg.initDataUnsafe?.user;
+      document.getElementById("debug").textContent = user
+        ? `Telegram user: ${user.first_name || ""} @${user.username || ""}\nID: ${user.id}`
+        : "Открыто не из Telegram или пользователь не передан.";
 
-    document.getElementById("debug").textContent = user
-      ? `Telegram user: ${user.first_name || ""} @${user.username || ""}\nID: ${user.id}`
-      : "Открыто не из Telegram или пользователь не передан.";
+      tg.MainButton.setText("Открыть библиотеку");
+      tg.MainButton.show();
 
-    tg.MainButton.setText("Открыть библиотеку");
-    tg.MainButton.show();
+      tg.MainButton.onClick(() => {
+        window.location.href = "/library";
+      });
+    } else {
+      document.getElementById("debug").textContent =
+        "Это веб-версия. В Telegram Mini App данные пользователя появятся автоматически.";
+    }
 
-    tg.MainButton.onClick(() => {
+    document.getElementById("mainButton").addEventListener("click", () => {
       window.location.href = "/library";
     });
-  } else {
-    document.getElementById("debug").textContent =
-      "Это веб-версия. В Telegram Mini App данные пользователя появятся автоматически.";
-  }
+  </script>
 
-  document.getElementById("mainButton").addEventListener("click", () => {
-    window.location.href = "/library";
-  });
-</script>
+  <script src="/static/settings.js"></script>
 </body>
 </html>
