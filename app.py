@@ -8,7 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from supabase import create_client, Client
@@ -33,18 +33,86 @@ templates = Jinja2Templates(directory="templates")
 
 
 # -----------------------------
+# Debug helpers
+# -----------------------------
+
+def mask_env_value(value: str | None):
+    if value is None:
+        return {
+            "exists": False,
+            "length": 0,
+            "prefix": None,
+            "has_extra_spaces": False,
+            "has_quotes": False,
+        }
+
+    return {
+        "exists": True,
+        "length": len(value),
+        "prefix": value[:12],
+        "has_extra_spaces": value.strip() != value,
+        "has_quotes": value.startswith('"') or value.endswith('"') or value.startswith("'") or value.endswith("'"),
+    }
+
+
+def validate_env_value(name: str, value: str | None):
+    if not value:
+        raise RuntimeError(f"{name} is not set")
+
+    if value.strip() != value:
+        raise RuntimeError(f"{name} has extra spaces at the beginning or end")
+
+    if value.startswith('"') or value.endswith('"') or value.startswith("'") or value.endswith("'"):
+        raise RuntimeError(f"{name} must not include quotes")
+
+
+def validate_required_env_for_read():
+    validate_env_value("SUPABASE_URL", SUPABASE_URL)
+    validate_env_value("SUPABASE_KEY", SUPABASE_KEY)
+
+
+def validate_required_env_for_admin_sync():
+    validate_env_value("SUPABASE_URL", SUPABASE_URL)
+    validate_env_value("SUPABASE_SERVICE_KEY", SUPABASE_SERVICE_KEY)
+    validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
+    validate_env_value("SYNC_TOKEN", SYNC_TOKEN)
+
+    if "supabase.co" not in SUPABASE_URL:
+        raise RuntimeError("SUPABASE_URL does not look like a Supabase project URL")
+
+    if not (
+        SUPABASE_SERVICE_KEY.startswith("sb_secret_")
+        or SUPABASE_SERVICE_KEY.startswith("eyJ")
+        or SUPABASE_SERVICE_KEY.startswith("sb_service_role_")
+    ):
+        raise RuntimeError(
+            "SUPABASE_SERVICE_KEY does not look like a service_role / secret key. "
+            "Check Supabase → Project Settings → API Keys."
+        )
+
+
+def make_error_response(error: Exception, status_code: int = 500):
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": "error",
+            "type": error.__class__.__name__,
+            "message": str(error),
+        },
+    )
+
+
+# -----------------------------
 # Supabase
 # -----------------------------
 
 def get_supabase() -> Client:
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise RuntimeError("SUPABASE_URL or SUPABASE_KEY is not set")
+    validate_required_env_for_read()
     return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def get_admin_supabase() -> Client:
-    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        raise RuntimeError("SUPABASE_URL or SUPABASE_SERVICE_KEY is not set")
+    validate_required_env_for_admin_sync()
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
@@ -104,18 +172,40 @@ def normalize_date(value):
 # -----------------------------
 
 def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
+    validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
+
     url = (
         f"https://docs.google.com/spreadsheets/d/{MINIAPP_SHEET_ID}/gviz/tq"
         f"?tqx=out:csv&sheet={sheet_name}"
     )
 
     response = requests.get(url, timeout=30)
-    response.raise_for_status()
+
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"Cannot fetch MiniApp sheet '{sheet_name}'. "
+            f"HTTP {response.status_code}. "
+            f"Check that the MiniApp Google Sheet is available for anyone with the link as Viewer."
+        )
 
     text = response.content.decode("utf-8-sig")
-    reader = csv.DictReader(StringIO(text))
 
-    return list(reader)
+    if "<html" in text.lower() or "google" in text.lower() and "sign in" in text.lower():
+        raise RuntimeError(
+            f"MiniApp sheet '{sheet_name}' returned an HTML page instead of CSV. "
+            f"Most likely the sheet is not public. "
+            f"Set Share → Anyone with the link → Viewer."
+        )
+
+    reader = csv.DictReader(StringIO(text))
+    rows = list(reader)
+
+    if not reader.fieldnames:
+        raise RuntimeError(
+            f"MiniApp sheet '{sheet_name}' has no headers or could not be parsed as CSV."
+        )
+
+    return rows
 
 
 def sync_novels_to_db(db: Client) -> int:
@@ -222,6 +312,12 @@ def normalize_telegraph_url(url: str) -> str:
     if not url:
         raise HTTPException(status_code=404, detail="Telegraph URL is empty")
 
+    if url.startswith("/chapter/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Old internal /chapter/... link found instead of Telegraph URL"
+        )
+
     if url.startswith("http://"):
         url = "https://" + url.removeprefix("http://")
 
@@ -231,7 +327,10 @@ def normalize_telegraph_url(url: str) -> str:
     parsed = urlparse(url)
 
     if parsed.netloc != "telegra.ph":
-        raise HTTPException(status_code=400, detail="Only telegra.ph links are allowed")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only telegra.ph links are allowed. Got: {parsed.netloc}"
+        )
 
     return url
 
@@ -280,7 +379,12 @@ def fetch_telegraph_article(url: str) -> dict:
             "User-Agent": "Mozilla/5.0 ZefirkiReader/1.0",
         },
     )
-    response.raise_for_status()
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Telegraph returned HTTP {response.status_code}"
+        )
 
     soup = BeautifulSoup(response.text, "html.parser")
     article = soup.find("article")
@@ -318,126 +422,189 @@ async def home():
 
 @app.get("/library", response_class=HTMLResponse)
 async def library(request: Request):
-    db = get_supabase()
+    try:
+        db = get_supabase()
 
-    result = (
-        db.table("novels")
-        .select("*")
-        .eq("is_visible", True)
-        .order("sort_order")
-        .execute()
-    )
+        result = (
+            db.table("novels")
+            .select("*")
+            .eq("is_visible", True)
+            .order("sort_order")
+            .execute()
+        )
 
-    novels = result.data or []
+        novels = result.data or []
 
-    return templates.TemplateResponse(
-        request,
-        "library.html",
-        {
-            "app_title": "Зефиркины баоцзы",
-            "novels": novels,
-        },
-    )
+        return templates.TemplateResponse(
+            request,
+            "library.html",
+            {
+                "app_title": "Зефиркины баоцзы",
+                "novels": novels,
+            },
+        )
+
+    except Exception as error:
+        return make_error_response(error)
 
 
 @app.get("/novel/{slug}", response_class=HTMLResponse)
 async def novel_page(request: Request, slug: str):
-    db = get_supabase()
+    try:
+        db = get_supabase()
 
-    novel_result = (
-        db.table("novels")
-        .select("*")
-        .eq("slug", slug)
-        .eq("is_visible", True)
-        .limit(1)
-        .execute()
-    )
+        novel_result = (
+            db.table("novels")
+            .select("*")
+            .eq("slug", slug)
+            .eq("is_visible", True)
+            .limit(1)
+            .execute()
+        )
 
-    novels = novel_result.data or []
+        novels = novel_result.data or []
 
-    if not novels:
-        raise HTTPException(status_code=404, detail="Novel not found")
+        if not novels:
+            raise HTTPException(status_code=404, detail="Novel not found")
 
-    novel = novels[0]
+        novel = novels[0]
 
-    chapters_result = (
-        db.table("chapters")
-        .select("*")
-        .eq("novel_id", novel["id"])
-        .eq("is_visible", True)
-        .order("sort_order")
-        .execute()
-    )
+        chapters_result = (
+            db.table("chapters")
+            .select("*")
+            .eq("novel_id", novel["id"])
+            .eq("is_visible", True)
+            .order("sort_order")
+            .execute()
+        )
 
-    chapters = chapters_result.data or []
+        chapters = chapters_result.data or []
 
-    return templates.TemplateResponse(
-        request,
-        "novel.html",
-        {
-            "app_title": "Зефиркины баоцзы",
-            "novel": novel,
-            "chapters": chapters,
-        },
-    )
+        return templates.TemplateResponse(
+            request,
+            "novel.html",
+            {
+                "app_title": "Зефиркины баоцзы",
+                "novel": novel,
+                "chapters": chapters,
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        return make_error_response(error)
 
 
 @app.get("/chapter/{chapter_id}", response_class=HTMLResponse)
 async def chapter_page(request: Request, chapter_id: int):
-    db = get_supabase()
+    try:
+        db = get_supabase()
 
-    chapter_result = (
-        db.table("chapters")
-        .select("*, novels(title, slug)")
-        .eq("id", chapter_id)
-        .eq("is_visible", True)
-        .limit(1)
-        .execute()
-    )
+        chapter_result = (
+            db.table("chapters")
+            .select("*, novels(title, slug)")
+            .eq("id", chapter_id)
+            .eq("is_visible", True)
+            .limit(1)
+            .execute()
+        )
 
-    chapters = chapter_result.data or []
+        chapters = chapter_result.data or []
 
-    if not chapters:
-        raise HTTPException(status_code=404, detail="Chapter not found")
+        if not chapters:
+            raise HTTPException(status_code=404, detail="Chapter not found")
 
-    chapter = chapters[0]
+        chapter = chapters[0]
 
-    telegraph_url = (
-        chapter.get("telegraph_url")
-        or chapter.get("free_url")
-        or chapter.get("premium_url")
-        or ""
-    )
+        telegraph_url = (
+            chapter.get("telegraph_url")
+            or chapter.get("free_url")
+            or chapter.get("premium_url")
+            or ""
+        )
 
-    telegraph_content = None
+        telegraph_content = None
+        telegraph_error = None
 
-    if telegraph_url:
-        telegraph_content = fetch_telegraph_article(telegraph_url)
+        if telegraph_url:
+            try:
+                telegraph_content = fetch_telegraph_article(telegraph_url)
+            except HTTPException as error:
+                telegraph_error = error.detail
+            except Exception as error:
+                telegraph_error = str(error)
 
-    return templates.TemplateResponse(
-        request,
-        "chapter.html",
-        {
-            "app_title": "Зефиркины баоцзы",
-            "chapter": chapter,
-            "telegraph_content": telegraph_content,
-        },
-    )
+        return templates.TemplateResponse(
+            request,
+            "chapter.html",
+            {
+                "app_title": "Зефиркины баоцзы",
+                "chapter": chapter,
+                "telegraph_content": telegraph_content,
+                "telegraph_error": telegraph_error,
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        return make_error_response(error)
 
 
 @app.post("/admin/sync-from-sheets")
 async def admin_sync_from_sheets(request: Request):
-    if not SYNC_TOKEN:
-        raise HTTPException(status_code=500, detail="SYNC_TOKEN is not set")
+    try:
+        validate_env_value("SYNC_TOKEN", SYNC_TOKEN)
 
-    token = request.headers.get("X-Sync-Token")
+        token = request.headers.get("X-Sync-Token")
 
-    if token != SYNC_TOKEN:
-        raise HTTPException(status_code=403, detail="Invalid sync token")
+        if token != SYNC_TOKEN:
+            raise HTTPException(status_code=403, detail="Invalid sync token")
 
-    return sync_miniapp_sheets_to_db()
+        return sync_miniapp_sheets_to_db()
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        return make_error_response(error)
 
 
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/debug/env")
+async def debug_env():
+    return {
+        "SUPABASE_URL": mask_env_value(SUPABASE_URL),
+        "SUPABASE_KEY": mask_env_value(SUPABASE_KEY),
+        "SUPABASE_SERVICE_KEY": mask_env_value(SUPABASE_SERVICE_KEY),
+        "MINIAPP_SHEET_ID": mask_env_value(MINIAPP_SHEET_ID),
+        "SYNC_TOKEN": mask_env_value(SYNC_TOKEN),
+    }
+
+
+@app.get("/debug/supabase")
+async def debug_supabase():
+    try:
+        validate_required_env_for_admin_sync()
+
+        db = get_admin_supabase()
+
+        result = (
+            db.table("novels")
+            .select("id,title")
+            .limit(1)
+            .execute()
+        )
+
+        return {
+            "status": "ok",
+            "message": "Supabase admin connection works",
+            "sample": result.data,
+        }
+
+    except Exception as error:
+        return make_error_response(error)
