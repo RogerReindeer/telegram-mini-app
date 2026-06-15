@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>{{ chapter.title }} — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body>
+<body class="page-chapter">
   <main class="page page-top">
     <article class="reader-layout chapter-layout">
       <a class="back-link" href="/novel/{{ chapter.novels.slug }}">← {{ chapter.novels.title }}</a>
@@ -17,6 +18,7 @@
       <header class="chapter-header">
         <div>
           <div class="chapter-kicker">Глава {{ chapter.chapter_no }}</div>
+
           <h1>{{ chapter.title }}</h1>
 
           <p class="subtitle chapter-subtitle">
