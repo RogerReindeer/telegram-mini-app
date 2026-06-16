@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>Каталог — {{ app_title }}</title>
+  <title>Библиотека — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -16,23 +16,36 @@
       <header class="catalog-header">
         <div>
           <div class="brand-kicker">Зефиркины баоцзы</div>
-          <h1>Каталог</h1>
+          <h1>Библиотека</h1>
           <p class="subtitle">Выберите новеллу для чтения.</p>
         </div>
 
-        <img class="catalog-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
+        <img class="catalog-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
       </header>
+
+      <section class="reading-history" id="readingHistory">
+        <div class="reading-history-empty">
+          Здесь появится история чтения, когда вы откроете первую главу.
+        </div>
+      </section>
 
       {% if novels %}
         <div class="novel-list">
           {% for novel in novels %}
-            <a class="novel-card" href="/novel/{{ novel.slug }}">
+            <a
+              class="novel-card"
+              href="/novel/{{ novel.slug }}"
+              data-library-novel-card
+              data-novel-id="{{ novel.id }}"
+              data-novel-title="{{ novel.title }}"
+              data-post-icons="{{ novel.post_icons or '' }}"
+            >
               <div class="novel-cover-wrap">
                 {% if novel.cover_url %}
                   <img
                     class="novel-cover"
                     src="{{ novel.cover_url }}"
-                    alt="{{ novel.title }}"
+                    alt="{{ novel.display_title }}"
                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                   >
                   <div class="novel-cover placeholder" style="display:none;">📖</div>
@@ -46,7 +59,7 @@
               </div>
 
               <div class="novel-info">
-                <h2>{{ novel.title }}</h2>
+                <h2>{{ novel.display_title }}</h2>
 
                 {% if novel.description %}
                   <p class="novel-description catalog-description">{{ novel.description }}</p>
@@ -76,6 +89,7 @@
                               <span class="tag">{{ tag }}</span>
                             {% endif %}
                           {% endif %}
+
                           {% set ns.count = ns.count + 1 %}
                         {% else %}
                           {% set ns.hidden = ns.hidden + 1 %}
@@ -104,13 +118,16 @@
         </div>
       {% else %}
         <div class="empty">
-          <img class="empty-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
-          <div>В каталоге пока нет активных новелл.</div>
+          <img class="empty-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+          <div>В библиотеке пока нет активных новелл.</div>
         </div>
       {% endif %}
     </section>
   </main>
 
+  <script>
+    window.ZEFIRKI_FOX = {{ fox | tojson }};
+  </script>
   <script src="/static/settings.js"></script>
 </body>
 </html>
