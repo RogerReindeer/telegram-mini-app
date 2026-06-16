@@ -155,7 +155,7 @@ def to_float(value):
 
 def to_bool(value):
     value = clean_value(value).lower()
-    return value in ("true", "1", "yes", "да", "истина", "✅")
+    return value in ("true", "1", "yes", "да", "истина", "✅", "☑", "checked")
 
 
 def normalize_date(value):
@@ -189,36 +189,64 @@ def format_date_ru(value):
     return value
 
 
-def display_novel_title(novel: dict):
-    post_icons = clean_value(novel.get("post_icons"))
-    title = clean_value(novel.get("title"))
+def clean_chapter_title(value):
+    return (
+        clean_value(value)
+        .replace("--", "")
+        .replace("— —", "")
+        .strip()
+    )
 
-    if post_icons:
-        return f"{post_icons} {title}"
+
+def relation_icon_from_tags(tags: str):
+    tags_lower = [tag.replace("!", "").strip().lower() for tag in tags.split(";") if tag.strip()]
+
+    if "гет" in tags_lower:
+        return "❤️"
+
+    if "слэш" in tags_lower or "bl" in tags_lower or "бл" in tags_lower or "данмэй" in tags_lower:
+        return "💙"
+
+    if "джен" in tags_lower:
+        return "💚"
+
+    return ""
+
+
+def relation_type_from_tags(tags: str):
+    tags_lower = [tag.replace("!", "").strip().lower() for tag in tags.split(";") if tag.strip()]
+
+    if "гет" in tags_lower:
+        return "Гет"
+
+    if "слэш" in tags_lower or "bl" in tags_lower or "бл" in tags_lower or "данмэй" in tags_lower:
+        return "Слэш"
+
+    if "джен" in tags_lower:
+        return "Джен"
+
+    return ""
+
+
+def display_novel_title(novel: dict):
+    title = clean_value(novel.get("title"))
+    post_icons = clean_value(novel.get("post_icons"))
+    relation_icon = clean_value(novel.get("relation_icon"))
+
+    if not relation_icon:
+        relation_icon = relation_icon_from_tags(clean_value(novel.get("tags")))
+
+    prefix = post_icons or relation_icon
+
+    if prefix:
+        return f"{prefix} {title}"
 
     return title
 
 
-def make_unique_chapter_code(base_code: str, row_number: int, used_codes: set[str]) -> str:
-    base_code = clean_value(base_code)
-
-    if not base_code:
-        base_code = f"row-{row_number}"
-
-    code = base_code
-
-    if code not in used_codes:
-        used_codes.add(code)
-        return code
-
-    code = f"{base_code}-part-{row_number}"
-
-    while code in used_codes:
-        row_number += 1
-        code = f"{base_code}-part-{row_number}"
-
-    used_codes.add(code)
-    return code
+def get_sort_number(value, default=0):
+    number = to_float(value)
+    return number if number is not None else default
 
 
 def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
@@ -321,6 +349,10 @@ def sync_novels_to_db(db: Client) -> int:
         if novel_id in payload_by_id:
             duplicate_ids.append(novel_id)
 
+        tags = clean_value(row.get("Tags"))
+        relation_icon = clean_value(row.get("RelationIcon")) or relation_icon_from_tags(tags)
+        relation_type = clean_value(row.get("RelationType")) or relation_type_from_tags(tags)
+
         is_visible = to_bool(row.get("IsVisible"))
 
         payload_by_id[novel_id] = {
@@ -332,7 +364,7 @@ def sync_novels_to_db(db: Client) -> int:
             "post_icons": clean_value(row.get("PostIcons")),
             "cover_url": clean_value(row.get("CoverURL")),
             "description": clean_value(row.get("Description")),
-            "tags": clean_value(row.get("Tags")),
+            "tags": tags,
             "top_description": clean_value(row.get("TopDescription")),
             "bottom_description": clean_value(row.get("BottomDescription")),
             "original_language": clean_value(row.get("OriginalLanguage")),
@@ -347,6 +379,18 @@ def sync_novels_to_db(db: Client) -> int:
             "is_active": is_visible,
             "age_rating": clean_value(row.get("AgeRating")),
             "has_adult_badge": to_bool(row.get("HasAdultBadge")),
+
+            "translation_status": clean_value(row.get("TranslationStatus")),
+            "translation_status_label": clean_value(row.get("TranslationStatusLabel")),
+            "translation_status_color": clean_value(row.get("TranslationStatusColor")),
+
+            "relation_type": relation_type,
+            "relation_icon": relation_icon,
+            "relation_color": clean_value(row.get("RelationColor")),
+
+            "tags_short": clean_value(row.get("TagsShort")),
+            "tags_tooltip": clean_value(row.get("TagsTooltip")),
+            "added_date": normalize_date(row.get("AddedDate")),
         }
 
     payload = list(payload_by_id.values())
@@ -396,7 +440,7 @@ def sync_chapters_to_db(db: Client) -> dict:
             continue
 
         if not base_chapter_code:
-            base_chapter_code = f"{novel_id}-{chapter_no:g}"
+            base_chapter_code = f"{novel_id}-{chapter_no:g}-{row_number}"
 
         if base_chapter_code in used_codes:
             duplicate_base_codes.append(base_chapter_code)
@@ -418,7 +462,7 @@ def sync_chapters_to_db(db: Client) -> dict:
             "chapter_code": chapter_code,
             "novel_id": novel_id,
             "chapter_no": chapter_no,
-            "title": clean_value(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
+            "title": clean_chapter_title(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
             "slug": clean_value(row.get("Slug")) or f"chapter-{row_number}",
             "volume": clean_value(row.get("Volume")),
             "release_date": normalize_date(row.get("ReleaseDate")),
@@ -454,6 +498,28 @@ def sync_chapters_to_db(db: Client) -> dict:
         "duplicate_base_codes": sorted(set(duplicate_base_codes)),
         "skipped_examples": skipped_rows[:10],
     }
+
+
+def make_unique_chapter_code(base_code: str, row_number: int, used_codes: set[str]) -> str:
+    base_code = clean_value(base_code)
+
+    if not base_code:
+        base_code = f"row-{row_number}"
+
+    code = base_code
+
+    if code not in used_codes:
+        used_codes.add(code)
+        return code
+
+    code = f"{base_code}-row-{row_number}"
+
+    while code in used_codes:
+        row_number += 1
+        code = f"{base_code}-row-{row_number}"
+
+    used_codes.add(code)
+    return code
 
 
 def sync_miniapp_sheets_to_db() -> dict:
@@ -516,6 +582,7 @@ def group_chapters_by_volume(chapters: list[dict]) -> list[dict]:
             group_map[volume_title] = group
             groups.append(group)
 
+        chapter["title"] = clean_chapter_title(chapter.get("title"))
         group_map[volume_title]["chapters"].append(chapter)
 
     if len(groups) == 1 and groups[0]["title"] == "":
@@ -559,6 +626,12 @@ def get_neighbor_chapters(db: Client, chapter: dict):
 
     previous_chapter = (previous_result.data or [None])[0]
     next_chapter = (next_result.data or [None])[0]
+
+    if previous_chapter:
+        previous_chapter["title"] = clean_chapter_title(previous_chapter.get("title"))
+
+    if next_chapter:
+        next_chapter["title"] = clean_chapter_title(next_chapter.get("title"))
 
     return previous_chapter, next_chapter
 
@@ -701,6 +774,11 @@ async def library(request: Request):
 
         for novel in novels:
             novel["display_title"] = display_novel_title(novel)
+            novel["relation_icon"] = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(clean_value(novel.get("tags")))
+            novel["relation_type"] = clean_value(novel.get("relation_type")) or relation_type_from_tags(clean_value(novel.get("tags")))
+            novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or clean_value(novel.get("tags"))
+            novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or "В процессе"
+            novel["translation_status"] = clean_value(novel.get("translation_status")) or "in_progress"
 
         return templates.TemplateResponse(
             request,
@@ -738,6 +816,11 @@ async def novel_page(request: Request, slug: str):
 
         novel = novels[0]
         novel["display_title"] = display_novel_title(novel)
+        novel["relation_icon"] = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(clean_value(novel.get("tags")))
+        novel["relation_type"] = clean_value(novel.get("relation_type")) or relation_type_from_tags(clean_value(novel.get("tags")))
+        novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or clean_value(novel.get("tags"))
+        novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or "В процессе"
+        novel["translation_status"] = clean_value(novel.get("translation_status")) or "in_progress"
 
         chapters_result = (
             db.table("chapters")
@@ -782,7 +865,7 @@ async def chapter_page(request: Request, chapter_id: int):
 
         chapter_result = (
             db.table("chapters")
-            .select("*, novels(id, title, slug, post_icons)")
+            .select("*, novels(id, title, slug, post_icons, relation_icon)")
             .eq("id", chapter_id)
             .eq("is_visible", True)
             .limit(1)
@@ -795,6 +878,8 @@ async def chapter_page(request: Request, chapter_id: int):
             raise HTTPException(status_code=404, detail="Chapter not found")
 
         chapter = chapters[0]
+        chapter["title"] = clean_chapter_title(chapter.get("title"))
+
         novel = chapter.get("novels") or {}
         novel["display_title"] = display_novel_title(novel)
 
