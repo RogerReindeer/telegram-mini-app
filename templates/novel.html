@@ -76,6 +76,8 @@
                 {{ novel.translation_status_label or 'В процессе' }}
               </span>
 
+              <span class="meta-pill">✍️ {{ novel.translation_author or 'Зефиркины баоцзы' }}</span>
+
               {% if novel.total_chapters %}
                 <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
               {% endif %}
@@ -107,7 +109,7 @@
                         <span class="tag tag-rating">{{ tag }}</span>
                       {% elif tag_lower in ['гет'] %}
                         <span class="tag tag-get">{{ tag }}</span>
-                      {% elif tag_lower in ['слэш', 'bl', 'бл', 'данмэй'] %}
+                      {% elif tag_lower in ['слэш', 'bl', 'бл', 'данмэй', 'danmei'] %}
                         <span class="tag tag-slash">{{ tag }}</span>
                       {% elif tag_lower in ['джен'] %}
                         <span class="tag tag-gen">{{ tag }}</span>
