@@ -1,5 +1,6 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v6";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v8";
 const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
+const READING_PROGRESS_KEY = "zefirki_reading_progress_v2";
 
 const DEFAULT_SETTINGS = {
   readerWidth: "full",
@@ -15,6 +16,11 @@ const DEFAULT_SETTINGS = {
   showFoxes: true,
   spoilerWarning: true,
 };
+
+function getFoxUrl(name) {
+  const fox = window.ZEFIRKI_FOX || {};
+  return fox[name] || "/static/fox_peek.png";
+}
 
 function loadSettings() {
   const raw = localStorage.getItem(READER_SETTINGS_KEY);
@@ -61,6 +67,58 @@ function updateSetting(key, value) {
   readerSettings[key] = value;
   saveSettings(readerSettings);
   applySettings();
+}
+
+function createMiniAppExpandButton() {
+  const button = document.createElement("button");
+  button.className = "miniapp-expand-button";
+  button.type = "button";
+  button.setAttribute("aria-label", "Развернуть приложение");
+  button.textContent = "⛶";
+
+  button.addEventListener("click", async () => {
+    const tg = window.Telegram?.WebApp;
+
+    if (tg) {
+      try {
+        if (typeof tg.requestFullscreen === "function" && !tg.isFullscreen) {
+          tg.requestFullscreen();
+          button.textContent = "🗗";
+          return;
+        }
+
+        if (typeof tg.exitFullscreen === "function" && tg.isFullscreen) {
+          tg.exitFullscreen();
+          button.textContent = "⛶";
+          return;
+        }
+
+        if (typeof tg.expand === "function") {
+          tg.expand();
+          button.textContent = "🗗";
+          return;
+        }
+      } catch {
+        if (typeof tg.expand === "function") {
+          tg.expand();
+        }
+      }
+    }
+
+    try {
+      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+        button.textContent = "🗗";
+      } else if (document.exitFullscreen) {
+        await document.exitFullscreen();
+        button.textContent = "⛶";
+      }
+    } catch {
+      button.textContent = "⛶";
+    }
+  });
+
+  document.body.appendChild(button);
 }
 
 function createSettingsPanel() {
@@ -158,11 +216,11 @@ function createSettingsPanel() {
 
           <section class="settings-section" data-section="about">
             <div class="about-box">
-              <img class="about-fox" src="/static/fox_hearts.png" alt="Лисичка" data-fox>
+              <img class="about-fox" src="${getFoxUrl("fox_hearts")}" alt="Лисичка" data-fox>
               <h3>Зефиркины баоцзы</h3>
               <p>
                 Мини-читалка переводов с удобной настройкой текста,
-                каталогом новелл и уютными лисичками.
+                библиотекой новелл и уютными лисичками.
               </p>
 
               <div class="about-links">
@@ -448,9 +506,154 @@ function openSpoilerTag(button) {
   button.classList.add("tag-spoiler-opened");
 }
 
+function loadReadingProgress() {
+  const raw = localStorage.getItem(READING_PROGRESS_KEY);
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) || {};
+  } catch {
+    return {};
+  }
+}
+
+function saveReadingProgress(progress) {
+  localStorage.setItem(READING_PROGRESS_KEY, JSON.stringify(progress));
+}
+
+function getFullNovelTitle(postIcons, title) {
+  const icons = String(postIcons || "").trim();
+  const cleanTitle = String(title || "").trim();
+
+  if (icons) {
+    return `${icons} ${cleanTitle}`;
+  }
+
+  return cleanTitle;
+}
+
+function saveCurrentChapterProgress() {
+  const chapterPage = document.querySelector("[data-chapter-page]");
+
+  if (!chapterPage) return;
+
+  const isLocked = chapterPage.dataset.isLocked === "true";
+
+  if (isLocked) return;
+
+  const novelId = chapterPage.dataset.novelId;
+
+  if (!novelId) return;
+
+  const progress = loadReadingProgress();
+
+  progress[novelId] = {
+    novelId,
+    novelSlug: chapterPage.dataset.novelSlug,
+    novelTitle: chapterPage.dataset.novelTitle,
+    postIcons: chapterPage.dataset.postIcons || "",
+    chapterId: chapterPage.dataset.chapterId,
+    chapterTitle: chapterPage.dataset.chapterTitle,
+    lastReadAt: new Date().toISOString(),
+  };
+
+  saveReadingProgress(progress);
+}
+
+function renderLibraryHistory() {
+  const container = document.getElementById("readingHistory");
+
+  if (!container) return;
+
+  const progress = loadReadingProgress();
+  const items = Object.values(progress)
+    .sort((a, b) => new Date(b.lastReadAt) - new Date(a.lastReadAt))
+    .slice(0, 3);
+
+  if (!items.length) {
+    container.innerHTML = `
+      <div class="reading-history-empty">
+        Здесь появится история чтения, когда вы откроете первую главу.
+      </div>
+    `;
+    return;
+  }
+
+  const main = items[0];
+
+  container.innerHTML = `
+    <div class="reading-history-card">
+      <div class="reading-history-kicker">Вы читали</div>
+
+      <div class="reading-history-title">
+        ${escapeHtml(getFullNovelTitle(main.postIcons, main.novelTitle))}
+      </div>
+
+      <div class="reading-history-chapter">
+        ${escapeHtml(main.chapterTitle)}
+      </div>
+
+      <a class="reading-history-button" href="/chapter/${encodeURIComponent(main.chapterId)}">
+        Продолжить чтение
+      </a>
+    </div>
+
+    ${
+      items.length > 1
+        ? `<div class="reading-history-small-list">
+            ${items.slice(1).map(item => `
+              <a href="/chapter/${encodeURIComponent(item.chapterId)}" class="reading-history-small">
+                <span>${escapeHtml(getFullNovelTitle(item.postIcons, item.novelTitle))}</span>
+                <small>${escapeHtml(item.chapterTitle)}</small>
+              </a>
+            `).join("")}
+          </div>`
+        : ""
+    }
+  `;
+}
+
+function updateNovelReadButton() {
+  const novelPage = document.querySelector("[data-novel-page]");
+  const button = document.getElementById("novelReadButton");
+
+  if (!novelPage || !button) return;
+
+  const novelId = novelPage.dataset.novelId;
+  const progress = loadReadingProgress();
+  const current = progress[novelId];
+
+  if (current && current.chapterId) {
+    button.href = `/chapter/${encodeURIComponent(current.chapterId)}`;
+    button.textContent = `Продолжить: ${current.chapterTitle}`;
+    return;
+  }
+
+  button.href = button.dataset.defaultHref;
+  button.textContent = button.dataset.defaultText || "Начать читать";
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  createMiniAppExpandButton();
   createSettingsPanel();
   createSpoilerWarningModal();
+
   applySettings();
   bindSpoilerTags();
+
+  saveCurrentChapterProgress();
+  renderLibraryHistory();
+  updateNovelReadButton();
 });
