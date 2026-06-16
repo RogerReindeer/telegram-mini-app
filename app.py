@@ -39,6 +39,10 @@ templates = Jinja2Templates(directory="templates")
 SHEET_CACHE = {}
 
 
+# =========================================================
+# ENV / SUPABASE
+# =========================================================
+
 def mask_env_value(value: str | None):
     if value is None:
         return {
@@ -79,11 +83,6 @@ def validate_env_value(name: str, value: str | None):
         raise RuntimeError(f"{name} must not include quotes")
 
 
-def validate_required_env_for_read():
-    validate_env_value("SUPABASE_URL", SUPABASE_URL)
-    validate_env_value("SUPABASE_KEY", SUPABASE_KEY)
-
-
 def validate_required_env_for_admin_sync():
     validate_env_value("SUPABASE_URL", SUPABASE_URL)
     validate_env_value("SUPABASE_SERVICE_KEY", SUPABASE_SERVICE_KEY)
@@ -92,15 +91,6 @@ def validate_required_env_for_admin_sync():
 
     if "supabase.co" not in SUPABASE_URL:
         raise RuntimeError("SUPABASE_URL does not look like a Supabase project URL")
-
-    if not (
-        SUPABASE_SERVICE_KEY.startswith("sb_secret_")
-        or SUPABASE_SERVICE_KEY.startswith("eyJ")
-        or SUPABASE_SERVICE_KEY.startswith("sb_service_role_")
-    ):
-        raise RuntimeError(
-            "SUPABASE_SERVICE_KEY does not look like a service_role / secret key."
-        )
 
 
 def make_error_response(error: Exception, status_code: int = 500):
@@ -115,14 +105,35 @@ def make_error_response(error: Exception, status_code: int = 500):
 
 
 def get_supabase() -> Client:
-    validate_required_env_for_read()
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    validate_env_value("SUPABASE_URL", SUPABASE_URL)
+
+    key = SUPABASE_SERVICE_KEY or SUPABASE_KEY
+
+    if not key:
+        raise RuntimeError("Neither SUPABASE_SERVICE_KEY nor SUPABASE_KEY is set")
+
+    if key.strip() != key:
+        raise RuntimeError("Supabase key has extra spaces at the beginning or end")
+
+    if (
+        key.startswith('"')
+        or key.endswith('"')
+        or key.startswith("'")
+        or key.endswith("'")
+    ):
+        raise RuntimeError("Supabase key must not include quotes")
+
+    return create_client(SUPABASE_URL, key)
 
 
 def get_admin_supabase() -> Client:
     validate_required_env_for_admin_sync()
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
+
+# =========================================================
+# NORMALIZE
+# =========================================================
 
 def clean_value(value):
     if value is None:
@@ -162,6 +173,9 @@ def to_bool(value):
         return False
 
     value = clean_value(value).lower()
+
+    if not value:
+        return False
 
     return value in (
         "true",
@@ -230,6 +244,10 @@ def normalized_tags(tags: str):
         for tag in split_tags(tags)
     ]
 
+
+# =========================================================
+# TAGS / STATUS
+# =========================================================
 
 def relation_icon_from_tags(tags: str):
     tags_lower = normalized_tags(tags)
@@ -348,7 +366,17 @@ def tag_class_for_text(tag: str):
     if tag_lower == "джен":
         return "tag-gen"
 
-    if tag_lower in ("китай", "корея", "япония", "англия", "сша", "en", "cn", "kor", "jp"):
+    if tag_lower in (
+        "китай",
+        "корея",
+        "япония",
+        "англия",
+        "сша",
+        "en",
+        "cn",
+        "kor",
+        "jp",
+    ):
         return "tag-country"
 
     return ""
@@ -414,6 +442,10 @@ def prepare_novel_for_template(novel: dict):
     return novel
 
 
+# =========================================================
+# MINIAPP GOOGLE SHEETS
+# =========================================================
+
 def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
     validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
 
@@ -466,6 +498,28 @@ def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
     return rows
 
 
+# =========================================================
+# FOX ASSETS
+# =========================================================
+
+def normalize_fox_name(name: str) -> str:
+    name = clean_value(name)
+
+    if name.endswith(".png"):
+        name = name[:-4]
+
+    if name.endswith(".webp"):
+        name = name[:-5]
+
+    if name.endswith(".jpg"):
+        name = name[:-4]
+
+    if name.endswith(".jpeg"):
+        name = name[:-5]
+
+    return name
+
+
 def get_fox_assets() -> dict:
     fallback = {
         "fox_peek": "",
@@ -495,14 +549,43 @@ def get_fox_assets() -> dict:
     result = fallback.copy()
 
     for row in rows:
-        name = clean_value(row.get("name") or row.get("Name"))
+        raw_name = clean_value(row.get("name") or row.get("Name"))
         url = clean_value(row.get("url") or row.get("URL"))
 
-        if name and url:
-            result[name] = url
+        if not raw_name or not url:
+            continue
+
+        normalized_name = normalize_fox_name(raw_name)
+
+        result[raw_name] = url
+        result[normalized_name] = url
+
+    if not result.get("fox_side"):
+        result["fox_side"] = result.get("fox_side.png", "")
+
+    if not result.get("fox_hearts"):
+        result["fox_hearts"] = result.get("fox_heart", "")
+
+    if not result.get("fox_peek"):
+        result["fox_peek"] = (
+            result.get("fox_peek_left")
+            or result.get("fox_peek_right")
+            or result.get("fox_pic")
+            or ""
+        )
+
+    if not result.get("fox_jumping_paws"):
+        result["fox_jumping_paws"] = result.get("fox_jump_paws_up", "")
+
+    if not result.get("fox_standing_paws"):
+        result["fox_standing_paws"] = result.get("fox_standing_paws_up", "")
 
     return result
 
+
+# =========================================================
+# SYNC SHEETS → SUPABASE
+# =========================================================
 
 def sync_novels_to_db(db: Client) -> int:
     rows = fetch_miniapp_sheet("Novels")
@@ -590,6 +673,28 @@ def sync_novels_to_db(db: Client) -> int:
     return len(payload)
 
 
+def make_unique_chapter_code(base_code: str, row_number: int, used_codes: set[str]) -> str:
+    base_code = clean_value(base_code)
+
+    if not base_code:
+        base_code = f"row-{row_number}"
+
+    code = base_code
+
+    if code not in used_codes:
+        used_codes.add(code)
+        return code
+
+    code = f"{base_code}-row-{row_number}"
+
+    while code in used_codes:
+        row_number += 1
+        code = f"{base_code}-row-{row_number}"
+
+    used_codes.add(code)
+    return code
+
+
 def sync_chapters_to_db(db: Client) -> dict:
     rows = fetch_miniapp_sheet("Chapters")
 
@@ -633,13 +738,13 @@ def sync_chapters_to_db(db: Client) -> dict:
         access_level = clean_value(row.get("AccessLevel")) or "hidden"
         is_visible = to_bool(row.get("IsVisible"))
 
-        telegraph_url = clean_value(row.get("TelegraphURL"))
-        telegraph_free_url = clean_value(row.get("TelegraphFreeURL"))
-        telegraph_premium_url = clean_value(row.get("TelegraphPremiumURL"))
-
         sort_order = to_float(row.get("SortOrder"))
         if sort_order is None:
             sort_order = row_number
+
+        telegraph_url = clean_value(row.get("TelegraphURL"))
+        telegraph_free_url = clean_value(row.get("TelegraphFreeURL"))
+        telegraph_premium_url = clean_value(row.get("TelegraphPremiumURL"))
 
         payload.append({
             "chapter_code": chapter_code,
@@ -695,28 +800,6 @@ def sync_chapters_to_db(db: Client) -> dict:
     }
 
 
-def make_unique_chapter_code(base_code: str, row_number: int, used_codes: set[str]) -> str:
-    base_code = clean_value(base_code)
-
-    if not base_code:
-        base_code = f"row-{row_number}"
-
-    code = base_code
-
-    if code not in used_codes:
-        used_codes.add(code)
-        return code
-
-    code = f"{base_code}-row-{row_number}"
-
-    while code in used_codes:
-        row_number += 1
-        code = f"{base_code}-row-{row_number}"
-
-    used_codes.add(code)
-    return code
-
-
 def sync_miniapp_sheets_to_db() -> dict:
     db = get_admin_supabase()
 
@@ -730,6 +813,10 @@ def sync_miniapp_sheets_to_db() -> dict:
         "chapters_debug": chapters_result,
     }
 
+
+# =========================================================
+# CHAPTER / ARTICLE HELPERS
+# =========================================================
 
 def build_chapter_display_list(
     chapters: list[dict],
@@ -951,6 +1038,10 @@ def fetch_external_article(url: str) -> dict:
     }
 
 
+# =========================================================
+# ROUTES
+# =========================================================
+
 @app.get("/", response_class=HTMLResponse)
 async def home():
     return RedirectResponse(url="/library", status_code=302)
@@ -1083,7 +1174,9 @@ async def chapter_page(request: Request, chapter_id: int):
         novel["display_title"] = clean_value(novel.get("title"))
 
         is_locked = chapter.get("access_level") == "subscriber"
-        unlock_date = format_date_ru(chapter.get("release_date") or chapter.get("free_release_date"))
+        unlock_date = format_date_ru(
+            chapter.get("release_date") or chapter.get("free_release_date")
+        )
 
         previous_chapter, next_chapter = get_neighbor_chapters(db, chapter)
 
@@ -1127,6 +1220,10 @@ async def chapter_page(request: Request, chapter_id: int):
     except Exception as error:
         return make_error_response(error)
 
+
+# =========================================================
+# ADMIN / DEBUG
+# =========================================================
 
 @app.post("/admin/sync-from-sheets")
 async def admin_sync_from_sheets(request: Request):
@@ -1185,6 +1282,59 @@ async def debug_supabase():
             "status": "ok",
             "message": "Supabase admin connection works",
             "sample": result.data,
+        }
+
+    except Exception as error:
+        return make_error_response(error)
+
+
+@app.get("/debug/library-data")
+async def debug_library_data():
+    try:
+        db = get_supabase()
+
+        novels_result = (
+            db.table("novels")
+            .select("id,title,slug,is_visible,sort_order")
+            .eq("is_visible", True)
+            .order("sort_order")
+            .execute()
+        )
+
+        chapters_result = (
+            db.table("chapters")
+            .select(
+                "id,chapter_code,novel_id,chapter_no,title,"
+                "access_level,is_visible,telegraph_url,"
+                "telegraph_free_url,telegraph_premium_url,sort_order"
+            )
+            .eq("is_visible", True)
+            .order("novel_id")
+            .order("sort_order")
+            .limit(20)
+            .execute()
+        )
+
+        return {
+            "status": "ok",
+            "novels_count": len(novels_result.data or []),
+            "chapters_count_sample": len(chapters_result.data or []),
+            "novels_sample": novels_result.data[:5] if novels_result.data else [],
+            "chapters_sample": chapters_result.data[:5] if chapters_result.data else [],
+        }
+
+    except Exception as error:
+        return make_error_response(error)
+
+
+@app.get("/debug/fox")
+async def debug_fox():
+    try:
+        fox = get_fox_assets()
+
+        return {
+            "status": "ok",
+            "fox": fox,
         }
 
     except Exception as error:
