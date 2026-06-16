@@ -284,18 +284,38 @@ def sync_novels_to_db(db: Client) -> int:
     return len(payload)
 
 
-def sync_chapters_to_db(db: Client) -> int:
+def sync_chapters_to_db(db: Client) -> dict:
     rows = fetch_miniapp_sheet("Chapters")
 
     payload_by_code = {}
     duplicate_codes = []
+    skipped_rows = []
 
-    for row in rows:
+    for row_number, row in enumerate(rows, start=2):
         chapter_code = clean_value(row.get("ChapterID"))
         novel_id = to_int(row.get("NovelID"))
         chapter_no = to_float(row.get("ChapterNo"))
 
-        if not chapter_code or not novel_id or chapter_no is None:
+        skip_reasons = []
+
+        if not chapter_code:
+            skip_reasons.append("empty ChapterID")
+
+        if not novel_id:
+            skip_reasons.append("empty or invalid NovelID")
+
+        if chapter_no is None:
+            skip_reasons.append("empty or invalid ChapterNo")
+
+        if skip_reasons:
+            skipped_rows.append({
+                "row": row_number,
+                "reasons": skip_reasons,
+                "ChapterID": row.get("ChapterID"),
+                "NovelID": row.get("NovelID"),
+                "ChapterNo": row.get("ChapterNo"),
+                "ChapterTitle": row.get("ChapterTitle"),
+            })
             continue
 
         if chapter_code in payload_by_code:
@@ -333,22 +353,35 @@ def sync_chapters_to_db(db: Client) -> int:
             sorted(set(duplicate_codes)),
         )
 
+    if skipped_rows:
+        print(
+            "MiniApp sync warning: skipped chapter rows:",
+            skipped_rows[:20],
+        )
+
     if payload:
         db.table("chapters").upsert(payload, on_conflict="chapter_code").execute()
 
-    return len(payload)
+    return {
+        "read_rows": len(rows),
+        "prepared_rows": len(payload),
+        "skipped_rows": len(skipped_rows),
+        "duplicate_codes": sorted(set(duplicate_codes)),
+        "skipped_examples": skipped_rows[:10],
+    }
 
 
 def sync_miniapp_sheets_to_db() -> dict:
     db = get_admin_supabase()
 
     novels_count = sync_novels_to_db(db)
-    chapters_count = sync_chapters_to_db(db)
+    chapters_result = sync_chapters_to_db(db)
 
     return {
         "status": "ok",
         "novels": novels_count,
-        "chapters": chapters_count,
+        "chapters": chapters_result.get("prepared_rows", 0),
+        "chapters_debug": chapters_result,
     }
 
 
