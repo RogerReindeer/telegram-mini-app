@@ -98,8 +98,7 @@ def validate_required_env_for_admin_sync():
         or SUPABASE_SERVICE_KEY.startswith("sb_service_role_")
     ):
         raise RuntimeError(
-            "SUPABASE_SERVICE_KEY does not look like a service_role / secret key. "
-            "Check Supabase → Project Settings → API Keys."
+            "SUPABASE_SERVICE_KEY does not look like a service_role / secret key."
         )
 
 
@@ -135,13 +134,11 @@ def get_admin_supabase() -> Client:
 def clean_value(value):
     if value is None:
         return ""
-
     return str(value).strip()
 
 
 def to_int(value):
     value = clean_value(value)
-
     if not value:
         return None
 
@@ -153,7 +150,6 @@ def to_int(value):
 
 def to_float(value):
     value = clean_value(value).replace("%", "").replace(",", ".")
-
     if not value:
         return None
 
@@ -165,7 +161,6 @@ def to_float(value):
 
 def to_bool(value):
     value = clean_value(value).lower()
-
     return value in ("true", "1", "yes", "да", "истина", "✅")
 
 
@@ -182,6 +177,22 @@ def normalize_date(value):
             pass
 
     return None
+
+
+def format_date_ru(value):
+    value = clean_value(value)
+
+    if not value:
+        return ""
+
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+        try:
+            date = datetime.strptime(value[:10], fmt)
+            return date.strftime("%d.%m.%Y")
+        except ValueError:
+            pass
+
+    return value
 
 
 # -----------------------------
@@ -213,8 +224,7 @@ def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
     if "<html" in text_lower or ("google" in text_lower and "sign in" in text_lower):
         raise RuntimeError(
             f"MiniApp sheet '{sheet_name}' returned an HTML page instead of CSV. "
-            f"Most likely the sheet is not public. "
-            f"Set Share → Anyone with the link → Viewer."
+            f"Most likely the sheet is not public."
         )
 
     reader = csv.DictReader(StringIO(text))
@@ -386,7 +396,7 @@ def sync_miniapp_sheets_to_db() -> dict:
 
 
 # -----------------------------
-# Chapter display
+# Chapters
 # -----------------------------
 
 def build_chapter_display_list(
@@ -410,9 +420,39 @@ def build_chapter_display_list(
             else:
                 hidden_subscriber_count += 1
 
-    visible_chapters = public_chapters + subscriber_preview
+    return public_chapters + subscriber_preview, hidden_subscriber_count
 
-    return visible_chapters, hidden_subscriber_count
+
+def get_neighbor_chapters(db: Client, chapter: dict):
+    novel_id = chapter.get("novel_id")
+    current_sort = chapter.get("sort_order") or chapter.get("chapter_no") or 0
+
+    previous_result = (
+        db.table("chapters")
+        .select("id, title, chapter_no, access_level, sort_order")
+        .eq("novel_id", novel_id)
+        .eq("is_visible", True)
+        .lt("sort_order", current_sort)
+        .order("sort_order", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    next_result = (
+        db.table("chapters")
+        .select("id, title, chapter_no, access_level, sort_order")
+        .eq("novel_id", novel_id)
+        .eq("is_visible", True)
+        .gt("sort_order", current_sort)
+        .order("sort_order")
+        .limit(1)
+        .execute()
+    )
+
+    previous_chapter = (previous_result.data or [None])[0]
+    next_chapter = (next_result.data or [None])[0]
+
+    return previous_chapter, next_chapter
 
 
 # -----------------------------
@@ -597,7 +637,6 @@ async def novel_page(request: Request, slug: str):
         )
 
         chapters = chapters_result.data or []
-
         display_chapters, hidden_subscriber_count = build_chapter_display_list(chapters)
 
         return templates.TemplateResponse(
@@ -624,7 +663,7 @@ async def chapter_page(request: Request, chapter_id: int):
 
         chapter_result = (
             db.table("chapters")
-            .select("*, novels(title, slug)")
+            .select("*, novels(id, title, slug)")
             .eq("id", chapter_id)
             .eq("is_visible", True)
             .limit(1)
@@ -637,12 +676,12 @@ async def chapter_page(request: Request, chapter_id: int):
             raise HTTPException(status_code=404, detail="Chapter not found")
 
         chapter = chapters[0]
+        novel = chapter.get("novels") or {}
 
-        if chapter.get("access_level") == "subscriber":
-            raise HTTPException(
-                status_code=403,
-                detail="Глава доступна подписчикам закрытой группы.",
-            )
+        is_locked = chapter.get("access_level") == "subscriber"
+        unlock_date = format_date_ru(chapter.get("release_date"))
+
+        previous_chapter, next_chapter = get_neighbor_chapters(db, chapter)
 
         telegraph_url = (
             chapter.get("telegraph_url")
@@ -668,8 +707,13 @@ async def chapter_page(request: Request, chapter_id: int):
             {
                 "app_title": "Зефиркины баоцзы",
                 "chapter": chapter,
+                "novel": novel,
                 "telegraph_content": telegraph_content,
                 "telegraph_error": telegraph_error,
+                "is_locked": is_locked,
+                "unlock_date": unlock_date,
+                "previous_chapter": previous_chapter,
+                "next_chapter": next_chapter,
             },
         )
 
