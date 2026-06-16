@@ -1,4 +1,4 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v8";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v9";
 const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
 const READING_PROGRESS_KEY = "zefirki_reading_progress_v2";
 
@@ -636,6 +636,84 @@ function updateNovelReadButton() {
   button.textContent = button.dataset.defaultText || "Начать читать";
 }
 
+function markReadChapters() {
+  const progress = loadReadingProgress();
+  const readIds = new Set(
+    Object.values(progress).map(item => String(item.chapterId))
+  );
+
+  document.querySelectorAll("[data-chapter-row]").forEach(row => {
+    const id = String(row.dataset.chapterId || "");
+
+    if (readIds.has(id)) {
+      row.classList.add("chapter-row-read");
+    }
+  });
+}
+
+function bindDescriptionToggle() {
+  document.querySelectorAll("[data-collapsible-description]").forEach(block => {
+    const button = block.querySelector("[data-description-toggle]");
+
+    if (!button) return;
+
+    button.addEventListener("click", () => {
+      const expanded = block.classList.toggle("is-expanded");
+      button.textContent = expanded ? "Свернуть" : "Ещё";
+    });
+  });
+}
+
+function bindLibrarySort() {
+  const select = document.getElementById("librarySort");
+  const list = document.getElementById("libraryList");
+
+  if (!select || !list) return;
+
+  select.addEventListener("change", () => {
+    const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
+    const mode = select.value;
+
+    cards.sort((a, b) => {
+      if (mode === "title") {
+        return a.dataset.title.localeCompare(b.dataset.title, "ru");
+      }
+
+      if (mode === "status") {
+        const rank = {
+          completed: 1,
+          in_progress: 2,
+          paused: 3,
+        };
+
+        return (rank[a.dataset.status] || 99) - (rank[b.dataset.status] || 99);
+      }
+
+      if (mode === "chapters") {
+        return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
+      }
+
+      if (mode === "added") {
+        return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
+      }
+
+      if (mode === "relation") {
+        const rank = {
+          "Гет": 1,
+          "Слэш": 2,
+          "Джен": 3,
+        };
+
+        return (rank[a.dataset.relation] || 99) - (rank[b.dataset.relation] || 99);
+      }
+
+      return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
+    });
+
+    cards.forEach(card => list.appendChild(card));
+  });
+}
+
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -656,4 +734,7 @@ document.addEventListener("DOMContentLoaded", () => {
   saveCurrentChapterProgress();
   renderLibraryHistory();
   updateNovelReadButton();
+  markReadChapters();
+  bindDescriptionToggle();
+  bindLibrarySort();
 });
