@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 import time
 from datetime import datetime
 from io import StringIO
@@ -154,8 +155,24 @@ def to_float(value):
 
 
 def to_bool(value):
+    if value is True:
+        return True
+
+    if value is False:
+        return False
+
     value = clean_value(value).lower()
-    return value in ("true", "1", "yes", "да", "истина", "✅", "☑", "checked")
+
+    return value in (
+        "true",
+        "1",
+        "yes",
+        "да",
+        "истина",
+        "✅",
+        "☑",
+        "checked",
+    )
 
 
 def normalize_date(value):
@@ -190,21 +207,43 @@ def format_date_ru(value):
 
 
 def clean_chapter_title(value):
-    return (
-        clean_value(value)
-        .replace("--", "")
-        .replace("— —", "")
-        .strip()
-    )
+    text = clean_value(value)
+
+    text = re.sub(r"--+", "", text)
+    text = re.sub(r"—\s*—+", "", text)
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
+
+
+def split_tags(tags: str):
+    return [
+        tag.strip()
+        for tag in clean_value(tags).split(";")
+        if tag.strip()
+    ]
+
+
+def normalized_tags(tags: str):
+    return [
+        tag.replace("!", "").strip().lower()
+        for tag in split_tags(tags)
+    ]
 
 
 def relation_icon_from_tags(tags: str):
-    tags_lower = [tag.replace("!", "").strip().lower() for tag in tags.split(";") if tag.strip()]
+    tags_lower = normalized_tags(tags)
 
     if "гет" in tags_lower:
         return "❤️"
 
-    if "слэш" in tags_lower or "bl" in tags_lower or "бл" in tags_lower or "данмэй" in tags_lower:
+    if (
+        "слэш" in tags_lower
+        or "bl" in tags_lower
+        or "бл" in tags_lower
+        or "данмэй" in tags_lower
+        or "danmei" in tags_lower
+    ):
         return "💙"
 
     if "джен" in tags_lower:
@@ -214,12 +253,18 @@ def relation_icon_from_tags(tags: str):
 
 
 def relation_type_from_tags(tags: str):
-    tags_lower = [tag.replace("!", "").strip().lower() for tag in tags.split(";") if tag.strip()]
+    tags_lower = normalized_tags(tags)
 
     if "гет" in tags_lower:
         return "Гет"
 
-    if "слэш" in tags_lower or "bl" in tags_lower or "бл" in tags_lower or "данмэй" in tags_lower:
+    if (
+        "слэш" in tags_lower
+        or "bl" in tags_lower
+        or "бл" in tags_lower
+        or "данмэй" in tags_lower
+        or "danmei" in tags_lower
+    ):
         return "Слэш"
 
     if "джен" in tags_lower:
@@ -228,25 +273,108 @@ def relation_type_from_tags(tags: str):
     return ""
 
 
+def relation_color_from_type(relation_type: str):
+    relation_type = clean_value(relation_type).lower()
+
+    if relation_type == "гет":
+        return "#ff4444"
+
+    if relation_type == "слэш":
+        return "#4488ff"
+
+    if relation_type == "джен":
+        return "#44bb44"
+
+    return ""
+
+
+def translation_meta_from_status(status: str, schedule_mode: str, progress_percent):
+    combined = f"{status or ''} {schedule_mode or ''}".lower()
+
+    progress = None
+    try:
+        progress = float(str(progress_percent).replace(",", ".").replace("%", ""))
+    except Exception:
+        progress = None
+
+    if (
+        "пауз" in combined
+        or "передерж" in combined
+        or "pause" in combined
+        or "paused" in combined
+        or "hold" in combined
+        or "⏸" in combined
+    ):
+        return {
+            "value": "paused",
+            "label": "На паузе",
+            "color": "#ffaa00",
+        }
+
+    if (
+        "заверш" in combined
+        or "done" in combined
+        or "готов" in combined
+        or "полностью" in combined
+        or "✅" in combined
+        or progress == 100
+    ):
+        return {
+            "value": "completed",
+            "label": "Переведена полностью",
+            "color": "#44bb44",
+        }
+
+    return {
+        "value": "in_progress",
+        "label": "В процессе",
+        "color": "#ff4444",
+    }
+
+
 def display_novel_title(novel: dict):
     title = clean_value(novel.get("title"))
     post_icons = clean_value(novel.get("post_icons"))
-    relation_icon = clean_value(novel.get("relation_icon"))
 
-    if not relation_icon:
-        relation_icon = relation_icon_from_tags(clean_value(novel.get("tags")))
-
-    prefix = post_icons or relation_icon
-
-    if prefix:
-        return f"{prefix} {title}"
+    if post_icons:
+        return f"{post_icons} {title}"
 
     return title
 
 
-def get_sort_number(value, default=0):
-    number = to_float(value)
-    return number if number is not None else default
+def prepare_novel_for_template(novel: dict):
+    tags = clean_value(novel.get("tags"))
+
+    relation_type = clean_value(novel.get("relation_type")) or relation_type_from_tags(tags)
+    relation_icon = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(tags)
+    relation_color = clean_value(novel.get("relation_color")) or relation_color_from_type(relation_type)
+
+    translation_meta = translation_meta_from_status(
+        clean_value(novel.get("status")),
+        clean_value(novel.get("schedule_mode")),
+        novel.get("progress_percent"),
+    )
+
+    novel["display_title"] = display_novel_title(novel)
+    novel["relation_type"] = relation_type
+    novel["relation_icon"] = relation_icon
+    novel["relation_color"] = relation_color
+
+    novel["translation_status"] = clean_value(novel.get("translation_status")) or translation_meta["value"]
+    novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or translation_meta["label"]
+    novel["translation_status_color"] = clean_value(novel.get("translation_status_color")) or translation_meta["color"]
+
+    novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or tags
+    novel["tags_short"] = clean_value(novel.get("tags_short")) or "; ".join(split_tags(tags)[:10])
+
+    if novel.get("progress_percent") is None:
+        translated = to_float(novel.get("translated_chapters"))
+        total = to_float(novel.get("total_chapters"))
+
+        if translated is not None and total and total > 0:
+            novel["progress_percent"] = round(translated / total * 100, 1)
+
+    return novel
 
 
 def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
@@ -309,6 +437,7 @@ def get_fox_assets() -> dict:
         "fox_sitting_front": "/static/fox_peek.png",
         "fox_sitting_side": "/static/fox_side.png",
         "fox_sleeping": "/static/fox_side.png",
+        "fox_standing_paws": "/static/fox_hearts.png",
         "fox_jumping": "/static/fox_hearts.png",
         "fox_jumping_paws": "/static/fox_hearts.png",
         "fox_peek_left": "/static/fox_peek.png",
@@ -350,8 +479,15 @@ def sync_novels_to_db(db: Client) -> int:
             duplicate_ids.append(novel_id)
 
         tags = clean_value(row.get("Tags"))
-        relation_icon = clean_value(row.get("RelationIcon")) or relation_icon_from_tags(tags)
+        status = clean_value(row.get("Status"))
+        schedule_mode = clean_value(row.get("ScheduleMode"))
+        progress_percent = to_float(row.get("ProgressPercent"))
+
         relation_type = clean_value(row.get("RelationType")) or relation_type_from_tags(tags)
+        relation_icon = clean_value(row.get("RelationIcon")) or relation_icon_from_tags(tags)
+        relation_color = clean_value(row.get("RelationColor")) or relation_color_from_type(relation_type)
+
+        translation_meta = translation_meta_from_status(status, schedule_mode, progress_percent)
 
         is_visible = to_bool(row.get("IsVisible"))
 
@@ -370,27 +506,28 @@ def sync_novels_to_db(db: Client) -> int:
             "original_language": clean_value(row.get("OriginalLanguage")),
             "total_chapters": to_int(row.get("TotalChapters")),
             "translated_chapters": to_int(row.get("TranslatedChapters")),
-            "progress_percent": to_float(row.get("ProgressPercent")),
-            "status": clean_value(row.get("Status")),
+            "progress_percent": progress_percent,
+            "status": status,
             "access_model": clean_value(row.get("AccessModel")),
-            "schedule_mode": clean_value(row.get("ScheduleMode")),
+            "schedule_mode": schedule_mode,
             "sort_order": to_float(row.get("SortOrder")) or novel_id,
             "is_visible": is_visible,
             "is_active": is_visible,
             "age_rating": clean_value(row.get("AgeRating")),
             "has_adult_badge": to_bool(row.get("HasAdultBadge")),
 
-            "translation_status": clean_value(row.get("TranslationStatus")),
-            "translation_status_label": clean_value(row.get("TranslationStatusLabel")),
-            "translation_status_color": clean_value(row.get("TranslationStatusColor")),
+            "translation_status": clean_value(row.get("TranslationStatus")) or translation_meta["value"],
+            "translation_status_label": clean_value(row.get("TranslationStatusLabel")) or translation_meta["label"],
+            "translation_status_color": clean_value(row.get("TranslationStatusColor")) or translation_meta["color"],
 
             "relation_type": relation_type,
             "relation_icon": relation_icon,
-            "relation_color": clean_value(row.get("RelationColor")),
+            "relation_color": relation_color,
 
             "tags_short": clean_value(row.get("TagsShort")),
             "tags_tooltip": clean_value(row.get("TagsTooltip")),
             "added_date": normalize_date(row.get("AddedDate")),
+            "translation_author": clean_value(row.get("TranslationAuthor")) or "Зефиркины баоцзы",
         }
 
     payload = list(payload_by_id.values())
@@ -465,10 +602,17 @@ def sync_chapters_to_db(db: Client) -> dict:
             "title": clean_chapter_title(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
             "slug": clean_value(row.get("Slug")) or f"chapter-{row_number}",
             "volume": clean_value(row.get("Volume")),
+            "volume_no": to_int(row.get("VolumeNo")),
+            "volume_title": clean_value(row.get("VolumeTitle")),
+            "translation_date": normalize_date(row.get("TranslationDate")),
             "release_date": normalize_date(row.get("ReleaseDate")),
+            "free_release_date": normalize_date(row.get("FreeReleaseDate")),
+            "premium_release_date": normalize_date(row.get("PremiumReleaseDate")),
             "telegraph_url": telegraph_url,
             "free_url": free_url,
             "premium_url": premium_url,
+            "telegraph_free_code": clean_value(row.get("TelegraphFreeCode")),
+            "telegraph_premium_code": clean_value(row.get("TelegraphPremiumCode")),
             "source_type": clean_value(row.get("SourceType")) or "telegraph",
             "access_level": access_level,
             "is_visible": is_visible,
@@ -565,14 +709,18 @@ def group_chapters_by_volume(chapters: list[dict]) -> list[dict]:
     group_map = {}
 
     for chapter in chapters:
-        raw_volume = clean_value(chapter.get("volume"))
+        volume_title = (
+            clean_value(chapter.get("volume_title"))
+            or clean_value(chapter.get("volume"))
+        )
 
-        if raw_volume:
-            volume_title = raw_volume
-            if volume_title.isdigit():
-                volume_title = f"Том {volume_title}"
-        else:
-            volume_title = ""
+        if not volume_title:
+            volume_no = chapter.get("volume_no")
+            if volume_no:
+                volume_title = f"Том {volume_no}"
+
+        if volume_title and volume_title.isdigit():
+            volume_title = f"Том {volume_title}"
 
         if volume_title not in group_map:
             group = {
@@ -773,12 +921,7 @@ async def library(request: Request):
         novels = result.data or []
 
         for novel in novels:
-            novel["display_title"] = display_novel_title(novel)
-            novel["relation_icon"] = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(clean_value(novel.get("tags")))
-            novel["relation_type"] = clean_value(novel.get("relation_type")) or relation_type_from_tags(clean_value(novel.get("tags")))
-            novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or clean_value(novel.get("tags"))
-            novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or "В процессе"
-            novel["translation_status"] = clean_value(novel.get("translation_status")) or "in_progress"
+            prepare_novel_for_template(novel)
 
         return templates.TemplateResponse(
             request,
@@ -814,13 +957,7 @@ async def novel_page(request: Request, slug: str):
         if not novels:
             raise HTTPException(status_code=404, detail="Novel not found")
 
-        novel = novels[0]
-        novel["display_title"] = display_novel_title(novel)
-        novel["relation_icon"] = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(clean_value(novel.get("tags")))
-        novel["relation_type"] = clean_value(novel.get("relation_type")) or relation_type_from_tags(clean_value(novel.get("tags")))
-        novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or clean_value(novel.get("tags"))
-        novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or "В процессе"
-        novel["translation_status"] = clean_value(novel.get("translation_status")) or "in_progress"
+        novel = prepare_novel_for_template(novels[0])
 
         chapters_result = (
             db.table("chapters")
@@ -884,7 +1021,7 @@ async def chapter_page(request: Request, chapter_id: int):
         novel["display_title"] = display_novel_title(novel)
 
         is_locked = chapter.get("access_level") == "subscriber"
-        unlock_date = format_date_ru(chapter.get("release_date"))
+        unlock_date = format_date_ru(chapter.get("release_date") or chapter.get("free_release_date"))
 
         previous_chapter, next_chapter = get_neighbor_chapters(db, chapter)
 
