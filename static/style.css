@@ -69,7 +69,6 @@ body[data-site-theme="dark"] {
 
 .page-top {
   align-items: flex-start;
-  justify-content: center;
 }
 
 .reader-layout {
@@ -96,8 +95,6 @@ h1 {
   line-height: 1.5;
   color: var(--muted-text);
 }
-
-/* Foxes */
 
 .catalog-fox {
   width: 96px;
@@ -142,14 +139,28 @@ h1 {
   display: none !important;
 }
 
-/* Catalog */
+.miniapp-expand-button {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--page-text);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(80, 50, 20, 0.16);
+}
 
 .catalog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
   padding: 16px 18px;
   border-radius: 22px;
   background: var(--card-bg);
@@ -167,6 +178,82 @@ h1 {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
+}
+
+.reading-history {
+  margin-bottom: 16px;
+}
+
+.reading-history-empty,
+.reading-history-card {
+  padding: 14px;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--muted-text);
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+}
+
+.reading-history-card {
+  display: grid;
+  gap: 6px;
+  color: var(--page-text);
+}
+
+.reading-history-kicker {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reading-history-title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.reading-history-chapter {
+  color: var(--muted-text);
+  font-size: 14px;
+}
+
+.reading-history-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 38px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.reading-history-small-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reading-history-small {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--card-bg);
+  color: var(--page-text);
+  text-decoration: none;
+  border: 1px solid var(--card-border);
+}
+
+.reading-history-small small {
+  color: var(--muted-text);
+  white-space: nowrap;
 }
 
 .novel-list {
@@ -362,8 +449,6 @@ h1 {
   font-size: 13px;
 }
 
-/* Title page */
-
 .back-link {
   display: inline-block;
   margin-bottom: 18px;
@@ -487,7 +572,23 @@ body[data-site-theme="dark"] .title-hero::after {
   color: var(--muted-text);
 }
 
-/* Chapters list */
+.novel-read-action {
+  margin: 18px 0 22px;
+}
+
+.primary-read-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 900;
+  box-shadow: 0 12px 30px rgba(80, 50, 20, 0.18);
+}
 
 .section-header {
   display: flex;
@@ -515,9 +616,28 @@ body[data-site-theme="dark"] .title-hero::after {
   box-shadow: 0 12px 34px rgba(80, 50, 20, 0.1);
 }
 
+.volume-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 8px;
+  color: var(--accent);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 13px;
+}
+
+.volume-header::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--card-border);
+}
+
 .chapter-row {
   display: grid;
-  grid-template-columns: 52px 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 10px;
   align-items: center;
   padding: 14px;
@@ -546,11 +666,6 @@ body[data-site-theme="dark"] .title-hero::after {
   font-style: italic;
 }
 
-.chapter-number {
-  color: var(--muted-text);
-  font-weight: 700;
-}
-
 .chapter-title {
   font-weight: 700;
 }
@@ -574,8 +689,6 @@ body[data-site-theme="dark"] .title-hero::after {
   background: #fee2e2;
   color: #991b1b;
 }
-
-/* Chapter reader */
 
 .chapter-layout {
   color: var(--reader-text-color);
@@ -606,15 +719,6 @@ body[data-reader-width="wide"] .chapter-layout {
   margin-top: 0;
 }
 
-.chapter-kicker {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--accent);
-  margin-bottom: 6px;
-}
-
 .chapter-subtitle {
   margin-bottom: 0;
 }
@@ -632,9 +736,19 @@ body[data-reader-width="wide"] .chapter-layout {
   box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
 }
 
+.locked-title {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.locked-chapter-notice p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .locked-chapter-notice a {
   color: #991b1b;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .chapter-content {
@@ -717,8 +831,6 @@ body[data-text-align="justify"] .chapter-content {
   color: #ffffff;
 }
 
-/* Common */
-
 .empty {
   padding: 18px;
   border-radius: var(--card-radius);
@@ -729,16 +841,6 @@ body[data-text-align="justify"] .chapter-content {
   align-items: center;
   text-align: center;
 }
-
-.novel-card,
-.chapter-row,
-.empty,
-.settings-modal,
-.chapter-content {
-  border-radius: var(--card-radius);
-}
-
-/* Settings */
 
 .settings-fab {
   position: fixed;
@@ -779,6 +881,7 @@ body[data-text-align="justify"] .chapter-content {
   background: var(--page-bg);
   color: var(--page-text);
   padding: 16px;
+  border-radius: var(--card-radius);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
 }
 
@@ -945,8 +1048,6 @@ body[data-text-align="justify"] .chapter-content {
   font-weight: 700;
 }
 
-/* Spoiler modal */
-
 .spoiler-warning-overlay {
   position: fixed;
   inset: 0;
@@ -1013,13 +1114,7 @@ body[data-text-align="justify"] .chapter-content {
   color: #ffffff;
 }
 
-/* Mobile */
-
 @media (max-width: 760px) {
-  .title-hero-content {
-    align-items: flex-start;
-  }
-
   .title-cover-wrap,
   .title-cover {
     width: 112px;
@@ -1094,11 +1189,10 @@ body[data-text-align="justify"] .chapter-content {
   }
 
   .chapter-row {
-    grid-template-columns: 44px 1fr;
+    grid-template-columns: 1fr;
   }
 
   .chapter-access {
-    grid-column: 2;
     width: fit-content;
   }
 
@@ -1108,5 +1202,12 @@ body[data-text-align="justify"] .chapter-content {
 
   .settings-section.active {
     grid-template-columns: 1fr;
+  }
+
+  .miniapp-expand-button {
+    top: 10px;
+    right: 10px;
+    width: 38px;
+    height: 38px;
   }
 }
