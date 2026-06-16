@@ -1,6 +1,6 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v10";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v11";
 const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
-const READING_PROGRESS_KEY = "zefirki_reading_progress_v2";
+const READING_PROGRESS_KEY = "zefirki_reading_progress_v3";
 
 const DEFAULT_SETTINGS = {
   readerWidth: "full",
@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS = {
 
 function getFoxUrl(name) {
   const fox = window.ZEFIRKI_FOX || {};
-  return fox[name] || "/static/fox_peek.png";
+  return fox[name] || "";
 }
 
 function loadSettings() {
@@ -122,6 +122,11 @@ function createMiniAppExpandButton() {
 }
 
 function createSettingsPanel() {
+  const foxAbout = getFoxUrl("fox_hearts") || getFoxUrl("fox_heart") || getFoxUrl("fox_pic");
+  const aboutFoxHtml = foxAbout
+    ? `<img class="about-fox" src="${foxAbout}" alt="Лисичка" data-fox>`
+    : "";
+
   const panel = document.createElement("div");
 
   panel.innerHTML = `
@@ -216,7 +221,7 @@ function createSettingsPanel() {
 
           <section class="settings-section" data-section="about">
             <div class="about-box">
-              <img class="about-fox" src="${getFoxUrl("fox_hearts")}" alt="Лисичка" data-fox>
+              ${aboutFoxHtml}
               <h3>Зефиркины баоцзы</h3>
               <p>
                 Мини-читалка переводов с удобной настройкой текста,
@@ -524,17 +529,6 @@ function saveReadingProgress(progress) {
   localStorage.setItem(READING_PROGRESS_KEY, JSON.stringify(progress));
 }
 
-function getFullNovelTitle(postIcons, title) {
-  const icons = String(postIcons || "").trim();
-  const cleanTitle = String(title || "").trim();
-
-  if (icons) {
-    return `${icons} ${cleanTitle}`;
-  }
-
-  return cleanTitle;
-}
-
 function saveCurrentChapterProgress() {
   const chapterPage = document.querySelector("[data-chapter-page]");
 
@@ -554,7 +548,6 @@ function saveCurrentChapterProgress() {
     novelId,
     novelSlug: chapterPage.dataset.novelSlug,
     novelTitle: chapterPage.dataset.novelTitle,
-    postIcons: chapterPage.dataset.postIcons || "",
     chapterId: chapterPage.dataset.chapterId,
     chapterTitle: chapterPage.dataset.chapterTitle,
     lastReadAt: new Date().toISOString(),
@@ -589,7 +582,7 @@ function renderLibraryHistory() {
       <div class="reading-history-kicker">Вы читали</div>
 
       <div class="reading-history-title">
-        ${escapeHtml(getFullNovelTitle(main.postIcons, main.novelTitle))}
+        ${escapeHtml(main.novelTitle)}
       </div>
 
       <div class="reading-history-chapter">
@@ -606,7 +599,7 @@ function renderLibraryHistory() {
         ? `<div class="reading-history-small-list">
             ${items.slice(1).map(item => `
               <a href="/chapter/${encodeURIComponent(item.chapterId)}" class="reading-history-small">
-                <span>${escapeHtml(getFullNovelTitle(item.postIcons, item.novelTitle))}</span>
+                <span>${escapeHtml(item.novelTitle)}</span>
                 <small>${escapeHtml(item.chapterTitle)}</small>
               </a>
             `).join("")}
