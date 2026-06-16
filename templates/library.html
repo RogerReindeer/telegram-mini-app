@@ -63,27 +63,35 @@
               data-added="{{ novel.added_date or '' }}"
               data-relation="{{ novel.relation_type or '' }}"
             >
-              <span
-                class="translation-status-dot status-{{ novel.translation_status or 'in_progress' }}"
-                title="{{ novel.translation_status_label or 'В процессе' }}"
-              ></span>
-
-              <div class="novel-cover-wrap">
-                {% if novel.cover_url %}
-                  <img
-                    class="novel-cover"
-                    src="{{ novel.cover_url }}"
-                    alt="{{ novel.display_title }}"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+              <div class="catalog-cover-column">
+                <div class="novel-cover-wrap">
+                  <span
+                    class="translation-status-emoji status-{{ novel.translation_status or 'in_progress' }}"
+                    title="{{ novel.translation_status_label or 'Переводится' }}"
                   >
-                  <div class="novel-cover placeholder" style="display:none;">📖</div>
-                {% else %}
-                  <div class="novel-cover placeholder">📖</div>
-                {% endif %}
+                    {{ novel.translation_status_icon or '🛠' }}
+                  </span>
 
-                {% if novel.has_adult_badge %}
-                  <span class="adult-cover-badge">18+</span>
-                {% endif %}
+                  {% if novel.cover_url %}
+                    <img
+                      class="novel-cover"
+                      src="{{ novel.cover_url }}"
+                      alt="{{ novel.display_title }}"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <div class="novel-cover placeholder" style="display:none;">📖</div>
+                  {% else %}
+                    <div class="novel-cover placeholder">📖</div>
+                  {% endif %}
+
+                  {% if novel.has_adult_badge %}
+                    <span class="adult-cover-badge">18+</span>
+                  {% endif %}
+                </div>
+
+                <div class="library-status-label status-{{ novel.translation_status or 'in_progress' }}">
+                  {{ novel.translation_status_label or 'Переводится' }}
+                </div>
               </div>
 
               <div class="novel-info">
