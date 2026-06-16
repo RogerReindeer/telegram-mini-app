@@ -1,5 +1,6 @@
 import csv
 import os
+import time
 from datetime import datetime
 from io import StringIO
 from urllib.parse import urlparse, quote
@@ -27,16 +28,15 @@ MINIAPP_SHEET_ID = os.getenv(
 SYNC_TOKEN = os.getenv("SYNC_TOKEN")
 
 PAID_PREVIEW_COUNT = 3
+SHEET_CACHE_TTL_SECONDS = 300
 
 app = FastAPI(title="Zefirki Reader Mini App")
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+SHEET_CACHE = {}
 
-# -----------------------------
-# Debug helpers
-# -----------------------------
 
 def mask_env_value(value: str | None):
     if value is None:
@@ -113,10 +113,6 @@ def make_error_response(error: Exception, status_code: int = 500):
     )
 
 
-# -----------------------------
-# Supabase
-# -----------------------------
-
 def get_supabase() -> Client:
     validate_required_env_for_read()
     return create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -127,10 +123,6 @@ def get_admin_supabase() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
-
 def clean_value(value):
     if value is None:
         return ""
@@ -139,6 +131,7 @@ def clean_value(value):
 
 def to_int(value):
     value = clean_value(value)
+
     if not value:
         return None
 
@@ -150,6 +143,7 @@ def to_int(value):
 
 def to_float(value):
     value = clean_value(value).replace("%", "").replace(",", ".")
+
     if not value:
         return None
 
@@ -195,12 +189,47 @@ def format_date_ru(value):
     return value
 
 
-# -----------------------------
-# Google Sheets → Supabase sync
-# -----------------------------
+def display_novel_title(novel: dict):
+    post_icons = clean_value(novel.get("post_icons"))
+    title = clean_value(novel.get("title"))
 
-def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
+    if post_icons:
+        return f"{post_icons} {title}"
+
+    return title
+
+
+def make_unique_chapter_code(base_code: str, row_number: int, used_codes: set[str]) -> str:
+    base_code = clean_value(base_code)
+
+    if not base_code:
+        base_code = f"row-{row_number}"
+
+    code = base_code
+
+    if code not in used_codes:
+        used_codes.add(code)
+        return code
+
+    code = f"{base_code}-part-{row_number}"
+
+    while code in used_codes:
+        row_number += 1
+        code = f"{base_code}-part-{row_number}"
+
+    used_codes.add(code)
+    return code
+
+
+def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
     validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
+
+    cache_key = f"sheet:{sheet_name}"
+
+    if use_cache:
+        cached = SHEET_CACHE.get(cache_key)
+        if cached and time.time() - cached["created_at"] < SHEET_CACHE_TTL_SECONDS:
+            return cached["rows"]
 
     encoded_sheet_name = quote(sheet_name)
 
@@ -235,7 +264,46 @@ def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
             f"MiniApp sheet '{sheet_name}' has no headers or could not be parsed as CSV."
         )
 
+    if use_cache:
+        SHEET_CACHE[cache_key] = {
+            "created_at": time.time(),
+            "rows": rows,
+        }
+
     return rows
+
+
+def get_fox_assets() -> dict:
+    fallback = {
+        "fox_peek": "/static/fox_peek.png",
+        "fox_side": "/static/fox_side.png",
+        "fox_hearts": "/static/fox_hearts.png",
+        "fox_sitting_front": "/static/fox_peek.png",
+        "fox_sitting_side": "/static/fox_side.png",
+        "fox_sleeping": "/static/fox_side.png",
+        "fox_jumping": "/static/fox_hearts.png",
+        "fox_jumping_paws": "/static/fox_hearts.png",
+        "fox_peek_left": "/static/fox_peek.png",
+        "fox_peek_right": "/static/fox_peek.png",
+        "fox_pic": "/static/fox_hearts.png",
+    }
+
+    try:
+        rows = fetch_miniapp_sheet("Fox", use_cache=True)
+    except Exception as error:
+        print("Fox sheet warning:", error)
+        return fallback
+
+    result = fallback.copy()
+
+    for row in rows:
+        name = clean_value(row.get("name") or row.get("Name"))
+        url = clean_value(row.get("url") or row.get("URL"))
+
+        if name and url:
+            result[name] = url
+
+    return result
 
 
 def sync_novels_to_db(db: Client) -> int:
@@ -261,6 +329,7 @@ def sync_novels_to_db(db: Client) -> int:
             "slug": clean_value(row.get("Slug")) or f"novel-{novel_id}",
             "title": clean_value(row.get("Title")) or f"Novel {novel_id}",
             "title_en": clean_value(row.get("TitleEN")),
+            "post_icons": clean_value(row.get("PostIcons")),
             "cover_url": clean_value(row.get("CoverURL")),
             "description": clean_value(row.get("Description")),
             "tags": clean_value(row.get("Tags")),
@@ -297,19 +366,17 @@ def sync_novels_to_db(db: Client) -> int:
 def sync_chapters_to_db(db: Client) -> dict:
     rows = fetch_miniapp_sheet("Chapters")
 
-    payload_by_code = {}
-    duplicate_codes = []
+    payload = []
+    used_codes = set()
     skipped_rows = []
+    duplicate_base_codes = []
 
     for row_number, row in enumerate(rows, start=2):
-        chapter_code = clean_value(row.get("ChapterID"))
+        base_chapter_code = clean_value(row.get("ChapterID"))
         novel_id = to_int(row.get("NovelID"))
         chapter_no = to_float(row.get("ChapterNo"))
 
         skip_reasons = []
-
-        if not chapter_code:
-            skip_reasons.append("empty ChapterID")
 
         if not novel_id:
             skip_reasons.append("empty or invalid NovelID")
@@ -328,8 +395,13 @@ def sync_chapters_to_db(db: Client) -> dict:
             })
             continue
 
-        if chapter_code in payload_by_code:
-            duplicate_codes.append(chapter_code)
+        if not base_chapter_code:
+            base_chapter_code = f"{novel_id}-{chapter_no:g}"
+
+        if base_chapter_code in used_codes:
+            duplicate_base_codes.append(base_chapter_code)
+
+        chapter_code = make_unique_chapter_code(base_chapter_code, row_number, used_codes)
 
         telegraph_url = clean_value(row.get("TelegraphURL"))
         access_level = clean_value(row.get("AccessLevel")) or "hidden"
@@ -338,12 +410,17 @@ def sync_chapters_to_db(db: Client) -> dict:
         free_url = telegraph_url if access_level == "public" else ""
         premium_url = telegraph_url if access_level == "subscriber" else ""
 
-        payload_by_code[chapter_code] = {
+        sort_order = to_float(row.get("SortOrder"))
+        if sort_order is None:
+            sort_order = row_number
+
+        payload.append({
             "chapter_code": chapter_code,
             "novel_id": novel_id,
             "chapter_no": chapter_no,
             "title": clean_value(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
-            "slug": clean_value(row.get("Slug")) or f"chapter-{chapter_no:g}",
+            "slug": clean_value(row.get("Slug")) or f"chapter-{row_number}",
+            "volume": clean_value(row.get("Volume")),
             "release_date": normalize_date(row.get("ReleaseDate")),
             "telegraph_url": telegraph_url,
             "free_url": free_url,
@@ -352,15 +429,13 @@ def sync_chapters_to_db(db: Client) -> dict:
             "access_level": access_level,
             "is_visible": is_visible,
             "is_active": is_visible,
-            "sort_order": to_float(row.get("SortOrder")) or chapter_no,
-        }
+            "sort_order": sort_order,
+        })
 
-    payload = list(payload_by_code.values())
-
-    if duplicate_codes:
+    if duplicate_base_codes:
         print(
-            "MiniApp sync warning: duplicate ChapterID values were found and deduplicated:",
-            sorted(set(duplicate_codes)),
+            "MiniApp sync warning: duplicate ChapterID values were preserved with suffixes:",
+            sorted(set(duplicate_base_codes)),
         )
 
     if skipped_rows:
@@ -376,7 +451,7 @@ def sync_chapters_to_db(db: Client) -> dict:
         "read_rows": len(rows),
         "prepared_rows": len(payload),
         "skipped_rows": len(skipped_rows),
-        "duplicate_codes": sorted(set(duplicate_codes)),
+        "duplicate_base_codes": sorted(set(duplicate_base_codes)),
         "skipped_examples": skipped_rows[:10],
     }
 
@@ -394,10 +469,6 @@ def sync_miniapp_sheets_to_db() -> dict:
         "chapters_debug": chapters_result,
     }
 
-
-# -----------------------------
-# Chapters
-# -----------------------------
 
 def build_chapter_display_list(
     chapters: list[dict],
@@ -423,13 +494,50 @@ def build_chapter_display_list(
     return public_chapters + subscriber_preview, hidden_subscriber_count
 
 
+def group_chapters_by_volume(chapters: list[dict]) -> list[dict]:
+    groups = []
+    group_map = {}
+
+    for chapter in chapters:
+        raw_volume = clean_value(chapter.get("volume"))
+
+        if raw_volume:
+            volume_title = raw_volume
+            if volume_title.isdigit():
+                volume_title = f"Том {volume_title}"
+        else:
+            volume_title = ""
+
+        if volume_title not in group_map:
+            group = {
+                "title": volume_title,
+                "chapters": [],
+            }
+            group_map[volume_title] = group
+            groups.append(group)
+
+        group_map[volume_title]["chapters"].append(chapter)
+
+    if len(groups) == 1 and groups[0]["title"] == "":
+        groups[0]["title"] = ""
+
+    return groups
+
+
+def get_first_readable_chapter(chapters: list[dict]):
+    if not chapters:
+        return None
+
+    return chapters[0]
+
+
 def get_neighbor_chapters(db: Client, chapter: dict):
     novel_id = chapter.get("novel_id")
     current_sort = chapter.get("sort_order") or chapter.get("chapter_no") or 0
 
     previous_result = (
         db.table("chapters")
-        .select("id, title, chapter_no, access_level, sort_order")
+        .select("id, title, access_level, sort_order")
         .eq("novel_id", novel_id)
         .eq("is_visible", True)
         .lt("sort_order", current_sort)
@@ -440,7 +548,7 @@ def get_neighbor_chapters(db: Client, chapter: dict):
 
     next_result = (
         db.table("chapters")
-        .select("id, title, chapter_no, access_level, sort_order")
+        .select("id, title, access_level, sort_order")
         .eq("novel_id", novel_id)
         .eq("is_visible", True)
         .gt("sort_order", current_sort)
@@ -454,10 +562,6 @@ def get_neighbor_chapters(db: Client, chapter: dict):
 
     return previous_chapter, next_chapter
 
-
-# -----------------------------
-# Telegraph
-# -----------------------------
 
 def normalize_telegraph_url(url: str) -> str:
     url = clean_value(url)
@@ -564,10 +668,6 @@ def fetch_telegraph_article(url: str) -> dict:
     }
 
 
-# -----------------------------
-# Routes
-# -----------------------------
-
 @app.get("/", response_class=HTMLResponse)
 async def home():
     return RedirectResponse(url="/library", status_code=302)
@@ -578,10 +678,16 @@ async def home_head():
     return Response(status_code=200)
 
 
+@app.get("/catalog", response_class=HTMLResponse)
+async def old_catalog_redirect():
+    return RedirectResponse(url="/library", status_code=302)
+
+
 @app.get("/library", response_class=HTMLResponse)
 async def library(request: Request):
     try:
         db = get_supabase()
+        fox = get_fox_assets()
 
         result = (
             db.table("novels")
@@ -593,12 +699,16 @@ async def library(request: Request):
 
         novels = result.data or []
 
+        for novel in novels:
+            novel["display_title"] = display_novel_title(novel)
+
         return templates.TemplateResponse(
             request,
             "library.html",
             {
                 "app_title": "Зефиркины баоцзы",
                 "novels": novels,
+                "fox": fox,
             },
         )
 
@@ -610,6 +720,7 @@ async def library(request: Request):
 async def novel_page(request: Request, slug: str):
     try:
         db = get_supabase()
+        fox = get_fox_assets()
 
         novel_result = (
             db.table("novels")
@@ -626,6 +737,7 @@ async def novel_page(request: Request, slug: str):
             raise HTTPException(status_code=404, detail="Novel not found")
 
         novel = novels[0]
+        novel["display_title"] = display_novel_title(novel)
 
         chapters_result = (
             db.table("chapters")
@@ -637,7 +749,10 @@ async def novel_page(request: Request, slug: str):
         )
 
         chapters = chapters_result.data or []
+
         display_chapters, hidden_subscriber_count = build_chapter_display_list(chapters)
+        grouped_chapters = group_chapters_by_volume(display_chapters)
+        first_chapter = get_first_readable_chapter(display_chapters)
 
         return templates.TemplateResponse(
             request,
@@ -646,7 +761,10 @@ async def novel_page(request: Request, slug: str):
                 "app_title": "Зефиркины баоцзы",
                 "novel": novel,
                 "chapters": display_chapters,
+                "grouped_chapters": grouped_chapters,
                 "hidden_subscriber_count": hidden_subscriber_count,
+                "first_chapter": first_chapter,
+                "fox": fox,
             },
         )
 
@@ -660,10 +778,11 @@ async def novel_page(request: Request, slug: str):
 async def chapter_page(request: Request, chapter_id: int):
     try:
         db = get_supabase()
+        fox = get_fox_assets()
 
         chapter_result = (
             db.table("chapters")
-            .select("*, novels(id, title, slug)")
+            .select("*, novels(id, title, slug, post_icons)")
             .eq("id", chapter_id)
             .eq("is_visible", True)
             .limit(1)
@@ -677,6 +796,7 @@ async def chapter_page(request: Request, chapter_id: int):
 
         chapter = chapters[0]
         novel = chapter.get("novels") or {}
+        novel["display_title"] = display_novel_title(novel)
 
         is_locked = chapter.get("access_level") == "subscriber"
         unlock_date = format_date_ru(chapter.get("release_date"))
@@ -714,6 +834,7 @@ async def chapter_page(request: Request, chapter_id: int):
                 "unlock_date": unlock_date,
                 "previous_chapter": previous_chapter,
                 "next_chapter": next_chapter,
+                "fox": fox,
             },
         )
 
