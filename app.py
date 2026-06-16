@@ -28,7 +28,6 @@ MINIAPP_SHEET_ID = os.getenv(
 
 SYNC_TOKEN = os.getenv("SYNC_TOKEN")
 
-PAID_PREVIEW_COUNT = 3
 SHEET_CACHE_TTL_SECONDS = 300
 
 app = FastAPI(title="Zefirki Reader Mini App")
@@ -326,7 +325,8 @@ def translation_meta_from_status(status: str, schedule_mode: str, progress_perce
         return {
             "value": "paused",
             "label": "На паузе",
-            "color": "#ffaa00",
+            "color": "#ffffff",
+            "icon": "⏸",
         }
 
     if (
@@ -339,14 +339,16 @@ def translation_meta_from_status(status: str, schedule_mode: str, progress_perce
     ):
         return {
             "value": "completed",
-            "label": "Переведена полностью",
+            "label": "Завершён",
             "color": "#44bb44",
+            "icon": "✅",
         }
 
     return {
         "value": "in_progress",
-        "label": "В процессе",
-        "color": "#ff4444",
+        "label": "Переводится",
+        "color": "#f59e0b",
+        "icon": "🛠",
     }
 
 
@@ -424,6 +426,14 @@ def prepare_novel_for_template(novel: dict):
     novel["translation_status"] = clean_value(novel.get("translation_status")) or translation_meta["value"]
     novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or translation_meta["label"]
     novel["translation_status_color"] = clean_value(novel.get("translation_status_color")) or translation_meta["color"]
+    novel["translation_status_icon"] = translation_status_icon_from_value(novel["translation_status"])
+
+    if novel["translation_status"] == "completed":
+        novel["translation_status_label"] = "Завершён"
+    elif novel["translation_status"] == "paused":
+        novel["translation_status_label"] = "На паузе"
+    else:
+        novel["translation_status_label"] = "Переводится"
 
     novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or tags
     novel["tags_short"] = clean_value(novel.get("tags_short")) or "; ".join(split_tags(tags)[:10])
@@ -440,6 +450,18 @@ def prepare_novel_for_template(novel: dict):
             novel["progress_percent"] = round(translated / total * 100, 1)
 
     return novel
+
+
+def translation_status_icon_from_value(value: str):
+    value = clean_value(value).lower()
+
+    if value == "completed":
+        return "✅"
+
+    if value == "paused":
+        return "⏸"
+
+    return "🛠"
 
 
 # =========================================================
@@ -739,6 +761,10 @@ def sync_chapters_to_db(db: Client) -> dict:
         is_visible = to_bool(row.get("IsVisible"))
 
         sort_order = to_float(row.get("SortOrder"))
+
+        if sort_order is None:
+            sort_order = chapter_no
+
         if sort_order is None:
             sort_order = row_number
 
@@ -820,26 +846,26 @@ def sync_miniapp_sheets_to_db() -> dict:
 
 def build_chapter_display_list(
     chapters: list[dict],
-    paid_preview_count: int = PAID_PREVIEW_COUNT,
+    paid_preview_count: int | None = None,
 ) -> tuple[list[dict], int]:
-    public_chapters = []
-    subscriber_preview = []
-    hidden_subscriber_count = 0
+    sorted_chapters = sorted(
+        chapters,
+        key=lambda chapter: (
+            chapter.get("sort_order") is None,
+            chapter.get("sort_order") or chapter.get("chapter_no") or 0,
+            chapter.get("id") or 0,
+        ),
+    )
 
-    for chapter in chapters:
+    display_chapters = []
+
+    for chapter in sorted_chapters:
         access_level = chapter.get("access_level")
 
-        if access_level == "public":
-            public_chapters.append(chapter)
-            continue
+        if access_level in ("public", "subscriber"):
+            display_chapters.append(chapter)
 
-        if access_level == "subscriber":
-            if len(subscriber_preview) < paid_preview_count:
-                subscriber_preview.append(chapter)
-            else:
-                hidden_subscriber_count += 1
-
-    return public_chapters + subscriber_preview, hidden_subscriber_count
+    return display_chapters, 0
 
 
 def group_chapters_by_volume(chapters: list[dict]) -> list[dict]:
@@ -1295,7 +1321,7 @@ async def debug_library_data():
 
         novels_result = (
             db.table("novels")
-            .select("id,title,slug,is_visible,sort_order")
+            .select("id,title,slug,is_visible,sort_order,translation_status,translation_status_label")
             .eq("is_visible", True)
             .order("sort_order")
             .execute()
@@ -1311,7 +1337,7 @@ async def debug_library_data():
             .eq("is_visible", True)
             .order("novel_id")
             .order("sort_order")
-            .limit(20)
+            .limit(30)
             .execute()
         )
 
@@ -1320,7 +1346,7 @@ async def debug_library_data():
             "novels_count": len(novels_result.data or []),
             "chapters_count_sample": len(chapters_result.data or []),
             "novels_sample": novels_result.data[:5] if novels_result.data else [],
-            "chapters_sample": chapters_result.data[:5] if chapters_result.data else [],
+            "chapters_sample": chapters_result.data[:10] if chapters_result.data else [],
         }
 
     except Exception as error:
