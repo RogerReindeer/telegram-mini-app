@@ -88,7 +88,7 @@
               <div class="novel-info">
                 <h2>
                   {% if novel.relation_icon %}
-                    <span class="relation-heart relation-{{ novel.relation_type|lower }}">{{ novel.relation_icon }}</span>
+                    <span class="relation-heart">{{ novel.relation_icon }}</span>
                   {% endif %}
                   <span>{{ novel.display_title }}</span>
                 </h2>
@@ -130,7 +130,7 @@
                               <span class="tag tag-rating">{{ tag }}</span>
                             {% elif tag_lower in ['гет'] %}
                               <span class="tag tag-get">{{ tag }}</span>
-                            {% elif tag_lower in ['слэш', 'bl', 'бл', 'данмэй'] %}
+                            {% elif tag_lower in ['слэш', 'bl', 'бл', 'данмэй', 'danmei'] %}
                               <span class="tag tag-slash">{{ tag }}</span>
                             {% elif tag_lower in ['джен'] %}
                               <span class="tag tag-gen">{{ tag }}</span>
