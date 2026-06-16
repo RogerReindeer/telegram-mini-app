@@ -2,7 +2,7 @@ import csv
 import os
 from datetime import datetime
 from io import StringIO
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 import requests
 from bs4 import BeautifulSoup
@@ -25,6 +25,8 @@ MINIAPP_SHEET_ID = os.getenv(
 )
 
 SYNC_TOKEN = os.getenv("SYNC_TOKEN")
+
+PAID_PREVIEW_COUNT = 3
 
 app = FastAPI(title="Zefirki Reader Mini App")
 
@@ -189,9 +191,11 @@ def normalize_date(value):
 def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
     validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
 
+    encoded_sheet_name = quote(sheet_name)
+
     url = (
         f"https://docs.google.com/spreadsheets/d/{MINIAPP_SHEET_ID}/gviz/tq"
-        f"?tqx=out:csv&sheet={sheet_name}"
+        f"?tqx=out:csv&sheet={encoded_sheet_name}"
     )
 
     response = requests.get(url, timeout=30)
@@ -204,7 +208,6 @@ def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
         )
 
     text = response.content.decode("utf-8-sig")
-
     text_lower = text.lower()
 
     if "<html" in text_lower or ("google" in text_lower and "sign in" in text_lower):
@@ -227,7 +230,9 @@ def fetch_miniapp_sheet(sheet_name: str) -> list[dict]:
 
 def sync_novels_to_db(db: Client) -> int:
     rows = fetch_miniapp_sheet("Novels")
-    payload = []
+
+    payload_by_id = {}
+    duplicate_ids = []
 
     for row in rows:
         novel_id = to_int(row.get("NovelID"))
@@ -235,9 +240,12 @@ def sync_novels_to_db(db: Client) -> int:
         if not novel_id:
             continue
 
+        if novel_id in payload_by_id:
+            duplicate_ids.append(novel_id)
+
         is_visible = to_bool(row.get("IsVisible"))
 
-        payload.append({
+        payload_by_id[novel_id] = {
             "id": novel_id,
             "code": clean_value(row.get("Code")),
             "slug": clean_value(row.get("Slug")) or f"novel-{novel_id}",
@@ -246,6 +254,8 @@ def sync_novels_to_db(db: Client) -> int:
             "cover_url": clean_value(row.get("CoverURL")),
             "description": clean_value(row.get("Description")),
             "tags": clean_value(row.get("Tags")),
+            "top_description": clean_value(row.get("TopDescription")),
+            "bottom_description": clean_value(row.get("BottomDescription")),
             "original_language": clean_value(row.get("OriginalLanguage")),
             "total_chapters": to_int(row.get("TotalChapters")),
             "translated_chapters": to_int(row.get("TranslatedChapters")),
@@ -256,7 +266,17 @@ def sync_novels_to_db(db: Client) -> int:
             "sort_order": to_float(row.get("SortOrder")) or novel_id,
             "is_visible": is_visible,
             "is_active": is_visible,
-        })
+            "age_rating": clean_value(row.get("AgeRating")),
+            "has_adult_badge": to_bool(row.get("HasAdultBadge")),
+        }
+
+    payload = list(payload_by_id.values())
+
+    if duplicate_ids:
+        print(
+            "MiniApp sync warning: duplicate NovelID values were found and deduplicated:",
+            sorted(set(duplicate_ids)),
+        )
 
     if payload:
         db.table("novels").upsert(payload, on_conflict="id").execute()
@@ -266,39 +286,52 @@ def sync_novels_to_db(db: Client) -> int:
 
 def sync_chapters_to_db(db: Client) -> int:
     rows = fetch_miniapp_sheet("Chapters")
-    payload = []
+
+    payload_by_code = {}
+    duplicate_codes = []
 
     for row in rows:
         chapter_code = clean_value(row.get("ChapterID"))
         novel_id = to_int(row.get("NovelID"))
         chapter_no = to_float(row.get("ChapterNo"))
-        telegraph_url = clean_value(row.get("TelegraphURL"))
-        access_level = clean_value(row.get("AccessLevel")) or "reader"
 
         if not chapter_code or not novel_id or chapter_no is None:
             continue
 
+        if chapter_code in payload_by_code:
+            duplicate_codes.append(chapter_code)
+
+        telegraph_url = clean_value(row.get("TelegraphURL"))
+        access_level = clean_value(row.get("AccessLevel")) or "hidden"
         is_visible = to_bool(row.get("IsVisible"))
 
-        free_url = telegraph_url if access_level == "reader" else ""
-        premium_url = telegraph_url if access_level in ("boosty", "early") else ""
+        free_url = telegraph_url if access_level == "public" else ""
+        premium_url = telegraph_url if access_level == "subscriber" else ""
 
-        payload.append({
+        payload_by_code[chapter_code] = {
             "chapter_code": chapter_code,
             "novel_id": novel_id,
             "chapter_no": chapter_no,
             "title": clean_value(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
             "slug": clean_value(row.get("Slug")) or f"chapter-{chapter_no:g}",
-            "access_level": access_level,
             "release_date": normalize_date(row.get("ReleaseDate")),
             "telegraph_url": telegraph_url,
             "free_url": free_url,
             "premium_url": premium_url,
             "source_type": clean_value(row.get("SourceType")) or "telegraph",
+            "access_level": access_level,
             "is_visible": is_visible,
             "is_active": is_visible,
             "sort_order": to_float(row.get("SortOrder")) or chapter_no,
-        })
+        }
+
+    payload = list(payload_by_code.values())
+
+    if duplicate_codes:
+        print(
+            "MiniApp sync warning: duplicate ChapterID values were found and deduplicated:",
+            sorted(set(duplicate_codes)),
+        )
 
     if payload:
         db.table("chapters").upsert(payload, on_conflict="chapter_code").execute()
@@ -317,6 +350,36 @@ def sync_miniapp_sheets_to_db() -> dict:
         "novels": novels_count,
         "chapters": chapters_count,
     }
+
+
+# -----------------------------
+# Chapter display
+# -----------------------------
+
+def build_chapter_display_list(
+    chapters: list[dict],
+    paid_preview_count: int = PAID_PREVIEW_COUNT,
+) -> tuple[list[dict], int]:
+    public_chapters = []
+    subscriber_preview = []
+    hidden_subscriber_count = 0
+
+    for chapter in chapters:
+        access_level = chapter.get("access_level")
+
+        if access_level == "public":
+            public_chapters.append(chapter)
+            continue
+
+        if access_level == "subscriber":
+            if len(subscriber_preview) < paid_preview_count:
+                subscriber_preview.append(chapter)
+            else:
+                hidden_subscriber_count += 1
+
+    visible_chapters = public_chapters + subscriber_preview
+
+    return visible_chapters, hidden_subscriber_count
 
 
 # -----------------------------
@@ -502,13 +565,16 @@ async def novel_page(request: Request, slug: str):
 
         chapters = chapters_result.data or []
 
+        display_chapters, hidden_subscriber_count = build_chapter_display_list(chapters)
+
         return templates.TemplateResponse(
             request,
             "novel.html",
             {
                 "app_title": "Зефиркины баоцзы",
                 "novel": novel,
-                "chapters": chapters,
+                "chapters": display_chapters,
+                "hidden_subscriber_count": hidden_subscriber_count,
             },
         )
 
@@ -538,6 +604,12 @@ async def chapter_page(request: Request, chapter_id: int):
             raise HTTPException(status_code=404, detail="Chapter not found")
 
         chapter = chapters[0]
+
+        if chapter.get("access_level") == "subscriber":
+            raise HTTPException(
+                status_code=403,
+                detail="Глава доступна подписчикам закрытой группы.",
+            )
 
         telegraph_url = (
             chapter.get("telegraph_url")
