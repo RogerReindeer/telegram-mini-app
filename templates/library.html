@@ -24,16 +24,9 @@
       </header>
 
       {% if novels %}
-        <div class="novel-list" data-library-list>
+        <div class="novel-list">
           {% for novel in novels %}
-            <a
-              class="novel-card"
-              href="/novel/{{ novel.slug }}"
-              data-library-card
-              data-title="{{ novel.title }}"
-              data-chapters="{{ novel.total_chapters or 0 }}"
-              data-sort="{{ novel.sort_order or novel.id }}"
-            >
+            <a class="novel-card" href="/novel/{{ novel.slug }}">
               <div class="novel-cover-wrap">
                 {% if novel.cover_url %}
                   <img
@@ -56,29 +49,49 @@
                 <h2>{{ novel.title }}</h2>
 
                 {% if novel.description %}
-                  <p class="novel-description">{{ novel.description }}</p>
+                  <p class="novel-description catalog-description">{{ novel.description }}</p>
                 {% endif %}
 
                 {% if novel.tags %}
                   <div class="novel-tags catalog-tags">
+                    {% set ns = namespace(count=0, hidden=0) %}
+
                     {% for raw_tag in novel.tags.split(';') %}
                       {% set tag = raw_tag.strip() %}
+
                       {% if tag %}
-                        {% if tag.startswith('!') %}
-                          <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
-                        {% elif tag in ['18+', 'R18', 'R-18', 'NC-17'] %}
-                          <span class="tag tag-adult">{{ tag }}</span>
+                        {% if ns.count < 10 %}
+                          {% if tag.startswith('!') %}
+                            <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
+                          {% else %}
+                            {% set tag_lower = tag|lower %}
+
+                            {% if tag_lower in ['18+', 'r18', 'r-18', 'nc-17'] %}
+                              <span class="tag tag-rating">{{ tag }}</span>
+                            {% elif tag_lower in ['джен', 'гет', 'bl', 'бл', 'gl', 'гл', 'слэш', 'фемслэш'] %}
+                              <span class="tag tag-relation">{{ tag }}</span>
+                            {% elif tag_lower in ['китай', 'корея', 'япония', 'англия', 'сша', 'en', 'cn', 'kor', 'jp'] %}
+                              <span class="tag tag-country">{{ tag }}</span>
+                            {% else %}
+                              <span class="tag">{{ tag }}</span>
+                            {% endif %}
+                          {% endif %}
+                          {% set ns.count = ns.count + 1 %}
                         {% else %}
-                          <span class="tag">{{ tag }}</span>
+                          {% set ns.hidden = ns.hidden + 1 %}
                         {% endif %}
                       {% endif %}
                     {% endfor %}
+
+                    {% if ns.hidden > 0 %}
+                      <span class="tag tag-more">…</span>
+                    {% endif %}
                   </div>
                 {% endif %}
 
                 <div class="novel-badges">
                   {% if novel.total_chapters %}
-                    <span class="badge chapters-meta">Глав: {{ novel.total_chapters }}</span>
+                    <span class="badge">Глав: {{ novel.total_chapters }}</span>
                   {% endif %}
 
                   {% if novel.progress_percent is not none %}
