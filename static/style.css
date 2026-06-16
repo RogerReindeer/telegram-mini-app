@@ -1,740 +1,1408 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v9";
-const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
-const READING_PROGRESS_KEY = "zefirki_reading_progress_v2";
+:root {
+  --page-bg: #f7efe7;
+  --page-text: #2b211c;
+  --muted-text: #6b5a50;
+  --card-bg: rgba(255, 255, 255, 0.86);
+  --card-border: rgba(80, 50, 20, 0.08);
+  --tag-bg: #f3e7dc;
+  --tag-text: #6b5a50;
+  --accent: #f28c38;
 
-const DEFAULT_SETTINGS = {
-  readerWidth: "full",
-  textAlign: "left",
-  textColor: "#111111",
-  readerBg: "#fffaf3",
-  fontSize: "16",
-  lineHeight: "1.6",
-  paragraphSpacing: "16",
+  --reader-text-color: #111111;
+  --reader-bg: #fffaf3;
+  --reader-font-size: 16px;
+  --reader-line-height: 1.6;
+  --reader-paragraph-spacing: 16px;
+  --card-radius: 16px;
 
-  siteTheme: "light",
-  cardRadius: "16",
-  showFoxes: true,
-  spoilerWarning: true,
-};
-
-function getFoxUrl(name) {
-  const fox = window.ZEFIRKI_FOX || {};
-  return fox[name] || "/static/fox_peek.png";
+  --get-color: #ff4444;
+  --slash-color: #4488ff;
+  --gen-color: #44bb44;
+  --paused-color: #ffaa00;
 }
 
-function loadSettings() {
-  const raw = localStorage.getItem(READER_SETTINGS_KEY);
-
-  if (!raw) {
-    return { ...DEFAULT_SETTINGS };
-  }
-
-  try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
+* {
+  box-sizing: border-box;
 }
 
-function saveSettings(settings) {
-  localStorage.setItem(READER_SETTINGS_KEY, JSON.stringify(settings));
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--page-bg);
+  color: var(--page-text);
 }
 
-let readerSettings = loadSettings();
-
-function applySettings() {
-  const root = document.documentElement;
-
-  root.style.setProperty("--reader-text-color", readerSettings.textColor);
-  root.style.setProperty("--reader-bg", readerSettings.readerBg);
-  root.style.setProperty("--reader-font-size", `${readerSettings.fontSize}px`);
-  root.style.setProperty("--reader-line-height", readerSettings.lineHeight);
-  root.style.setProperty("--reader-paragraph-spacing", `${readerSettings.paragraphSpacing}px`);
-  root.style.setProperty("--card-radius", `${readerSettings.cardRadius}px`);
-
-  document.body.dataset.readerWidth = readerSettings.readerWidth;
-  document.body.dataset.textAlign = readerSettings.textAlign;
-  document.body.dataset.siteTheme = readerSettings.siteTheme;
-
-  document.body.classList.toggle("hide-foxes", !readerSettings.showFoxes);
-
-  if (!readerSettings.spoilerWarning) {
-    localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
-  }
+body[data-site-theme="light"] {
+  --page-bg: #f7efe7;
+  --page-text: #2b211c;
+  --muted-text: #6b5a50;
+  --card-bg: rgba(255, 255, 255, 0.86);
+  --card-border: rgba(80, 50, 20, 0.08);
+  --tag-bg: #f3e7dc;
+  --tag-text: #6b5a50;
 }
 
-function updateSetting(key, value) {
-  readerSettings[key] = value;
-  saveSettings(readerSettings);
-  applySettings();
+body[data-site-theme="dark"] {
+  --page-bg: #111111;
+  --page-text: #eeeeee;
+  --muted-text: #b8b8b8;
+  --card-bg: rgba(28, 28, 28, 0.94);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --tag-bg: rgba(255, 255, 255, 0.09);
+  --tag-text: #dedede;
 }
 
-function createMiniAppExpandButton() {
-  const button = document.createElement("button");
-  button.className = "miniapp-expand-button";
-  button.type = "button";
-  button.setAttribute("aria-label", "Развернуть приложение");
-  button.textContent = "⛶";
-
-  button.addEventListener("click", async () => {
-    const tg = window.Telegram?.WebApp;
-
-    if (tg) {
-      try {
-        if (typeof tg.requestFullscreen === "function" && !tg.isFullscreen) {
-          tg.requestFullscreen();
-          button.textContent = "🗗";
-          return;
-        }
-
-        if (typeof tg.exitFullscreen === "function" && tg.isFullscreen) {
-          tg.exitFullscreen();
-          button.textContent = "⛶";
-          return;
-        }
-
-        if (typeof tg.expand === "function") {
-          tg.expand();
-          button.textContent = "🗗";
-          return;
-        }
-      } catch {
-        if (typeof tg.expand === "function") {
-          tg.expand();
-        }
-      }
-    }
-
-    try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-        button.textContent = "🗗";
-      } else if (document.exitFullscreen) {
-        await document.exitFullscreen();
-        button.textContent = "⛶";
-      }
-    } catch {
-      button.textContent = "⛶";
-    }
-  });
-
-  document.body.appendChild(button);
-}
-
-function createSettingsPanel() {
-  const panel = document.createElement("div");
-
-  panel.innerHTML = `
-    <button class="settings-fab" id="settingsFab" type="button" aria-label="Настройки">
-      ⚙️
-    </button>
-
-    <div class="settings-overlay" id="settingsOverlay" hidden>
-      <div class="settings-modal">
-        <div class="settings-header">
-          <div>
-            <h2>Настройки</h2>
-            <p>Сохраняются автоматически.</p>
-          </div>
-          <button class="settings-close" id="settingsClose" type="button" aria-label="Закрыть">×</button>
-        </div>
-
-        <div class="settings-tabs">
-          <button class="settings-tab active" data-tab="reader">Чтение</button>
-          <button class="settings-tab" data-tab="view">Вид</button>
-          <button class="settings-tab" data-tab="about">О проекте</button>
-        </div>
-
-        <div class="settings-content">
-          <section class="settings-section active" data-section="reader">
-            ${selectField("fontSize", "Размер текста", [
-              ["14", "14px"],
-              ["16", "16px"],
-              ["18", "18px"],
-              ["20", "20px"],
-              ["22", "22px"],
-              ["24", "24px"],
-            ])}
-
-            ${selectField("lineHeight", "Интервал", [
-              ["1.4", "1.4"],
-              ["1.6", "1.6"],
-              ["1.8", "1.8"],
-              ["2.0", "2.0"],
-            ])}
-
-            ${selectField("paragraphSpacing", "Абзацы", [
-              ["0", "0px"],
-              ["8", "8px"],
-              ["16", "16px"],
-              ["24", "24px"],
-            ])}
-
-            ${selectField("readerWidth", "Ширина текста", [
-              ["full", "На всю ширину"],
-              ["comfort", "Комфортная колонка"],
-              ["wide", "Очень широкая"],
-            ])}
-
-            ${selectField("textAlign", "Выравнивание", [
-              ["left", "По левому краю"],
-              ["justify", "По ширине"],
-            ])}
-
-            ${presetAndColorField("textColor", "Цвет текста", [
-              ["#111111", "Чёрный"],
-              ["#333333", "Тёмно-серый"],
-              ["#f4f4f4", "Светлый"],
-            ])}
-
-            ${presetAndColorField("readerBg", "Фон читалки", [
-              ["#ffffff", "Белый"],
-              ["#fffaf3", "Кремовый"],
-              ["#f4ecd8", "Сепия"],
-              ["#222222", "Тёмный"],
-              ["#000000", "Чёрный"],
-            ])}
-          </section>
-
-          <section class="settings-section" data-section="view">
-            ${selectField("siteTheme", "Тема сайта", [
-              ["light", "Светлая"],
-              ["dark", "Тёмная"],
-              ["system", "Системная"],
-            ])}
-
-            ${selectField("cardRadius", "Скругление", [
-              ["0", "0px"],
-              ["8", "8px"],
-              ["16", "16px"],
-              ["24", "24px"],
-            ])}
-
-            ${checkboxField("showFoxes", "Показывать лисичек")}
-            ${checkboxField("spoilerWarning", "Предупреждать о спойлерах")}
-          </section>
-
-          <section class="settings-section" data-section="about">
-            <div class="about-box">
-              <img class="about-fox" src="${getFoxUrl("fox_hearts")}" alt="Лисичка" data-fox>
-              <h3>Зефиркины баоцзы</h3>
-              <p>
-                Мини-читалка переводов с удобной настройкой текста,
-                библиотекой новелл и уютными лисичками.
-              </p>
-
-              <div class="about-links">
-                <a href="https://t.me/" target="_blank" rel="noopener noreferrer">Telegram</a>
-                <a href="https://boosty.to/" target="_blank" rel="noopener noreferrer">Boosty</a>
-                <a href="https://www.bllate.pro/" target="_blank" rel="noopener noreferrer">BLlate</a>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div class="settings-footer">
-          <button class="settings-reset" id="settingsReset" type="button">
-            Сбросить
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(panel);
-
-  bindSettingsPanel();
-  fillSettingsControls();
-}
-
-function selectField(key, label, options) {
-  return `
-    <label class="settings-field">
-      <span>${label}</span>
-      <select data-setting="${key}">
-        ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
-      </select>
-    </label>
-  `;
-}
-
-function presetAndColorField(key, label, options) {
-  return `
-    <label class="settings-field">
-      <span>${label}</span>
-      <div class="settings-color-row">
-        <select data-setting="${key}" data-color-select="${key}">
-          ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
-          <option value="custom">Свой</option>
-        </select>
-        <input type="color" data-setting="${key}" data-color-picker="${key}" />
-      </div>
-    </label>
-  `;
-}
-
-function checkboxField(key, label) {
-  return `
-    <label class="settings-check">
-      <input type="checkbox" data-setting="${key}" />
-      <span>${label}</span>
-    </label>
-  `;
-}
-
-function fillSettingsControls() {
-  document.querySelectorAll("[data-setting]").forEach(control => {
-    const key = control.dataset.setting;
-
-    if (control.type === "checkbox") {
-      control.checked = Boolean(readerSettings[key]);
-      return;
-    }
-
-    if (control.dataset.colorPicker) {
-      control.value = readerSettings[key];
-      return;
-    }
-
-    if (control.dataset.colorSelect) {
-      const hasOption = Array.from(control.options).some(
-        option => option.value === readerSettings[key]
-      );
-
-      control.value = hasOption ? readerSettings[key] : "custom";
-      return;
-    }
-
-    control.value = readerSettings[key];
-  });
-}
-
-function bindSettingsPanel() {
-  const overlay = document.getElementById("settingsOverlay");
-  const fab = document.getElementById("settingsFab");
-  const close = document.getElementById("settingsClose");
-  const reset = document.getElementById("settingsReset");
-
-  fab.addEventListener("click", () => {
-    overlay.hidden = false;
-  });
-
-  close.addEventListener("click", () => {
-    overlay.hidden = true;
-  });
-
-  overlay.addEventListener("click", event => {
-    if (event.target === overlay) {
-      overlay.hidden = true;
-    }
-  });
-
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape") {
-      overlay.hidden = true;
-    }
-  });
-
-  document.querySelectorAll(".settings-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      const tabName = tab.dataset.tab;
-
-      document.querySelectorAll(".settings-tab").forEach(item => {
-        item.classList.toggle("active", item === tab);
-      });
-
-      document.querySelectorAll(".settings-section").forEach(section => {
-        section.classList.toggle("active", section.dataset.section === tabName);
-      });
-    });
-  });
-
-  document.querySelectorAll("[data-setting]").forEach(control => {
-    control.addEventListener("input", () => handleSettingControl(control));
-    control.addEventListener("change", () => handleSettingControl(control));
-  });
-
-  reset.addEventListener("click", () => {
-    const confirmed = confirm("Сбросить настройки к стандартным?");
-
-    if (!confirmed) return;
-
-    readerSettings = { ...DEFAULT_SETTINGS };
-    saveSettings(readerSettings);
-    localStorage.removeItem(SPOILER_WARNING_DISABLED_KEY);
-    fillSettingsControls();
-    applySettings();
-  });
-}
-
-function handleSettingControl(control) {
-  const key = control.dataset.setting;
-
-  if (control.type === "checkbox") {
-    updateSetting(key, control.checked);
-
-    if (key === "spoilerWarning" && control.checked) {
-      localStorage.removeItem(SPOILER_WARNING_DISABLED_KEY);
-    }
-
-    if (key === "spoilerWarning" && !control.checked) {
-      localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
-    }
-
-    return;
-  }
-
-  if (control.dataset.colorSelect) {
-    if (control.value === "custom") {
-      const picker = document.querySelector(`[data-color-picker="${key}"]`);
-      updateSetting(key, picker.value);
-    } else {
-      updateSetting(key, control.value);
-
-      const picker = document.querySelector(`[data-color-picker="${key}"]`);
-      if (picker) picker.value = control.value;
-    }
-
-    return;
-  }
-
-  if (control.dataset.colorPicker) {
-    updateSetting(key, control.value);
-    fillSettingsControls();
-    return;
-  }
-
-  updateSetting(key, control.value);
-}
-
-function createSpoilerWarningModal() {
-  const modal = document.createElement("div");
-
-  modal.innerHTML = `
-    <div class="spoiler-warning-overlay" id="spoilerWarningOverlay" hidden>
-      <div class="spoiler-warning-modal">
-        <h2>Возможен спойлер</h2>
-        <p>
-          Этот тег может раскрывать важные детали сюжета.
-          Показать его?
-        </p>
-
-        <label class="spoiler-warning-check">
-          <input type="checkbox" id="spoilerDontShowAgain">
-          <span>Больше не предупреждать</span>
-        </label>
-
-        <div class="spoiler-warning-actions">
-          <button type="button" class="spoiler-warning-cancel" id="spoilerCancel">
-            Отказаться
-          </button>
-          <button type="button" class="spoiler-warning-confirm" id="spoilerConfirm">
-            Продолжить
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-}
-
-let pendingSpoilerButton = null;
-
-function bindSpoilerTags() {
-  document.querySelectorAll(".tag-spoiler-reveal").forEach(button => {
-    button.addEventListener("click", () => {
-      const warningDisabled =
-        localStorage.getItem(SPOILER_WARNING_DISABLED_KEY) === "true" ||
-        readerSettings.spoilerWarning === false;
-
-      if (warningDisabled) {
-        openSpoilerTag(button);
-        return;
-      }
-
-      pendingSpoilerButton = button;
-
-      const overlay = document.getElementById("spoilerWarningOverlay");
-      const checkbox = document.getElementById("spoilerDontShowAgain");
-
-      checkbox.checked = false;
-      overlay.hidden = false;
-    });
-  });
-
-  const overlay = document.getElementById("spoilerWarningOverlay");
-  const cancel = document.getElementById("spoilerCancel");
-  const confirm = document.getElementById("spoilerConfirm");
-
-  if (!overlay || !cancel || !confirm) return;
-
-  cancel.addEventListener("click", () => {
-    pendingSpoilerButton = null;
-    overlay.hidden = true;
-  });
-
-  confirm.addEventListener("click", () => {
-    const checkbox = document.getElementById("spoilerDontShowAgain");
-
-    if (checkbox.checked) {
-      localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
-      readerSettings.spoilerWarning = false;
-      saveSettings(readerSettings);
-      fillSettingsControls();
-    }
-
-    if (pendingSpoilerButton) {
-      openSpoilerTag(pendingSpoilerButton);
-    }
-
-    pendingSpoilerButton = null;
-    overlay.hidden = true;
-  });
-
-  overlay.addEventListener("click", event => {
-    if (event.target === overlay) {
-      pendingSpoilerButton = null;
-      overlay.hidden = true;
-    }
-  });
-}
-
-function openSpoilerTag(button) {
-  button.textContent = button.dataset.spoiler;
-  button.classList.remove("tag-spoiler");
-  button.classList.add("tag-spoiler-opened");
-}
-
-function loadReadingProgress() {
-  const raw = localStorage.getItem(READING_PROGRESS_KEY);
-
-  if (!raw) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(raw) || {};
-  } catch {
-    return {};
+@media (prefers-color-scheme: dark) {
+  body[data-site-theme="system"] {
+    --page-bg: #111111;
+    --page-text: #eeeeee;
+    --muted-text: #b8b8b8;
+    --card-bg: rgba(28, 28, 28, 0.94);
+    --card-border: rgba(255, 255, 255, 0.08);
+    --tag-bg: rgba(255, 255, 255, 0.09);
+    --tag-text: #dedede;
   }
 }
 
-function saveReadingProgress(progress) {
-  localStorage.setItem(READING_PROGRESS_KEY, JSON.stringify(progress));
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
 }
 
-function getFullNovelTitle(postIcons, title) {
-  const icons = String(postIcons || "").trim();
-  const cleanTitle = String(title || "").trim();
-
-  if (icons) {
-    return `${icons} ${cleanTitle}`;
-  }
-
-  return cleanTitle;
+.page-top {
+  align-items: flex-start;
 }
 
-function saveCurrentChapterProgress() {
-  const chapterPage = document.querySelector("[data-chapter-page]");
-
-  if (!chapterPage) return;
-
-  const isLocked = chapterPage.dataset.isLocked === "true";
-
-  if (isLocked) return;
-
-  const novelId = chapterPage.dataset.novelId;
-
-  if (!novelId) return;
-
-  const progress = loadReadingProgress();
-
-  progress[novelId] = {
-    novelId,
-    novelSlug: chapterPage.dataset.novelSlug,
-    novelTitle: chapterPage.dataset.novelTitle,
-    postIcons: chapterPage.dataset.postIcons || "",
-    chapterId: chapterPage.dataset.chapterId,
-    chapterTitle: chapterPage.dataset.chapterTitle,
-    lastReadAt: new Date().toISOString(),
-  };
-
-  saveReadingProgress(progress);
+.reader-layout {
+  width: 100%;
+  max-width: 940px;
+  padding: 20px 16px 80px;
 }
 
-function renderLibraryHistory() {
-  const container = document.getElementById("readingHistory");
-
-  if (!container) return;
-
-  const progress = loadReadingProgress();
-  const items = Object.values(progress)
-    .sort((a, b) => new Date(b.lastReadAt) - new Date(a.lastReadAt))
-    .slice(0, 3);
-
-  if (!items.length) {
-    container.innerHTML = `
-      <div class="reading-history-empty">
-        Здесь появится история чтения, когда вы откроете первую главу.
-      </div>
-    `;
-    return;
-  }
-
-  const main = items[0];
-
-  container.innerHTML = `
-    <div class="reading-history-card">
-      <div class="reading-history-kicker">Вы читали</div>
-
-      <div class="reading-history-title">
-        ${escapeHtml(getFullNovelTitle(main.postIcons, main.novelTitle))}
-      </div>
-
-      <div class="reading-history-chapter">
-        ${escapeHtml(main.chapterTitle)}
-      </div>
-
-      <a class="reading-history-button" href="/chapter/${encodeURIComponent(main.chapterId)}">
-        Продолжить чтение
-      </a>
-    </div>
-
-    ${
-      items.length > 1
-        ? `<div class="reading-history-small-list">
-            ${items.slice(1).map(item => `
-              <a href="/chapter/${encodeURIComponent(item.chapterId)}" class="reading-history-small">
-                <span>${escapeHtml(getFullNovelTitle(item.postIcons, item.novelTitle))}</span>
-                <small>${escapeHtml(item.chapterTitle)}</small>
-              </a>
-            `).join("")}
-          </div>`
-        : ""
-    }
-  `;
+.catalog-layout {
+  max-width: 980px;
 }
 
-function updateNovelReadButton() {
-  const novelPage = document.querySelector("[data-novel-page]");
-  const button = document.getElementById("novelReadButton");
-
-  if (!novelPage || !button) return;
-
-  const novelId = novelPage.dataset.novelId;
-  const progress = loadReadingProgress();
-  const current = progress[novelId];
-
-  if (current && current.chapterId) {
-    button.href = `/chapter/${encodeURIComponent(current.chapterId)}`;
-    button.textContent = `Продолжить: ${current.chapterTitle}`;
-    return;
-  }
-
-  button.href = button.dataset.defaultHref;
-  button.textContent = button.dataset.defaultText || "Начать читать";
+.title-layout {
+  max-width: 1040px;
 }
 
-function markReadChapters() {
-  const progress = loadReadingProgress();
-  const readIds = new Set(
-    Object.values(progress).map(item => String(item.chapterId))
+h1 {
+  margin: 0 0 10px;
+  font-size: 30px;
+}
+
+.subtitle {
+  margin: 0 0 22px;
+  line-height: 1.5;
+  color: var(--muted-text);
+}
+
+.catalog-fox {
+  width: 96px;
+  height: auto;
+}
+
+.inline-fox {
+  width: 48px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.section-fox {
+  width: 62px;
+  height: auto;
+}
+
+.chapter-fox {
+  width: 82px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.chapter-footer-fox-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.chapter-footer-fox {
+  width: 120px;
+  height: auto;
+}
+
+.empty-fox {
+  width: 90px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.hide-foxes [data-fox] {
+  display: none !important;
+}
+
+.miniapp-expand-button {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 1000;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--page-text);
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(80, 50, 20, 0.16);
+}
+
+.catalog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  background: var(--card-bg);
+  box-shadow: 0 12px 34px rgba(80, 50, 20, 0.1);
+}
+
+.catalog-header h1 {
+  margin: 0;
+}
+
+.brand-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.reading-history {
+  margin-bottom: 16px;
+}
+
+.reading-history-empty,
+.reading-history-card {
+  padding: 14px;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--muted-text);
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+}
+
+.reading-history-card {
+  display: grid;
+  gap: 6px;
+  color: var(--page-text);
+}
+
+.reading-history-kicker {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reading-history-title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.reading-history-chapter {
+  color: var(--muted-text);
+  font-size: 14px;
+}
+
+.reading-history-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 38px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.reading-history-small-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.reading-history-small {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--card-bg);
+  color: var(--page-text);
+  text-decoration: none;
+  border: 1px solid var(--card-border);
+}
+
+.reading-history-small small {
+  color: var(--muted-text);
+  white-space: nowrap;
+}
+
+.library-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.sort-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-text);
+  font-size: 14px;
+}
+
+.sort-label select {
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--card-bg);
+  color: var(--page-text);
+}
+
+.novel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.novel-card {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  padding: 14px;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.1);
+}
+
+.page-library .novel-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 42px rgba(80, 50, 20, 0.16);
+}
+
+.translation-status-dot {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  width: 15px;
+  height: 15px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.title-status-dot {
+  top: 8px;
+  left: 8px;
+}
+
+.status-in_progress,
+.status-in-progress {
+  background: var(--get-color);
+}
+
+.status-completed {
+  background: var(--gen-color);
+}
+
+.status-paused {
+  background: var(--paused-color);
+}
+
+.status-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.status-label.status-in_progress,
+.status-label.status-in-progress {
+  background: var(--get-color);
+}
+
+.status-label.status-completed {
+  background: var(--gen-color);
+}
+
+.status-label.status-paused {
+  background: var(--paused-color);
+}
+
+.novel-cover-wrap {
+  position: relative;
+  width: 92px;
+  height: 130px;
+  flex-shrink: 0;
+}
+
+.novel-cover {
+  width: 92px;
+  height: 130px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #f3e7dc;
+}
+
+.novel-cover.placeholder,
+.title-cover.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3e7dc;
+}
+
+.adult-cover-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.novel-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.page-library .novel-info h2 {
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.novel-info h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.relation-heart {
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+.novel-description,
+.novel-description p {
+  color: var(--muted-text);
+  line-height: 1.55;
+}
+
+.novel-description {
+  margin: 0 0 10px;
+}
+
+.novel-description p {
+  margin: 0 0 10px;
+}
+
+.catalog-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.novel-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(242, 140, 56, 0.12);
+  color: var(--page-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.progress-pill {
+  gap: 8px;
+}
+
+.progress-mini {
+  width: 54px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(80, 50, 20, 0.12);
+}
+
+.progress-mini span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.novel-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.catalog-tags {
+  max-height: 54px;
+  overflow: hidden;
+}
+
+.full-tags {
+  max-height: none;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  font-size: 12px;
+  border: 0;
+  white-space: nowrap;
+}
+
+.tag-rating {
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.tag-get {
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: 800;
+}
+
+.tag-slash {
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: 800;
+}
+
+.tag-gen {
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 800;
+}
+
+.tag-country {
+  background: #eef2ff;
+  color: #4338ca;
+  font-weight: 700;
+}
+
+.tag-more {
+  font-weight: 800;
+}
+
+.tag-spoiler {
+  background: #2b211c;
+  color: transparent;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.95);
+  user-select: none;
+}
+
+.tag-spoiler-locked::before {
+  content: "██████";
+  color: #ffffff;
+  text-shadow: none;
+}
+
+.tag-spoiler-reveal {
+  cursor: pointer;
+  font: inherit;
+}
+
+.tag-spoiler-opened {
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  text-shadow: none;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 18px;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.title-hero {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 22px;
+  border-radius: 24px;
+  background: var(--card-bg);
+  box-shadow: 0 18px 46px rgba(80, 50, 20, 0.14);
+}
+
+.title-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(18px);
+  transform: scale(1.12);
+  opacity: 0.24;
+}
+
+.title-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(247, 239, 231, 0.96),
+    rgba(247, 239, 231, 0.82),
+    rgba(247, 239, 231, 0.52)
   );
-
-  document.querySelectorAll("[data-chapter-row]").forEach(row => {
-    const id = String(row.dataset.chapterId || "");
-
-    if (readIds.has(id)) {
-      row.classList.add("chapter-row-read");
-    }
-  });
 }
 
-function bindDescriptionToggle() {
-  document.querySelectorAll("[data-collapsible-description]").forEach(block => {
-    const button = block.querySelector("[data-description-toggle]");
-
-    if (!button) return;
-
-    button.addEventListener("click", () => {
-      const expanded = block.classList.toggle("is-expanded");
-      button.textContent = expanded ? "Свернуть" : "Ещё";
-    });
-  });
+body[data-site-theme="dark"] .title-hero::after {
+  background: linear-gradient(
+    90deg,
+    rgba(18, 18, 18, 0.96),
+    rgba(18, 18, 18, 0.82),
+    rgba(18, 18, 18, 0.58)
+  );
 }
 
-function bindLibrarySort() {
-  const select = document.getElementById("librarySort");
-  const list = document.getElementById("libraryList");
-
-  if (!select || !list) return;
-
-  select.addEventListener("change", () => {
-    const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
-    const mode = select.value;
-
-    cards.sort((a, b) => {
-      if (mode === "title") {
-        return a.dataset.title.localeCompare(b.dataset.title, "ru");
-      }
-
-      if (mode === "status") {
-        const rank = {
-          completed: 1,
-          in_progress: 2,
-          paused: 3,
-        };
-
-        return (rank[a.dataset.status] || 99) - (rank[b.dataset.status] || 99);
-      }
-
-      if (mode === "chapters") {
-        return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
-      }
-
-      if (mode === "added") {
-        return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
-      }
-
-      if (mode === "relation") {
-        const rank = {
-          "Гет": 1,
-          "Слэш": 2,
-          "Джен": 3,
-        };
-
-        return (rank[a.dataset.relation] || 99) - (rank[b.dataset.relation] || 99);
-      }
-
-      return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
-    });
-
-    cards.forEach(card => list.appendChild(card));
-  });
+.title-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+  padding: 22px;
 }
 
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+.title-cover-wrap {
+  width: 150px;
+  height: 214px;
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  createMiniAppExpandButton();
-  createSettingsPanel();
-  createSpoilerWarningModal();
+.title-cover {
+  width: 150px;
+  height: 214px;
+  border-radius: 16px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22);
+}
 
-  applySettings();
-  bindSpoilerTags();
+.title-info {
+  min-width: 0;
+  flex: 1;
+}
 
-  saveCurrentChapterProgress();
-  renderLibraryHistory();
-  updateNovelReadButton();
-  markReadChapters();
-  bindDescriptionToggle();
-  bindLibrarySort();
-});
+.title-info h1 {
+  margin: 0 0 6px;
+  font-size: 30px;
+}
+
+.novel-page-title-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.novel-page-title-line .inline-fox {
+  margin-top: -10px;
+}
+
+.novel-title-en {
+  margin: 0 0 10px;
+  color: var(--muted-text);
+  font-style: italic;
+}
+
+.title-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.collapsible-description {
+  position: relative;
+  margin-top: 8px;
+}
+
+.collapsible-description-content {
+  position: relative;
+  max-height: 110px;
+  overflow: hidden;
+}
+
+.collapsible-description:not(.is-expanded) .collapsible-description-content::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42px;
+  background: linear-gradient(
+    to bottom,
+    rgba(247, 239, 231, 0),
+    rgba(247, 239, 231, 0.96)
+  );
+}
+
+body[data-site-theme="dark"] .collapsible-description:not(.is-expanded) .collapsible-description-content::after {
+  background: linear-gradient(
+    to bottom,
+    rgba(18, 18, 18, 0),
+    rgba(18, 18, 18, 0.96)
+  );
+}
+
+.collapsible-description.is-expanded .collapsible-description-content {
+  max-height: none;
+}
+
+.description-toggle {
+  margin-top: 4px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.character-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.character-card {
+  padding: 16px;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+}
+
+.character-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.character-card p {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--muted-text);
+}
+
+.novel-read-action {
+  margin: 18px 0 22px;
+}
+
+.primary-read-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 900;
+  box-shadow: 0 12px 30px rgba(80, 50, 20, 0.18);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--card-bg);
+  margin-bottom: 12px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 22px;
+}
+
+.chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--card-bg);
+  box-shadow: 0 12px 34px rgba(80, 50, 20, 0.1);
+}
+
+.volume-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 8px;
+  color: var(--accent);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 13px;
+}
+
+.volume-header::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: var(--card-border);
+}
+
+.chapter-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.chapter-row:last-child {
+  border-bottom: 0;
+}
+
+.chapter-row:hover {
+  background: rgba(242, 140, 56, 0.08);
+}
+
+.chapter-row-read .chapter-title {
+  color: var(--muted-text);
+}
+
+.chapter-row-read .chapter-title::before {
+  content: "✓ ";
+  color: var(--gen-color);
+  font-weight: 900;
+}
+
+.chapter-row-locked {
+  opacity: 0.78;
+}
+
+.chapter-row-more {
+  background: rgba(242, 140, 56, 0.08);
+  font-style: italic;
+}
+
+.chapter-title {
+  font-weight: 700;
+}
+
+.chapter-access {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.chapter-access-public {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.chapter-access-locked {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.chapter-layout {
+  color: var(--reader-text-color);
+}
+
+body[data-reader-width="full"] .chapter-layout {
+  max-width: 1040px;
+}
+
+body[data-reader-width="comfort"] .chapter-layout {
+  max-width: 720px;
+}
+
+body[data-reader-width="wide"] .chapter-layout {
+  max-width: none;
+  width: 94vw;
+}
+
+.chapter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  color: var(--page-text);
+}
+
+.chapter-layout h1 {
+  margin-top: 0;
+}
+
+.chapter-subtitle {
+  margin-bottom: 0;
+}
+
+.locked-chapter-notice {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 16px;
+  border-radius: var(--card-radius);
+  background: #fff1f2;
+  color: #991b1b;
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+}
+
+.locked-title {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.locked-chapter-notice p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.locked-chapter-notice a {
+  color: #991b1b;
+  font-weight: 900;
+}
+
+.chapter-content {
+  margin-top: 22px;
+  padding: 22px 18px;
+  border-radius: var(--card-radius);
+  background: var(--reader-bg);
+  color: var(--reader-text-color);
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+  line-height: var(--reader-line-height);
+  font-size: var(--reader-font-size);
+}
+
+.chapter-content-locked {
+  max-height: 520px;
+  overflow: hidden;
+  filter: blur(5px);
+  user-select: none;
+  pointer-events: none;
+}
+
+.chapter-content article {
+  max-width: 100%;
+}
+
+.chapter-content p {
+  margin: 0 0 var(--reader-paragraph-spacing);
+}
+
+.chapter-content a {
+  color: inherit;
+}
+
+.chapter-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 14px;
+  display: block;
+  margin: 18px auto;
+}
+
+.chapter-content blockquote {
+  margin: 18px 0;
+  padding-left: 16px;
+  border-left: 4px solid var(--accent);
+  color: var(--reader-text-color);
+}
+
+body[data-text-align="left"] .chapter-content {
+  text-align: left;
+}
+
+body[data-text-align="justify"] .chapter-content {
+  text-align: justify;
+}
+
+.chapter-navigation {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.chapter-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--card-bg);
+  color: var(--page-text);
+  text-decoration: none;
+  font-weight: 800;
+  box-shadow: 0 8px 20px rgba(80, 50, 20, 0.08);
+}
+
+.chapter-nav-main {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.empty {
+  padding: 18px;
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  color: var(--muted-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.settings-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(80, 50, 20, 0.25);
+}
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 16px;
+}
+
+.settings-overlay[hidden] {
+  display: none !important;
+}
+
+.settings-modal {
+  width: 100%;
+  max-width: 620px;
+  max-height: 86vh;
+  overflow: auto;
+  background: var(--page-bg);
+  color: var(--page-text);
+  padding: 16px;
+  border-radius: var(--card-radius);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.settings-header h2 {
+  margin: 0 0 2px;
+}
+
+.settings-header p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 13px;
+}
+
+.settings-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 30px;
+  cursor: pointer;
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 12px;
+}
+
+.settings-tab {
+  border: 1px solid var(--card-border);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: var(--card-bg);
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.settings-tab.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.settings-section {
+  display: none;
+}
+
+.settings-section.active {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings-field,
+.settings-check {
+  display: grid;
+  gap: 5px;
+  padding: 9px;
+  border-radius: 12px;
+  background: var(--card-bg);
+}
+
+.settings-field span,
+.settings-check span {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.settings-field select,
+.settings-field input[type="color"] {
+  width: 100%;
+}
+
+.settings-field select {
+  padding: 8px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--page-bg);
+  color: var(--page-text);
+}
+
+.settings-color-row {
+  display: grid;
+  grid-template-columns: 1fr 42px;
+  gap: 8px;
+}
+
+.settings-field input[type="color"] {
+  height: 38px;
+  border: 0;
+  background: transparent;
+}
+
+.settings-check {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.settings-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+}
+
+.settings-reset {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--page-text);
+  color: var(--page-bg);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.about-box {
+  grid-column: 1 / -1;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+}
+
+.about-fox {
+  width: 100px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.about-box h3 {
+  margin: 0 0 10px;
+}
+
+.about-box p {
+  margin: 0 0 14px;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+.about-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.about-links a {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.spoiler-warning-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.spoiler-warning-overlay[hidden] {
+  display: none !important;
+}
+
+.spoiler-warning-modal {
+  width: 100%;
+  max-width: 360px;
+  padding: 18px;
+  border-radius: 18px;
+  background: var(--page-bg);
+  color: var(--page-text);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+}
+
+.spoiler-warning-modal h2 {
+  margin: 0 0 8px;
+}
+
+.spoiler-warning-modal p {
+  margin: 0 0 14px;
+  color: var(--muted-text);
+  line-height: 1.5;
+}
+
+.spoiler-warning-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.spoiler-warning-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.spoiler-warning-actions button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.spoiler-warning-cancel {
+  background: var(--tag-bg);
+  color: var(--tag-text);
+}
+
+.spoiler-warning-confirm {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+@media (max-width: 760px) {
+  .title-cover-wrap,
+  .title-cover {
+    width: 112px;
+    height: 160px;
+  }
+
+  .title-info h1 {
+    font-size: 24px;
+  }
+
+  .chapter-header {
+    flex-direction: column;
+  }
+
+  .character-info {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .settings-modal {
+    max-width: none;
+    border-radius: 22px 22px 0 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 14px;
+  }
+
+  .catalog-header {
+    align-items: flex-start;
+  }
+
+  .catalog-fox {
+    width: 76px;
+  }
+
+  .library-toolbar {
+    justify-content: stretch;
+  }
+
+  .sort-label,
+  .sort-label select {
+    width: 100%;
+  }
+
+  .novel-card {
+    gap: 12px;
+  }
+
+  .novel-cover-wrap,
+  .novel-cover {
+    width: 78px;
+    height: 112px;
+  }
+
+  .title-hero-content {
+    flex-direction: row;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .title-cover-wrap,
+  .title-cover {
+    width: 98px;
+    height: 140px;
+  }
+
+  .novel-page-title-line .inline-fox {
+    width: 38px;
+  }
+
+  .section-fox,
+  .chapter-fox {
+    width: 56px;
+  }
+
+  .chapter-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter-access {
+    width: fit-content;
+  }
+
+  .chapter-navigation {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section.active {
+    grid-template-columns: 1fr;
+  }
+
+  .miniapp-expand-button {
+    top: 10px;
+    right: 10px;
+    width: 38px;
+    height: 38px;
+  }
+}
