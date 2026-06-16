@@ -53,20 +53,37 @@
             </div>
 
             {% if novel.description %}
-              <p class="novel-description">{{ novel.description }}</p>
+              <div class="novel-description novel-description-full">
+                {% for paragraph in novel.description.split('\n') %}
+                  {% if paragraph.strip() %}
+                    <p>{{ paragraph }}</p>
+                  {% endif %}
+                {% endfor %}
+              </div>
             {% endif %}
 
             {% if novel.tags %}
               <div class="novel-tags full-tags">
                 {% for raw_tag in novel.tags.split(';') %}
                   {% set tag = raw_tag.strip() %}
+
                   {% if tag %}
                     {% if tag.startswith('!') %}
                       <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag[1:] }}">
                         спойлер
                       </button>
                     {% else %}
-                      <span class="tag">{{ tag }}</span>
+                      {% set tag_lower = tag|lower %}
+
+                      {% if tag_lower in ['18+', 'r18', 'r-18', 'nc-17'] %}
+                        <span class="tag tag-rating">{{ tag }}</span>
+                      {% elif tag_lower in ['джен', 'гет', 'bl', 'бл', 'gl', 'гл', 'слэш', 'фемслэш'] %}
+                        <span class="tag tag-relation">{{ tag }}</span>
+                      {% elif tag_lower in ['китай', 'корея', 'япония', 'англия', 'сша', 'en', 'cn', 'kor', 'jp'] %}
+                        <span class="tag tag-country">{{ tag }}</span>
+                      {% else %}
+                        <span class="tag">{{ tag }}</span>
+                      {% endif %}
                     {% endif %}
                   {% endif %}
                 {% endfor %}
@@ -124,11 +141,11 @@
                   <span class="chapter-access chapter-access-public">читать</span>
                 </a>
               {% else %}
-                <div class="chapter-row chapter-row-locked">
+                <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}">
                   <span class="chapter-number">{{ chapter.chapter_no }}</span>
                   <span class="chapter-title">{{ chapter.title }}</span>
                   <span class="chapter-access chapter-access-locked">🔒 подписка</span>
-                </div>
+                </a>
               {% endif %}
             {% endfor %}
 
@@ -152,15 +169,5 @@
   </main>
 
   <script src="/static/settings.js"></script>
-
-  <script>
-    document.querySelectorAll(".tag-spoiler-reveal").forEach(button => {
-      button.addEventListener("click", () => {
-        button.textContent = button.dataset.spoiler;
-        button.classList.remove("tag-spoiler");
-        button.classList.add("tag-spoiler-opened");
-      });
-    });
-  </script>
 </body>
 </html>
