@@ -10,7 +10,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body class="page-chapter">
+<body class="page-chapter no-copy-page">
   <main class="page page-top">
     <article
       class="reader-layout chapter-layout"
@@ -90,7 +90,7 @@
         {% if next_chapter %}
           <a class="chapter-nav-button" href="/chapter/{{ next_chapter.id }}">Следующая →</a>
         {% else %}
-          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">К оглавлению →</a>
+          <span class="chapter-nav-placeholder" aria-hidden="true"></span>
         {% endif %}
       </nav>
 
@@ -104,6 +104,36 @@
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
+
+    document.addEventListener("DOMContentLoaded", function () {
+      const chapterContent = document.querySelector(".chapter-content");
+
+      if (!chapterContent) {
+        return;
+      }
+
+      const blockCopy = function (event) {
+        event.preventDefault();
+        return false;
+      };
+
+      chapterContent.addEventListener("copy", blockCopy);
+      chapterContent.addEventListener("cut", blockCopy);
+      chapterContent.addEventListener("contextmenu", blockCopy);
+      chapterContent.addEventListener("selectstart", blockCopy);
+      chapterContent.addEventListener("dragstart", blockCopy);
+
+      document.addEventListener("keydown", function (event) {
+        const key = String(event.key || "").toLowerCase();
+
+        if ((event.ctrlKey || event.metaKey) && ["a", "c", "x", "s", "p"].includes(key)) {
+          if (document.body.classList.contains("page-chapter")) {
+            event.preventDefault();
+            return false;
+          }
+        }
+      });
+    });
   </script>
   <script src="/static/settings.js"></script>
 </body>
