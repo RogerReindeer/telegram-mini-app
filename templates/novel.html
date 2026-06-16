@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>{{ novel.title }} — {{ app_title }}</title>
+  <title>{{ novel.display_title }} — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -12,8 +12,17 @@
 
 <body class="page-novel">
   <main class="page page-top">
-    <article class="reader-layout title-layout">
-      <a class="back-link" href="/library">← Каталог</a>
+    <article
+      class="reader-layout title-layout"
+      data-novel-page
+      data-novel-id="{{ novel.id }}"
+      data-novel-slug="{{ novel.slug }}"
+      data-novel-title="{{ novel.title }}"
+      data-post-icons="{{ novel.post_icons or '' }}"
+      data-first-chapter-id="{% if first_chapter %}{{ first_chapter.id }}{% endif %}"
+      data-first-chapter-title="{% if first_chapter %}{{ first_chapter.title }}{% endif %}"
+    >
+      <a class="back-link" href="/library">← Библиотека</a>
 
       <section class="title-hero">
         {% if novel.cover_url %}
@@ -26,7 +35,7 @@
               <img
                 class="title-cover"
                 src="{{ novel.cover_url }}"
-                alt="{{ novel.title }}"
+                alt="{{ novel.display_title }}"
                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
               >
               <div class="title-cover placeholder" style="display:none;">📖</div>
@@ -42,14 +51,14 @@
           <div class="title-info">
             <div class="novel-page-title-line">
               <div>
-                <h1>{{ novel.title }}</h1>
+                <h1>{{ novel.display_title }}</h1>
 
                 {% if novel.title_en %}
                   <p class="novel-title-en">{{ novel.title_en }}</p>
                 {% endif %}
               </div>
 
-              <img class="inline-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
+              <img class="inline-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
             </div>
 
             {% if novel.description %}
@@ -125,33 +134,52 @@
         </section>
       {% endif %}
 
+      {% if first_chapter %}
+        <section class="novel-read-action">
+          <a
+            class="primary-read-button"
+            id="novelReadButton"
+            href="/chapter/{{ first_chapter.id }}"
+            data-default-href="/chapter/{{ first_chapter.id }}"
+            data-default-text="Начать читать"
+          >
+            Начать читать
+          </a>
+        </section>
+      {% endif %}
+
       <section class="chapters-section">
         <header class="section-header">
-          <h2 class="section-title">Главы</h2>
-          <img class="section-fox" src="/static/fox_hearts.png" alt="Лисичка" data-fox>
+          <h2 class="section-title">Оглавление</h2>
+          <img class="section-fox" src="{{ fox.fox_hearts }}" alt="Лисичка" data-fox>
         </header>
 
-        {% if chapters %}
+        {% if grouped_chapters %}
           <div class="chapter-list">
-            {% for chapter in chapters %}
-              {% if chapter.access_level == 'public' %}
-                <a class="chapter-row" href="/chapter/{{ chapter.id }}">
-                  <span class="chapter-number">{{ chapter.chapter_no }}</span>
-                  <span class="chapter-title">{{ chapter.title }}</span>
-                  <span class="chapter-access chapter-access-public">читать</span>
-                </a>
-              {% else %}
-                <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}">
-                  <span class="chapter-number">{{ chapter.chapter_no }}</span>
-                  <span class="chapter-title">{{ chapter.title }}</span>
-                  <span class="chapter-access chapter-access-locked">🔒 подписка</span>
-                </a>
+            {% for group in grouped_chapters %}
+              {% if group.title %}
+                <div class="volume-header">
+                  <span>{{ group.title }}</span>
+                </div>
               {% endif %}
+
+              {% for chapter in group.chapters %}
+                {% if chapter.access_level == 'public' %}
+                  <a class="chapter-row" href="/chapter/{{ chapter.id }}">
+                    <span class="chapter-title">{{ chapter.title }}</span>
+                    <span class="chapter-access chapter-access-public">читать</span>
+                  </a>
+                {% else %}
+                  <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}">
+                    <span class="chapter-title">{{ chapter.title }}</span>
+                    <span class="chapter-access chapter-access-locked">🔒 подписка</span>
+                  </a>
+                {% endif %}
+              {% endfor %}
             {% endfor %}
 
             {% if hidden_subscriber_count and hidden_subscriber_count > 0 %}
               <div class="chapter-row chapter-row-more">
-                <span class="chapter-number">…</span>
                 <span class="chapter-title">
                   Ещё {{ hidden_subscriber_count }} глав доступно подписчикам
                 </span>
@@ -168,6 +196,9 @@
     </article>
   </main>
 
+  <script>
+    window.ZEFIRKI_FOX = {{ fox | tojson }};
+  </script>
   <script src="/static/settings.js"></script>
 </body>
 </html>
