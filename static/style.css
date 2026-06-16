@@ -956,7 +956,9 @@ body[data-reader-width="wide"] .chapter-layout {
   pointer-events: none;
 }
 
-.chapter-content article {
+.chapter-content article,
+.chapter-content main,
+.chapter-content body {
   max-width: 100%;
 }
 
