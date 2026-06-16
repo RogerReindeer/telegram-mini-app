@@ -34,31 +34,46 @@
               data-chapters="{{ novel.total_chapters or 0 }}"
               data-sort="{{ novel.sort_order or novel.id }}"
             >
-              {% if novel.cover_url %}
-                <img
-                  class="novel-cover"
-                  src="{{ novel.cover_url }}"
-                  alt="{{ novel.title }}"
-                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                >
-                <div class="novel-cover placeholder" style="display:none;">📖</div>
-              {% else %}
-                <div class="novel-cover placeholder">📖</div>
-              {% endif %}
+              <div class="novel-cover-wrap">
+                {% if novel.cover_url %}
+                  <img
+                    class="novel-cover"
+                    src="{{ novel.cover_url }}"
+                    alt="{{ novel.title }}"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                  >
+                  <div class="novel-cover placeholder" style="display:none;">📖</div>
+                {% else %}
+                  <div class="novel-cover placeholder">📖</div>
+                {% endif %}
+
+                {% if novel.has_adult_badge %}
+                  <span class="adult-cover-badge">18+</span>
+                {% endif %}
+              </div>
 
               <div class="novel-info">
                 <h2>{{ novel.title }}</h2>
 
-                {% if novel.tags %}
-                  <div class="novel-tags">
-                    {% for tag in novel.tags.split(',')[:3] %}
-                      <span class="tag">{{ tag.strip() }}</span>
-                    {% endfor %}
-                  </div>
-                {% endif %}
-
                 {% if novel.description %}
                   <p class="novel-description">{{ novel.description }}</p>
+                {% endif %}
+
+                {% if novel.tags %}
+                  <div class="novel-tags catalog-tags">
+                    {% for raw_tag in novel.tags.split(';') %}
+                      {% set tag = raw_tag.strip() %}
+                      {% if tag %}
+                        {% if tag.startswith('!') %}
+                          <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
+                        {% elif tag in ['18+', 'R18', 'R-18', 'NC-17'] %}
+                          <span class="tag tag-adult">{{ tag }}</span>
+                        {% else %}
+                          <span class="tag">{{ tag }}</span>
+                        {% endif %}
+                      {% endif %}
+                    {% endfor %}
+                  </div>
                 {% endif %}
 
                 <div class="novel-badges">
@@ -66,7 +81,9 @@
                     <span class="badge chapters-meta">Глав: {{ novel.total_chapters }}</span>
                   {% endif %}
 
-                  <span class="badge age-meta">18+</span>
+                  {% if novel.progress_percent is not none %}
+                    <span class="badge">Перевод: {{ novel.progress_percent }}%</span>
+                  {% endif %}
                 </div>
               </div>
             </a>
