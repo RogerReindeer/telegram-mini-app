@@ -18,7 +18,6 @@
       data-novel-id="{{ novel.id }}"
       data-novel-slug="{{ novel.slug }}"
       data-novel-title="{{ novel.title }}"
-      data-post-icons="{{ novel.post_icons or '' }}"
       data-first-chapter-id="{% if first_chapter %}{{ first_chapter.id }}{% endif %}"
       data-first-chapter-title="{% if first_chapter %}{{ first_chapter.title }}{% endif %}"
     >
@@ -68,7 +67,9 @@
                 {% endif %}
               </div>
 
-              <img class="inline-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+              {% if fox.fox_side %}
+                <img class="inline-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+              {% endif %}
             </div>
 
             <div class="title-status-line">
@@ -92,33 +93,15 @@
               {% endif %}
             </div>
 
-            {% if novel.tags %}
+            {% if novel.tag_items %}
               <div class="novel-tags full-tags" title="{{ novel.tags_tooltip or novel.tags }}">
-                {% for raw_tag in novel.tags.split(';') %}
-                  {% set tag = raw_tag.strip() %}
-
-                  {% if tag %}
-                    {% if tag.startswith('!') %}
-                      <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag[1:] }}">
-                        спойлер
-                      </button>
-                    {% else %}
-                      {% set tag_lower = tag|lower %}
-
-                      {% if tag_lower in ['18+', 'r18', 'r-18', 'nc-17'] %}
-                        <span class="tag tag-rating">{{ tag }}</span>
-                      {% elif tag_lower in ['гет'] %}
-                        <span class="tag tag-get">{{ tag }}</span>
-                      {% elif tag_lower in ['слэш', 'bl', 'бл', 'данмэй', 'danmei'] %}
-                        <span class="tag tag-slash">{{ tag }}</span>
-                      {% elif tag_lower in ['джен'] %}
-                        <span class="tag tag-gen">{{ tag }}</span>
-                      {% elif tag_lower in ['китай', 'корея', 'япония', 'англия', 'сша', 'en', 'cn', 'kor', 'jp'] %}
-                        <span class="tag tag-country">{{ tag }}</span>
-                      {% else %}
-                        <span class="tag">{{ tag }}</span>
-                      {% endif %}
-                    {% endif %}
+                {% for tag in novel.tag_items %}
+                  {% if tag.is_spoiler %}
+                    <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}">
+                      спойлер
+                    </button>
+                  {% else %}
+                    <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
                   {% endif %}
                 {% endfor %}
               </div>
@@ -178,7 +161,9 @@
       <section class="chapters-section">
         <header class="section-header">
           <h2 class="section-title">Оглавление</h2>
-          <img class="section-fox" src="{{ fox.fox_hearts }}" alt="Лисичка" data-fox>
+          {% if fox.fox_hearts %}
+            <img class="section-fox" src="{{ fox.fox_hearts }}" alt="Лисичка" data-fox>
+          {% endif %}
         </header>
 
         {% if grouped_chapters %}
