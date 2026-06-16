@@ -1,1191 +1,151 @@
-import csv
-import os
-import re
-import time
-from datetime import datetime
-from io import StringIO
-from urllib.parse import urlparse, quote
-
-import requests
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from supabase import create_client, Client
-
-load_dotenv()
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-
-MINIAPP_SHEET_ID = os.getenv(
-    "MINIAPP_SHEET_ID",
-    "1-dHdJEnBai_ZAcdZKwgTryoQ-uAfSgP52qTnbU4amHs",
-)
-
-SYNC_TOKEN = os.getenv("SYNC_TOKEN")
-
-PAID_PREVIEW_COUNT = 3
-SHEET_CACHE_TTL_SECONDS = 300
-
-app = FastAPI(title="Zefirki Reader Mini App")
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-SHEET_CACHE = {}
-
-
-def mask_env_value(value: str | None):
-    if value is None:
-        return {
-            "exists": False,
-            "length": 0,
-            "prefix": None,
-            "has_extra_spaces": False,
-            "has_quotes": False,
-        }
-
-    return {
-        "exists": True,
-        "length": len(value),
-        "prefix": value[:12],
-        "has_extra_spaces": value.strip() != value,
-        "has_quotes": (
-            value.startswith('"')
-            or value.endswith('"')
-            or value.startswith("'")
-            or value.endswith("'")
-        ),
-    }
-
-
-def validate_env_value(name: str, value: str | None):
-    if not value:
-        raise RuntimeError(f"{name} is not set")
-
-    if value.strip() != value:
-        raise RuntimeError(f"{name} has extra spaces at the beginning or end")
-
-    if (
-        value.startswith('"')
-        or value.endswith('"')
-        or value.startswith("'")
-        or value.endswith("'")
-    ):
-        raise RuntimeError(f"{name} must not include quotes")
-
-
-def validate_required_env_for_read():
-    validate_env_value("SUPABASE_URL", SUPABASE_URL)
-    validate_env_value("SUPABASE_KEY", SUPABASE_KEY)
-
-
-def validate_required_env_for_admin_sync():
-    validate_env_value("SUPABASE_URL", SUPABASE_URL)
-    validate_env_value("SUPABASE_SERVICE_KEY", SUPABASE_SERVICE_KEY)
-    validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
-    validate_env_value("SYNC_TOKEN", SYNC_TOKEN)
-
-    if "supabase.co" not in SUPABASE_URL:
-        raise RuntimeError("SUPABASE_URL does not look like a Supabase project URL")
-
-    if not (
-        SUPABASE_SERVICE_KEY.startswith("sb_secret_")
-        or SUPABASE_SERVICE_KEY.startswith("eyJ")
-        or SUPABASE_SERVICE_KEY.startswith("sb_service_role_")
-    ):
-        raise RuntimeError(
-            "SUPABASE_SERVICE_KEY does not look like a service_role / secret key."
-        )
-
-
-def make_error_response(error: Exception, status_code: int = 500):
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "status": "error",
-            "type": error.__class__.__name__,
-            "message": str(error),
-        },
-    )
-
-
-def get_supabase() -> Client:
-    validate_required_env_for_read()
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
-
-
-def get_admin_supabase() -> Client:
-    validate_required_env_for_admin_sync()
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-
-
-def clean_value(value):
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
-def to_int(value):
-    value = clean_value(value)
-
-    if not value:
-        return None
-
-    try:
-        return int(float(value.replace(",", ".")))
-    except ValueError:
-        return None
-
-
-def to_float(value):
-    value = clean_value(value).replace("%", "").replace(",", ".")
-
-    if not value:
-        return None
-
-    try:
-        return float(value)
-    except ValueError:
-        return None
-
-
-def to_bool(value):
-    if value is True:
-        return True
-
-    if value is False:
-        return False
-
-    value = clean_value(value).lower()
-
-    return value in (
-        "true",
-        "1",
-        "yes",
-        "да",
-        "истина",
-        "✅",
-        "☑",
-        "checked",
-    )
-
-
-def normalize_date(value):
-    value = clean_value(value)
-
-    if not value:
-        return None
-
-    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
-        try:
-            return datetime.strptime(value[:10], fmt).date().isoformat()
-        except ValueError:
-            pass
-
-    return None
-
-
-def format_date_ru(value):
-    value = clean_value(value)
-
-    if not value:
-        return ""
-
-    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
-        try:
-            date = datetime.strptime(value[:10], fmt)
-            return date.strftime("%d.%m.%Y")
-        except ValueError:
-            pass
-
-    return value
-
-
-def clean_chapter_title(value):
-    text = clean_value(value)
-
-    text = re.sub(r"--+", "", text)
-    text = re.sub(r"—\s*—+", "", text)
-    text = re.sub(r"\s+", " ", text)
-
-    return text.strip()
-
-
-def split_tags(tags: str):
-    return [
-        tag.strip()
-        for tag in clean_value(tags).split(";")
-        if tag.strip()
-    ]
-
-
-def normalized_tags(tags: str):
-    return [
-        tag.replace("!", "").strip().lower()
-        for tag in split_tags(tags)
-    ]
-
-
-def relation_icon_from_tags(tags: str):
-    tags_lower = normalized_tags(tags)
-
-    if "гет" in tags_lower:
-        return "❤️"
-
-    if (
-        "слэш" in tags_lower
-        or "bl" in tags_lower
-        or "бл" in tags_lower
-        or "данмэй" in tags_lower
-        or "danmei" in tags_lower
-    ):
-        return "💙"
-
-    if "джен" in tags_lower:
-        return "💚"
-
-    return ""
-
-
-def relation_type_from_tags(tags: str):
-    tags_lower = normalized_tags(tags)
-
-    if "гет" in tags_lower:
-        return "Гет"
-
-    if (
-        "слэш" in tags_lower
-        or "bl" in tags_lower
-        or "бл" in tags_lower
-        or "данмэй" in tags_lower
-        or "danmei" in tags_lower
-    ):
-        return "Слэш"
-
-    if "джен" in tags_lower:
-        return "Джен"
-
-    return ""
-
-
-def relation_color_from_type(relation_type: str):
-    relation_type = clean_value(relation_type).lower()
-
-    if relation_type == "гет":
-        return "#ff4444"
-
-    if relation_type == "слэш":
-        return "#4488ff"
-
-    if relation_type == "джен":
-        return "#44bb44"
-
-    return ""
-
-
-def translation_meta_from_status(status: str, schedule_mode: str, progress_percent):
-    combined = f"{status or ''} {schedule_mode or ''}".lower()
-
-    progress = None
-    try:
-        progress = float(str(progress_percent).replace(",", ".").replace("%", ""))
-    except Exception:
-        progress = None
-
-    if (
-        "пауз" in combined
-        or "передерж" in combined
-        or "pause" in combined
-        or "paused" in combined
-        or "hold" in combined
-        or "⏸" in combined
-    ):
-        return {
-            "value": "paused",
-            "label": "На паузе",
-            "color": "#ffaa00",
-        }
-
-    if (
-        "заверш" in combined
-        or "done" in combined
-        or "готов" in combined
-        or "полностью" in combined
-        or "✅" in combined
-        or progress == 100
-    ):
-        return {
-            "value": "completed",
-            "label": "Переведена полностью",
-            "color": "#44bb44",
-        }
-
-    return {
-        "value": "in_progress",
-        "label": "В процессе",
-        "color": "#ff4444",
-    }
-
-
-def tag_class_for_text(tag: str):
-    clean_tag = tag.replace("!", "").strip()
-    tag_lower = clean_tag.lower()
-
-    if tag_lower in ("18+", "r18", "r-18", "nc-17"):
-        return "tag-rating"
-
-    if tag_lower == "гет":
-        return "tag-get"
-
-    if tag_lower in ("слэш", "bl", "бл", "данмэй", "danmei"):
-        return "tag-slash"
-
-    if tag_lower == "джен":
-        return "tag-gen"
-
-    if tag_lower in ("китай", "корея", "япония", "англия", "сша", "en", "cn", "kor", "jp"):
-        return "tag-country"
-
-    return ""
-
-
-def prepare_tag_items(tags: str):
-    items = []
-
-    for raw_tag in split_tags(tags):
-        is_spoiler = raw_tag.startswith("!")
-        text = raw_tag[1:].strip() if is_spoiler else raw_tag.strip()
-
-        if not text:
-            continue
-
-        items.append({
-            "text": text,
-            "is_spoiler": is_spoiler,
-            "class_name": tag_class_for_text(raw_tag),
-        })
-
-    return items
-
-
-def prepare_novel_for_template(novel: dict):
-    tags = clean_value(novel.get("tags"))
-
-    relation_type = clean_value(novel.get("relation_type")) or relation_type_from_tags(tags)
-    relation_icon = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(tags)
-    relation_color = clean_value(novel.get("relation_color")) or relation_color_from_type(relation_type)
-
-    translation_meta = translation_meta_from_status(
-        clean_value(novel.get("status")),
-        clean_value(novel.get("schedule_mode")),
-        novel.get("progress_percent"),
-    )
-
-    tag_items = prepare_tag_items(tags)
-
-    novel["display_title"] = clean_value(novel.get("title"))
-    novel["relation_type"] = relation_type
-    novel["relation_icon"] = relation_icon
-    novel["relation_color"] = relation_color
-
-    novel["translation_status"] = clean_value(novel.get("translation_status")) or translation_meta["value"]
-    novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or translation_meta["label"]
-    novel["translation_status_color"] = clean_value(novel.get("translation_status_color")) or translation_meta["color"]
-
-    novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or tags
-    novel["tags_short"] = clean_value(novel.get("tags_short")) or "; ".join(split_tags(tags)[:10])
-
-    novel["tag_items"] = tag_items
-    novel["catalog_tag_items"] = tag_items[:10]
-    novel["catalog_hidden_tags"] = max(0, len(tag_items) - 10)
-
-    if novel.get("progress_percent") is None:
-        translated = to_float(novel.get("translated_chapters"))
-        total = to_float(novel.get("total_chapters"))
-
-        if translated is not None and total and total > 0:
-            novel["progress_percent"] = round(translated / total * 100, 1)
-
-    return novel
-
-
-def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
-    validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
-
-    cache_key = f"sheet:{sheet_name}"
-
-    if use_cache:
-        cached = SHEET_CACHE.get(cache_key)
-        if cached and time.time() - cached["created_at"] < SHEET_CACHE_TTL_SECONDS:
-            return cached["rows"]
-
-    encoded_sheet_name = quote(sheet_name)
-
-    url = (
-        f"https://docs.google.com/spreadsheets/d/{MINIAPP_SHEET_ID}/gviz/tq"
-        f"?tqx=out:csv&sheet={encoded_sheet_name}"
-    )
-
-    response = requests.get(url, timeout=30)
-
-    if response.status_code != 200:
-        raise RuntimeError(
-            f"Cannot fetch MiniApp sheet '{sheet_name}'. "
-            f"HTTP {response.status_code}. "
-            f"Check that the MiniApp Google Sheet is available for anyone with the link as Viewer."
-        )
-
-    text = response.content.decode("utf-8-sig")
-    text_lower = text.lower()
-
-    if "<html" in text_lower or ("google" in text_lower and "sign in" in text_lower):
-        raise RuntimeError(
-            f"MiniApp sheet '{sheet_name}' returned an HTML page instead of CSV. "
-            f"Most likely the sheet is not public."
-        )
-
-    reader = csv.DictReader(StringIO(text))
-    rows = list(reader)
-
-    if not reader.fieldnames:
-        raise RuntimeError(
-            f"MiniApp sheet '{sheet_name}' has no headers or could not be parsed as CSV."
-        )
-
-    if use_cache:
-        SHEET_CACHE[cache_key] = {
-            "created_at": time.time(),
-            "rows": rows,
-        }
-
-    return rows
-
-
-def get_fox_assets() -> dict:
-    fallback = {
-        "fox_peek": "",
-        "fox_side": "",
-        "fox_hearts": "",
-        "fox_sitting_front": "",
-        "fox_sitting_side": "",
-        "fox_sleeping": "",
-        "fox_standing_paws": "",
-        "fox_standing_paws_up": "",
-        "fox_jumping": "",
-        "fox_jumping_paws": "",
-        "fox_jump_paws_up": "",
-        "fox_laying_paws": "",
-        "fox_peek_left": "",
-        "fox_peek_right": "",
-        "fox_pic": "",
-        "fox_heart": "",
-    }
-
-    try:
-        rows = fetch_miniapp_sheet("Fox", use_cache=True)
-    except Exception as error:
-        print("Fox sheet warning:", error)
-        return fallback
-
-    result = fallback.copy()
-
-    for row in rows:
-        name = clean_value(row.get("name") or row.get("Name"))
-        url = clean_value(row.get("url") or row.get("URL"))
-
-        if name and url:
-            result[name] = url
-
-    return result
-
-
-def sync_novels_to_db(db: Client) -> int:
-    rows = fetch_miniapp_sheet("Novels")
-
-    payload_by_id = {}
-    duplicate_ids = []
-
-    for row in rows:
-        novel_id = to_int(row.get("NovelID"))
-
-        if not novel_id:
-            continue
-
-        if novel_id in payload_by_id:
-            duplicate_ids.append(novel_id)
-
-        tags = clean_value(row.get("Tags"))
-        status = clean_value(row.get("Status"))
-        schedule_mode = clean_value(row.get("ScheduleMode"))
-        progress_percent = to_float(row.get("ProgressPercent"))
-
-        relation_type = clean_value(row.get("RelationType")) or relation_type_from_tags(tags)
-        relation_icon = clean_value(row.get("RelationIcon")) or relation_icon_from_tags(tags)
-        relation_color = clean_value(row.get("RelationColor")) or relation_color_from_type(relation_type)
-
-        translation_meta = translation_meta_from_status(status, schedule_mode, progress_percent)
-
-        is_visible = to_bool(row.get("IsVisible"))
-
-        payload_by_id[novel_id] = {
-            "id": novel_id,
-            "slug": clean_value(row.get("Slug")) or f"novel-{novel_id}",
-            "title": clean_value(row.get("Title")) or f"Novel {novel_id}",
-            "title_en": clean_value(row.get("TitleEN")),
-
-            "cover_url": clean_value(row.get("CoverURL")),
-            "description": clean_value(row.get("Description")),
-            "tags": tags,
-            "tags_short": clean_value(row.get("TagsShort")),
-            "tags_tooltip": clean_value(row.get("TagsTooltip")),
-
-            "top_description": clean_value(row.get("TopDescription")),
-            "bottom_description": clean_value(row.get("BottomDescription")),
-            "original_language": clean_value(row.get("OriginalLanguage")),
-            "translation_author": clean_value(row.get("TranslationAuthor")) or "Зефиркины баоцзы",
-
-            "total_chapters": to_int(row.get("TotalChapters")),
-            "translated_chapters": to_int(row.get("TranslatedChapters")),
-            "progress_percent": progress_percent,
-
-            "status": status,
-            "access_model": clean_value(row.get("AccessModel")),
-            "schedule_mode": schedule_mode,
-            "early_access_mode": clean_value(row.get("EarlyAccessMode")),
-
-            "translation_status": clean_value(row.get("TranslationStatus")) or translation_meta["value"],
-            "translation_status_label": clean_value(row.get("TranslationStatusLabel")) or translation_meta["label"],
-            "translation_status_color": clean_value(row.get("TranslationStatusColor")) or translation_meta["color"],
-
-            "relation_type": relation_type,
-            "relation_icon": relation_icon,
-            "relation_color": relation_color,
-
-            "age_rating": clean_value(row.get("AgeRating")),
-            "has_adult_badge": to_bool(row.get("HasAdultBadge")),
-
-            "sort_order": to_float(row.get("SortOrder")) or novel_id,
-            "is_visible": is_visible,
-            "is_active": is_visible,
-
-            "added_date": normalize_date(row.get("AddedDate")),
-        }
-
-    payload = list(payload_by_id.values())
-
-    if duplicate_ids:
-        print(
-            "MiniApp sync warning: duplicate NovelID values were found and deduplicated:",
-            sorted(set(duplicate_ids)),
-        )
-
-    if payload:
-        db.table("novels").upsert(payload, on_conflict="id").execute()
-
-    return len(payload)
-
-
-def sync_chapters_to_db(db: Client) -> dict:
-    rows = fetch_miniapp_sheet("Chapters")
-
-    payload = []
-    used_codes = set()
-    skipped_rows = []
-    duplicate_base_codes = []
-
-    for row_number, row in enumerate(rows, start=2):
-        base_chapter_code = clean_value(row.get("ChapterID"))
-        novel_id = to_int(row.get("NovelID"))
-        chapter_no = to_float(row.get("ChapterNo"))
-
-        skip_reasons = []
-
-        if not novel_id:
-            skip_reasons.append("empty or invalid NovelID")
-
-        if chapter_no is None:
-            skip_reasons.append("empty or invalid ChapterNo")
-
-        if skip_reasons:
-            skipped_rows.append({
-                "row": row_number,
-                "reasons": skip_reasons,
-                "ChapterID": row.get("ChapterID"),
-                "NovelID": row.get("NovelID"),
-                "ChapterNo": row.get("ChapterNo"),
-                "ChapterTitle": row.get("ChapterTitle"),
-            })
-            continue
-
-        if not base_chapter_code:
-            base_chapter_code = f"{novel_id}-{chapter_no:g}-{row_number}"
-
-        if base_chapter_code in used_codes:
-            duplicate_base_codes.append(base_chapter_code)
-
-        chapter_code = make_unique_chapter_code(base_chapter_code, row_number, used_codes)
-
-        access_level = clean_value(row.get("AccessLevel")) or "hidden"
-        is_visible = to_bool(row.get("IsVisible"))
-
-        telegraph_url = clean_value(row.get("TelegraphURL"))
-        telegraph_free_url = clean_value(row.get("TelegraphFreeURL"))
-        telegraph_premium_url = clean_value(row.get("TelegraphPremiumURL"))
-
-        sort_order = to_float(row.get("SortOrder"))
-        if sort_order is None:
-            sort_order = row_number
-
-        payload.append({
-            "chapter_code": chapter_code,
-            "novel_id": novel_id,
-            "chapter_no": chapter_no,
-            "title": clean_chapter_title(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
-            "slug": clean_value(row.get("Slug")) or f"chapter-{row_number}",
-
-            "volume": clean_value(row.get("Volume")),
-            "volume_no": to_int(row.get("VolumeNo")),
-            "volume_title": clean_value(row.get("VolumeTitle")),
-
-            "translation_date": normalize_date(row.get("TranslationDate")),
-            "release_date": normalize_date(row.get("ReleaseDate")),
-            "free_release_date": normalize_date(row.get("FreeReleaseDate")),
-            "premium_release_date": normalize_date(row.get("PremiumReleaseDate")),
-
-            "telegraph_url": telegraph_url,
-            "telegraph_free_url": telegraph_free_url,
-            "telegraph_premium_url": telegraph_premium_url,
-
-            "telegraph_free_code": clean_value(row.get("TelegraphFreeCode")),
-            "telegraph_premium_code": clean_value(row.get("TelegraphPremiumCode")),
-
-            "source_type": clean_value(row.get("SourceType")) or "telegraph",
-            "access_level": access_level,
-            "is_visible": is_visible,
-            "is_active": is_visible,
-            "sort_order": sort_order,
-        })
-
-    if duplicate_base_codes:
-        print(
-            "MiniApp sync warning: duplicate ChapterID values were preserved with suffixes:",
-            sorted(set(duplicate_base_codes)),
-        )
-
-    if skipped_rows:
-        print(
-            "MiniApp sync warning: skipped chapter rows:",
-            skipped_rows[:20],
-        )
-
-    if payload:
-        db.table("chapters").upsert(payload, on_conflict="chapter_code").execute()
-
-    return {
-        "read_rows": len(rows),
-        "prepared_rows": len(payload),
-        "skipped_rows": len(skipped_rows),
-        "duplicate_base_codes": sorted(set(duplicate_base_codes)),
-        "skipped_examples": skipped_rows[:10],
-    }
-
-
-def make_unique_chapter_code(base_code: str, row_number: int, used_codes: set[str]) -> str:
-    base_code = clean_value(base_code)
-
-    if not base_code:
-        base_code = f"row-{row_number}"
-
-    code = base_code
-
-    if code not in used_codes:
-        used_codes.add(code)
-        return code
-
-    code = f"{base_code}-row-{row_number}"
-
-    while code in used_codes:
-        row_number += 1
-        code = f"{base_code}-row-{row_number}"
-
-    used_codes.add(code)
-    return code
-
-
-def sync_miniapp_sheets_to_db() -> dict:
-    db = get_admin_supabase()
-
-    novels_count = sync_novels_to_db(db)
-    chapters_result = sync_chapters_to_db(db)
-
-    return {
-        "status": "ok",
-        "novels": novels_count,
-        "chapters": chapters_result.get("prepared_rows", 0),
-        "chapters_debug": chapters_result,
-    }
-
-
-def build_chapter_display_list(
-    chapters: list[dict],
-    paid_preview_count: int = PAID_PREVIEW_COUNT,
-) -> tuple[list[dict], int]:
-    public_chapters = []
-    subscriber_preview = []
-    hidden_subscriber_count = 0
-
-    for chapter in chapters:
-        access_level = chapter.get("access_level")
-
-        if access_level == "public":
-            public_chapters.append(chapter)
-            continue
-
-        if access_level == "subscriber":
-            if len(subscriber_preview) < paid_preview_count:
-                subscriber_preview.append(chapter)
-            else:
-                hidden_subscriber_count += 1
-
-    return public_chapters + subscriber_preview, hidden_subscriber_count
-
-
-def group_chapters_by_volume(chapters: list[dict]) -> list[dict]:
-    groups = []
-    group_map = {}
-
-    for chapter in chapters:
-        volume_title = clean_value(chapter.get("volume"))
-
-        if not volume_title:
-            volume_no = chapter.get("volume_no")
-            raw_title = clean_value(chapter.get("volume_title"))
-
-            if volume_no and raw_title:
-                volume_title = f"{volume_no}. {raw_title}"
-            elif raw_title:
-                volume_title = raw_title
-            elif volume_no:
-                volume_title = f"Том {volume_no}"
-
-        if volume_title and volume_title.isdigit():
-            volume_title = f"Том {volume_title}"
-
-        if volume_title not in group_map:
-            group = {
-                "title": volume_title,
-                "chapters": [],
-            }
-            group_map[volume_title] = group
-            groups.append(group)
-
-        chapter["title"] = clean_chapter_title(chapter.get("title"))
-        group_map[volume_title]["chapters"].append(chapter)
-
-    if len(groups) == 1 and groups[0]["title"] == "":
-        groups[0]["title"] = ""
-
-    return groups
-
-
-def get_first_readable_chapter(chapters: list[dict]):
-    if not chapters:
-        return None
-
-    return chapters[0]
-
-
-def get_neighbor_chapters(db: Client, chapter: dict):
-    novel_id = chapter.get("novel_id")
-    current_sort = chapter.get("sort_order") or chapter.get("chapter_no") or 0
-
-    previous_result = (
-        db.table("chapters")
-        .select("id, title, access_level, sort_order")
-        .eq("novel_id", novel_id)
-        .eq("is_visible", True)
-        .lt("sort_order", current_sort)
-        .order("sort_order", desc=True)
-        .limit(1)
-        .execute()
-    )
-
-    next_result = (
-        db.table("chapters")
-        .select("id, title, access_level, sort_order")
-        .eq("novel_id", novel_id)
-        .eq("is_visible", True)
-        .gt("sort_order", current_sort)
-        .order("sort_order")
-        .limit(1)
-        .execute()
-    )
-
-    previous_chapter = (previous_result.data or [None])[0]
-    next_chapter = (next_result.data or [None])[0]
-
-    if previous_chapter:
-        previous_chapter["title"] = clean_chapter_title(previous_chapter.get("title"))
-
-    if next_chapter:
-        next_chapter["title"] = clean_chapter_title(next_chapter.get("title"))
-
-    return previous_chapter, next_chapter
-
-
-def normalize_external_article_url(url: str) -> str:
-    url = clean_value(url)
-
-    if not url:
-        raise HTTPException(status_code=404, detail="Chapter URL is empty")
-
-    if url.startswith("/chapter/"):
-        raise HTTPException(
-            status_code=400,
-            detail="Old internal /chapter/... link found instead of external URL",
-        )
-
-    if url.startswith("http://"):
-        url = "https://" + url.removeprefix("http://")
-
-    if not url.startswith("https://"):
-        url = "https://" + url
-
-    parsed = urlparse(url)
-
-    allowed_hosts = {
-        "telegra.ph",
-        "teletype.in",
-    }
-
-    if parsed.netloc not in allowed_hosts:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Only telegra.ph and teletype.in links are allowed. Got: {parsed.netloc}",
-        )
-
-    return url
-
-
-def clean_article_html(article):
-    stop_phrases = [
-        "тгк зефиркины баоцзы",
-        "зефиркины баоцзы",
-        "спасибо, что читаете",
-        "спасибо что читаете",
-        "полный перевод",
-        "доступен на бусти",
-        "доступен на boosty",
-        "boosty",
-        "бусти",
-        "bllate",
-        "bl late",
-        "bl-late",
-    ]
-
-    content_tags = article.find_all(["p", "div", "blockquote", "h3", "h4", "a"])
-
-    for tag in content_tags:
-        text = tag.get_text(" ", strip=True).lower()
-
-        if any(phrase in text for phrase in stop_phrases):
-            current = tag
-
-            while current:
-                next_tag = current.find_next_sibling()
-                current.decompose()
-                current = next_tag
-
-            break
-
-    return article
-
-
-def fetch_external_article(url: str) -> dict:
-    url = normalize_external_article_url(url)
-
-    response = requests.get(
-        url,
-        timeout=20,
-        headers={
-            "User-Agent": "Mozilla/5.0 ZefirkiReader/1.0",
-        },
-    )
-
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=502,
-            detail=f"External article returned HTTP {response.status_code}",
-        )
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    article = soup.find("article") or soup.find("main")
-
-    if not article:
-        article = soup.find("body")
-
-    if not article:
-        raise HTTPException(status_code=502, detail="Article content not found")
-
-    for tag in article.select("address, aside, script, style, header, footer, nav"):
-        tag.decompose()
-
-    first_h1 = article.find("h1")
-    if first_h1:
-        first_h1.decompose()
-
-    first_h2 = article.find("h2")
-    if first_h2:
-        first_h2.decompose()
-
-    article = clean_article_html(article)
-
-    return {
-        "source_url": url,
-        "content_html": str(article),
-    }
-
-
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    return RedirectResponse(url="/library", status_code=302)
-
-
-@app.head("/")
-async def home_head():
-    return Response(status_code=200)
-
-
-@app.get("/catalog", response_class=HTMLResponse)
-async def old_catalog_redirect():
-    return RedirectResponse(url="/library", status_code=302)
-
-
-@app.get("/library", response_class=HTMLResponse)
-async def library(request: Request):
-    try:
-        db = get_supabase()
-        fox = get_fox_assets()
-
-        result = (
-            db.table("novels")
-            .select("*")
-            .eq("is_visible", True)
-            .order("sort_order")
-            .execute()
-        )
-
-        novels = result.data or []
-
-        for novel in novels:
-            prepare_novel_for_template(novel)
-
-        return templates.TemplateResponse(
-            request,
-            "library.html",
-            {
-                "app_title": "Зефиркины баоцзы",
-                "novels": novels,
-                "fox": fox,
-            },
-        )
-
-    except Exception as error:
-        return make_error_response(error)
-
-
-@app.get("/novel/{slug}", response_class=HTMLResponse)
-async def novel_page(request: Request, slug: str):
-    try:
-        db = get_supabase()
-        fox = get_fox_assets()
-
-        novel_result = (
-            db.table("novels")
-            .select("*")
-            .eq("slug", slug)
-            .eq("is_visible", True)
-            .limit(1)
-            .execute()
-        )
-
-        novels = novel_result.data or []
-
-        if not novels:
-            raise HTTPException(status_code=404, detail="Novel not found")
-
-        novel = prepare_novel_for_template(novels[0])
-
-        chapters_result = (
-            db.table("chapters")
-            .select("*")
-            .eq("novel_id", novel["id"])
-            .eq("is_visible", True)
-            .order("sort_order")
-            .execute()
-        )
-
-        chapters = chapters_result.data or []
-
-        display_chapters, hidden_subscriber_count = build_chapter_display_list(chapters)
-        grouped_chapters = group_chapters_by_volume(display_chapters)
-        first_chapter = get_first_readable_chapter(display_chapters)
-
-        return templates.TemplateResponse(
-            request,
-            "novel.html",
-            {
-                "app_title": "Зефиркины баоцзы",
-                "novel": novel,
-                "chapters": display_chapters,
-                "grouped_chapters": grouped_chapters,
-                "hidden_subscriber_count": hidden_subscriber_count,
-                "first_chapter": first_chapter,
-                "fox": fox,
-            },
-        )
-
-    except HTTPException:
-        raise
-    except Exception as error:
-        return make_error_response(error)
-
-
-@app.get("/chapter/{chapter_id}", response_class=HTMLResponse)
-async def chapter_page(request: Request, chapter_id: int):
-    try:
-        db = get_supabase()
-        fox = get_fox_assets()
-
-        chapter_result = (
-            db.table("chapters")
-            .select("*, novels(id, title, slug)")
-            .eq("id", chapter_id)
-            .eq("is_visible", True)
-            .limit(1)
-            .execute()
-        )
-
-        chapters = chapter_result.data or []
-
-        if not chapters:
-            raise HTTPException(status_code=404, detail="Chapter not found")
-
-        chapter = chapters[0]
-        chapter["title"] = clean_chapter_title(chapter.get("title"))
-
-        novel = chapter.get("novels") or {}
-        novel["display_title"] = clean_value(novel.get("title"))
-
-        is_locked = chapter.get("access_level") == "subscriber"
-        unlock_date = format_date_ru(chapter.get("release_date") or chapter.get("free_release_date"))
-
-        previous_chapter, next_chapter = get_neighbor_chapters(db, chapter)
-
-        article_url = (
-            chapter.get("telegraph_url")
-            or chapter.get("telegraph_free_url")
-            or chapter.get("telegraph_premium_url")
-            or ""
-        )
-
-        article_content = None
-        article_error = None
-
-        if article_url:
-            try:
-                article_content = fetch_external_article(article_url)
-            except HTTPException as error:
-                article_error = error.detail
-            except Exception as error:
-                article_error = str(error)
-
-        return templates.TemplateResponse(
-            request,
-            "chapter.html",
-            {
-                "app_title": "Зефиркины баоцзы",
-                "chapter": chapter,
-                "novel": novel,
-                "article_content": article_content,
-                "article_error": article_error,
-                "is_locked": is_locked,
-                "unlock_date": unlock_date,
-                "previous_chapter": previous_chapter,
-                "next_chapter": next_chapter,
-                "fox": fox,
-            },
-        )
-
-    except HTTPException:
-        raise
-    except Exception as error:
-        return make_error_response(error)
-
-
-@app.post("/admin/sync-from-sheets")
-async def admin_sync_from_sheets(request: Request):
-    try:
-        validate_env_value("SYNC_TOKEN", SYNC_TOKEN)
-
-        token = request.headers.get("X-Sync-Token")
-
-        if token != SYNC_TOKEN:
-            raise HTTPException(status_code=403, detail="Invalid sync token")
-
-        return sync_miniapp_sheets_to_db()
-
-    except HTTPException:
-        raise
-    except Exception as error:
-        return make_error_response(error)
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-
-@app.head("/health")
-async def health_head():
-    return Response(status_code=200)
-
-
-@app.get("/debug/env")
-async def debug_env():
-    return {
-        "SUPABASE_URL": mask_env_value(SUPABASE_URL),
-        "SUPABASE_KEY": mask_env_value(SUPABASE_KEY),
-        "SUPABASE_SERVICE_KEY": mask_env_value(SUPABASE_SERVICE_KEY),
-        "MINIAPP_SHEET_ID": mask_env_value(MINIAPP_SHEET_ID),
-        "SYNC_TOKEN": mask_env_value(SYNC_TOKEN),
-    }
-
-
-@app.get("/debug/supabase")
-async def debug_supabase():
-    try:
-        validate_required_env_for_admin_sync()
-
-        db = get_admin_supabase()
-
-        result = (
-            db.table("novels")
-            .select("id,title,slug")
-            .limit(1)
-            .execute()
-        )
-
-        return {
-            "status": "ok",
-            "message": "Supabase admin connection works",
-            "sample": result.data,
-        }
-
-    except Exception as error:
-        return make_error_response(error)
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Библиотека — {{ app_title }}</title>
+
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+
+<body class="page-library">
+  <main class="page page-top">
+    <section class="reader-layout catalog-layout">
+      <header class="catalog-header">
+        <div>
+          <div class="brand-kicker">Зефиркины баоцзы</div>
+          <h1>Библиотека</h1>
+          <p class="subtitle">Выберите новеллу для чтения.</p>
+        </div>
+
+        {% if fox.fox_peek %}
+          <img class="catalog-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
+        {% endif %}
+      </header>
+
+      <section class="reading-history" id="readingHistory">
+        <div class="reading-history-empty">
+          Здесь появится история чтения, когда вы откроете первую главу.
+        </div>
+      </section>
+
+      <section class="library-toolbar">
+        <label class="sort-label">
+          Сортировка
+          <select id="librarySort">
+            <option value="sort-order">По умолчанию</option>
+            <option value="title">По названию А-Я</option>
+            <option value="status">По статусу перевода</option>
+            <option value="chapters">По количеству глав</option>
+            <option value="added">По дате добавления</option>
+            <option value="relation">По тегу Гет/Слэш/Джен</option>
+          </select>
+        </label>
+      </section>
+
+      {% if novels %}
+        <div class="novel-list" id="libraryList">
+          {% for novel in novels %}
+            <a
+              class="novel-card"
+              href="/novel/{{ novel.slug }}"
+              title="{{ novel.tags_tooltip or novel.tags or '' }}"
+              data-library-novel-card
+              data-novel-id="{{ novel.id }}"
+              data-novel-title="{{ novel.title }}"
+              data-title="{{ novel.title|lower }}"
+              data-sort-order="{{ novel.sort_order or novel.id }}"
+              data-status="{{ novel.translation_status or 'in_progress' }}"
+              data-chapters="{{ novel.total_chapters or 0 }}"
+              data-progress="{{ novel.progress_percent or 0 }}"
+              data-added="{{ novel.added_date or '' }}"
+              data-relation="{{ novel.relation_type or '' }}"
+            >
+              <span
+                class="translation-status-dot status-{{ novel.translation_status or 'in_progress' }}"
+                title="{{ novel.translation_status_label or 'В процессе' }}"
+              ></span>
+
+              <div class="novel-cover-wrap">
+                {% if novel.cover_url %}
+                  <img
+                    class="novel-cover"
+                    src="{{ novel.cover_url }}"
+                    alt="{{ novel.display_title }}"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                  >
+                  <div class="novel-cover placeholder" style="display:none;">📖</div>
+                {% else %}
+                  <div class="novel-cover placeholder">📖</div>
+                {% endif %}
+
+                {% if novel.has_adult_badge %}
+                  <span class="adult-cover-badge">18+</span>
+                {% endif %}
+              </div>
+
+              <div class="novel-info">
+                <h2>
+                  {% if novel.relation_icon %}
+                    <span class="relation-heart">{{ novel.relation_icon }}</span>
+                  {% endif %}
+                  <span>{{ novel.display_title }}</span>
+                </h2>
+
+                {% if novel.description %}
+                  <p class="novel-description catalog-description">{{ novel.description }}</p>
+                {% endif %}
+
+                <div class="novel-meta-line">
+                  {% if novel.total_chapters %}
+                    <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
+                  {% endif %}
+
+                  {% if novel.progress_percent is not none %}
+                    <span class="meta-pill progress-pill">
+                      <span>✨ {{ novel.progress_percent }}%</span>
+                      <span class="progress-mini">
+                        <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
+                      </span>
+                    </span>
+                  {% endif %}
+                </div>
+
+                {% if novel.catalog_tag_items %}
+                  <div class="novel-tags catalog-tags" title="{{ novel.tags_tooltip or novel.tags }}">
+                    {% for tag in novel.catalog_tag_items %}
+                      {% if tag.is_spoiler %}
+                        <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
+                      {% else %}
+                        <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
+                      {% endif %}
+                    {% endfor %}
+
+                    {% if novel.catalog_hidden_tags > 0 %}
+                      <span class="tag tag-more">…</span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty">
+          {% if fox.fox_side %}
+            <img class="empty-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+          {% endif %}
+          <div>В библиотеке пока нет активных новелл.</div>
+        </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <script>
+    window.ZEFIRKI_FOX = {{ fox | tojson }};
+  </script>
+  <script src="/static/settings.js"></script>
+</body>
+</html>
