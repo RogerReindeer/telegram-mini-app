@@ -12,13 +12,21 @@
 
 <body class="page-chapter">
   <main class="page page-top">
-    <article class="reader-layout chapter-layout">
-      <a class="back-link" href="/novel/{{ novel.slug }}">← {{ novel.title }}</a>
+    <article
+      class="reader-layout chapter-layout"
+      data-chapter-page
+      data-is-locked="{% if is_locked %}true{% else %}false{% endif %}"
+      data-novel-id="{{ novel.id }}"
+      data-novel-slug="{{ novel.slug }}"
+      data-novel-title="{{ novel.title }}"
+      data-post-icons="{{ novel.post_icons or '' }}"
+      data-chapter-id="{{ chapter.id }}"
+      data-chapter-title="{{ chapter.title }}"
+    >
+      <a class="back-link" href="/novel/{{ novel.slug }}">← К оглавлению</a>
 
       <header class="chapter-header">
         <div>
-          <div class="chapter-kicker">Глава {{ chapter.chapter_no }}</div>
-
           <h1>{{ chapter.title }}</h1>
 
           {% if is_locked %}
@@ -28,22 +36,28 @@
           {% endif %}
         </div>
 
-        <img class="chapter-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
+        <img class="chapter-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
       </header>
 
       {% if is_locked %}
         <div class="locked-chapter-notice">
-          <strong>Глава пока закрыта.</strong>
+          <div class="locked-title">🌱 Странствующий читатель</div>
+
+          <p>
+            Тот, кто однажды открыл новеллу в три часа ночи и уже не выбрался.
+          </p>
+
+          <p>
+            Открывает доступ к контенту на Бусти, помогает в покупке глав и развитии канала.
+          </p>
 
           {% if unlock_date %}
-            <span>Она откроется для всех {{ unlock_date }}.</span>
+            <p>Эта глава откроется для всех {{ unlock_date }}.</p>
           {% else %}
-            <span>Дата открытия пока не указана.</span>
+            <p>Дата открытия этой главы пока не указана.</p>
           {% endif %}
 
-          <span>По платной подписке глава доступна раньше.</span>
-
-          <a href="/novel/{{ novel.slug }}">Вернуться к тайтлу</a>
+          <a href="/novel/{{ novel.slug }}">Вернуться к оглавлению</a>
         </div>
       {% endif %}
 
@@ -53,7 +67,7 @@
         </section>
       {% elif telegraph_error %}
         <div class="empty">
-          <strong>Не удалось загрузить текст главы.</strong>
+          <span>Не удалось загрузить текст главы.</span>
           <br>
           {{ telegraph_error }}
         </div>
@@ -67,24 +81,27 @@
         {% if previous_chapter %}
           <a class="chapter-nav-button" href="/chapter/{{ previous_chapter.id }}">← Предыдущая</a>
         {% else %}
-          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">← К тайтлу</a>
+          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">← К оглавлению</a>
         {% endif %}
 
-        <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К тайтлу</a>
+        <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К оглавлению</a>
 
         {% if next_chapter %}
           <a class="chapter-nav-button" href="/chapter/{{ next_chapter.id }}">Следующая →</a>
         {% else %}
-          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">К тайтлу →</a>
+          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">К оглавлению →</a>
         {% endif %}
       </nav>
 
       <div class="chapter-footer-fox-wrap">
-        <img class="chapter-footer-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
+        <img class="chapter-footer-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
       </div>
     </article>
   </main>
 
+  <script>
+    window.ZEFIRKI_FOX = {{ fox | tojson }};
+  </script>
   <script src="/static/settings.js"></script>
 </body>
 </html>
