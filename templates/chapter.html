@@ -13,7 +13,7 @@
 <body class="page-chapter">
   <main class="page page-top">
     <article class="reader-layout chapter-layout">
-      <a class="back-link" href="/novel/{{ chapter.novels.slug }}">← {{ chapter.novels.title }}</a>
+      <a class="back-link" href="/novel/{{ novel.slug }}">← {{ novel.title }}</a>
 
       <header class="chapter-header">
         <div>
@@ -21,16 +21,34 @@
 
           <h1>{{ chapter.title }}</h1>
 
-          <p class="subtitle chapter-subtitle">
-            Уровень доступа: {{ chapter.access_level }}
-          </p>
+          {% if is_locked %}
+            <p class="subtitle chapter-subtitle">
+              🔒 Платная глава
+            </p>
+          {% endif %}
         </div>
 
         <img class="chapter-fox" src="/static/fox_side.png" alt="Лисичка" data-fox>
       </header>
 
+      {% if is_locked %}
+        <div class="locked-chapter-notice">
+          <strong>Глава пока закрыта.</strong>
+
+          {% if unlock_date %}
+            <span>Она откроется для всех {{ unlock_date }}.</span>
+          {% else %}
+            <span>Дата открытия пока не указана.</span>
+          {% endif %}
+
+          <span>По платной подписке глава доступна раньше.</span>
+
+          <a href="/novel/{{ novel.slug }}">Вернуться к тайтлу</a>
+        </div>
+      {% endif %}
+
       {% if telegraph_content %}
-        <section class="chapter-content">
+        <section class="chapter-content {% if is_locked %}chapter-content-locked{% endif %}">
           {{ telegraph_content.content_html | safe }}
         </section>
       {% elif telegraph_error %}
@@ -44,6 +62,22 @@
           Для этой главы пока не указан текст.
         </div>
       {% endif %}
+
+      <nav class="chapter-navigation">
+        {% if previous_chapter %}
+          <a class="chapter-nav-button" href="/chapter/{{ previous_chapter.id }}">← Предыдущая</a>
+        {% else %}
+          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">← К тайтлу</a>
+        {% endif %}
+
+        <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К тайтлу</a>
+
+        {% if next_chapter %}
+          <a class="chapter-nav-button" href="/chapter/{{ next_chapter.id }}">Следующая →</a>
+        {% else %}
+          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">К тайтлу →</a>
+        {% endif %}
+      </nav>
 
       <div class="chapter-footer-fox-wrap">
         <img class="chapter-footer-fox" src="/static/fox_peek.png" alt="Лисичка" data-fox>
