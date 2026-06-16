@@ -332,14 +332,45 @@ def translation_meta_from_status(status: str, schedule_mode: str, progress_perce
     }
 
 
-def display_novel_title(novel: dict):
-    title = clean_value(novel.get("title"))
-    post_icons = clean_value(novel.get("post_icons"))
+def tag_class_for_text(tag: str):
+    clean_tag = tag.replace("!", "").strip()
+    tag_lower = clean_tag.lower()
 
-    if post_icons:
-        return f"{post_icons} {title}"
+    if tag_lower in ("18+", "r18", "r-18", "nc-17"):
+        return "tag-rating"
 
-    return title
+    if tag_lower == "гет":
+        return "tag-get"
+
+    if tag_lower in ("слэш", "bl", "бл", "данмэй", "danmei"):
+        return "tag-slash"
+
+    if tag_lower == "джен":
+        return "tag-gen"
+
+    if tag_lower in ("китай", "корея", "япония", "англия", "сша", "en", "cn", "kor", "jp"):
+        return "tag-country"
+
+    return ""
+
+
+def prepare_tag_items(tags: str):
+    items = []
+
+    for raw_tag in split_tags(tags):
+        is_spoiler = raw_tag.startswith("!")
+        text = raw_tag[1:].strip() if is_spoiler else raw_tag.strip()
+
+        if not text:
+            continue
+
+        items.append({
+            "text": text,
+            "is_spoiler": is_spoiler,
+            "class_name": tag_class_for_text(raw_tag),
+        })
+
+    return items
 
 
 def prepare_novel_for_template(novel: dict):
@@ -355,7 +386,9 @@ def prepare_novel_for_template(novel: dict):
         novel.get("progress_percent"),
     )
 
-    novel["display_title"] = display_novel_title(novel)
+    tag_items = prepare_tag_items(tags)
+
+    novel["display_title"] = clean_value(novel.get("title"))
     novel["relation_type"] = relation_type
     novel["relation_icon"] = relation_icon
     novel["relation_color"] = relation_color
@@ -366,6 +399,10 @@ def prepare_novel_for_template(novel: dict):
 
     novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or tags
     novel["tags_short"] = clean_value(novel.get("tags_short")) or "; ".join(split_tags(tags)[:10])
+
+    novel["tag_items"] = tag_items
+    novel["catalog_tag_items"] = tag_items[:10]
+    novel["catalog_hidden_tags"] = max(0, len(tag_items) - 10)
 
     if novel.get("progress_percent") is None:
         translated = to_float(novel.get("translated_chapters"))
@@ -431,18 +468,22 @@ def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
 
 def get_fox_assets() -> dict:
     fallback = {
-        "fox_peek": "/static/fox_peek.png",
-        "fox_side": "/static/fox_side.png",
-        "fox_hearts": "/static/fox_hearts.png",
-        "fox_sitting_front": "/static/fox_peek.png",
-        "fox_sitting_side": "/static/fox_side.png",
-        "fox_sleeping": "/static/fox_side.png",
-        "fox_standing_paws": "/static/fox_hearts.png",
-        "fox_jumping": "/static/fox_hearts.png",
-        "fox_jumping_paws": "/static/fox_hearts.png",
-        "fox_peek_left": "/static/fox_peek.png",
-        "fox_peek_right": "/static/fox_peek.png",
-        "fox_pic": "/static/fox_hearts.png",
+        "fox_peek": "",
+        "fox_side": "",
+        "fox_hearts": "",
+        "fox_sitting_front": "",
+        "fox_sitting_side": "",
+        "fox_sleeping": "",
+        "fox_standing_paws": "",
+        "fox_standing_paws_up": "",
+        "fox_jumping": "",
+        "fox_jumping_paws": "",
+        "fox_jump_paws_up": "",
+        "fox_laying_paws": "",
+        "fox_peek_left": "",
+        "fox_peek_right": "",
+        "fox_pic": "",
+        "fox_heart": "",
     }
 
     try:
@@ -493,28 +534,29 @@ def sync_novels_to_db(db: Client) -> int:
 
         payload_by_id[novel_id] = {
             "id": novel_id,
-            "code": clean_value(row.get("Code")),
             "slug": clean_value(row.get("Slug")) or f"novel-{novel_id}",
             "title": clean_value(row.get("Title")) or f"Novel {novel_id}",
             "title_en": clean_value(row.get("TitleEN")),
-            "post_icons": clean_value(row.get("PostIcons")),
+
             "cover_url": clean_value(row.get("CoverURL")),
             "description": clean_value(row.get("Description")),
             "tags": tags,
+            "tags_short": clean_value(row.get("TagsShort")),
+            "tags_tooltip": clean_value(row.get("TagsTooltip")),
+
             "top_description": clean_value(row.get("TopDescription")),
             "bottom_description": clean_value(row.get("BottomDescription")),
             "original_language": clean_value(row.get("OriginalLanguage")),
+            "translation_author": clean_value(row.get("TranslationAuthor")) or "Зефиркины баоцзы",
+
             "total_chapters": to_int(row.get("TotalChapters")),
             "translated_chapters": to_int(row.get("TranslatedChapters")),
             "progress_percent": progress_percent,
+
             "status": status,
             "access_model": clean_value(row.get("AccessModel")),
             "schedule_mode": schedule_mode,
-            "sort_order": to_float(row.get("SortOrder")) or novel_id,
-            "is_visible": is_visible,
-            "is_active": is_visible,
-            "age_rating": clean_value(row.get("AgeRating")),
-            "has_adult_badge": to_bool(row.get("HasAdultBadge")),
+            "early_access_mode": clean_value(row.get("EarlyAccessMode")),
 
             "translation_status": clean_value(row.get("TranslationStatus")) or translation_meta["value"],
             "translation_status_label": clean_value(row.get("TranslationStatusLabel")) or translation_meta["label"],
@@ -524,10 +566,14 @@ def sync_novels_to_db(db: Client) -> int:
             "relation_icon": relation_icon,
             "relation_color": relation_color,
 
-            "tags_short": clean_value(row.get("TagsShort")),
-            "tags_tooltip": clean_value(row.get("TagsTooltip")),
+            "age_rating": clean_value(row.get("AgeRating")),
+            "has_adult_badge": to_bool(row.get("HasAdultBadge")),
+
+            "sort_order": to_float(row.get("SortOrder")) or novel_id,
+            "is_visible": is_visible,
+            "is_active": is_visible,
+
             "added_date": normalize_date(row.get("AddedDate")),
-            "translation_author": clean_value(row.get("TranslationAuthor")) or "Зефиркины баоцзы",
         }
 
     payload = list(payload_by_id.values())
@@ -584,12 +630,12 @@ def sync_chapters_to_db(db: Client) -> dict:
 
         chapter_code = make_unique_chapter_code(base_chapter_code, row_number, used_codes)
 
-        telegraph_url = clean_value(row.get("TelegraphURL"))
         access_level = clean_value(row.get("AccessLevel")) or "hidden"
         is_visible = to_bool(row.get("IsVisible"))
 
-        free_url = telegraph_url if access_level == "public" else ""
-        premium_url = telegraph_url if access_level == "subscriber" else ""
+        telegraph_url = clean_value(row.get("TelegraphURL"))
+        telegraph_free_url = clean_value(row.get("TelegraphFreeURL"))
+        telegraph_premium_url = clean_value(row.get("TelegraphPremiumURL"))
 
         sort_order = to_float(row.get("SortOrder"))
         if sort_order is None:
@@ -601,18 +647,23 @@ def sync_chapters_to_db(db: Client) -> dict:
             "chapter_no": chapter_no,
             "title": clean_chapter_title(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
             "slug": clean_value(row.get("Slug")) or f"chapter-{row_number}",
+
             "volume": clean_value(row.get("Volume")),
             "volume_no": to_int(row.get("VolumeNo")),
             "volume_title": clean_value(row.get("VolumeTitle")),
+
             "translation_date": normalize_date(row.get("TranslationDate")),
             "release_date": normalize_date(row.get("ReleaseDate")),
             "free_release_date": normalize_date(row.get("FreeReleaseDate")),
             "premium_release_date": normalize_date(row.get("PremiumReleaseDate")),
+
             "telegraph_url": telegraph_url,
-            "free_url": free_url,
-            "premium_url": premium_url,
+            "telegraph_free_url": telegraph_free_url,
+            "telegraph_premium_url": telegraph_premium_url,
+
             "telegraph_free_code": clean_value(row.get("TelegraphFreeCode")),
             "telegraph_premium_code": clean_value(row.get("TelegraphPremiumCode")),
+
             "source_type": clean_value(row.get("SourceType")) or "telegraph",
             "access_level": access_level,
             "is_visible": is_visible,
@@ -709,14 +760,17 @@ def group_chapters_by_volume(chapters: list[dict]) -> list[dict]:
     group_map = {}
 
     for chapter in chapters:
-        volume_title = (
-            clean_value(chapter.get("volume_title"))
-            or clean_value(chapter.get("volume"))
-        )
+        volume_title = clean_value(chapter.get("volume"))
 
         if not volume_title:
             volume_no = chapter.get("volume_no")
-            if volume_no:
+            raw_title = clean_value(chapter.get("volume_title"))
+
+            if volume_no and raw_title:
+                volume_title = f"{volume_no}. {raw_title}"
+            elif raw_title:
+                volume_title = raw_title
+            elif volume_no:
                 volume_title = f"Том {volume_no}"
 
         if volume_title and volume_title.isdigit():
@@ -784,16 +838,16 @@ def get_neighbor_chapters(db: Client, chapter: dict):
     return previous_chapter, next_chapter
 
 
-def normalize_telegraph_url(url: str) -> str:
+def normalize_external_article_url(url: str) -> str:
     url = clean_value(url)
 
     if not url:
-        raise HTTPException(status_code=404, detail="Telegraph URL is empty")
+        raise HTTPException(status_code=404, detail="Chapter URL is empty")
 
     if url.startswith("/chapter/"):
         raise HTTPException(
             status_code=400,
-            detail="Old internal /chapter/... link found instead of Telegraph URL",
+            detail="Old internal /chapter/... link found instead of external URL",
         )
 
     if url.startswith("http://"):
@@ -804,16 +858,21 @@ def normalize_telegraph_url(url: str) -> str:
 
     parsed = urlparse(url)
 
-    if parsed.netloc != "telegra.ph":
+    allowed_hosts = {
+        "telegra.ph",
+        "teletype.in",
+    }
+
+    if parsed.netloc not in allowed_hosts:
         raise HTTPException(
             status_code=400,
-            detail=f"Only telegra.ph links are allowed. Got: {parsed.netloc}",
+            detail=f"Only telegra.ph and teletype.in links are allowed. Got: {parsed.netloc}",
         )
 
     return url
 
 
-def clean_telegraph_article(article):
+def clean_article_html(article):
     stop_phrases = [
         "тгк зефиркины баоцзы",
         "зефиркины баоцзы",
@@ -847,8 +906,8 @@ def clean_telegraph_article(article):
     return article
 
 
-def fetch_telegraph_article(url: str) -> dict:
-    url = normalize_telegraph_url(url)
+def fetch_external_article(url: str) -> dict:
+    url = normalize_external_article_url(url)
 
     response = requests.get(
         url,
@@ -861,16 +920,19 @@ def fetch_telegraph_article(url: str) -> dict:
     if response.status_code != 200:
         raise HTTPException(
             status_code=502,
-            detail=f"Telegraph returned HTTP {response.status_code}",
+            detail=f"External article returned HTTP {response.status_code}",
         )
 
     soup = BeautifulSoup(response.text, "html.parser")
-    article = soup.find("article")
+    article = soup.find("article") or soup.find("main")
 
     if not article:
-        raise HTTPException(status_code=502, detail="Telegraph article not found")
+        article = soup.find("body")
 
-    for tag in article.select("address, aside, script, style"):
+    if not article:
+        raise HTTPException(status_code=502, detail="Article content not found")
+
+    for tag in article.select("address, aside, script, style, header, footer, nav"):
         tag.decompose()
 
     first_h1 = article.find("h1")
@@ -881,7 +943,7 @@ def fetch_telegraph_article(url: str) -> dict:
     if first_h2:
         first_h2.decompose()
 
-    article = clean_telegraph_article(article)
+    article = clean_article_html(article)
 
     return {
         "source_url": url,
@@ -1002,7 +1064,7 @@ async def chapter_page(request: Request, chapter_id: int):
 
         chapter_result = (
             db.table("chapters")
-            .select("*, novels(id, title, slug, post_icons, relation_icon)")
+            .select("*, novels(id, title, slug)")
             .eq("id", chapter_id)
             .eq("is_visible", True)
             .limit(1)
@@ -1018,30 +1080,30 @@ async def chapter_page(request: Request, chapter_id: int):
         chapter["title"] = clean_chapter_title(chapter.get("title"))
 
         novel = chapter.get("novels") or {}
-        novel["display_title"] = display_novel_title(novel)
+        novel["display_title"] = clean_value(novel.get("title"))
 
         is_locked = chapter.get("access_level") == "subscriber"
         unlock_date = format_date_ru(chapter.get("release_date") or chapter.get("free_release_date"))
 
         previous_chapter, next_chapter = get_neighbor_chapters(db, chapter)
 
-        telegraph_url = (
+        article_url = (
             chapter.get("telegraph_url")
-            or chapter.get("free_url")
-            or chapter.get("premium_url")
+            or chapter.get("telegraph_free_url")
+            or chapter.get("telegraph_premium_url")
             or ""
         )
 
-        telegraph_content = None
-        telegraph_error = None
+        article_content = None
+        article_error = None
 
-        if telegraph_url:
+        if article_url:
             try:
-                telegraph_content = fetch_telegraph_article(telegraph_url)
+                article_content = fetch_external_article(article_url)
             except HTTPException as error:
-                telegraph_error = error.detail
+                article_error = error.detail
             except Exception as error:
-                telegraph_error = str(error)
+                article_error = str(error)
 
         return templates.TemplateResponse(
             request,
@@ -1050,8 +1112,8 @@ async def chapter_page(request: Request, chapter_id: int):
                 "app_title": "Зефиркины баоцзы",
                 "chapter": chapter,
                 "novel": novel,
-                "telegraph_content": telegraph_content,
-                "telegraph_error": telegraph_error,
+                "article_content": article_content,
+                "article_error": article_error,
                 "is_locked": is_locked,
                 "unlock_date": unlock_date,
                 "previous_chapter": previous_chapter,
@@ -1114,7 +1176,7 @@ async def debug_supabase():
 
         result = (
             db.table("novels")
-            .select("id,title")
+            .select("id,title,slug")
             .limit(1)
             .execute()
         )
