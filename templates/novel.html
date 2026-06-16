@@ -31,6 +31,11 @@
 
         <div class="title-hero-content">
           <div class="novel-cover-wrap title-cover-wrap">
+            <span
+              class="translation-status-dot title-status-dot status-{{ novel.translation_status or 'in_progress' }}"
+              title="{{ novel.translation_status_label or 'В процессе' }}"
+            ></span>
+
             {% if novel.cover_url %}
               <img
                 class="title-cover"
@@ -51,7 +56,12 @@
           <div class="title-info">
             <div class="novel-page-title-line">
               <div>
-                <h1>{{ novel.display_title }}</h1>
+                <h1>
+                  {% if novel.relation_icon %}
+                    <span class="relation-heart">{{ novel.relation_icon }}</span>
+                  {% endif %}
+                  {{ novel.display_title }}
+                </h1>
 
                 {% if novel.title_en %}
                   <p class="novel-title-en">{{ novel.title_en }}</p>
@@ -61,18 +71,27 @@
               <img class="inline-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
             </div>
 
-            {% if novel.description %}
-              <div class="novel-description novel-description-full">
-                {% for paragraph in novel.description.split('\n') %}
-                  {% if paragraph.strip() %}
-                    <p>{{ paragraph }}</p>
-                  {% endif %}
-                {% endfor %}
-              </div>
-            {% endif %}
+            <div class="title-status-line">
+              <span class="status-label status-{{ novel.translation_status or 'in_progress' }}">
+                {{ novel.translation_status_label or 'В процессе' }}
+              </span>
+
+              {% if novel.total_chapters %}
+                <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
+              {% endif %}
+
+              {% if novel.progress_percent is not none %}
+                <span class="meta-pill progress-pill">
+                  <span>✨ {{ novel.progress_percent }}%</span>
+                  <span class="progress-mini">
+                    <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
+                  </span>
+                </span>
+              {% endif %}
+            </div>
 
             {% if novel.tags %}
-              <div class="novel-tags full-tags">
+              <div class="novel-tags full-tags" title="{{ novel.tags_tooltip or novel.tags }}">
                 {% for raw_tag in novel.tags.split(';') %}
                   {% set tag = raw_tag.strip() %}
 
@@ -86,8 +105,12 @@
 
                       {% if tag_lower in ['18+', 'r18', 'r-18', 'nc-17'] %}
                         <span class="tag tag-rating">{{ tag }}</span>
-                      {% elif tag_lower in ['джен', 'гет', 'bl', 'бл', 'gl', 'гл', 'слэш', 'фемслэш'] %}
-                        <span class="tag tag-relation">{{ tag }}</span>
+                      {% elif tag_lower in ['гет'] %}
+                        <span class="tag tag-get">{{ tag }}</span>
+                      {% elif tag_lower in ['слэш', 'bl', 'бл', 'данмэй'] %}
+                        <span class="tag tag-slash">{{ tag }}</span>
+                      {% elif tag_lower in ['джен'] %}
+                        <span class="tag tag-gen">{{ tag }}</span>
                       {% elif tag_lower in ['китай', 'корея', 'япония', 'англия', 'сша', 'en', 'cn', 'kor', 'jp'] %}
                         <span class="tag tag-country">{{ tag }}</span>
                       {% else %}
@@ -99,19 +122,21 @@
               </div>
             {% endif %}
 
-            <div class="novel-badges">
-              {% if novel.total_chapters %}
-                <span class="badge">Глав: {{ novel.total_chapters }}</span>
-              {% endif %}
+            {% if novel.description %}
+              <div class="novel-description novel-description-full collapsible-description" data-collapsible-description>
+                <div class="collapsible-description-content">
+                  {% for paragraph in novel.description.split('\n') %}
+                    {% if paragraph.strip() %}
+                      <p>{{ paragraph }}</p>
+                    {% endif %}
+                  {% endfor %}
+                </div>
 
-              {% if novel.translated_chapters %}
-                <span class="badge">Переведено: {{ novel.translated_chapters }}</span>
-              {% endif %}
-
-              {% if novel.progress_percent is not none %}
-                <span class="badge">Готово: {{ novel.progress_percent }}%</span>
-              {% endif %}
-            </div>
+                <button class="description-toggle" type="button" data-description-toggle>
+                  Ещё
+                </button>
+              </div>
+            {% endif %}
           </div>
         </div>
       </section>
@@ -165,12 +190,12 @@
 
               {% for chapter in group.chapters %}
                 {% if chapter.access_level == 'public' %}
-                  <a class="chapter-row" href="/chapter/{{ chapter.id }}">
+                  <a class="chapter-row" href="/chapter/{{ chapter.id }}" data-chapter-row data-chapter-id="{{ chapter.id }}">
                     <span class="chapter-title">{{ chapter.title }}</span>
                     <span class="chapter-access chapter-access-public">читать</span>
                   </a>
                 {% else %}
-                  <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}">
+                  <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}" data-chapter-row data-chapter-id="{{ chapter.id }}">
                     <span class="chapter-title">{{ chapter.title }}</span>
                     <span class="chapter-access chapter-access-locked">🔒 подписка</span>
                   </a>
