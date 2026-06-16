@@ -1,4 +1,4 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v4";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v5";
 
 const DEFAULT_SETTINGS = {
   readerMode: "standard",
