@@ -1,25 +1,19 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v5";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v6";
+const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
 
 const DEFAULT_SETTINGS = {
-  readerMode: "standard",
+  readerWidth: "full",
   textAlign: "left",
   textColor: "#111111",
   readerBg: "#fffaf3",
-  linkColor: "#2563eb",
   fontSize: "16",
   lineHeight: "1.6",
   paragraphSpacing: "16",
 
-  tagMode: "list",
-  tagColorScheme: "pastel",
-  tagGrouping: "flat",
-
   siteTheme: "light",
   cardRadius: "16",
-  cardShadow: "light",
-  animations: "off",
-  interfaceFont: "system",
   showFoxes: true,
+  spoilerWarning: true,
 };
 
 function loadSettings() {
@@ -47,23 +41,20 @@ function applySettings() {
 
   root.style.setProperty("--reader-text-color", readerSettings.textColor);
   root.style.setProperty("--reader-bg", readerSettings.readerBg);
-  root.style.setProperty("--reader-link-color", readerSettings.linkColor);
   root.style.setProperty("--reader-font-size", `${readerSettings.fontSize}px`);
   root.style.setProperty("--reader-line-height", readerSettings.lineHeight);
   root.style.setProperty("--reader-paragraph-spacing", `${readerSettings.paragraphSpacing}px`);
   root.style.setProperty("--card-radius", `${readerSettings.cardRadius}px`);
 
-  document.body.dataset.readerMode = readerSettings.readerMode;
+  document.body.dataset.readerWidth = readerSettings.readerWidth;
   document.body.dataset.textAlign = readerSettings.textAlign;
   document.body.dataset.siteTheme = readerSettings.siteTheme;
-  document.body.dataset.cardShadow = readerSettings.cardShadow;
-  document.body.dataset.animations = readerSettings.animations;
-  document.body.dataset.interfaceFont = readerSettings.interfaceFont;
-  document.body.dataset.tagMode = readerSettings.tagMode;
-  document.body.dataset.tagColorScheme = readerSettings.tagColorScheme;
-  document.body.dataset.tagGrouping = readerSettings.tagGrouping;
 
   document.body.classList.toggle("hide-foxes", !readerSettings.showFoxes);
+
+  if (!readerSettings.spoilerWarning) {
+    localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
+  }
 }
 
 function updateSetting(key, value) {
@@ -85,52 +76,20 @@ function createSettingsPanel() {
         <div class="settings-header">
           <div>
             <h2>Настройки</h2>
-            <p>Все изменения сохраняются автоматически.</p>
+            <p>Сохраняются автоматически.</p>
           </div>
           <button class="settings-close" id="settingsClose" type="button" aria-label="Закрыть">×</button>
         </div>
 
         <div class="settings-tabs">
-          <button class="settings-tab active" data-tab="reader">Читалка</button>
-          <button class="settings-tab" data-tab="appearance">Внешний вид</button>
-          <button class="settings-tab" data-tab="tags">Теги</button>
+          <button class="settings-tab active" data-tab="reader">Чтение</button>
+          <button class="settings-tab" data-tab="view">Вид</button>
           <button class="settings-tab" data-tab="about">О проекте</button>
         </div>
 
         <div class="settings-content">
           <section class="settings-section active" data-section="reader">
-            ${selectField("readerMode", "Режим чтения", [
-              ["standard", "Стандартный"],
-              ["center", "По центру"],
-              ["wide", "На всю ширину"],
-            ])}
-
-            ${selectField("textAlign", "Выравнивание текста", [
-              ["left", "По левому краю"],
-              ["justify", "По ширине"],
-            ])}
-
-            ${presetAndColorField("textColor", "Цвет текста", [
-              ["#111111", "Чёрный"],
-              ["#333333", "Тёмно-серый"],
-              ["#666666", "Серый"],
-            ])}
-
-            ${presetAndColorField("readerBg", "Цвет фона читалки", [
-              ["#ffffff", "Белый"],
-              ["#fffaf3", "Кремовый"],
-              ["#f4ecd8", "Сепия"],
-              ["#222222", "Тёмно-серый"],
-              ["#000000", "Чёрный"],
-            ])}
-
-            ${presetAndColorField("linkColor", "Цвет ссылок", [
-              ["#2563eb", "Синий"],
-              ["#15803d", "Зелёный"],
-              ["#f28c38", "Оранжевый"],
-            ])}
-
-            ${selectField("fontSize", "Размер шрифта", [
+            ${selectField("fontSize", "Размер текста", [
               ["14", "14px"],
               ["16", "16px"],
               ["18", "18px"],
@@ -139,73 +98,62 @@ function createSettingsPanel() {
               ["24", "24px"],
             ])}
 
-            ${selectField("lineHeight", "Межстрочный интервал", [
+            ${selectField("lineHeight", "Интервал", [
               ["1.4", "1.4"],
               ["1.6", "1.6"],
               ["1.8", "1.8"],
               ["2.0", "2.0"],
             ])}
 
-            ${selectField("paragraphSpacing", "Отступы между абзацами", [
+            ${selectField("paragraphSpacing", "Абзацы", [
               ["0", "0px"],
               ["8", "8px"],
               ["16", "16px"],
               ["24", "24px"],
             ])}
+
+            ${selectField("readerWidth", "Ширина текста", [
+              ["full", "На всю ширину"],
+              ["comfort", "Комфортная колонка"],
+              ["wide", "Очень широкая"],
+            ])}
+
+            ${selectField("textAlign", "Выравнивание", [
+              ["left", "По левому краю"],
+              ["justify", "По ширине"],
+            ])}
+
+            ${presetAndColorField("textColor", "Цвет текста", [
+              ["#111111", "Чёрный"],
+              ["#333333", "Тёмно-серый"],
+              ["#f4f4f4", "Светлый"],
+            ])}
+
+            ${presetAndColorField("readerBg", "Фон читалки", [
+              ["#ffffff", "Белый"],
+              ["#fffaf3", "Кремовый"],
+              ["#f4ecd8", "Сепия"],
+              ["#222222", "Тёмный"],
+              ["#000000", "Чёрный"],
+            ])}
           </section>
 
-          <section class="settings-section" data-section="appearance">
+          <section class="settings-section" data-section="view">
             ${selectField("siteTheme", "Тема сайта", [
               ["light", "Светлая"],
               ["dark", "Тёмная"],
               ["system", "Системная"],
-              ["contrast", "Контрастная"],
             ])}
 
-            ${selectField("cardRadius", "Скругление карточек", [
+            ${selectField("cardRadius", "Скругление", [
               ["0", "0px"],
               ["8", "8px"],
               ["16", "16px"],
               ["24", "24px"],
             ])}
 
-            ${selectField("cardShadow", "Тени карточек", [
-              ["none", "Без тени"],
-              ["light", "Лёгкая"],
-              ["medium", "Средняя"],
-              ["deep", "Глубокая"],
-            ])}
-
-            ${selectField("animations", "Анимации", [
-              ["off", "Отключены"],
-            ])}
-
-            ${selectField("interfaceFont", "Шрифт интерфейса", [
-              ["system", "Системный"],
-              ["sans", "Sans-serif"],
-              ["serif", "Serif"],
-              ["mono", "Monospace"],
-            ])}
-
             ${checkboxField("showFoxes", "Показывать лисичек")}
-          </section>
-
-          <section class="settings-section" data-section="tags">
-            ${selectField("tagMode", "Отображение тегов", [
-              ["list", "Обычный список"],
-              ["cloud", "Облако тегов"],
-            ])}
-
-            ${selectField("tagColorScheme", "Цветовая схема тегов", [
-              ["pastel", "Пастельная"],
-              ["mono", "Монохромная"],
-              ["contrast", "Контрастная"],
-            ])}
-
-            ${selectField("tagGrouping", "Группировка тегов", [
-              ["flat", "Плоский список"],
-              ["grouped", "По категориям"],
-            ])}
+            ${checkboxField("spoilerWarning", "Предупреждать о спойлерах")}
           </section>
 
           <section class="settings-section" data-section="about">
@@ -213,7 +161,8 @@ function createSettingsPanel() {
               <img class="about-fox" src="/static/fox_hearts.png" alt="Лисичка" data-fox>
               <h3>Зефиркины баоцзы</h3>
               <p>
-                Мини-читалка переводов с настройками чтения и уютными лисичками.
+                Мини-читалка переводов с удобной настройкой текста,
+                каталогом новелл и уютными лисичками.
               </p>
 
               <div class="about-links">
@@ -227,7 +176,7 @@ function createSettingsPanel() {
 
         <div class="settings-footer">
           <button class="settings-reset" id="settingsReset" type="button">
-            Сбросить настройки
+            Сбросить
           </button>
         </div>
       </div>
@@ -255,11 +204,13 @@ function presetAndColorField(key, label, options) {
   return `
     <label class="settings-field">
       <span>${label}</span>
-      <select data-setting="${key}" data-color-select="${key}">
-        ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
-        <option value="custom">Пользовательский</option>
-      </select>
-      <input type="color" data-setting="${key}" data-color-picker="${key}" />
+      <div class="settings-color-row">
+        <select data-setting="${key}" data-color-select="${key}">
+          ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
+          <option value="custom">Свой</option>
+        </select>
+        <input type="color" data-setting="${key}" data-color-picker="${key}" />
+      </div>
     </label>
   `;
 }
@@ -346,12 +297,13 @@ function bindSettingsPanel() {
   });
 
   reset.addEventListener("click", () => {
-    const confirmed = confirm("Сбросить все настройки к стандартным?");
+    const confirmed = confirm("Сбросить настройки к стандартным?");
 
     if (!confirmed) return;
 
     readerSettings = { ...DEFAULT_SETTINGS };
     saveSettings(readerSettings);
+    localStorage.removeItem(SPOILER_WARNING_DISABLED_KEY);
     fillSettingsControls();
     applySettings();
   });
@@ -362,6 +314,15 @@ function handleSettingControl(control) {
 
   if (control.type === "checkbox") {
     updateSetting(key, control.checked);
+
+    if (key === "spoilerWarning" && control.checked) {
+      localStorage.removeItem(SPOILER_WARNING_DISABLED_KEY);
+    }
+
+    if (key === "spoilerWarning" && !control.checked) {
+      localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
+    }
+
     return;
   }
 
@@ -388,7 +349,108 @@ function handleSettingControl(control) {
   updateSetting(key, control.value);
 }
 
+function createSpoilerWarningModal() {
+  const modal = document.createElement("div");
+
+  modal.innerHTML = `
+    <div class="spoiler-warning-overlay" id="spoilerWarningOverlay" hidden>
+      <div class="spoiler-warning-modal">
+        <h2>Возможен спойлер</h2>
+        <p>
+          Этот тег может раскрывать важные детали сюжета.
+          Показать его?
+        </p>
+
+        <label class="spoiler-warning-check">
+          <input type="checkbox" id="spoilerDontShowAgain">
+          <span>Больше не предупреждать</span>
+        </label>
+
+        <div class="spoiler-warning-actions">
+          <button type="button" class="spoiler-warning-cancel" id="spoilerCancel">
+            Отказаться
+          </button>
+          <button type="button" class="spoiler-warning-confirm" id="spoilerConfirm">
+            Продолжить
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+let pendingSpoilerButton = null;
+
+function bindSpoilerTags() {
+  document.querySelectorAll(".tag-spoiler-reveal").forEach(button => {
+    button.addEventListener("click", () => {
+      const warningDisabled =
+        localStorage.getItem(SPOILER_WARNING_DISABLED_KEY) === "true" ||
+        readerSettings.spoilerWarning === false;
+
+      if (warningDisabled) {
+        openSpoilerTag(button);
+        return;
+      }
+
+      pendingSpoilerButton = button;
+
+      const overlay = document.getElementById("spoilerWarningOverlay");
+      const checkbox = document.getElementById("spoilerDontShowAgain");
+
+      checkbox.checked = false;
+      overlay.hidden = false;
+    });
+  });
+
+  const overlay = document.getElementById("spoilerWarningOverlay");
+  const cancel = document.getElementById("spoilerCancel");
+  const confirm = document.getElementById("spoilerConfirm");
+
+  if (!overlay || !cancel || !confirm) return;
+
+  cancel.addEventListener("click", () => {
+    pendingSpoilerButton = null;
+    overlay.hidden = true;
+  });
+
+  confirm.addEventListener("click", () => {
+    const checkbox = document.getElementById("spoilerDontShowAgain");
+
+    if (checkbox.checked) {
+      localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
+      readerSettings.spoilerWarning = false;
+      saveSettings(readerSettings);
+      fillSettingsControls();
+    }
+
+    if (pendingSpoilerButton) {
+      openSpoilerTag(pendingSpoilerButton);
+    }
+
+    pendingSpoilerButton = null;
+    overlay.hidden = true;
+  });
+
+  overlay.addEventListener("click", event => {
+    if (event.target === overlay) {
+      pendingSpoilerButton = null;
+      overlay.hidden = true;
+    }
+  });
+}
+
+function openSpoilerTag(button) {
+  button.textContent = button.dataset.spoiler;
+  button.classList.remove("tag-spoiler");
+  button.classList.add("tag-spoiler-opened");
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   createSettingsPanel();
+  createSpoilerWarningModal();
   applySettings();
+  bindSpoilerTags();
 });
