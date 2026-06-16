@@ -82,7 +82,7 @@ body[data-interface-font="mono"] {
 }
 
 .catalog-layout {
-  max-width: 1180px;
+  max-width: 960px;
 }
 
 .title-layout {
@@ -177,12 +177,14 @@ body[data-site-theme="dark"] .catalog-header {
 }
 
 .novel-list {
-  display: grid;
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .novel-card {
   display: flex;
+  flex-direction: row;
   gap: 14px;
   padding: 14px;
   border-radius: var(--card-radius);
@@ -213,6 +215,13 @@ body[data-animations="off"] .page-library .novel-card:hover {
   transform: none;
 }
 
+.novel-cover-wrap {
+  position: relative;
+  width: 92px;
+  height: 130px;
+  flex-shrink: 0;
+}
+
 .novel-cover {
   width: 92px;
   height: 130px;
@@ -229,8 +238,32 @@ body[data-animations="off"] .page-library .novel-card:hover {
   font-size: 34px;
 }
 
+.adult-cover-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.novel-info {
+  min-width: 0;
+  flex: 1;
+}
+
 .page-library .novel-info h2 {
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.25;
 }
 
@@ -266,6 +299,15 @@ body[data-animations="off"] .page-library .novel-card:hover {
   margin-bottom: 10px;
 }
 
+.catalog-tags {
+  max-height: 58px;
+  overflow: hidden;
+}
+
+.full-tags {
+  max-height: none;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
@@ -274,6 +316,7 @@ body[data-animations="off"] .page-library .novel-card:hover {
   background: #f3e7dc;
   color: #6b5a50;
   font-size: 12px;
+  border: 0;
 }
 
 body[data-tag-color-scheme="mono"] .tag {
@@ -294,6 +337,36 @@ body[data-tag-mode="cloud"] .tag:nth-child(3n) {
   font-size: 16px;
 }
 
+.tag-adult {
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.tag-spoiler {
+  background: #2b211c;
+  color: transparent;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.95);
+  user-select: none;
+}
+
+.tag-spoiler-locked::before {
+  content: "██████";
+  color: #ffffff;
+  text-shadow: none;
+}
+
+.tag-spoiler-reveal {
+  cursor: pointer;
+  font: inherit;
+}
+
+.tag-spoiler-opened {
+  background: #f3e7dc;
+  color: #6b5a50;
+  text-shadow: none;
+}
+
 .novel-badges {
   display: flex;
   flex-wrap: wrap;
@@ -307,41 +380,6 @@ body[data-tag-mode="cloud"] .tag:nth-child(3n) {
   background: #f3e7dc;
   color: #6b5a50;
   font-size: 13px;
-}
-
-.age-meta {
-  background: #ffe0d2;
-  color: #a33a16;
-}
-
-/* Catalog is always a list */
-
-.page-library .novel-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.page-library .novel-card {
-  flex-direction: row;
-  padding: 14px;
-}
-
-.page-library .novel-cover {
-  width: 92px;
-  height: 130px;
-  aspect-ratio: auto;
-}
-
-@media (max-width: 520px) {
-  .page-library .novel-card {
-    gap: 12px;
-  }
-
-  .page-library .novel-cover {
-    width: 78px;
-    height: 112px;
-  }
 }
 
 /* Title page */
@@ -407,6 +445,11 @@ body[data-site-theme="dark"] .title-hero::after {
   padding: 22px;
 }
 
+.title-cover-wrap {
+  width: 150px;
+  height: 214px;
+}
+
 .title-cover {
   width: 150px;
   height: 214px;
@@ -448,6 +491,32 @@ body[data-site-theme="dark"] .title-hero::after {
   margin: 0 0 10px;
   color: #8a7468;
   font-style: italic;
+}
+
+.character-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.character-card {
+  padding: 16px;
+  border-radius: var(--card-radius);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 10px 26px rgba(80, 50, 20, 0.08);
+}
+
+.character-card h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #c16c2d;
+}
+
+.character-card p {
+  margin: 0;
+  line-height: 1.5;
+  color: #6b5a50;
 }
 
 /* Chapters list */
@@ -512,6 +581,15 @@ body[data-site-theme="dark"] .chapter-row {
   background: rgba(242, 140, 56, 0.08);
 }
 
+.chapter-row-locked {
+  opacity: 0.72;
+}
+
+.chapter-row-more {
+  background: rgba(242, 140, 56, 0.08);
+  font-style: italic;
+}
+
 .chapter-number {
   color: #9a7d6b;
   font-weight: 700;
@@ -529,6 +607,16 @@ body[data-site-theme="dark"] .chapter-row {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+.chapter-access-public {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.chapter-access-locked {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 /* Chapter reader */
@@ -689,14 +777,16 @@ body[data-animations="off"] *::after {
 body[data-site-theme="dark"] .novel-card,
 body[data-site-theme="dark"] .chapter-row,
 body[data-site-theme="dark"] .empty,
-body[data-site-theme="dark"] .chapter-content {
+body[data-site-theme="dark"] .chapter-content,
+body[data-site-theme="dark"] .character-card {
   color: #eeeeee;
 }
 
 body[data-site-theme="dark"] .subtitle,
 body[data-site-theme="dark"] .novel-description,
 body[data-site-theme="dark"] .novel-meta,
-body[data-site-theme="dark"] .novel-title-en {
+body[data-site-theme="dark"] .novel-title-en,
+body[data-site-theme="dark"] .character-card p {
   color: #b8b8b8;
 }
 
@@ -705,6 +795,16 @@ body[data-site-theme="dark"] .badge,
 body[data-site-theme="dark"] .chapter-access {
   background: rgba(255, 255, 255, 0.09);
   color: #dedede;
+}
+
+body[data-site-theme="dark"] .tag-adult {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+body[data-site-theme="dark"] .tag-spoiler {
+  background: #000000;
+  color: transparent;
 }
 
 /* Settings */
@@ -903,11 +1003,11 @@ body[data-site-theme="dark"] .chapter-access {
 /* Mobile */
 
 @media (max-width: 760px) {
-
   .title-hero-content {
     align-items: flex-start;
   }
 
+  .title-cover-wrap,
   .title-cover {
     width: 112px;
     height: 160px;
@@ -919,6 +1019,10 @@ body[data-site-theme="dark"] .chapter-access {
 
   .chapter-header {
     flex-direction: column;
+  }
+
+  .character-info {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -935,10 +1039,21 @@ body[data-site-theme="dark"] .chapter-access {
     width: 76px;
   }
 
+  .novel-card {
+    gap: 12px;
+  }
+
+  .novel-cover-wrap,
+  .novel-cover {
+    width: 78px;
+    height: 112px;
+  }
+
   .title-hero-content {
     flex-direction: column;
   }
 
+  .title-cover-wrap,
   .title-cover {
     width: 136px;
     height: 194px;
