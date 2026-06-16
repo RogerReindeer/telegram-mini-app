@@ -1,4 +1,4 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v9";
+const READER_SETTINGS_KEY = "zefirki_reader_settings_v10";
 const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
 const READING_PROGRESS_KEY = "zefirki_reading_progress_v2";
 
