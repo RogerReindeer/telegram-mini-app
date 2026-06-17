@@ -2,7 +2,7 @@
   --page-bg: #f7efe7;
   --page-text: #2b211c;
   --muted-text: #6b5a50;
-  --card-bg: rgba(255, 255, 255, 0.88);
+  --card-bg: rgba(255, 255, 255, 0.9);
   --card-border: rgba(80, 50, 20, 0.08);
   --tag-bg: #f3e7dc;
   --tag-text: #6b5a50;
@@ -323,47 +323,12 @@ h1 {
 }
 
 .library-toolbar {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  justify-content: flex-end;
   margin-bottom: 14px;
 }
 
-.library-toolbar-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-
-.library-view-switch {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-}
-
-.library-view-button {
-  border: 0;
-  border-radius: 999px;
-  min-width: 40px;
-  padding: 8px 12px;
-  background: transparent;
-  color: var(--muted-text);
-  font-size: 18px;
-  font-weight: 900;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.library-view-button.active {
-  background: var(--accent);
-  color: #ffffff;
-}
-
-.sort-label,
-.library-search-label {
+.sort-label {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -371,8 +336,7 @@ h1 {
   font-size: 14px;
 }
 
-.sort-label select,
-.library-search-label input {
+.sort-label select {
   border: 1px solid var(--card-border);
   border-radius: 999px;
   padding: 8px 12px;
@@ -380,29 +344,17 @@ h1 {
   color: var(--page-text);
 }
 
-.library-search-label input {
-  width: 100%;
-}
-
 .novel-list {
-  gap: 14px;
-  align-items: stretch;
-}
-
-.novel-list-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
-}
-
-.novel-list-list {
   display: flex;
   flex-direction: column;
+  gap: 14px;
 }
 
 .novel-card {
   position: relative;
   display: flex;
   gap: 14px;
+  min-height: 186px;
   padding: 14px;
   border-radius: var(--card-radius);
   background: var(--card-bg);
@@ -411,20 +363,6 @@ h1 {
   text-decoration: none;
   overflow: hidden;
   box-shadow: 0 10px 26px rgba(80, 50, 20, 0.1);
-}
-
-.novel-list-grid .novel-card {
-  height: 246px;
-  min-height: 246px;
-  max-height: 246px;
-  flex-direction: row;
-}
-
-.novel-list-list .novel-card {
-  height: 186px;
-  min-height: 186px;
-  max-height: 186px;
-  flex-direction: row;
 }
 
 .page-library .novel-card:hover {
@@ -534,31 +472,10 @@ h1 {
   margin: 0 0 8px;
   color: var(--page-text);
   font-size: 17px;
-  line-height: 1.16;
+  line-height: 1.18;
   font-weight: 900;
   word-break: normal;
   overflow-wrap: anywhere;
-}
-
-.novel-description,
-.novel-description p {
-  color: var(--muted-text);
-  line-height: 1.55;
-}
-
-.novel-description {
-  margin: 0 0 10px;
-}
-
-.catalog-description {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.novel-list-list .catalog-description {
-  display: none;
 }
 
 .novel-meta-line {
@@ -839,6 +756,16 @@ body[data-site-theme="dark"] .collapsible-description:not(.is-expanded) .collaps
   color: #ffffff;
   font-weight: 800;
   cursor: pointer;
+}
+
+.novel-description,
+.novel-description p {
+  color: var(--muted-text);
+  line-height: 1.55;
+}
+
+.novel-description {
+  margin: 0 0 10px;
 }
 
 .character-info {
@@ -1180,10 +1107,6 @@ body[data-text-align="justify"] .chapter-content {
   text-align: center;
 }
 
-.library-empty-search {
-  margin-top: 14px;
-}
-
 .settings-fab {
   position: fixed;
   right: 18px;
@@ -1507,28 +1430,13 @@ body[data-text-align="justify"] .chapter-content {
 }
 
 @media (max-width: 640px) {
-  .novel-list-grid {
-    grid-template-columns: 1fr;
+  .sort-label,
+  .sort-label select {
+    width: 100%;
   }
 
   .continue-card {
     flex-basis: 250px;
-  }
-
-  .library-toolbar-top {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .library-view-switch,
-  .sort-label,
-  .sort-label select,
-  .library-search-label {
-    width: 100%;
-  }
-
-  .library-view-button {
-    flex: 1;
   }
 }
 
@@ -1545,12 +1453,9 @@ body[data-text-align="justify"] .chapter-content {
     width: 76px;
   }
 
-  .novel-list-grid .novel-card,
-  .novel-list-list .novel-card {
+  .novel-card {
     gap: 12px;
-    height: 236px;
     min-height: 236px;
-    max-height: 236px;
   }
 
   .catalog-cover-column {
