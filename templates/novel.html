@@ -69,6 +69,10 @@
                 <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
               {% endif %}
 
+              {% if novel.translated_chapters %}
+                <span class="meta-pill">🖋 {{ novel.translated_chapters }} переведено</span>
+              {% endif %}
+
               {% if novel.progress_percent is not none %}
                 <span class="meta-pill progress-pill">
                   <span>✨ {{ novel.progress_percent }}%</span>
@@ -163,12 +167,22 @@
 
               {% for chapter in group.chapters %}
                 {% if chapter.access_level == 'public' %}
-                  <a class="chapter-row" href="/chapter/{{ chapter.id }}" data-chapter-row data-chapter-id="{{ chapter.id }}">
+                  <a
+                    class="chapter-row"
+                    href="/chapter/{{ chapter.id }}"
+                    data-chapter-row
+                    data-chapter-id="{{ chapter.id }}"
+                  >
                     <span class="chapter-title">{{ chapter.title }}</span>
                     <span class="chapter-access chapter-access-public">читать</span>
                   </a>
                 {% elif chapter.access_level == 'subscriber' %}
-                  <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}" data-chapter-row data-chapter-id="{{ chapter.id }}">
+                  <a
+                    class="chapter-row chapter-row-locked"
+                    href="/chapter/{{ chapter.id }}"
+                    data-chapter-row
+                    data-chapter-id="{{ chapter.id }}"
+                  >
                     <span class="chapter-title">{{ chapter.title }}</span>
                     <span class="chapter-access chapter-access-locked">🔒 подписка</span>
                   </a>
