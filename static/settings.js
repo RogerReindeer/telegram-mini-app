@@ -27,9 +27,11 @@
     initNovelPageMeta();
     initChapterProgress();
     initReadingHistory();
+    initNewChapterBadges();
     initNovelReadButton();
     initReadChapterMarks();
     initCollapsibleDescription();
+    initPaidChapterReveal();
     initSpoilerReveal();
   });
 
@@ -536,6 +538,8 @@
     const novelTitle = page.dataset.novelTitle;
     const chapterId = page.dataset.chapterId;
     const chapterTitle = page.dataset.chapterTitle;
+    const chapterIndex = Number(page.dataset.chapterIndex || 0);
+    const availableChapters = Number(page.dataset.availableChapters || 0);
 
     if (!novelId || !chapterId) {
       return;
@@ -551,6 +555,8 @@
       coverUrl: novelMeta.coverUrl || "",
       chapterId,
       chapterTitle: chapterTitle || "",
+      chapterIndex,
+      availableChapters,
       updatedAt: Date.now(),
     };
 
@@ -594,6 +600,7 @@
       clearButton.addEventListener("click", function () {
         localStorage.removeItem(STORAGE_KEYS.readingHistory);
         renderReadingHistory();
+        initNewChapterBadges();
       });
     }
   }
@@ -622,12 +629,18 @@
     }
 
     const cards = history.map(function (item) {
+      const newCount = getNewChapterCount(item.novelId, item.chapterIndex);
+      const newBadge = newCount > 0
+        ? `<span class="continue-new-badge">+${newCount}</span>`
+        : "";
+
       const coverHtml = item.coverUrl
         ? `<img class="continue-card-cover" src="${escapeHtml(item.coverUrl)}" alt="${escapeHtml(item.novelTitle || "")}">`
         : `<div class="continue-card-cover continue-card-cover-placeholder">📖</div>`;
 
       return `
         <article class="continue-card">
+          ${newBadge}
           <a class="continue-card-cover-link" href="/novel/${escapeHtml(item.novelSlug || "")}">
             ${coverHtml}
           </a>
@@ -651,6 +664,62 @@
 
     container.innerHTML = cards.join("");
     container.scrollLeft = container.scrollWidth;
+  }
+
+  function initNewChapterBadges() {
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    const byNovel = {};
+
+    history.forEach(function (item) {
+      byNovel[String(item.novelId)] = item;
+    });
+
+    document.querySelectorAll("[data-library-novel-card]").forEach(function (card) {
+      const novelId = String(card.dataset.novelId || "");
+      const badge = card.querySelector("[data-new-chapters-badge]");
+      const historyItem = byNovel[novelId];
+
+      if (!badge || !historyItem) {
+        if (badge) {
+          badge.hidden = true;
+        }
+        return;
+      }
+
+      const newCount = getNewChapterCount(novelId, historyItem.chapterIndex);
+
+      if (newCount > 0) {
+        badge.textContent = `+${newCount}`;
+        badge.hidden = false;
+      } else {
+        badge.hidden = true;
+      }
+    });
+  }
+
+  function getNewChapterCount(novelId, chapterIndex) {
+    const card = document.querySelector(`[data-library-novel-card][data-novel-id="${cssEscape(String(novelId))}"]`);
+
+    if (!card) {
+      return 0;
+    }
+
+    const available = Number(card.dataset.availableChapters || 0);
+    const readIndex = Number(chapterIndex || 0);
+
+    if (!available || !readIndex) {
+      return 0;
+    }
+
+    return Math.max(0, available - readIndex);
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === "function") {
+      return window.CSS.escape(value);
+    }
+
+    return value.replace(/"/g, '\\"');
   }
 
   function initNovelReadButton() {
@@ -708,6 +777,29 @@
         const expanded = block.classList.toggle("is-expanded");
         button.textContent = expanded ? "Свернуть" : "Ещё";
       });
+    });
+  }
+
+  function initPaidChapterReveal() {
+    const button = document.querySelector("[data-paid-toggle]");
+
+    if (!button) {
+      return;
+    }
+
+    button.addEventListener("click", function () {
+      document.querySelectorAll("[data-paid-extra]").forEach(function (row) {
+        row.hidden = false;
+
+        requestAnimationFrame(function () {
+          row.classList.add("paid-chapter-extra-open");
+        });
+      });
+
+      const fade = document.querySelector("[data-paid-fade]");
+      if (fade) {
+        fade.remove();
+      }
     });
   }
 
