@@ -4,136 +4,165 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-  <title>{{ chapter.title }} — {{ app_title }}</title>
+  <title>Библиотека — {{ app_title }}</title>
 
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body class="page-chapter no-copy-page">
+<body class="page-library">
   <main class="page page-top">
-    <article
-      class="reader-layout chapter-layout"
-      data-chapter-page
-      data-is-locked="{% if is_locked %}true{% else %}false{% endif %}"
-      data-novel-id="{{ novel.id }}"
-      data-novel-slug="{{ novel.slug }}"
-      data-novel-title="{{ novel.display_title }}"
-      data-chapter-id="{{ chapter.id }}"
-      data-chapter-title="{{ chapter.title }}"
-    >
-      <a class="back-link" href="/novel/{{ novel.slug }}">← К оглавлению</a>
-
-      <header class="chapter-header">
+    <section class="reader-layout catalog-layout">
+      <header class="catalog-header">
         <div>
-          <h1>{{ chapter.title }}</h1>
-
-          {% if is_locked %}
-            <p class="subtitle chapter-subtitle">
-              🔒 Платная глава
-            </p>
-          {% endif %}
+          <div class="brand-kicker">Зефиркины баоцзы</div>
+          <h1>Библиотека</h1>
+          <p class="subtitle">Выберите новеллу для чтения.</p>
         </div>
 
-        {% if fox.fox_side %}
-          <img class="chapter-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+        {% if fox.fox_peek %}
+          <img class="catalog-fox catalog-fox-mirrored" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
         {% endif %}
       </header>
 
-      {% if is_locked %}
-        <div class="locked-chapter-notice">
-          <div class="locked-title">🌱 Странствующий читатель</div>
+      <section class="continue-reading-block">
+        <div class="continue-reading-header">
+          <div>
+            <h2>Продолжить читать</h2>
+            <p>Последние книги, которые вы открывали.</p>
+          </div>
 
-          <p>
-            Тот, кто однажды открыл новеллу в три часа ночи и уже не выбрался.
-          </p>
-
-          <p>
-            Открывает доступ к контенту на Бусти, помогает в покупке глав и развитии канала.
-          </p>
-
-          {% if unlock_date %}
-            <p>Эта глава откроется для всех {{ unlock_date }}.</p>
-          {% else %}
-            <p>Дата открытия этой главы пока не указана.</p>
-          {% endif %}
-
-          <a href="/novel/{{ novel.slug }}">Вернуться к оглавлению</a>
+          <button class="continue-clear-button" type="button" id="clearReadingHistory" hidden>
+            Очистить
+          </button>
         </div>
-      {% endif %}
 
-      {% if article_content %}
-        <section class="chapter-content {% if is_locked %}chapter-content-locked{% endif %}">
-          {{ article_content.content_html | safe }}
-        </section>
-      {% elif article_error %}
-        <div class="empty">
-          <span>Не удалось загрузить текст главы.</span>
-          <br>
-          {{ article_error }}
+        <div class="continue-reading-scroll" id="readingHistory">
+          <div class="reading-history-empty">
+            Здесь появится история чтения, когда вы откроете первую главу.
+          </div>
+        </div>
+      </section>
+
+      <section class="library-toolbar">
+        <div class="library-view-switch" aria-label="Режим отображения">
+          <button class="library-view-button active" type="button" data-library-view-button="grid">
+            Сетка
+          </button>
+          <button class="library-view-button" type="button" data-library-view-button="list">
+            Список
+          </button>
+        </div>
+
+        <label class="sort-label">
+          Сортировка
+          <select id="librarySort">
+            <option value="sort-order">По умолчанию</option>
+            <option value="title">По названию А-Я</option>
+            <option value="status">По статусу перевода</option>
+            <option value="chapters">По количеству глав</option>
+            <option value="added">По дате добавления</option>
+            <option value="relation">По тегу Гет/Слэш/Джен</option>
+          </select>
+        </label>
+      </section>
+
+      {% if novels %}
+        <div class="novel-list novel-list-grid" id="libraryList" data-library-view="grid">
+          {% for novel in novels %}
+            <a
+              class="novel-card"
+              href="/novel/{{ novel.slug }}"
+              title="{{ novel.tags_tooltip or novel.tags or '' }}"
+              data-library-novel-card
+              data-novel-id="{{ novel.id }}"
+              data-novel-slug="{{ novel.slug }}"
+              data-novel-title="{{ novel.display_title }}"
+              data-novel-cover="{{ novel.cover_url or '' }}"
+              data-title="{{ novel.display_title|lower }}"
+              data-sort-order="{{ novel.sort_order or novel.id }}"
+              data-status="{{ novel.translation_status or 'in_progress' }}"
+              data-chapters="{{ novel.total_chapters or 0 }}"
+              data-progress="{{ novel.progress_percent or 0 }}"
+              data-added="{{ novel.added_date or '' }}"
+              data-relation="{{ novel.relation_type or '' }}"
+            >
+              <div class="catalog-cover-column">
+                <div class="novel-cover-wrap">
+                  {% if novel.cover_url %}
+                    <img
+                      class="novel-cover"
+                      src="{{ novel.cover_url }}"
+                      alt="{{ novel.display_title }}"
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <div class="novel-cover placeholder" style="display:none;">📖</div>
+                  {% else %}
+                    <div class="novel-cover placeholder">📖</div>
+                  {% endif %}
+                </div>
+
+                <div class="library-status-label status-{{ novel.translation_status or 'in_progress' }}">
+                  {{ novel.translation_status_label or 'Переводится' }}
+                </div>
+              </div>
+
+              <div class="novel-info">
+                <h2 class="novel-card-title" data-fit-title>
+                  {{ novel.display_title }}
+                </h2>
+
+                {% if novel.description %}
+                  <p class="novel-description catalog-description">{{ novel.description }}</p>
+                {% endif %}
+
+                <div class="novel-meta-line">
+                  {% if novel.total_chapters %}
+                    <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
+                  {% endif %}
+
+                  {% if novel.progress_percent is not none %}
+                    <span class="meta-pill progress-pill">
+                      <span>✨ {{ novel.progress_percent }}%</span>
+                      <span class="progress-mini">
+                        <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
+                      </span>
+                    </span>
+                  {% endif %}
+                </div>
+
+                {% if novel.catalog_tag_items %}
+                  <div class="novel-tags catalog-tags" title="{{ novel.tags_tooltip or novel.tags }}">
+                    {% for tag in novel.catalog_tag_items %}
+                      {% if tag.is_spoiler %}
+                        <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
+                      {% else %}
+                        <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
+                      {% endif %}
+                    {% endfor %}
+
+                    {% if novel.catalog_hidden_tags > 0 %}
+                      <span class="tag tag-more">…</span>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
         </div>
       {% else %}
         <div class="empty">
-          Для этой главы пока не указан текст.
+          {% if fox.fox_side %}
+            <img class="empty-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+          {% endif %}
+          <div>В библиотеке пока нет активных новелл.</div>
         </div>
       {% endif %}
-
-      <nav class="chapter-navigation">
-        {% if previous_chapter %}
-          <a class="chapter-nav-button" href="/chapter/{{ previous_chapter.id }}">← Предыдущая</a>
-        {% else %}
-          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">← К оглавлению</a>
-        {% endif %}
-
-        <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К оглавлению</a>
-
-        {% if next_chapter %}
-          <a class="chapter-nav-button" href="/chapter/{{ next_chapter.id }}">Следующая →</a>
-        {% else %}
-          <span class="chapter-nav-placeholder" aria-hidden="true"></span>
-        {% endif %}
-      </nav>
-
-      {% if fox.fox_peek %}
-        <div class="chapter-footer-fox-wrap">
-          <img class="chapter-footer-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
-        </div>
-      {% endif %}
-    </article>
+    </section>
   </main>
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
-
-    document.addEventListener("DOMContentLoaded", function () {
-      const chapterContent = document.querySelector(".chapter-content");
-
-      if (!chapterContent) {
-        return;
-      }
-
-      const blockCopy = function (event) {
-        event.preventDefault();
-        return false;
-      };
-
-      chapterContent.addEventListener("copy", blockCopy);
-      chapterContent.addEventListener("cut", blockCopy);
-      chapterContent.addEventListener("contextmenu", blockCopy);
-      chapterContent.addEventListener("selectstart", blockCopy);
-      chapterContent.addEventListener("dragstart", blockCopy);
-
-      document.addEventListener("keydown", function (event) {
-        const key = String(event.key || "").toLowerCase();
-
-        if ((event.ctrlKey || event.metaKey) && ["a", "c", "x", "s", "p"].includes(key)) {
-          if (document.body.classList.contains("page-chapter")) {
-            event.preventDefault();
-            return false;
-          }
-        }
-      });
-    });
   </script>
   <script src="/static/settings.js"></script>
 </body>
