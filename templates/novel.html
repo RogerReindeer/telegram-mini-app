@@ -17,7 +17,7 @@
       data-novel-page
       data-novel-id="{{ novel.id }}"
       data-novel-slug="{{ novel.slug }}"
-      data-novel-title="{{ novel.title }}"
+      data-novel-title="{{ novel.display_title }}"
       data-first-chapter-id="{% if first_chapter %}{{ first_chapter.id }}{% endif %}"
       data-first-chapter-title="{% if first_chapter %}{{ first_chapter.title }}{% endif %}"
     >
@@ -30,11 +30,6 @@
 
         <div class="title-hero-content">
           <div class="novel-cover-wrap title-cover-wrap">
-            <span
-              class="translation-status-dot title-status-dot status-{{ novel.translation_status or 'in_progress' }}"
-              title="{{ novel.translation_status_label or 'В процессе' }}"
-            ></span>
-
             {% if novel.cover_url %}
               <img
                 class="title-cover"
@@ -46,21 +41,12 @@
             {% else %}
               <div class="title-cover placeholder">📖</div>
             {% endif %}
-
-            {% if novel.has_adult_badge %}
-              <span class="adult-cover-badge">18+</span>
-            {% endif %}
           </div>
 
           <div class="title-info">
             <div class="novel-page-title-line">
               <div>
-                <h1>
-                  {% if novel.relation_icon %}
-                    <span class="relation-heart">{{ novel.relation_icon }}</span>
-                  {% endif %}
-                  {{ novel.display_title }}
-                </h1>
+                <h1>{{ novel.display_title }}</h1>
 
                 {% if novel.title_en %}
                   <p class="novel-title-en">{{ novel.title_en }}</p>
@@ -74,7 +60,7 @@
 
             <div class="title-status-line">
               <span class="status-label status-{{ novel.translation_status or 'in_progress' }}">
-                {{ novel.translation_status_label or 'В процессе' }}
+                {{ novel.translation_status_label or 'Переводится' }}
               </span>
 
               <span class="meta-pill">✍️ {{ novel.translation_author or 'Зефиркины баоцзы' }}</span>
@@ -181,7 +167,7 @@
                     <span class="chapter-title">{{ chapter.title }}</span>
                     <span class="chapter-access chapter-access-public">читать</span>
                   </a>
-                {% else %}
+                {% elif chapter.access_level == 'subscriber' %}
                   <a class="chapter-row chapter-row-locked" href="/chapter/{{ chapter.id }}" data-chapter-row data-chapter-id="{{ chapter.id }}">
                     <span class="chapter-title">{{ chapter.title }}</span>
                     <span class="chapter-access chapter-access-locked">🔒 подписка</span>
@@ -189,15 +175,6 @@
                 {% endif %}
               {% endfor %}
             {% endfor %}
-
-            {% if hidden_subscriber_count and hidden_subscriber_count > 0 %}
-              <div class="chapter-row chapter-row-more">
-                <span class="chapter-title">
-                  Ещё {{ hidden_subscriber_count }} глав доступно подписчикам
-                </span>
-                <span class="chapter-access chapter-access-locked">🔒</span>
-              </div>
-            {% endif %}
           </div>
         {% else %}
           <div class="empty">
