@@ -213,7 +213,6 @@ def format_date_ru(value):
 
 def clean_chapter_title(value):
     text = clean_value(value)
-
     text = re.sub(r"--+", "", text)
     text = re.sub(r"—\s*—+", "", text)
     text = re.sub(r"\s+", " ", text)
@@ -426,7 +425,6 @@ def prepare_novel_for_template(novel: dict):
         novel["display_title"] = title
 
     novel["post_icons"] = post_icons
-
     novel["relation_type"] = relation_type
     novel["relation_icon"] = relation_icon
     novel["relation_color"] = relation_color
@@ -482,8 +480,7 @@ def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
     if response.status_code != 200:
         raise RuntimeError(
             f"Cannot fetch MiniApp sheet '{sheet_name}'. "
-            f"HTTP {response.status_code}. "
-            f"Check that the MiniApp Google Sheet is available for anyone with the link as Viewer."
+            f"HTTP {response.status_code}."
         )
 
     text = response.content.decode("utf-8-sig")
@@ -515,17 +512,9 @@ def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
 def normalize_fox_name(name: str) -> str:
     name = clean_value(name)
 
-    if name.endswith(".png"):
-        name = name[:-4]
-
-    if name.endswith(".webp"):
-        name = name[:-5]
-
-    if name.endswith(".jpg"):
-        name = name[:-4]
-
-    if name.endswith(".jpeg"):
-        name = name[:-5]
+    for suffix in (".png", ".webp", ".jpg", ".jpeg"):
+        if name.endswith(suffix):
+            name = name[:-len(suffix)]
 
     return name
 
@@ -627,42 +616,33 @@ def sync_novels_to_db(db: Client) -> int:
             "title": clean_value(row.get("Title")) or f"Novel {novel_id}",
             "title_en": clean_value(row.get("TitleEN")),
             "post_icons": clean_value(row.get("PostIcons")),
-
             "cover_url": clean_value(row.get("CoverURL")),
             "description": clean_value(row.get("Description")),
             "tags": tags,
             "tags_short": clean_value(row.get("TagsShort")),
             "tags_tooltip": clean_value(row.get("TagsTooltip")),
-
             "top_description": clean_value(row.get("TopDescription")),
             "bottom_description": clean_value(row.get("BottomDescription")),
             "original_language": clean_value(row.get("OriginalLanguage")),
             "translation_author": clean_value(row.get("TranslationAuthor")) or "Зефиркины баоцзы",
-
             "total_chapters": to_int(row.get("TotalChapters")),
             "translated_chapters": to_int(row.get("TranslatedChapters")),
             "progress_percent": progress_percent,
-
             "status": status,
             "access_model": clean_value(row.get("AccessModel")),
             "schedule_mode": schedule_mode,
             "early_access_mode": clean_value(row.get("EarlyAccessMode")),
-
             "translation_status": clean_value(row.get("TranslationStatus")) or translation_meta["value"],
             "translation_status_label": clean_value(row.get("TranslationStatusLabel")) or translation_meta["label"],
             "translation_status_color": clean_value(row.get("TranslationStatusColor")) or translation_meta["color"],
-
             "relation_type": relation_type,
             "relation_icon": relation_icon,
             "relation_color": relation_color,
-
             "age_rating": clean_value(row.get("AgeRating")),
             "has_adult_badge": to_bool(row.get("HasAdultBadge")),
-
             "sort_order": to_float(row.get("SortOrder")) or novel_id,
             "is_visible": is_visible,
             "is_active": is_visible,
-
             "added_date": normalize_date(row.get("AddedDate")),
         }
 
@@ -763,23 +743,18 @@ def sync_chapters_to_db(db: Client) -> dict:
             "chapter_no": chapter_no,
             "title": clean_chapter_title(row.get("ChapterTitle")) or f"Глава {chapter_no:g}",
             "slug": clean_value(row.get("Slug")) or f"chapter-{row_number}",
-
             "volume": clean_value(row.get("Volume")),
             "volume_no": to_int(row.get("VolumeNo")),
             "volume_title": clean_value(row.get("VolumeTitle")),
-
             "translation_date": normalize_date(row.get("TranslationDate")),
             "release_date": normalize_date(row.get("ReleaseDate")),
             "free_release_date": normalize_date(row.get("FreeReleaseDate")),
             "premium_release_date": normalize_date(row.get("PremiumReleaseDate")),
-
             "telegraph_url": telegraph_url,
             "telegraph_free_url": telegraph_free_url,
             "telegraph_premium_url": telegraph_premium_url,
-
             "telegraph_free_code": clean_value(row.get("TelegraphFreeCode")),
             "telegraph_premium_code": clean_value(row.get("TelegraphPremiumCode")),
-
             "source_type": clean_value(row.get("SourceType")) or "telegraph",
             "access_level": access_level,
             "is_visible": is_visible,
@@ -794,10 +769,7 @@ def sync_chapters_to_db(db: Client) -> dict:
         )
 
     if skipped_rows:
-        print(
-            "MiniApp sync warning: skipped chapter rows:",
-            skipped_rows[:20],
-        )
+        print("MiniApp sync warning: skipped chapter rows:", skipped_rows[:20])
 
     if payload:
         db.table("chapters").upsert(payload, on_conflict="chapter_code").execute()
@@ -927,6 +899,31 @@ def get_neighbor_chapters(db: Client, chapter: dict):
         next_chapter["title"] = clean_chapter_title(next_chapter.get("title"))
 
     return previous_chapter, next_chapter
+
+
+def get_chapter_index_info(db: Client, chapter: dict):
+    novel_id = chapter.get("novel_id")
+
+    result = (
+        db.table("chapters")
+        .select("id, sort_order, chapter_no, access_level")
+        .eq("novel_id", novel_id)
+        .eq("is_visible", True)
+        .in_("access_level", ["public", "subscriber"])
+        .order("sort_order")
+        .execute()
+    )
+
+    chapters = result.data or []
+    available_count = len(chapters)
+    chapter_index = 0
+
+    for index, item in enumerate(chapters, start=1):
+        if item.get("id") == chapter.get("id"):
+            chapter_index = index
+            break
+
+    return chapter_index, available_count
 
 
 def normalize_external_article_url(url: str) -> str:
@@ -1073,8 +1070,23 @@ async def library(request: Request):
 
         novels = result.data or []
 
+        chapter_count_result = (
+            db.table("chapters")
+            .select("novel_id, id")
+            .eq("is_visible", True)
+            .in_("access_level", ["public", "subscriber"])
+            .execute()
+        )
+
+        available_by_novel = {}
+
+        for row in chapter_count_result.data or []:
+            novel_id = row.get("novel_id")
+            available_by_novel[novel_id] = available_by_novel.get(novel_id, 0) + 1
+
         for novel in novels:
             prepare_novel_for_template(novel)
+            novel["available_chapters_count"] = available_by_novel.get(novel.get("id"), 0)
 
         return templates.TemplateResponse(
             request,
@@ -1182,6 +1194,7 @@ async def chapter_page(request: Request, chapter_id: int):
         )
 
         previous_chapter, next_chapter = get_neighbor_chapters(db, chapter)
+        chapter_index, available_chapters_count = get_chapter_index_info(db, chapter)
 
         article_url = (
             chapter.get("telegraph_url")
@@ -1207,6 +1220,8 @@ async def chapter_page(request: Request, chapter_id: int):
             {
                 "app_title": "Зефиркины баоцзы",
                 "chapter": chapter,
+                "chapter_index": chapter_index,
+                "available_chapters_count": available_chapters_count,
                 "novel": novel,
                 "article_content": article_content,
                 "article_error": article_error,
@@ -1296,7 +1311,7 @@ async def debug_library_data():
             db.table("novels")
             .select(
                 "id,title,post_icons,slug,is_visible,sort_order,"
-                "translation_status,translation_status_label,total_chapters,translated_chapters"
+                "translation_status,translation_status_label,total_chapters,translated_chapters,progress_percent"
             )
             .eq("is_visible", True)
             .order("sort_order")
@@ -1321,8 +1336,8 @@ async def debug_library_data():
             "status": "ok",
             "novels_count": len(novels_result.data or []),
             "chapters_count_sample": len(chapters_result.data or []),
-            "novels_sample": novels_result.data[:5] if novels_result.data else [],
-            "chapters_sample": chapters_result.data[:10] if chapters_result.data else [],
+            "novels_sample": novels_result.data[:10] if novels_result.data else [],
+            "chapters_sample": chapters_result.data[:20] if chapters_result.data else [],
         }
 
     except Exception as error:
