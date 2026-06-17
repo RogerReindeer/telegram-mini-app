@@ -21,119 +21,133 @@
         </div>
 
         {% if fox.fox_peek %}
-          <img class="catalog-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
+          <img class="catalog-fox fox-mirror" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
         {% endif %}
       </header>
 
-      <section class="reading-history" id="readingHistory">
-        <div class="reading-history-empty">
-          Здесь появится история чтения, когда вы откроете первую главу.
-        </div>
-      </section>
+      <section class="library-main-row">
+        <aside class="continue-reading-panel" id="continueReadingPanel">
+          <div class="continue-reading-empty">
+            <div class="continue-reading-kicker">Продолжить читать</div>
+            <div class="continue-reading-empty-text">Нет активных чтений</div>
+          </div>
+        </aside>
 
-      <section class="library-toolbar">
-        <label class="sort-label">
-          Сортировка
-          <select id="librarySort">
-            <option value="sort-order">По умолчанию</option>
-            <option value="title">По названию А-Я</option>
-            <option value="status">По статусу перевода</option>
-            <option value="chapters">По количеству глав</option>
-            <option value="added">По дате добавления</option>
-            <option value="relation">По тегу Гет/Слэш/Джен</option>
-          </select>
-        </label>
-      </section>
+        <section class="library-books-area">
+          <div class="library-topline">
+            <h2>Все новеллы</h2>
 
-      {% if novels %}
-        <div class="novel-list" id="libraryList">
-          {% for novel in novels %}
-            <a
-              class="novel-card"
-              href="/novel/{{ novel.slug }}"
-              title="{{ novel.tags_tooltip or novel.tags or '' }}"
-              data-library-novel-card
-              data-novel-id="{{ novel.id }}"
-              data-novel-title="{{ novel.display_title }}"
-              data-title="{{ novel.display_title|lower }}"
-              data-sort-order="{{ novel.sort_order or novel.id }}"
-              data-status="{{ novel.translation_status or 'in_progress' }}"
-              data-chapters="{{ novel.total_chapters or 0 }}"
-              data-progress="{{ novel.progress_percent or 0 }}"
-              data-added="{{ novel.added_date or '' }}"
-              data-relation="{{ novel.relation_type or '' }}"
-            >
-              <div class="catalog-cover-column">
-                <div class="novel-cover-wrap">
-                  {% if novel.cover_url %}
-                    <img
-                      class="novel-cover"
-                      src="{{ novel.cover_url }}"
-                      alt="{{ novel.display_title }}"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    >
-                    <div class="novel-cover placeholder" style="display:none;">📖</div>
-                  {% else %}
-                    <div class="novel-cover placeholder">📖</div>
-                  {% endif %}
-                </div>
+            <label class="sort-label">
+              Сортировка
+              <select id="librarySort">
+                <option value="sort-order">По умолчанию</option>
+                <option value="title">По названию А-Я</option>
+                <option value="status">По статусу перевода</option>
+                <option value="chapters">По количеству глав</option>
+                <option value="added">По дате добавления</option>
+                <option value="relation">По тегу Гет/Слэш/Джен</option>
+              </select>
+            </label>
+          </div>
 
-                <div class="library-status-label status-{{ novel.translation_status or 'in_progress' }}">
-                  {{ novel.translation_status_label or 'Переводится' }}
-                </div>
-              </div>
+          {% if novels %}
+            <div class="novel-list novel-horizontal-list" id="libraryList">
+              {% for novel in novels %}
+                <a
+                  class="novel-card novel-card-compact"
+                  href="/novel/{{ novel.slug }}"
+                  title="{{ novel.tags_tooltip or novel.tags or '' }}"
+                  data-library-novel-card
+                  data-novel-id="{{ novel.id }}"
+                  data-novel-title="{{ novel.display_title }}"
+                  data-cover-url="{{ novel.cover_url or '' }}"
+                  data-title="{{ novel.display_title|lower }}"
+                  data-sort-order="{{ novel.sort_order or novel.id }}"
+                  data-status="{{ novel.translation_status or 'in_progress' }}"
+                  data-chapters="{{ novel.total_chapters or 0 }}"
+                  data-progress="{{ novel.progress_percent or 0 }}"
+                  data-added="{{ novel.added_date or '' }}"
+                  data-relation="{{ novel.relation_type or '' }}"
+                >
+                  <span
+                    class="card-corner-status status-{{ novel.translation_status or 'in_progress' }}"
+                    title="{{ novel.translation_status_label or 'Переводится' }}"
+                  >
+                    {% if novel.translation_status == 'completed' %}
+                      ✅
+                    {% elif novel.translation_status == 'paused' %}
+                      ⏸
+                    {% else %}
+                      🛠
+                    {% endif %}
+                  </span>
 
-              <div class="novel-info">
-                <h2>
-                  <span>{{ novel.display_title }}</span>
-                </h2>
-
-                {% if novel.description %}
-                  <p class="novel-description catalog-description">{{ novel.description }}</p>
-                {% endif %}
-
-                <div class="novel-meta-line">
-                  {% if novel.total_chapters %}
-                    <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
-                  {% endif %}
-
-                  {% if novel.progress_percent is not none %}
-                    <span class="meta-pill progress-pill">
-                      <span>✨ {{ novel.progress_percent }}%</span>
-                      <span class="progress-mini">
-                        <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
-                      </span>
-                    </span>
-                  {% endif %}
-                </div>
-
-                {% if novel.catalog_tag_items %}
-                  <div class="novel-tags catalog-tags" title="{{ novel.tags_tooltip or novel.tags }}">
-                    {% for tag in novel.catalog_tag_items %}
-                      {% if tag.is_spoiler %}
-                        <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
-                      {% else %}
-                        <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
-                      {% endif %}
-                    {% endfor %}
-
-                    {% if novel.catalog_hidden_tags > 0 %}
-                      <span class="tag tag-more">…</span>
+                  <div class="novel-cover-wrap compact-cover-wrap">
+                    {% if novel.cover_url %}
+                      <img
+                        class="novel-cover compact-cover"
+                        src="{{ novel.cover_url }}"
+                        alt="{{ novel.display_title }}"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                      >
+                      <div class="novel-cover compact-cover placeholder" style="display:none;">📖</div>
+                    {% else %}
+                      <div class="novel-cover compact-cover placeholder">📖</div>
                     {% endif %}
                   </div>
-                {% endif %}
-              </div>
-            </a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <div class="empty">
-          {% if fox.fox_side %}
-            <img class="empty-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+
+                  <div class="library-status-label status-{{ novel.translation_status or 'in_progress' }}">
+                    {{ novel.translation_status_label or 'Переводится' }}
+                  </div>
+
+                  <div class="novel-info compact-novel-info">
+                    <h3>{{ novel.display_title }}</h3>
+
+                    <div class="compact-meta">
+                      {% if novel.total_chapters %}
+                        <span>📚 {{ novel.total_chapters }}</span>
+                      {% endif %}
+
+                      {% if novel.progress_percent is not none %}
+                        <span>✨ {{ novel.progress_percent }}%</span>
+                      {% endif %}
+                    </div>
+
+                    {% if novel.progress_percent is not none %}
+                      <span class="compact-progress">
+                        <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
+                      </span>
+                    {% endif %}
+
+                    {% if novel.catalog_tag_items %}
+                      <div class="novel-tags compact-tags" title="{{ novel.tags_tooltip or novel.tags }}">
+                        {% for tag in novel.catalog_tag_items[:5] %}
+                          {% if tag.is_spoiler %}
+                            <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
+                          {% else %}
+                            <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
+                          {% endif %}
+                        {% endfor %}
+
+                        {% if novel.catalog_hidden_tags > 0 %}
+                          <span class="tag tag-more">…</span>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty">
+              {% if fox.fox_side %}
+                <img class="empty-fox fox-mirror" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+              {% endif %}
+              <div>В библиотеке пока нет активных новелл.</div>
+            </div>
           {% endif %}
-          <div>В библиотеке пока нет активных новелл.</div>
-        </div>
-      {% endif %}
+        </section>
+      </section>
     </section>
   </main>
 
