@@ -1,733 +1,553 @@
-const READER_SETTINGS_KEY = "zefirki_reader_settings_v11";
-const SPOILER_WARNING_DISABLED_KEY = "zefirki_spoiler_warning_disabled_v1";
-const READING_PROGRESS_KEY = "zefirki_reading_progress_v3";
+(function () {
+  const STORAGE_KEYS = {
+    settings: "zefirki_reader_settings_v1",
+    progress: "zefirki_reading_progress_v1",
+  };
 
-const DEFAULT_SETTINGS = {
-  readerWidth: "full",
-  textAlign: "left",
-  textColor: "#111111",
-  readerBg: "#fffaf3",
-  fontSize: "16",
-  lineHeight: "1.6",
-  paragraphSpacing: "16",
+  const DEFAULT_SETTINGS = {
+    siteTheme: "system",
+    readerWidth: "comfort",
+    readerFontSize: 16,
+    readerLineHeight: 1.6,
+    readerParagraphSpacing: 16,
+    readerBg: "#fffaf3",
+    readerText: "#111111",
+    textAlign: "left",
+    hideFoxes: false,
+    spoilerWarningDisabled: false,
+  };
 
-  siteTheme: "light",
-  cardRadius: "16",
-  showFoxes: true,
-  spoilerWarning: true,
-};
-
-function getFoxUrl(name) {
-  const fox = window.ZEFIRKI_FOX || {};
-  return fox[name] || "";
-}
-
-function loadSettings() {
-  const raw = localStorage.getItem(READER_SETTINGS_KEY);
-
-  if (!raw) {
-    return { ...DEFAULT_SETTINGS };
-  }
-
-  try {
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function saveSettings(settings) {
-  localStorage.setItem(READER_SETTINGS_KEY, JSON.stringify(settings));
-}
-
-let readerSettings = loadSettings();
-
-function applySettings() {
-  const root = document.documentElement;
-
-  root.style.setProperty("--reader-text-color", readerSettings.textColor);
-  root.style.setProperty("--reader-bg", readerSettings.readerBg);
-  root.style.setProperty("--reader-font-size", `${readerSettings.fontSize}px`);
-  root.style.setProperty("--reader-line-height", readerSettings.lineHeight);
-  root.style.setProperty("--reader-paragraph-spacing", `${readerSettings.paragraphSpacing}px`);
-  root.style.setProperty("--card-radius", `${readerSettings.cardRadius}px`);
-
-  document.body.dataset.readerWidth = readerSettings.readerWidth;
-  document.body.dataset.textAlign = readerSettings.textAlign;
-  document.body.dataset.siteTheme = readerSettings.siteTheme;
-
-  document.body.classList.toggle("hide-foxes", !readerSettings.showFoxes);
-
-  if (!readerSettings.spoilerWarning) {
-    localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
-  }
-}
-
-function updateSetting(key, value) {
-  readerSettings[key] = value;
-  saveSettings(readerSettings);
-  applySettings();
-}
-
-function createMiniAppExpandButton() {
-  const button = document.createElement("button");
-  button.className = "miniapp-expand-button";
-  button.type = "button";
-  button.setAttribute("aria-label", "Развернуть приложение");
-  button.textContent = "⛶";
-
-  button.addEventListener("click", async () => {
-    const tg = window.Telegram?.WebApp;
-
-    if (tg) {
-      try {
-        if (typeof tg.requestFullscreen === "function" && !tg.isFullscreen) {
-          tg.requestFullscreen();
-          button.textContent = "🗗";
-          return;
-        }
-
-        if (typeof tg.exitFullscreen === "function" && tg.isFullscreen) {
-          tg.exitFullscreen();
-          button.textContent = "⛶";
-          return;
-        }
-
-        if (typeof tg.expand === "function") {
-          tg.expand();
-          button.textContent = "🗗";
-          return;
-        }
-      } catch {
-        if (typeof tg.expand === "function") {
-          tg.expand();
-        }
-      }
-    }
-
+  function safeJsonParse(value, fallback) {
     try {
-      if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-        button.textContent = "🗗";
-      } else if (document.exitFullscreen) {
-        await document.exitFullscreen();
-        button.textContent = "⛶";
-      }
-    } catch {
-      button.textContent = "⛶";
+      return JSON.parse(value) || fallback;
+    } catch (error) {
+      return fallback;
     }
-  });
-
-  document.body.appendChild(button);
-}
-
-function createSettingsPanel() {
-  const foxAbout = getFoxUrl("fox_hearts") || getFoxUrl("fox_heart") || getFoxUrl("fox_pic");
-  const aboutFoxHtml = foxAbout
-    ? `<img class="about-fox" src="${foxAbout}" alt="Лисичка" data-fox>`
-    : "";
-
-  const panel = document.createElement("div");
-
-  panel.innerHTML = `
-    <button class="settings-fab" id="settingsFab" type="button" aria-label="Настройки">
-      ⚙️
-    </button>
-
-    <div class="settings-overlay" id="settingsOverlay" hidden>
-      <div class="settings-modal">
-        <div class="settings-header">
-          <div>
-            <h2>Настройки</h2>
-            <p>Сохраняются автоматически.</p>
-          </div>
-          <button class="settings-close" id="settingsClose" type="button" aria-label="Закрыть">×</button>
-        </div>
-
-        <div class="settings-tabs">
-          <button class="settings-tab active" data-tab="reader">Чтение</button>
-          <button class="settings-tab" data-tab="view">Вид</button>
-          <button class="settings-tab" data-tab="about">О проекте</button>
-        </div>
-
-        <div class="settings-content">
-          <section class="settings-section active" data-section="reader">
-            ${selectField("fontSize", "Размер текста", [
-              ["14", "14px"],
-              ["16", "16px"],
-              ["18", "18px"],
-              ["20", "20px"],
-              ["22", "22px"],
-              ["24", "24px"],
-            ])}
-
-            ${selectField("lineHeight", "Интервал", [
-              ["1.4", "1.4"],
-              ["1.6", "1.6"],
-              ["1.8", "1.8"],
-              ["2.0", "2.0"],
-            ])}
-
-            ${selectField("paragraphSpacing", "Абзацы", [
-              ["0", "0px"],
-              ["8", "8px"],
-              ["16", "16px"],
-              ["24", "24px"],
-            ])}
-
-            ${selectField("readerWidth", "Ширина текста", [
-              ["full", "На всю ширину"],
-              ["comfort", "Комфортная колонка"],
-              ["wide", "Очень широкая"],
-            ])}
-
-            ${selectField("textAlign", "Выравнивание", [
-              ["left", "По левому краю"],
-              ["justify", "По ширине"],
-            ])}
-
-            ${presetAndColorField("textColor", "Цвет текста", [
-              ["#111111", "Чёрный"],
-              ["#333333", "Тёмно-серый"],
-              ["#f4f4f4", "Светлый"],
-            ])}
-
-            ${presetAndColorField("readerBg", "Фон читалки", [
-              ["#ffffff", "Белый"],
-              ["#fffaf3", "Кремовый"],
-              ["#f4ecd8", "Сепия"],
-              ["#222222", "Тёмный"],
-              ["#000000", "Чёрный"],
-            ])}
-          </section>
-
-          <section class="settings-section" data-section="view">
-            ${selectField("siteTheme", "Тема сайта", [
-              ["light", "Светлая"],
-              ["dark", "Тёмная"],
-              ["system", "Системная"],
-            ])}
-
-            ${selectField("cardRadius", "Скругление", [
-              ["0", "0px"],
-              ["8", "8px"],
-              ["16", "16px"],
-              ["24", "24px"],
-            ])}
-
-            ${checkboxField("showFoxes", "Показывать лисичек")}
-            ${checkboxField("spoilerWarning", "Предупреждать о спойлерах")}
-          </section>
-
-          <section class="settings-section" data-section="about">
-            <div class="about-box">
-              ${aboutFoxHtml}
-              <h3>Зефиркины баоцзы</h3>
-              <p>
-                Мини-читалка переводов с удобной настройкой текста,
-                библиотекой новелл и уютными лисичками.
-              </p>
-
-              <div class="about-links">
-                <a href="https://t.me/" target="_blank" rel="noopener noreferrer">Telegram</a>
-                <a href="https://boosty.to/" target="_blank" rel="noopener noreferrer">Boosty</a>
-                <a href="https://www.bllate.pro/" target="_blank" rel="noopener noreferrer">BLlate</a>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <div class="settings-footer">
-          <button class="settings-reset" id="settingsReset" type="button">
-            Сбросить
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(panel);
-
-  bindSettingsPanel();
-  fillSettingsControls();
-}
-
-function selectField(key, label, options) {
-  return `
-    <label class="settings-field">
-      <span>${label}</span>
-      <select data-setting="${key}">
-        ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
-      </select>
-    </label>
-  `;
-}
-
-function presetAndColorField(key, label, options) {
-  return `
-    <label class="settings-field">
-      <span>${label}</span>
-      <div class="settings-color-row">
-        <select data-setting="${key}" data-color-select="${key}">
-          ${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}
-          <option value="custom">Свой</option>
-        </select>
-        <input type="color" data-setting="${key}" data-color-picker="${key}" />
-      </div>
-    </label>
-  `;
-}
-
-function checkboxField(key, label) {
-  return `
-    <label class="settings-check">
-      <input type="checkbox" data-setting="${key}" />
-      <span>${label}</span>
-    </label>
-  `;
-}
-
-function fillSettingsControls() {
-  document.querySelectorAll("[data-setting]").forEach(control => {
-    const key = control.dataset.setting;
-
-    if (control.type === "checkbox") {
-      control.checked = Boolean(readerSettings[key]);
-      return;
-    }
-
-    if (control.dataset.colorPicker) {
-      control.value = readerSettings[key];
-      return;
-    }
-
-    if (control.dataset.colorSelect) {
-      const hasOption = Array.from(control.options).some(
-        option => option.value === readerSettings[key]
-      );
-
-      control.value = hasOption ? readerSettings[key] : "custom";
-      return;
-    }
-
-    control.value = readerSettings[key];
-  });
-}
-
-function bindSettingsPanel() {
-  const overlay = document.getElementById("settingsOverlay");
-  const fab = document.getElementById("settingsFab");
-  const close = document.getElementById("settingsClose");
-  const reset = document.getElementById("settingsReset");
-
-  fab.addEventListener("click", () => {
-    overlay.hidden = false;
-  });
-
-  close.addEventListener("click", () => {
-    overlay.hidden = true;
-  });
-
-  overlay.addEventListener("click", event => {
-    if (event.target === overlay) {
-      overlay.hidden = true;
-    }
-  });
-
-  document.addEventListener("keydown", event => {
-    if (event.key === "Escape") {
-      overlay.hidden = true;
-    }
-  });
-
-  document.querySelectorAll(".settings-tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      const tabName = tab.dataset.tab;
-
-      document.querySelectorAll(".settings-tab").forEach(item => {
-        item.classList.toggle("active", item === tab);
-      });
-
-      document.querySelectorAll(".settings-section").forEach(section => {
-        section.classList.toggle("active", section.dataset.section === tabName);
-      });
-    });
-  });
-
-  document.querySelectorAll("[data-setting]").forEach(control => {
-    control.addEventListener("input", () => handleSettingControl(control));
-    control.addEventListener("change", () => handleSettingControl(control));
-  });
-
-  reset.addEventListener("click", () => {
-    const confirmed = confirm("Сбросить настройки к стандартным?");
-
-    if (!confirmed) return;
-
-    readerSettings = { ...DEFAULT_SETTINGS };
-    saveSettings(readerSettings);
-    localStorage.removeItem(SPOILER_WARNING_DISABLED_KEY);
-    fillSettingsControls();
-    applySettings();
-  });
-}
-
-function handleSettingControl(control) {
-  const key = control.dataset.setting;
-
-  if (control.type === "checkbox") {
-    updateSetting(key, control.checked);
-
-    if (key === "spoilerWarning" && control.checked) {
-      localStorage.removeItem(SPOILER_WARNING_DISABLED_KEY);
-    }
-
-    if (key === "spoilerWarning" && !control.checked) {
-      localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
-    }
-
-    return;
   }
 
-  if (control.dataset.colorSelect) {
-    if (control.value === "custom") {
-      const picker = document.querySelector(`[data-color-picker="${key}"]`);
-      updateSetting(key, picker.value);
+  function getSettings() {
+    const saved = safeJsonParse(
+      localStorage.getItem(STORAGE_KEYS.settings),
+      {}
+    );
+
+    return Object.assign({}, DEFAULT_SETTINGS, saved);
+  }
+
+  function saveSettings(settings) {
+    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+  }
+
+  function applySettings() {
+    const settings = getSettings();
+    const root = document.documentElement;
+    const body = document.body;
+
+    body.dataset.siteTheme = settings.siteTheme;
+    body.dataset.readerWidth = settings.readerWidth;
+    body.dataset.textAlign = settings.textAlign;
+
+    if (settings.hideFoxes) {
+      body.classList.add("hide-foxes");
     } else {
-      updateSetting(key, control.value);
-
-      const picker = document.querySelector(`[data-color-picker="${key}"]`);
-      if (picker) picker.value = control.value;
+      body.classList.remove("hide-foxes");
     }
 
-    return;
+    root.style.setProperty("--reader-font-size", `${settings.readerFontSize}px`);
+    root.style.setProperty("--reader-line-height", String(settings.readerLineHeight));
+    root.style.setProperty("--reader-paragraph-spacing", `${settings.readerParagraphSpacing}px`);
+    root.style.setProperty("--reader-bg", settings.readerBg);
+    root.style.setProperty("--reader-text-color", settings.readerText);
   }
 
-  if (control.dataset.colorPicker) {
-    updateSetting(key, control.value);
-    fillSettingsControls();
-    return;
+  function getProgressMap() {
+    return safeJsonParse(
+      localStorage.getItem(STORAGE_KEYS.progress),
+      {}
+    );
   }
 
-  updateSetting(key, control.value);
-}
+  function saveProgressMap(progressMap) {
+    localStorage.setItem(STORAGE_KEYS.progress, JSON.stringify(progressMap));
+  }
 
-function createSpoilerWarningModal() {
-  const modal = document.createElement("div");
+  function clearProgress() {
+    localStorage.removeItem(STORAGE_KEYS.progress);
+  }
 
-  modal.innerHTML = `
-    <div class="spoiler-warning-overlay" id="spoilerWarningOverlay" hidden>
-      <div class="spoiler-warning-modal">
-        <h2>Возможен спойлер</h2>
-        <p>
-          Этот тег может раскрывать важные детали сюжета.
-          Показать его?
-        </p>
+  function saveCurrentChapterProgress() {
+    const chapterPage = document.querySelector("[data-chapter-page]");
 
-        <label class="spoiler-warning-check">
-          <input type="checkbox" id="spoilerDontShowAgain">
-          <span>Больше не предупреждать</span>
-        </label>
+    if (!chapterPage) {
+      return;
+    }
 
-        <div class="spoiler-warning-actions">
-          <button type="button" class="spoiler-warning-cancel" id="spoilerCancel">
-            Отказаться
-          </button>
-          <button type="button" class="spoiler-warning-confirm" id="spoilerConfirm">
-            Продолжить
+    const isLocked = chapterPage.dataset.isLocked === "true";
+
+    if (isLocked) {
+      return;
+    }
+
+    const novelId = chapterPage.dataset.novelId;
+    const novelSlug = chapterPage.dataset.novelSlug;
+    const novelTitle = chapterPage.dataset.novelTitle;
+    const chapterId = chapterPage.dataset.chapterId;
+    const chapterTitle = chapterPage.dataset.chapterTitle;
+
+    if (!novelId || !chapterId) {
+      return;
+    }
+
+    const progressMap = getProgressMap();
+
+    progressMap[String(novelId)] = {
+      novelId: String(novelId),
+      novelSlug: novelSlug || "",
+      novelTitle: novelTitle || "",
+      chapterId: String(chapterId),
+      chapterTitle: chapterTitle || "",
+      chapterUrl: `/chapter/${chapterId}`,
+      updatedAt: Date.now(),
+    };
+
+    saveProgressMap(progressMap);
+  }
+
+  function getLastProgressItem() {
+    const progressMap = getProgressMap();
+
+    return Object.values(progressMap)
+      .filter(item => item && item.chapterId && item.novelId)
+      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))[0] || null;
+  }
+
+  function findLibraryCardByNovelId(novelId) {
+    return document.querySelector(`[data-library-novel-card][data-novel-id="${novelId}"]`);
+  }
+
+  function renderContinueReadingPanel() {
+    const panel = document.getElementById("continueReadingPanel");
+
+    if (!panel) {
+      return;
+    }
+
+    const item = getLastProgressItem();
+
+    if (!item) {
+      panel.innerHTML = `
+        <div class="continue-reading-empty">
+          <div class="continue-reading-panel-header">
+            <div>
+              <div class="continue-reading-kicker">Продолжить читать</div>
+              <div class="continue-reading-empty-text">Нет активных чтений</div>
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const card = findLibraryCardByNovelId(item.novelId);
+    const coverUrl = card ? card.dataset.coverUrl : "";
+    const novelTitle = item.novelTitle || (card ? card.dataset.novelTitle : "Новелла");
+    const chapterTitle = item.chapterTitle || "Последняя открытая глава";
+    const chapterUrl = item.chapterUrl || `/chapter/${item.chapterId}`;
+
+    panel.innerHTML = `
+      <div class="continue-reading-card">
+        <div class="continue-reading-panel-header">
+          <div>
+            <div class="continue-reading-kicker">Продолжить читать</div>
+            <div class="continue-reading-mini-title">Последняя открытая новелла</div>
+          </div>
+
+          <button class="continue-clear-button" type="button" id="clearReadingProgress">
+            Очистить
           </button>
         </div>
+
+        <div class="continue-reading-body">
+          <a class="continue-cover-link" href="${chapterUrl}">
+            ${
+              coverUrl
+                ? `<img class="continue-cover" src="${escapeHtmlAttribute(coverUrl)}" alt="">`
+                : `<div class="continue-cover continue-cover-placeholder">📖</div>`
+            }
+          </a>
+
+          <div class="continue-reading-info">
+            <a class="continue-title" href="${chapterUrl}">
+              ${escapeHtml(novelTitle)}
+            </a>
+
+            <div class="continue-chapter">
+              ${escapeHtml(chapterTitle)}
+            </div>
+
+            <a class="continue-button" href="${chapterUrl}">
+              Продолжить чтение
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
-  `;
+    `;
 
-  document.body.appendChild(modal);
-}
+    const clearButton = document.getElementById("clearReadingProgress");
 
-let pendingSpoilerButton = null;
+    if (clearButton) {
+      clearButton.addEventListener("click", function () {
+        clearProgress();
+        renderContinueReadingPanel();
+        updateNovelReadButton();
+        markReadChapters();
+      });
+    }
+  }
 
-function bindSpoilerTags() {
-  document.querySelectorAll(".tag-spoiler-reveal").forEach(button => {
-    button.addEventListener("click", () => {
-      const warningDisabled =
-        localStorage.getItem(SPOILER_WARNING_DISABLED_KEY) === "true" ||
-        readerSettings.spoilerWarning === false;
+  function updateNovelReadButton() {
+    const novelPage = document.querySelector("[data-novel-page]");
+    const button = document.getElementById("novelReadButton");
 
-      if (warningDisabled) {
-        openSpoilerTag(button);
+    if (!novelPage || !button) {
+      return;
+    }
+
+    const novelId = novelPage.dataset.novelId;
+    const defaultHref = button.dataset.defaultHref;
+    const defaultText = button.dataset.defaultText || "Начать читать";
+
+    const progressMap = getProgressMap();
+    const progress = progressMap[String(novelId)];
+
+    if (progress && progress.chapterId) {
+      button.href = progress.chapterUrl || `/chapter/${progress.chapterId}`;
+      button.textContent = `Продолжить с ${progress.chapterTitle || "последней главы"}`;
+      return;
+    }
+
+    button.href = defaultHref;
+    button.textContent = defaultText;
+  }
+
+  function markReadChapters() {
+    const progressMap = getProgressMap();
+    const readChapterIds = new Set(
+      Object.values(progressMap)
+        .filter(item => item && item.chapterId)
+        .map(item => String(item.chapterId))
+    );
+
+    document.querySelectorAll("[data-chapter-row]").forEach(row => {
+      const chapterId = row.dataset.chapterId;
+
+      if (readChapterIds.has(String(chapterId))) {
+        row.classList.add("chapter-row-read");
+      } else {
+        row.classList.remove("chapter-row-read");
+      }
+    });
+  }
+
+  function initLibrarySort() {
+    const select = document.getElementById("librarySort");
+    const list = document.getElementById("libraryList");
+
+    if (!select || !list) {
+      return;
+    }
+
+    const savedSort = localStorage.getItem("zefirki_library_sort") || "sort-order";
+    select.value = savedSort;
+
+    function getNumber(card, name) {
+      const value = Number(String(card.dataset[name] || "0").replace(",", "."));
+      return isNaN(value) ? 0 : value;
+    }
+
+    function sortCards(mode) {
+      const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
+
+      cards.sort((a, b) => {
+        if (mode === "title") {
+          return String(a.dataset.title || "").localeCompare(
+            String(b.dataset.title || ""),
+            "ru"
+          );
+        }
+
+        if (mode === "status") {
+          return String(a.dataset.status || "").localeCompare(
+            String(b.dataset.status || ""),
+            "ru"
+          );
+        }
+
+        if (mode === "chapters") {
+          return getNumber(b, "chapters") - getNumber(a, "chapters");
+        }
+
+        if (mode === "added") {
+          return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
+        }
+
+        if (mode === "relation") {
+          return String(a.dataset.relation || "").localeCompare(
+            String(b.dataset.relation || ""),
+            "ru"
+          );
+        }
+
+        return getNumber(a, "sortOrder") - getNumber(b, "sortOrder");
+      });
+
+      cards.forEach(card => list.appendChild(card));
+    }
+
+    sortCards(savedSort);
+
+    select.addEventListener("change", function () {
+      localStorage.setItem("zefirki_library_sort", select.value);
+      sortCards(select.value);
+    });
+  }
+
+  function initDescriptionToggle() {
+    document.querySelectorAll("[data-collapsible-description]").forEach(block => {
+      const button = block.querySelector("[data-description-toggle]");
+
+      if (!button) {
         return;
       }
 
-      pendingSpoilerButton = button;
-
-      const overlay = document.getElementById("spoilerWarningOverlay");
-      const checkbox = document.getElementById("spoilerDontShowAgain");
-
-      checkbox.checked = false;
-      overlay.hidden = false;
+      button.addEventListener("click", function () {
+        block.classList.toggle("is-expanded");
+        button.textContent = block.classList.contains("is-expanded") ? "Свернуть" : "Ещё";
+      });
     });
-  });
-
-  const overlay = document.getElementById("spoilerWarningOverlay");
-  const cancel = document.getElementById("spoilerCancel");
-  const confirm = document.getElementById("spoilerConfirm");
-
-  if (!overlay || !cancel || !confirm) return;
-
-  cancel.addEventListener("click", () => {
-    pendingSpoilerButton = null;
-    overlay.hidden = true;
-  });
-
-  confirm.addEventListener("click", () => {
-    const checkbox = document.getElementById("spoilerDontShowAgain");
-
-    if (checkbox.checked) {
-      localStorage.setItem(SPOILER_WARNING_DISABLED_KEY, "true");
-      readerSettings.spoilerWarning = false;
-      saveSettings(readerSettings);
-      fillSettingsControls();
-    }
-
-    if (pendingSpoilerButton) {
-      openSpoilerTag(pendingSpoilerButton);
-    }
-
-    pendingSpoilerButton = null;
-    overlay.hidden = true;
-  });
-
-  overlay.addEventListener("click", event => {
-    if (event.target === overlay) {
-      pendingSpoilerButton = null;
-      overlay.hidden = true;
-    }
-  });
-}
-
-function openSpoilerTag(button) {
-  button.textContent = button.dataset.spoiler;
-  button.classList.remove("tag-spoiler");
-  button.classList.add("tag-spoiler-opened");
-}
-
-function loadReadingProgress() {
-  const raw = localStorage.getItem(READING_PROGRESS_KEY);
-
-  if (!raw) {
-    return {};
   }
 
-  try {
-    return JSON.parse(raw) || {};
-  } catch {
-    return {};
+  function initSpoilers() {
+    document.querySelectorAll(".tag-spoiler-reveal").forEach(button => {
+      button.addEventListener("click", function () {
+        const realText = button.dataset.spoiler || "";
+
+        if (!realText) {
+          return;
+        }
+
+        button.textContent = realText;
+        button.classList.remove("tag-spoiler");
+        button.classList.add("tag-spoiler-opened");
+      });
+    });
   }
-}
 
-function saveReadingProgress(progress) {
-  localStorage.setItem(READING_PROGRESS_KEY, JSON.stringify(progress));
-}
+  function initMiniAppExpandButton() {
+    const tg = window.Telegram && window.Telegram.WebApp;
 
-function saveCurrentChapterProgress() {
-  const chapterPage = document.querySelector("[data-chapter-page]");
+    if (!tg) {
+      return;
+    }
 
-  if (!chapterPage) return;
+    try {
+      tg.ready();
+      tg.expand();
+    } catch (error) {
+      console.log("Telegram MiniApp expand warning:", error);
+    }
 
-  const isLocked = chapterPage.dataset.isLocked === "true";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "miniapp-expand-button";
+    button.textContent = "⛶";
+    button.title = "Развернуть";
 
-  if (isLocked) return;
+    button.addEventListener("click", function () {
+      try {
+        tg.expand();
+      } catch (error) {
+        console.log("Telegram MiniApp expand warning:", error);
+      }
+    });
 
-  const novelId = chapterPage.dataset.novelId;
+    document.body.appendChild(button);
+  }
 
-  if (!novelId) return;
+  function createSettingsPanel() {
+    if (document.getElementById("readerSettingsFab")) {
+      return;
+    }
 
-  const progress = loadReadingProgress();
+    const settings = getSettings();
 
-  progress[novelId] = {
-    novelId,
-    novelSlug: chapterPage.dataset.novelSlug,
-    novelTitle: chapterPage.dataset.novelTitle,
-    chapterId: chapterPage.dataset.chapterId,
-    chapterTitle: chapterPage.dataset.chapterTitle,
-    lastReadAt: new Date().toISOString(),
-  };
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "settings-fab";
+    button.id = "readerSettingsFab";
+    button.textContent = "⚙";
+    button.title = "Настройки";
 
-  saveReadingProgress(progress);
-}
+    const overlay = document.createElement("div");
+    overlay.className = "settings-overlay";
+    overlay.id = "readerSettingsOverlay";
+    overlay.hidden = true;
 
-function renderLibraryHistory() {
-  const container = document.getElementById("readingHistory");
+    overlay.innerHTML = `
+      <div class="settings-modal">
+        <div class="settings-header">
+          <div>
+            <h2>Настройки чтения</h2>
+            <p>Тема, ширина текста, размер шрифта и лисички.</p>
+          </div>
+          <button class="settings-close" type="button" id="readerSettingsClose">×</button>
+        </div>
 
-  if (!container) return;
+        <div class="settings-section active">
+          <label class="settings-field">
+            <span>Тема сайта</span>
+            <select id="settingSiteTheme">
+              <option value="system">Системная</option>
+              <option value="light">Светлая</option>
+              <option value="dark">Тёмная</option>
+            </select>
+          </label>
 
-  const progress = loadReadingProgress();
-  const items = Object.values(progress)
-    .sort((a, b) => new Date(b.lastReadAt) - new Date(a.lastReadAt))
-    .slice(0, 3);
+          <label class="settings-field">
+            <span>Ширина чтения</span>
+            <select id="settingReaderWidth">
+              <option value="comfort">Удобная</option>
+              <option value="full">Шире</option>
+              <option value="wide">Почти весь экран</option>
+            </select>
+          </label>
 
-  if (!items.length) {
-    container.innerHTML = `
-      <div class="reading-history-empty">
-        Здесь появится история чтения, когда вы откроете первую главу.
+          <label class="settings-field">
+            <span>Размер текста</span>
+            <select id="settingFontSize">
+              <option value="15">15</option>
+              <option value="16">16</option>
+              <option value="17">17</option>
+              <option value="18">18</option>
+              <option value="20">20</option>
+              <option value="22">22</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Межстрочный интервал</span>
+            <select id="settingLineHeight">
+              <option value="1.5">1.5</option>
+              <option value="1.6">1.6</option>
+              <option value="1.7">1.7</option>
+              <option value="1.8">1.8</option>
+              <option value="2">2.0</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Выравнивание</span>
+            <select id="settingTextAlign">
+              <option value="left">По левому краю</option>
+              <option value="justify">По ширине</option>
+            </select>
+          </label>
+
+          <label class="settings-check">
+            <input type="checkbox" id="settingHideFoxes">
+            <span>Скрыть лисичек</span>
+          </label>
+        </div>
+
+        <div class="settings-footer">
+          <button class="settings-reset" type="button" id="readerSettingsReset">
+            Сбросить настройки
+          </button>
+        </div>
       </div>
     `;
-    return;
-  }
 
-  const main = items[0];
+    document.body.appendChild(button);
+    document.body.appendChild(overlay);
 
-  container.innerHTML = `
-    <div class="reading-history-card">
-      <div class="reading-history-kicker">Вы читали</div>
+    const elements = {
+      overlay,
+      close: overlay.querySelector("#readerSettingsClose"),
+      reset: overlay.querySelector("#readerSettingsReset"),
+      siteTheme: overlay.querySelector("#settingSiteTheme"),
+      readerWidth: overlay.querySelector("#settingReaderWidth"),
+      fontSize: overlay.querySelector("#settingFontSize"),
+      lineHeight: overlay.querySelector("#settingLineHeight"),
+      textAlign: overlay.querySelector("#settingTextAlign"),
+      hideFoxes: overlay.querySelector("#settingHideFoxes"),
+    };
 
-      <div class="reading-history-title">
-        ${escapeHtml(main.novelTitle)}
-      </div>
+    elements.siteTheme.value = settings.siteTheme;
+    elements.readerWidth.value = settings.readerWidth;
+    elements.fontSize.value = String(settings.readerFontSize);
+    elements.lineHeight.value = String(settings.readerLineHeight);
+    elements.textAlign.value = settings.textAlign;
+    elements.hideFoxes.checked = Boolean(settings.hideFoxes);
 
-      <div class="reading-history-chapter">
-        ${escapeHtml(main.chapterTitle)}
-      </div>
-
-      <a class="reading-history-button" href="/chapter/${encodeURIComponent(main.chapterId)}">
-        Продолжить чтение
-      </a>
-    </div>
-
-    ${
-      items.length > 1
-        ? `<div class="reading-history-small-list">
-            ${items.slice(1).map(item => `
-              <a href="/chapter/${encodeURIComponent(item.chapterId)}" class="reading-history-small">
-                <span>${escapeHtml(item.novelTitle)}</span>
-                <small>${escapeHtml(item.chapterTitle)}</small>
-              </a>
-            `).join("")}
-          </div>`
-        : ""
-    }
-  `;
-}
-
-function updateNovelReadButton() {
-  const novelPage = document.querySelector("[data-novel-page]");
-  const button = document.getElementById("novelReadButton");
-
-  if (!novelPage || !button) return;
-
-  const novelId = novelPage.dataset.novelId;
-  const progress = loadReadingProgress();
-  const current = progress[novelId];
-
-  if (current && current.chapterId) {
-    button.href = `/chapter/${encodeURIComponent(current.chapterId)}`;
-    button.textContent = `Продолжить: ${current.chapterTitle}`;
-    return;
-  }
-
-  button.href = button.dataset.defaultHref;
-  button.textContent = button.dataset.defaultText || "Начать читать";
-}
-
-function markReadChapters() {
-  const progress = loadReadingProgress();
-  const readIds = new Set(
-    Object.values(progress).map(item => String(item.chapterId))
-  );
-
-  document.querySelectorAll("[data-chapter-row]").forEach(row => {
-    const id = String(row.dataset.chapterId || "");
-
-    if (readIds.has(id)) {
-      row.classList.add("chapter-row-read");
-    }
-  });
-}
-
-function bindDescriptionToggle() {
-  document.querySelectorAll("[data-collapsible-description]").forEach(block => {
-    const button = block.querySelector("[data-description-toggle]");
-
-    if (!button) return;
-
-    button.addEventListener("click", () => {
-      const expanded = block.classList.toggle("is-expanded");
-      button.textContent = expanded ? "Свернуть" : "Ещё";
-    });
-  });
-}
-
-function bindLibrarySort() {
-  const select = document.getElementById("librarySort");
-  const list = document.getElementById("libraryList");
-
-  if (!select || !list) return;
-
-  select.addEventListener("change", () => {
-    const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
-    const mode = select.value;
-
-    cards.sort((a, b) => {
-      if (mode === "title") {
-        return a.dataset.title.localeCompare(b.dataset.title, "ru");
-      }
-
-      if (mode === "status") {
-        const rank = {
-          completed: 1,
-          in_progress: 2,
-          paused: 3,
-        };
-
-        return (rank[a.dataset.status] || 99) - (rank[b.dataset.status] || 99);
-      }
-
-      if (mode === "chapters") {
-        return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
-      }
-
-      if (mode === "added") {
-        return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
-      }
-
-      if (mode === "relation") {
-        const rank = {
-          "Гет": 1,
-          "Слэш": 2,
-          "Джен": 3,
-        };
-
-        return (rank[a.dataset.relation] || 99) - (rank[b.dataset.relation] || 99);
-      }
-
-      return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
+    button.addEventListener("click", function () {
+      overlay.hidden = false;
     });
 
-    cards.forEach(card => list.appendChild(card));
+    elements.close.addEventListener("click", function () {
+      overlay.hidden = true;
+    });
+
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) {
+        overlay.hidden = true;
+      }
+    });
+
+    function updateSetting(name, value) {
+      const current = getSettings();
+      current[name] = value;
+      saveSettings(current);
+      applySettings();
+    }
+
+    elements.siteTheme.addEventListener("change", () => updateSetting("siteTheme", elements.siteTheme.value));
+    elements.readerWidth.addEventListener("change", () => updateSetting("readerWidth", elements.readerWidth.value));
+    elements.fontSize.addEventListener("change", () => updateSetting("readerFontSize", Number(elements.fontSize.value)));
+    elements.lineHeight.addEventListener("change", () => updateSetting("readerLineHeight", Number(elements.lineHeight.value)));
+    elements.textAlign.addEventListener("change", () => updateSetting("textAlign", elements.textAlign.value));
+    elements.hideFoxes.addEventListener("change", () => updateSetting("hideFoxes", elements.hideFoxes.checked));
+
+    elements.reset.addEventListener("click", function () {
+      saveSettings(DEFAULT_SETTINGS);
+      applySettings();
+      overlay.hidden = true;
+      location.reload();
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function escapeHtmlAttribute(value) {
+    return escapeHtml(value);
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    applySettings();
+    saveCurrentChapterProgress();
+    renderContinueReadingPanel();
+    updateNovelReadButton();
+    markReadChapters();
+    initLibrarySort();
+    initDescriptionToggle();
+    initSpoilers();
+    initMiniAppExpandButton();
+    createSettingsPanel();
   });
-}
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  createMiniAppExpandButton();
-  createSettingsPanel();
-  createSpoilerWarningModal();
-
-  applySettings();
-  bindSpoilerTags();
-
-  saveCurrentChapterProgress();
-  renderLibraryHistory();
-  updateNovelReadButton();
-  markReadChapters();
-  bindDescriptionToggle();
-  bindLibrarySort();
-});
+})();
