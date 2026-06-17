@@ -45,30 +45,43 @@
       </section>
 
       <section class="library-toolbar">
-        <div class="library-view-switch" aria-label="Режим отображения">
-          <button class="library-view-button active" type="button" data-library-view-button="grid">
-            Сетка
-          </button>
-          <button class="library-view-button" type="button" data-library-view-button="list">
-            Список
-          </button>
+        <div class="library-toolbar-top">
+          <div class="library-view-switch" aria-label="Режим отображения">
+            <button class="library-view-button" type="button" data-library-view-button="grid" title="Сетка">
+              ▦
+            </button>
+            <button class="library-view-button active" type="button" data-library-view-button="list" title="Список">
+              ☰
+            </button>
+          </div>
+
+          <label class="sort-label">
+            Сортировка
+            <select id="librarySort">
+              <option value="sort-order">По умолчанию</option>
+              <option value="title">По названию А-Я</option>
+              <option value="status">По статусу перевода</option>
+              <option value="chapters">По количеству глав</option>
+              <option value="translated">По количеству переведённых глав</option>
+              <option value="added">По дате добавления</option>
+              <option value="relation">По тегу Гет/Слэш/Джен</option>
+            </select>
+          </label>
         </div>
 
-        <label class="sort-label">
-          Сортировка
-          <select id="librarySort">
-            <option value="sort-order">По умолчанию</option>
-            <option value="title">По названию А-Я</option>
-            <option value="status">По статусу перевода</option>
-            <option value="chapters">По количеству глав</option>
-            <option value="added">По дате добавления</option>
-            <option value="relation">По тегу Гет/Слэш/Джен</option>
-          </select>
+        <label class="library-search-label">
+          <span>Поиск</span>
+          <input
+            id="librarySearch"
+            type="search"
+            placeholder="Найти книгу по названию..."
+            autocomplete="off"
+          >
         </label>
       </section>
 
       {% if novels %}
-        <div class="novel-list novel-list-grid" id="libraryList" data-library-view="grid">
+        <div class="novel-list novel-list-list" id="libraryList" data-library-view="list">
           {% for novel in novels %}
             <a
               class="novel-card"
@@ -83,6 +96,7 @@
               data-sort-order="{{ novel.sort_order or novel.id }}"
               data-status="{{ novel.translation_status or 'in_progress' }}"
               data-chapters="{{ novel.total_chapters or 0 }}"
+              data-translated-chapters="{{ novel.translated_chapters or 0 }}"
               data-progress="{{ novel.progress_percent or 0 }}"
               data-added="{{ novel.added_date or '' }}"
               data-relation="{{ novel.relation_type or '' }}"
@@ -108,7 +122,7 @@
               </div>
 
               <div class="novel-info">
-                <h2 class="novel-card-title" data-fit-title>
+                <h2 class="novel-card-title">
                   {{ novel.display_title }}
                 </h2>
 
@@ -119,6 +133,10 @@
                 <div class="novel-meta-line">
                   {% if novel.total_chapters %}
                     <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
+                  {% endif %}
+
+                  {% if novel.translated_chapters %}
+                    <span class="meta-pill">🖋 {{ novel.translated_chapters }} переведено</span>
                   {% endif %}
 
                   {% if novel.progress_percent is not none %}
@@ -149,6 +167,10 @@
               </div>
             </a>
           {% endfor %}
+        </div>
+
+        <div class="empty library-empty-search" id="libraryEmptySearch" hidden>
+          Ничего не нашлось.
         </div>
       {% else %}
         <div class="empty">
