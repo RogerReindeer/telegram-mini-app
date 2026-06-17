@@ -354,7 +354,7 @@ h1 {
   position: relative;
   display: flex;
   gap: 14px;
-  min-height: 186px;
+  min-height: 226px;
   padding: 14px;
   border-radius: var(--card-radius);
   background: var(--card-bg);
@@ -476,6 +476,24 @@ h1 {
   font-weight: 900;
   word-break: normal;
   overflow-wrap: anywhere;
+}
+
+.novel-description,
+.novel-description p {
+  color: var(--muted-text);
+  line-height: 1.45;
+}
+
+.novel-description {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.catalog-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .novel-meta-line {
@@ -756,16 +774,6 @@ body[data-site-theme="dark"] .collapsible-description:not(.is-expanded) .collaps
   color: #ffffff;
   font-weight: 800;
   cursor: pointer;
-}
-
-.novel-description,
-.novel-description p {
-  color: var(--muted-text);
-  line-height: 1.55;
-}
-
-.novel-description {
-  margin: 0 0 10px;
 }
 
 .character-info {
@@ -1455,7 +1463,7 @@ body[data-text-align="justify"] .chapter-content {
 
   .novel-card {
     gap: 12px;
-    min-height: 236px;
+    min-height: 260px;
   }
 
   .catalog-cover-column {
