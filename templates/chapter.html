@@ -21,6 +21,8 @@
       data-novel-title="{{ novel.display_title }}"
       data-chapter-id="{{ chapter.id }}"
       data-chapter-title="{{ chapter.title }}"
+      data-chapter-index="{{ chapter_index or 0 }}"
+      data-available-chapters="{{ available_chapters_count or 0 }}"
     >
       <a class="back-link" href="/novel/{{ novel.slug }}">← К оглавлению</a>
 
@@ -90,7 +92,7 @@
         {% if previous_chapter %}
           <a class="chapter-nav-button" href="/chapter/{{ previous_chapter.id }}">← Предыдущая</a>
         {% else %}
-          <a class="chapter-nav-button" href="/novel/{{ novel.slug }}">← К оглавлению</a>
+          <span class="chapter-nav-placeholder" aria-hidden="true"></span>
         {% endif %}
 
         <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К оглавлению</a>
