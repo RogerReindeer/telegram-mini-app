@@ -38,10 +38,6 @@ templates = Jinja2Templates(directory="templates")
 SHEET_CACHE = {}
 
 
-# =========================================================
-# ENV / SUPABASE
-# =========================================================
-
 def mask_env_value(value: str | None):
     if value is None:
         return {
@@ -129,10 +125,6 @@ def get_admin_supabase() -> Client:
     validate_required_env_for_admin_sync()
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-
-# =========================================================
-# NORMALIZE
-# =========================================================
 
 def clean_value(value):
     if value is None:
@@ -244,10 +236,6 @@ def normalized_tags(tags: str):
     ]
 
 
-# =========================================================
-# TAGS / STATUS
-# =========================================================
-
 def relation_icon_from_tags(tags: str):
     tags_lower = normalized_tags(tags)
 
@@ -352,6 +340,18 @@ def translation_meta_from_status(status: str, schedule_mode: str, progress_perce
     }
 
 
+def translation_status_icon_from_value(value: str):
+    value = clean_value(value).lower()
+
+    if value == "completed":
+        return "✅"
+
+    if value == "paused":
+        return "⏸"
+
+    return "🛠"
+
+
 def tag_class_for_text(tag: str):
     clean_tag = tag.replace("!", "").strip()
     tag_lower = clean_tag.lower()
@@ -405,6 +405,8 @@ def prepare_tag_items(tags: str):
 
 def prepare_novel_for_template(novel: dict):
     tags = clean_value(novel.get("tags"))
+    title = clean_value(novel.get("title"))
+    post_icons = clean_value(novel.get("post_icons"))
 
     relation_type = clean_value(novel.get("relation_type")) or relation_type_from_tags(tags)
     relation_icon = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(tags)
@@ -418,7 +420,13 @@ def prepare_novel_for_template(novel: dict):
 
     tag_items = prepare_tag_items(tags)
 
-    novel["display_title"] = clean_value(novel.get("title"))
+    if post_icons:
+        novel["display_title"] = f"{post_icons} {title}".strip()
+    else:
+        novel["display_title"] = title
+
+    novel["post_icons"] = post_icons
+
     novel["relation_type"] = relation_type
     novel["relation_icon"] = relation_icon
     novel["relation_color"] = relation_color
@@ -451,22 +459,6 @@ def prepare_novel_for_template(novel: dict):
 
     return novel
 
-
-def translation_status_icon_from_value(value: str):
-    value = clean_value(value).lower()
-
-    if value == "completed":
-        return "✅"
-
-    if value == "paused":
-        return "⏸"
-
-    return "🛠"
-
-
-# =========================================================
-# MINIAPP GOOGLE SHEETS
-# =========================================================
 
 def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
     validate_env_value("MINIAPP_SHEET_ID", MINIAPP_SHEET_ID)
@@ -519,10 +511,6 @@ def fetch_miniapp_sheet(sheet_name: str, use_cache: bool = False) -> list[dict]:
 
     return rows
 
-
-# =========================================================
-# FOX ASSETS
-# =========================================================
 
 def normalize_fox_name(name: str) -> str:
     name = clean_value(name)
@@ -605,10 +593,6 @@ def get_fox_assets() -> dict:
     return result
 
 
-# =========================================================
-# SYNC SHEETS → SUPABASE
-# =========================================================
-
 def sync_novels_to_db(db: Client) -> int:
     rows = fetch_miniapp_sheet("Novels")
 
@@ -642,6 +626,7 @@ def sync_novels_to_db(db: Client) -> int:
             "slug": clean_value(row.get("Slug")) or f"novel-{novel_id}",
             "title": clean_value(row.get("Title")) or f"Novel {novel_id}",
             "title_en": clean_value(row.get("TitleEN")),
+            "post_icons": clean_value(row.get("PostIcons")),
 
             "cover_url": clean_value(row.get("CoverURL")),
             "description": clean_value(row.get("Description")),
@@ -840,13 +825,8 @@ def sync_miniapp_sheets_to_db() -> dict:
     }
 
 
-# =========================================================
-# CHAPTER / ARTICLE HELPERS
-# =========================================================
-
 def build_chapter_display_list(
     chapters: list[dict],
-    paid_preview_count: int | None = None,
 ) -> tuple[list[dict], int]:
     sorted_chapters = sorted(
         chapters,
@@ -1064,10 +1044,6 @@ def fetch_external_article(url: str) -> dict:
     }
 
 
-# =========================================================
-# ROUTES
-# =========================================================
-
 @app.get("/", response_class=HTMLResponse)
 async def home():
     return RedirectResponse(url="/library", status_code=302)
@@ -1181,7 +1157,7 @@ async def chapter_page(request: Request, chapter_id: int):
 
         chapter_result = (
             db.table("chapters")
-            .select("*, novels(id, title, slug)")
+            .select("*, novels(id, title, slug, post_icons)")
             .eq("id", chapter_id)
             .eq("is_visible", True)
             .limit(1)
@@ -1197,7 +1173,10 @@ async def chapter_page(request: Request, chapter_id: int):
         chapter["title"] = clean_chapter_title(chapter.get("title"))
 
         novel = chapter.get("novels") or {}
-        novel["display_title"] = clean_value(novel.get("title"))
+        title = clean_value(novel.get("title"))
+        post_icons = clean_value(novel.get("post_icons"))
+
+        novel["display_title"] = f"{post_icons} {title}".strip() if post_icons else title
 
         is_locked = chapter.get("access_level") == "subscriber"
         unlock_date = format_date_ru(
@@ -1247,10 +1226,6 @@ async def chapter_page(request: Request, chapter_id: int):
         return make_error_response(error)
 
 
-# =========================================================
-# ADMIN / DEBUG
-# =========================================================
-
 @app.post("/admin/sync-from-sheets")
 async def admin_sync_from_sheets(request: Request):
     try:
@@ -1299,7 +1274,7 @@ async def debug_supabase():
 
         result = (
             db.table("novels")
-            .select("id,title,slug")
+            .select("id,title,post_icons,slug")
             .limit(1)
             .execute()
         )
@@ -1321,7 +1296,10 @@ async def debug_library_data():
 
         novels_result = (
             db.table("novels")
-            .select("id,title,slug,is_visible,sort_order,translation_status,translation_status_label")
+            .select(
+                "id,title,post_icons,slug,is_visible,sort_order,"
+                "translation_status,translation_status_label,total_chapters,translated_chapters"
+            )
             .eq("is_visible", True)
             .order("sort_order")
             .execute()
