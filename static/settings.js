@@ -5,6 +5,7 @@
     novelMeta: "zefirki_novel_meta",
     readChapters: "zefirki_read_chapters",
     spoilerConfirmed: "zefirki_spoiler_confirmed",
+    libraryView: "zefirki_library_view",
   };
 
   const DEFAULT_SETTINGS = {
@@ -22,6 +23,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     initTelegram();
     initSettings();
+    initLibraryView();
     initLibrarySort();
     initLibraryNovelMeta();
     initNovelPageMeta();
@@ -31,6 +33,9 @@
     initReadChapterMarks();
     initCollapsibleDescription();
     initSpoilerReveal();
+    fitAllNovelTitles();
+
+    window.addEventListener("resize", debounce(fitAllNovelTitles, 120));
   });
 
   function initTelegram() {
@@ -99,19 +104,38 @@
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || DEFAULT_SETTINGS.lineHeight);
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing || DEFAULT_SETTINGS.paragraphSpacing}px`);
 
-    if (settings.readerTheme === "white") {
+    applyReaderTheme(settings.readerTheme);
+  }
+
+  function applyReaderTheme(theme) {
+    if (theme === "white") {
+      document.documentElement.style.setProperty("--reader-page-bg", "#f4f4f4");
       document.documentElement.style.setProperty("--reader-bg", "#ffffff");
       document.documentElement.style.setProperty("--reader-text-color", "#111111");
-    } else if (settings.readerTheme === "sepia") {
+      document.documentElement.style.setProperty("--reader-link-color", "#b45309");
+      return;
+    }
+
+    if (theme === "sepia") {
+      document.documentElement.style.setProperty("--reader-page-bg", "#ead7bd");
       document.documentElement.style.setProperty("--reader-bg", "#f4e3c8");
       document.documentElement.style.setProperty("--reader-text-color", "#2b211c");
-    } else if (settings.readerTheme === "dark") {
+      document.documentElement.style.setProperty("--reader-link-color", "#92400e");
+      return;
+    }
+
+    if (theme === "dark") {
+      document.documentElement.style.setProperty("--reader-page-bg", "#0f0f0f");
       document.documentElement.style.setProperty("--reader-bg", "#1b1b1b");
       document.documentElement.style.setProperty("--reader-text-color", "#eeeeee");
-    } else {
-      document.documentElement.style.setProperty("--reader-bg", "#fffaf3");
-      document.documentElement.style.setProperty("--reader-text-color", "#111111");
+      document.documentElement.style.setProperty("--reader-link-color", "#fbbf24");
+      return;
     }
+
+    document.documentElement.style.setProperty("--reader-page-bg", "#f7efe7");
+    document.documentElement.style.setProperty("--reader-bg", "#fffaf3");
+    document.documentElement.style.setProperty("--reader-text-color", "#111111");
+    document.documentElement.style.setProperty("--reader-link-color", "#b45309");
   }
 
   function createSettingsUi() {
@@ -304,6 +328,7 @@
         current[input.dataset.setting] = input.value;
         saveSettings(current);
         applySettings();
+        fitAllNovelTitles();
 
         if (input.dataset.setting === "accentColor") {
           const colorInput = overlay.querySelector("[data-setting-color]");
@@ -344,6 +369,7 @@
         saveSettings({ ...DEFAULT_SETTINGS });
         fillSettingsInputs(getSettings());
         applySettings();
+        fitAllNovelTitles();
       });
     }
 
@@ -382,6 +408,40 @@
 
   function getFoxUrl(name) {
     return (window.ZEFIRKI_FOX && window.ZEFIRKI_FOX[name]) || "";
+  }
+
+  function initLibraryView() {
+    const list = document.getElementById("libraryList");
+    const buttons = document.querySelectorAll("[data-library-view-button]");
+
+    if (!list || !buttons.length) {
+      return;
+    }
+
+    const savedView = localStorage.getItem(STORAGE_KEYS.libraryView) || "grid";
+
+    applyLibraryView(savedView);
+
+    buttons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        const view = button.dataset.libraryViewButton || "grid";
+        localStorage.setItem(STORAGE_KEYS.libraryView, view);
+        applyLibraryView(view);
+        fitAllNovelTitles();
+      });
+    });
+
+    function applyLibraryView(view) {
+      const normalizedView = view === "list" ? "list" : "grid";
+
+      list.dataset.libraryView = normalizedView;
+      list.classList.toggle("novel-list-grid", normalizedView === "grid");
+      list.classList.toggle("novel-list-list", normalizedView === "list");
+
+      buttons.forEach(function (button) {
+        button.classList.toggle("active", button.dataset.libraryViewButton === normalizedView);
+      });
+    }
   }
 
   function initLibrarySort() {
@@ -423,6 +483,8 @@
       cards.forEach(function (card) {
         list.appendChild(card);
       });
+
+      fitAllNovelTitles();
     });
   }
 
@@ -440,6 +502,41 @@
     }
 
     return 4;
+  }
+
+  function fitAllNovelTitles() {
+    document.querySelectorAll("[data-fit-title]").forEach(fitNovelTitle);
+  }
+
+  function fitNovelTitle(title) {
+    title.style.fontSize = "";
+    title.style.lineHeight = "";
+    title.style.maxHeight = "";
+
+    const card = title.closest("[data-library-novel-card]");
+
+    if (!card) {
+      return;
+    }
+
+    const isList = document.getElementById("libraryList")?.dataset.libraryView === "list";
+    const maxHeight = isList ? 70 : 58;
+    const minFont = isList ? 12 : 11;
+    let fontSize = isList ? 19 : 17;
+
+    title.style.maxHeight = `${maxHeight}px`;
+    title.style.overflow = "visible";
+
+    while (fontSize > minFont) {
+      title.style.fontSize = `${fontSize}px`;
+      title.style.lineHeight = "1.12";
+
+      if (title.scrollHeight <= maxHeight) {
+        break;
+      }
+
+      fontSize -= 1;
+    }
   }
 
   function initLibraryNovelMeta() {
@@ -619,7 +716,7 @@
             </div>
 
             <a class="continue-card-button" href="/chapter/${escapeHtml(item.chapterId)}">
-              Продолжить чтение
+              Продолжить
             </a>
           </div>
         </article>
@@ -768,5 +865,14 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function debounce(callback, delay) {
+    let timer = null;
+
+    return function () {
+      clearTimeout(timer);
+      timer = setTimeout(callback, delay);
+    };
   }
 })();
