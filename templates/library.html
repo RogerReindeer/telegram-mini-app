@@ -45,6 +45,15 @@
       </section>
 
       <section class="library-toolbar">
+        <div class="library-view-switch" aria-label="Режим отображения">
+          <button class="library-view-button active" type="button" data-library-view-button="grid">
+            Сетка
+          </button>
+          <button class="library-view-button" type="button" data-library-view-button="list">
+            Список
+          </button>
+        </div>
+
         <label class="sort-label">
           Сортировка
           <select id="librarySort">
@@ -59,7 +68,7 @@
       </section>
 
       {% if novels %}
-        <div class="novel-list" id="libraryList">
+        <div class="novel-list novel-list-grid" id="libraryList" data-library-view="grid">
           {% for novel in novels %}
             <a
               class="novel-card"
@@ -99,8 +108,8 @@
               </div>
 
               <div class="novel-info">
-                <h2>
-                  <span>{{ novel.display_title }}</span>
+                <h2 class="novel-card-title" data-fit-title>
+                  {{ novel.display_title }}
                 </h2>
 
                 {% if novel.description %}
