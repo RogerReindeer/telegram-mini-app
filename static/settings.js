@@ -5,11 +5,10 @@
     novelMeta: "zefirki_novel_meta",
     readChapters: "zefirki_read_chapters",
     spoilerConfirmed: "zefirki_spoiler_confirmed",
-    libraryView: "zefirki_library_view",
   };
 
   const DEFAULT_SETTINGS = {
-    siteTheme: "system",
+    siteTheme: "light",
     readerTheme: "cream",
     readerWidth: "comfort",
     fontSize: "16",
@@ -23,9 +22,7 @@
   document.addEventListener("DOMContentLoaded", function () {
     initTelegram();
     initSettings();
-    initLibraryView();
     initLibrarySort();
-    initLibrarySearch();
     initLibraryNovelMeta();
     initNovelPageMeta();
     initChapterProgress();
@@ -90,7 +87,7 @@
     const settings = getSettings();
     const body = document.body;
 
-    body.dataset.siteTheme = settings.siteTheme;
+    body.dataset.siteTheme = settings.siteTheme || "light";
     body.dataset.readerTheme = settings.readerTheme;
     body.dataset.readerWidth = settings.readerWidth;
     body.dataset.textAlign = settings.textAlign;
@@ -229,8 +226,8 @@
           <label class="settings-field">
             <span>Тема сайта</span>
             <select data-setting="siteTheme">
-              <option value="system">Как в системе</option>
               <option value="light">Светлая</option>
+              <option value="system">Как в системе</option>
               <option value="dark">Тёмная</option>
             </select>
           </label>
@@ -404,79 +401,6 @@
 
   function getFoxUrl(name) {
     return (window.ZEFIRKI_FOX && window.ZEFIRKI_FOX[name]) || "";
-  }
-
-  function initLibraryView() {
-    const list = document.getElementById("libraryList");
-    const buttons = document.querySelectorAll("[data-library-view-button]");
-
-    if (!list || !buttons.length) {
-      return;
-    }
-
-    const savedView = localStorage.getItem(STORAGE_KEYS.libraryView) || "list";
-    applyLibraryView(savedView);
-
-    buttons.forEach(function (button) {
-      button.addEventListener("click", function () {
-        const view = button.dataset.libraryViewButton || "list";
-        localStorage.setItem(STORAGE_KEYS.libraryView, view);
-        applyLibraryView(view);
-      });
-    });
-
-    function applyLibraryView(view) {
-      const normalizedView = view === "grid" ? "grid" : "list";
-
-      list.dataset.libraryView = normalizedView;
-      list.classList.toggle("novel-list-grid", normalizedView === "grid");
-      list.classList.toggle("novel-list-list", normalizedView === "list");
-
-      buttons.forEach(function (button) {
-        button.classList.toggle("active", button.dataset.libraryViewButton === normalizedView);
-      });
-    }
-  }
-
-  function initLibrarySearch() {
-    const input = document.getElementById("librarySearch");
-    const list = document.getElementById("libraryList");
-    const empty = document.getElementById("libraryEmptySearch");
-
-    if (!input || !list) {
-      return;
-    }
-
-    input.addEventListener("input", applyLibrarySearch);
-
-    function applyLibrarySearch() {
-      const query = normalizeSearchText(input.value);
-      const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
-      let visibleCount = 0;
-
-      cards.forEach(function (card) {
-        const title = normalizeSearchText(card.dataset.title || card.dataset.novelTitle || "");
-        const isVisible = !query || title.includes(query);
-
-        card.hidden = !isVisible;
-
-        if (isVisible) {
-          visibleCount += 1;
-        }
-      });
-
-      if (empty) {
-        empty.hidden = visibleCount !== 0;
-      }
-    }
-  }
-
-  function normalizeSearchText(value) {
-    return String(value || "")
-      .toLowerCase()
-      .replace(/ё/g, "е")
-      .replace(/\s+/g, " ")
-      .trim();
   }
 
   function initLibrarySort() {
