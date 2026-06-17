@@ -76,10 +76,13 @@
               data-status="{{ novel.translation_status or 'in_progress' }}"
               data-chapters="{{ novel.total_chapters or 0 }}"
               data-translated-chapters="{{ novel.translated_chapters or 0 }}"
+              data-available-chapters="{{ novel.available_chapters_count or 0 }}"
               data-progress="{{ novel.progress_percent or 0 }}"
               data-added="{{ novel.added_date or '' }}"
               data-relation="{{ novel.relation_type or '' }}"
             >
+              <span class="new-chapters-badge" data-new-chapters-badge hidden></span>
+
               <div class="catalog-cover-column">
                 <div class="novel-cover-wrap">
                   {% if novel.cover_url %}
