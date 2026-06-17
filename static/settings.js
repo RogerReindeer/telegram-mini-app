@@ -1,252 +1,387 @@
 (function () {
   const STORAGE_KEYS = {
-    settings: "zefirki_reader_settings_v1",
-    progress: "zefirki_reading_progress_v1",
+    settings: "zefirki_reader_settings",
+    readingHistory: "zefirki_reading_history",
+    novelMeta: "zefirki_novel_meta",
+    readChapters: "zefirki_read_chapters",
+    spoilerConfirmed: "zefirki_spoiler_confirmed",
   };
 
   const DEFAULT_SETTINGS = {
     siteTheme: "system",
+    readerTheme: "cream",
     readerWidth: "comfort",
-    readerFontSize: 16,
-    readerLineHeight: 1.6,
-    readerParagraphSpacing: 16,
-    readerBg: "#fffaf3",
-    readerText: "#111111",
+    fontSize: "16",
+    lineHeight: "1.6",
+    paragraphSpacing: "16",
     textAlign: "left",
     hideFoxes: false,
-    spoilerWarningDisabled: false,
+    accentColor: "#f28c38",
   };
 
-  function safeJsonParse(value, fallback) {
+  document.addEventListener("DOMContentLoaded", function () {
+    initTelegram();
+    initSettings();
+    initLibrarySort();
+    initLibraryNovelMeta();
+    initNovelPageMeta();
+    initChapterProgress();
+    initReadingHistory();
+    initNovelReadButton();
+    initReadChapterMarks();
+    initCollapsibleDescription();
+    initSpoilerReveal();
+  });
+
+  function initTelegram() {
     try {
-      return JSON.parse(value) || fallback;
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+      }
+    } catch (error) {
+      console.log("Telegram WebApp init skipped:", error);
+    }
+  }
+
+  function readJson(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+
+      if (!raw) {
+        return fallback;
+      }
+
+      return JSON.parse(raw);
     } catch (error) {
       return fallback;
     }
   }
 
-  function getSettings() {
-    const saved = safeJsonParse(
-      localStorage.getItem(STORAGE_KEYS.settings),
-      {}
-    );
+  function writeJson(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
 
-    return Object.assign({}, DEFAULT_SETTINGS, saved);
+  function getSettings() {
+    return {
+      ...DEFAULT_SETTINGS,
+      ...readJson(STORAGE_KEYS.settings, {}),
+    };
   }
 
   function saveSettings(settings) {
-    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+    writeJson(STORAGE_KEYS.settings, settings);
+  }
+
+  function initSettings() {
+    applySettings();
+
+    if (!document.querySelector("[data-settings-fab]")) {
+      createSettingsUi();
+    }
+
+    bindSettingsUi();
   }
 
   function applySettings() {
     const settings = getSettings();
-    const root = document.documentElement;
     const body = document.body;
 
     body.dataset.siteTheme = settings.siteTheme;
+    body.dataset.readerTheme = settings.readerTheme;
     body.dataset.readerWidth = settings.readerWidth;
     body.dataset.textAlign = settings.textAlign;
 
-    if (settings.hideFoxes) {
-      body.classList.add("hide-foxes");
+    body.classList.toggle("hide-foxes", Boolean(settings.hideFoxes));
+
+    document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULT_SETTINGS.accentColor);
+    document.documentElement.style.setProperty("--reader-font-size", `${settings.fontSize || DEFAULT_SETTINGS.fontSize}px`);
+    document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || DEFAULT_SETTINGS.lineHeight);
+    document.documentElement.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing || DEFAULT_SETTINGS.paragraphSpacing}px`);
+
+    if (settings.readerTheme === "white") {
+      document.documentElement.style.setProperty("--reader-bg", "#ffffff");
+      document.documentElement.style.setProperty("--reader-text-color", "#111111");
+    } else if (settings.readerTheme === "sepia") {
+      document.documentElement.style.setProperty("--reader-bg", "#f4e3c8");
+      document.documentElement.style.setProperty("--reader-text-color", "#2b211c");
+    } else if (settings.readerTheme === "dark") {
+      document.documentElement.style.setProperty("--reader-bg", "#1b1b1b");
+      document.documentElement.style.setProperty("--reader-text-color", "#eeeeee");
     } else {
-      body.classList.remove("hide-foxes");
+      document.documentElement.style.setProperty("--reader-bg", "#fffaf3");
+      document.documentElement.style.setProperty("--reader-text-color", "#111111");
     }
-
-    root.style.setProperty("--reader-font-size", `${settings.readerFontSize}px`);
-    root.style.setProperty("--reader-line-height", String(settings.readerLineHeight));
-    root.style.setProperty("--reader-paragraph-spacing", `${settings.readerParagraphSpacing}px`);
-    root.style.setProperty("--reader-bg", settings.readerBg);
-    root.style.setProperty("--reader-text-color", settings.readerText);
   }
 
-  function getProgressMap() {
-    return safeJsonParse(
-      localStorage.getItem(STORAGE_KEYS.progress),
-      {}
-    );
-  }
+  function createSettingsUi() {
+    const fab = document.createElement("button");
+    fab.className = "settings-fab";
+    fab.type = "button";
+    fab.dataset.settingsFab = "true";
+    fab.textContent = "⚙️";
 
-  function saveProgressMap(progressMap) {
-    localStorage.setItem(STORAGE_KEYS.progress, JSON.stringify(progressMap));
-  }
+    const overlay = document.createElement("div");
+    overlay.className = "settings-overlay";
+    overlay.hidden = true;
+    overlay.dataset.settingsOverlay = "true";
 
-  function clearProgress() {
-    localStorage.removeItem(STORAGE_KEYS.progress);
-  }
-
-  function saveCurrentChapterProgress() {
-    const chapterPage = document.querySelector("[data-chapter-page]");
-
-    if (!chapterPage) {
-      return;
-    }
-
-    const isLocked = chapterPage.dataset.isLocked === "true";
-
-    if (isLocked) {
-      return;
-    }
-
-    const novelId = chapterPage.dataset.novelId;
-    const novelSlug = chapterPage.dataset.novelSlug;
-    const novelTitle = chapterPage.dataset.novelTitle;
-    const chapterId = chapterPage.dataset.chapterId;
-    const chapterTitle = chapterPage.dataset.chapterTitle;
-
-    if (!novelId || !chapterId) {
-      return;
-    }
-
-    const progressMap = getProgressMap();
-
-    progressMap[String(novelId)] = {
-      novelId: String(novelId),
-      novelSlug: novelSlug || "",
-      novelTitle: novelTitle || "",
-      chapterId: String(chapterId),
-      chapterTitle: chapterTitle || "",
-      chapterUrl: `/chapter/${chapterId}`,
-      updatedAt: Date.now(),
-    };
-
-    saveProgressMap(progressMap);
-  }
-
-  function getLastProgressItem() {
-    const progressMap = getProgressMap();
-
-    return Object.values(progressMap)
-      .filter(item => item && item.chapterId && item.novelId)
-      .sort((a, b) => Number(b.updatedAt || 0) - Number(a.updatedAt || 0))[0] || null;
-  }
-
-  function findLibraryCardByNovelId(novelId) {
-    return document.querySelector(`[data-library-novel-card][data-novel-id="${novelId}"]`);
-  }
-
-  function renderContinueReadingPanel() {
-    const panel = document.getElementById("continueReadingPanel");
-
-    if (!panel) {
-      return;
-    }
-
-    const item = getLastProgressItem();
-
-    if (!item) {
-      panel.innerHTML = `
-        <div class="continue-reading-empty">
-          <div class="continue-reading-panel-header">
-            <div>
-              <div class="continue-reading-kicker">Продолжить читать</div>
-              <div class="continue-reading-empty-text">Нет активных чтений</div>
-            </div>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    const card = findLibraryCardByNovelId(item.novelId);
-    const coverUrl = card ? card.dataset.coverUrl : "";
-    const novelTitle = item.novelTitle || (card ? card.dataset.novelTitle : "Новелла");
-    const chapterTitle = item.chapterTitle || "Последняя открытая глава";
-    const chapterUrl = item.chapterUrl || `/chapter/${item.chapterId}`;
-
-    panel.innerHTML = `
-      <div class="continue-reading-card">
-        <div class="continue-reading-panel-header">
+    overlay.innerHTML = `
+      <div class="settings-modal" role="dialog" aria-modal="true">
+        <div class="settings-header">
           <div>
-            <div class="continue-reading-kicker">Продолжить читать</div>
-            <div class="continue-reading-mini-title">Последняя открытая новелла</div>
+            <h2>Настройки</h2>
+            <p>Оформление сайта и читалки.</p>
           </div>
-
-          <button class="continue-clear-button" type="button" id="clearReadingProgress">
-            Очистить
-          </button>
+          <button class="settings-close" type="button" data-settings-close>×</button>
         </div>
 
-        <div class="continue-reading-body">
-          <a class="continue-cover-link" href="${chapterUrl}">
-            ${
-              coverUrl
-                ? `<img class="continue-cover" src="${escapeHtmlAttribute(coverUrl)}" alt="">`
-                : `<div class="continue-cover continue-cover-placeholder">📖</div>`
-            }
-          </a>
+        <div class="settings-tabs">
+          <button class="settings-tab active" type="button" data-settings-tab="reader">Читалка</button>
+          <button class="settings-tab" type="button" data-settings-tab="site">Сайт</button>
+          <button class="settings-tab" type="button" data-settings-tab="about">О проекте</button>
+        </div>
 
-          <div class="continue-reading-info">
-            <a class="continue-title" href="${chapterUrl}">
-              ${escapeHtml(novelTitle)}
-            </a>
+        <section class="settings-section active" data-settings-section="reader">
+          <label class="settings-field">
+            <span>Тема текста</span>
+            <select data-setting="readerTheme">
+              <option value="cream">Кремовая</option>
+              <option value="white">Белая</option>
+              <option value="sepia">Сепия</option>
+              <option value="dark">Тёмная</option>
+            </select>
+          </label>
 
-            <div class="continue-chapter">
-              ${escapeHtml(chapterTitle)}
+          <label class="settings-field">
+            <span>Ширина текста</span>
+            <select data-setting="readerWidth">
+              <option value="comfort">Комфортная</option>
+              <option value="full">Широкая</option>
+              <option value="wide">Почти вся страница</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Размер шрифта</span>
+            <select data-setting="fontSize">
+              <option value="15">15</option>
+              <option value="16">16</option>
+              <option value="17">17</option>
+              <option value="18">18</option>
+              <option value="19">19</option>
+              <option value="20">20</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Межстрочный интервал</span>
+            <select data-setting="lineHeight">
+              <option value="1.45">1.45</option>
+              <option value="1.6">1.6</option>
+              <option value="1.75">1.75</option>
+              <option value="1.9">1.9</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Отступ абзацев</span>
+            <select data-setting="paragraphSpacing">
+              <option value="12">12</option>
+              <option value="16">16</option>
+              <option value="20">20</option>
+              <option value="24">24</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Выравнивание</span>
+            <select data-setting="textAlign">
+              <option value="left">По левому краю</option>
+              <option value="justify">По ширине</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="settings-section" data-settings-section="site">
+          <label class="settings-field">
+            <span>Тема сайта</span>
+            <select data-setting="siteTheme">
+              <option value="system">Как в системе</option>
+              <option value="light">Светлая</option>
+              <option value="dark">Тёмная</option>
+            </select>
+          </label>
+
+          <label class="settings-field">
+            <span>Акцентный цвет</span>
+            <span class="settings-color-row">
+              <select data-setting="accentColor">
+                <option value="#f28c38">Апельсин</option>
+                <option value="#ec4899">Малина</option>
+                <option value="#8b5cf6">Фиолетовый</option>
+                <option value="#0ea5e9">Голубой</option>
+                <option value="#10b981">Зелёный</option>
+              </select>
+              <input type="color" data-setting-color value="#f28c38">
+            </span>
+          </label>
+
+          <label class="settings-check">
+            <input type="checkbox" data-setting-checkbox="hideFoxes">
+            <span>Спрятать лисичек</span>
+          </label>
+        </section>
+
+        <section class="settings-section" data-settings-section="about">
+          <div class="about-box">
+            <div data-about-fox-wrap></div>
+            <h3>Зефиркины баоцзы</h3>
+            <p>
+              Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе.
+            </p>
+            <div class="about-links">
+              <a href="/library">Библиотека</a>
             </div>
-
-            <a class="continue-button" href="${chapterUrl}">
-              Продолжить чтение
-            </a>
           </div>
+        </section>
+
+        <div class="settings-footer">
+          <button class="settings-reset" type="button" data-settings-reset>Сбросить настройки</button>
         </div>
       </div>
     `;
 
-    const clearButton = document.getElementById("clearReadingProgress");
-
-    if (clearButton) {
-      clearButton.addEventListener("click", function () {
-        clearProgress();
-        renderContinueReadingPanel();
-        updateNovelReadButton();
-        markReadChapters();
-      });
-    }
+    document.body.appendChild(fab);
+    document.body.appendChild(overlay);
   }
 
-  function updateNovelReadButton() {
-    const novelPage = document.querySelector("[data-novel-page]");
-    const button = document.getElementById("novelReadButton");
+  function bindSettingsUi() {
+    const settings = getSettings();
+    const fab = document.querySelector("[data-settings-fab]");
+    const overlay = document.querySelector("[data-settings-overlay]");
 
-    if (!novelPage || !button) {
+    if (!fab || !overlay) {
       return;
     }
 
-    const novelId = novelPage.dataset.novelId;
-    const defaultHref = button.dataset.defaultHref;
-    const defaultText = button.dataset.defaultText || "Начать читать";
+    fillSettingsInputs(settings);
 
-    const progressMap = getProgressMap();
-    const progress = progressMap[String(novelId)];
+    fab.addEventListener("click", function () {
+      overlay.hidden = false;
+    });
 
-    if (progress && progress.chapterId) {
-      button.href = progress.chapterUrl || `/chapter/${progress.chapterId}`;
-      button.textContent = `Продолжить с ${progress.chapterTitle || "последней главы"}`;
-      return;
-    }
-
-    button.href = defaultHref;
-    button.textContent = defaultText;
-  }
-
-  function markReadChapters() {
-    const progressMap = getProgressMap();
-    const readChapterIds = new Set(
-      Object.values(progressMap)
-        .filter(item => item && item.chapterId)
-        .map(item => String(item.chapterId))
-    );
-
-    document.querySelectorAll("[data-chapter-row]").forEach(row => {
-      const chapterId = row.dataset.chapterId;
-
-      if (readChapterIds.has(String(chapterId))) {
-        row.classList.add("chapter-row-read");
-      } else {
-        row.classList.remove("chapter-row-read");
+    overlay.addEventListener("click", function (event) {
+      if (event.target === overlay) {
+        overlay.hidden = true;
       }
     });
+
+    const close = overlay.querySelector("[data-settings-close]");
+    if (close) {
+      close.addEventListener("click", function () {
+        overlay.hidden = true;
+      });
+    }
+
+    overlay.querySelectorAll("[data-settings-tab]").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        const name = tab.dataset.settingsTab;
+
+        overlay.querySelectorAll("[data-settings-tab]").forEach(function (item) {
+          item.classList.toggle("active", item === tab);
+        });
+
+        overlay.querySelectorAll("[data-settings-section]").forEach(function (section) {
+          section.classList.toggle("active", section.dataset.settingsSection === name);
+        });
+      });
+    });
+
+    overlay.querySelectorAll("[data-setting]").forEach(function (input) {
+      input.addEventListener("change", function () {
+        const current = getSettings();
+        current[input.dataset.setting] = input.value;
+        saveSettings(current);
+        applySettings();
+
+        if (input.dataset.setting === "accentColor") {
+          const colorInput = overlay.querySelector("[data-setting-color]");
+          if (colorInput) {
+            colorInput.value = input.value;
+          }
+        }
+      });
+    });
+
+    overlay.querySelectorAll("[data-setting-checkbox]").forEach(function (input) {
+      input.addEventListener("change", function () {
+        const current = getSettings();
+        current[input.dataset.settingCheckbox] = input.checked;
+        saveSettings(current);
+        applySettings();
+      });
+    });
+
+    const colorInput = overlay.querySelector("[data-setting-color]");
+    if (colorInput) {
+      colorInput.addEventListener("input", function () {
+        const current = getSettings();
+        current.accentColor = colorInput.value;
+        saveSettings(current);
+        applySettings();
+
+        const select = overlay.querySelector('[data-setting="accentColor"]');
+        if (select) {
+          select.value = colorInput.value;
+        }
+      });
+    }
+
+    const reset = overlay.querySelector("[data-settings-reset]");
+    if (reset) {
+      reset.addEventListener("click", function () {
+        saveSettings({ ...DEFAULT_SETTINGS });
+        fillSettingsInputs(getSettings());
+        applySettings();
+      });
+    }
+
+    const aboutFoxWrap = overlay.querySelector("[data-about-fox-wrap]");
+    if (aboutFoxWrap) {
+      const foxUrl = getFoxUrl("fox_sitting_front") || getFoxUrl("fox_pic") || getFoxUrl("fox_peek");
+
+      if (foxUrl) {
+        aboutFoxWrap.innerHTML = `<img class="about-fox" src="${escapeHtml(foxUrl)}" alt="Лисичка" data-fox>`;
+      }
+    }
+  }
+
+  function fillSettingsInputs(settings) {
+    document.querySelectorAll("[data-setting]").forEach(function (input) {
+      const key = input.dataset.setting;
+
+      if (Object.prototype.hasOwnProperty.call(settings, key)) {
+        input.value = settings[key];
+      }
+    });
+
+    document.querySelectorAll("[data-setting-checkbox]").forEach(function (input) {
+      const key = input.dataset.settingCheckbox;
+
+      if (Object.prototype.hasOwnProperty.call(settings, key)) {
+        input.checked = Boolean(settings[key]);
+      }
+    });
+
+    const colorInput = document.querySelector("[data-setting-color]");
+    if (colorInput) {
+      colorInput.value = settings.accentColor || DEFAULT_SETTINGS.accentColor;
+    }
+  }
+
+  function getFoxUrl(name) {
+    return (window.ZEFIRKI_FOX && window.ZEFIRKI_FOX[name]) || "";
   }
 
   function initLibrarySort() {
@@ -257,34 +392,21 @@
       return;
     }
 
-    const savedSort = localStorage.getItem("zefirki_library_sort") || "sort-order";
-    select.value = savedSort;
-
-    function getNumber(card, name) {
-      const value = Number(String(card.dataset[name] || "0").replace(",", "."));
-      return isNaN(value) ? 0 : value;
-    }
-
-    function sortCards(mode) {
+    select.addEventListener("change", function () {
       const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
+      const mode = select.value;
 
-      cards.sort((a, b) => {
+      cards.sort(function (a, b) {
         if (mode === "title") {
-          return String(a.dataset.title || "").localeCompare(
-            String(b.dataset.title || ""),
-            "ru"
-          );
+          return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
         }
 
         if (mode === "status") {
-          return String(a.dataset.status || "").localeCompare(
-            String(b.dataset.status || ""),
-            "ru"
-          );
+          return statusWeight(a.dataset.status) - statusWeight(b.dataset.status);
         }
 
         if (mode === "chapters") {
-          return getNumber(b, "chapters") - getNumber(a, "chapters");
+          return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
         }
 
         if (mode === "added") {
@@ -292,262 +414,359 @@
         }
 
         if (mode === "relation") {
-          return String(a.dataset.relation || "").localeCompare(
-            String(b.dataset.relation || ""),
-            "ru"
-          );
+          return String(a.dataset.relation || "").localeCompare(String(b.dataset.relation || ""), "ru");
         }
 
-        return getNumber(a, "sortOrder") - getNumber(b, "sortOrder");
+        return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
       });
 
-      cards.forEach(card => list.appendChild(card));
-    }
-
-    sortCards(savedSort);
-
-    select.addEventListener("change", function () {
-      localStorage.setItem("zefirki_library_sort", select.value);
-      sortCards(select.value);
+      cards.forEach(function (card) {
+        list.appendChild(card);
+      });
     });
   }
 
-  function initDescriptionToggle() {
-    document.querySelectorAll("[data-collapsible-description]").forEach(block => {
+  function statusWeight(status) {
+    if (status === "completed") {
+      return 1;
+    }
+
+    if (status === "in_progress") {
+      return 2;
+    }
+
+    if (status === "paused") {
+      return 3;
+    }
+
+    return 4;
+  }
+
+  function initLibraryNovelMeta() {
+    const cards = document.querySelectorAll("[data-library-novel-card]");
+
+    if (!cards.length) {
+      return;
+    }
+
+    const meta = readJson(STORAGE_KEYS.novelMeta, {});
+
+    cards.forEach(function (card) {
+      const novelId = card.dataset.novelId;
+
+      if (!novelId) {
+        return;
+      }
+
+      meta[novelId] = {
+        novelId,
+        novelSlug: card.dataset.novelSlug || "",
+        novelTitle: card.dataset.novelTitle || "",
+        coverUrl: card.dataset.novelCover || "",
+      };
+    });
+
+    writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+  function initNovelPageMeta() {
+    const page = document.querySelector("[data-novel-page]");
+
+    if (!page) {
+      return;
+    }
+
+    const novelId = page.dataset.novelId;
+
+    if (!novelId) {
+      return;
+    }
+
+    const cover = document.querySelector(".title-cover");
+    const meta = readJson(STORAGE_KEYS.novelMeta, {});
+
+    meta[novelId] = {
+      novelId,
+      novelSlug: page.dataset.novelSlug || "",
+      novelTitle: page.dataset.novelTitle || "",
+      coverUrl: cover && cover.tagName === "IMG" ? cover.getAttribute("src") || "" : "",
+    };
+
+    writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+  function initChapterProgress() {
+    const page = document.querySelector("[data-chapter-page]");
+
+    if (!page) {
+      return;
+    }
+
+    const isLocked = page.dataset.isLocked === "true";
+
+    if (isLocked) {
+      return;
+    }
+
+    const novelId = page.dataset.novelId;
+    const novelSlug = page.dataset.novelSlug;
+    const novelTitle = page.dataset.novelTitle;
+    const chapterId = page.dataset.chapterId;
+    const chapterTitle = page.dataset.chapterTitle;
+
+    if (!novelId || !chapterId) {
+      return;
+    }
+
+    const meta = readJson(STORAGE_KEYS.novelMeta, {});
+    const novelMeta = meta[novelId] || {};
+
+    const item = {
+      novelId,
+      novelSlug: novelSlug || novelMeta.novelSlug || "",
+      novelTitle: novelTitle || novelMeta.novelTitle || "",
+      coverUrl: novelMeta.coverUrl || "",
+      chapterId,
+      chapterTitle: chapterTitle || "",
+      updatedAt: Date.now(),
+    };
+
+    saveReadingHistoryItem(item);
+    saveReadChapter(chapterId);
+  }
+
+  function saveReadingHistoryItem(item) {
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    const filtered = history.filter(function (entry) {
+      return String(entry.novelId) !== String(item.novelId);
+    });
+
+    filtered.push(item);
+
+    writeJson(STORAGE_KEYS.readingHistory, filtered.slice(-50));
+  }
+
+  function saveReadChapter(chapterId) {
+    const ids = readJson(STORAGE_KEYS.readChapters, []);
+
+    if (!ids.includes(String(chapterId))) {
+      ids.push(String(chapterId));
+    }
+
+    writeJson(STORAGE_KEYS.readChapters, ids.slice(-2000));
+  }
+
+  function initReadingHistory() {
+    const container = document.getElementById("readingHistory");
+
+    if (!container) {
+      return;
+    }
+
+    renderReadingHistory();
+
+    const clearButton = document.getElementById("clearReadingHistory");
+
+    if (clearButton) {
+      clearButton.addEventListener("click", function () {
+        localStorage.removeItem(STORAGE_KEYS.readingHistory);
+        renderReadingHistory();
+      });
+    }
+  }
+
+  function renderReadingHistory() {
+    const container = document.getElementById("readingHistory");
+    const clearButton = document.getElementById("clearReadingHistory");
+
+    if (!container) {
+      return;
+    }
+
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+
+    if (clearButton) {
+      clearButton.hidden = history.length === 0;
+    }
+
+    if (!history.length) {
+      container.innerHTML = `
+        <div class="reading-history-empty">
+          Здесь появится история чтения, когда вы откроете первую главу.
+        </div>
+      `;
+      return;
+    }
+
+    const cards = history.map(function (item) {
+      const coverHtml = item.coverUrl
+        ? `<img class="continue-card-cover" src="${escapeHtml(item.coverUrl)}" alt="${escapeHtml(item.novelTitle || "")}">`
+        : `<div class="continue-card-cover continue-card-cover-placeholder">📖</div>`;
+
+      return `
+        <article class="continue-card">
+          <a class="continue-card-cover-link" href="/novel/${escapeHtml(item.novelSlug || "")}">
+            ${coverHtml}
+          </a>
+
+          <div class="continue-card-body">
+            <a class="continue-card-title" href="/novel/${escapeHtml(item.novelSlug || "")}">
+              ${escapeHtml(item.novelTitle || "Без названия")}
+            </a>
+
+            <div class="continue-card-chapter">
+              ${escapeHtml(item.chapterTitle || "Глава")}
+            </div>
+
+            <a class="continue-card-button" href="/chapter/${escapeHtml(item.chapterId)}">
+              Продолжить чтение
+            </a>
+          </div>
+        </article>
+      `;
+    });
+
+    container.innerHTML = cards.join("");
+    container.scrollLeft = container.scrollWidth;
+  }
+
+  function initNovelReadButton() {
+    const page = document.querySelector("[data-novel-page]");
+    const button = document.getElementById("novelReadButton");
+
+    if (!page || !button) {
+      return;
+    }
+
+    const novelId = page.dataset.novelId;
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    const item = history.find(function (entry) {
+      return String(entry.novelId) === String(novelId);
+    });
+
+    if (item && item.chapterId) {
+      button.href = `/chapter/${item.chapterId}`;
+      button.textContent = item.chapterTitle
+        ? `Продолжить с ${item.chapterTitle}`
+        : "Продолжить чтение";
+    }
+  }
+
+  function initReadChapterMarks() {
+    const readIds = readJson(STORAGE_KEYS.readChapters, []);
+
+    if (!readIds.length) {
+      return;
+    }
+
+    document.querySelectorAll("[data-chapter-row]").forEach(function (row) {
+      if (readIds.includes(String(row.dataset.chapterId))) {
+        row.classList.add("chapter-row-read");
+      }
+    });
+  }
+
+  function initCollapsibleDescription() {
+    document.querySelectorAll("[data-collapsible-description]").forEach(function (block) {
+      const content = block.querySelector(".collapsible-description-content");
       const button = block.querySelector("[data-description-toggle]");
 
-      if (!button) {
+      if (!content || !button) {
+        return;
+      }
+
+      if (content.scrollHeight <= 120) {
+        button.hidden = true;
+        block.classList.add("is-expanded");
         return;
       }
 
       button.addEventListener("click", function () {
-        block.classList.toggle("is-expanded");
-        button.textContent = block.classList.contains("is-expanded") ? "Свернуть" : "Ещё";
+        const expanded = block.classList.toggle("is-expanded");
+        button.textContent = expanded ? "Свернуть" : "Ещё";
       });
     });
   }
 
-  function initSpoilers() {
-    document.querySelectorAll(".tag-spoiler-reveal").forEach(button => {
+  function initSpoilerReveal() {
+    document.querySelectorAll("[data-spoiler]").forEach(function (button) {
       button.addEventListener("click", function () {
-        const realText = button.dataset.spoiler || "";
+        const confirmed = localStorage.getItem(STORAGE_KEYS.spoilerConfirmed) === "true";
 
-        if (!realText) {
+        if (confirmed) {
+          revealSpoiler(button);
           return;
         }
 
-        button.textContent = realText;
-        button.classList.remove("tag-spoiler");
-        button.classList.add("tag-spoiler-opened");
+        showSpoilerWarning(function (remember) {
+          if (remember) {
+            localStorage.setItem(STORAGE_KEYS.spoilerConfirmed, "true");
+          }
+
+          revealSpoiler(button);
+        });
       });
     });
   }
 
-  function initMiniAppExpandButton() {
-    const tg = window.Telegram && window.Telegram.WebApp;
-
-    if (!tg) {
-      return;
-    }
-
-    try {
-      tg.ready();
-      tg.expand();
-    } catch (error) {
-      console.log("Telegram MiniApp expand warning:", error);
-    }
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "miniapp-expand-button";
-    button.textContent = "⛶";
-    button.title = "Развернуть";
-
-    button.addEventListener("click", function () {
-      try {
-        tg.expand();
-      } catch (error) {
-        console.log("Telegram MiniApp expand warning:", error);
-      }
-    });
-
-    document.body.appendChild(button);
+  function revealSpoiler(button) {
+    button.textContent = button.dataset.spoiler || "";
+    button.classList.remove("tag-spoiler");
+    button.classList.add("tag-spoiler-opened");
   }
 
-  function createSettingsPanel() {
-    if (document.getElementById("readerSettingsFab")) {
-      return;
+  function showSpoilerWarning(onConfirm) {
+    let overlay = document.querySelector("[data-spoiler-warning-overlay]");
+
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "spoiler-warning-overlay";
+      overlay.dataset.spoilerWarningOverlay = "true";
+
+      overlay.innerHTML = `
+        <div class="spoiler-warning-modal">
+          <h2>Осторожно, спойлер</h2>
+          <p>Этот тег может раскрыть важную деталь сюжета.</p>
+
+          <label class="spoiler-warning-check">
+            <input type="checkbox" data-spoiler-remember>
+            <span>Больше не предупреждать</span>
+          </label>
+
+          <div class="spoiler-warning-actions">
+            <button type="button" class="spoiler-warning-cancel" data-spoiler-cancel>Не открывать</button>
+            <button type="button" class="spoiler-warning-confirm" data-spoiler-confirm>Показать</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
     }
 
-    const settings = getSettings();
+    overlay.hidden = false;
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "settings-fab";
-    button.id = "readerSettingsFab";
-    button.textContent = "⚙";
-    button.title = "Настройки";
+    const cancel = overlay.querySelector("[data-spoiler-cancel]");
+    const confirm = overlay.querySelector("[data-spoiler-confirm]");
+    const remember = overlay.querySelector("[data-spoiler-remember]");
 
-    const overlay = document.createElement("div");
-    overlay.className = "settings-overlay";
-    overlay.id = "readerSettingsOverlay";
-    overlay.hidden = true;
-
-    overlay.innerHTML = `
-      <div class="settings-modal">
-        <div class="settings-header">
-          <div>
-            <h2>Настройки чтения</h2>
-            <p>Тема, ширина текста, размер шрифта и лисички.</p>
-          </div>
-          <button class="settings-close" type="button" id="readerSettingsClose">×</button>
-        </div>
-
-        <div class="settings-section active">
-          <label class="settings-field">
-            <span>Тема сайта</span>
-            <select id="settingSiteTheme">
-              <option value="system">Системная</option>
-              <option value="light">Светлая</option>
-              <option value="dark">Тёмная</option>
-            </select>
-          </label>
-
-          <label class="settings-field">
-            <span>Ширина чтения</span>
-            <select id="settingReaderWidth">
-              <option value="comfort">Удобная</option>
-              <option value="full">Шире</option>
-              <option value="wide">Почти весь экран</option>
-            </select>
-          </label>
-
-          <label class="settings-field">
-            <span>Размер текста</span>
-            <select id="settingFontSize">
-              <option value="15">15</option>
-              <option value="16">16</option>
-              <option value="17">17</option>
-              <option value="18">18</option>
-              <option value="20">20</option>
-              <option value="22">22</option>
-            </select>
-          </label>
-
-          <label class="settings-field">
-            <span>Межстрочный интервал</span>
-            <select id="settingLineHeight">
-              <option value="1.5">1.5</option>
-              <option value="1.6">1.6</option>
-              <option value="1.7">1.7</option>
-              <option value="1.8">1.8</option>
-              <option value="2">2.0</option>
-            </select>
-          </label>
-
-          <label class="settings-field">
-            <span>Выравнивание</span>
-            <select id="settingTextAlign">
-              <option value="left">По левому краю</option>
-              <option value="justify">По ширине</option>
-            </select>
-          </label>
-
-          <label class="settings-check">
-            <input type="checkbox" id="settingHideFoxes">
-            <span>Скрыть лисичек</span>
-          </label>
-        </div>
-
-        <div class="settings-footer">
-          <button class="settings-reset" type="button" id="readerSettingsReset">
-            Сбросить настройки
-          </button>
-        </div>
-      </div>
-    `;
-
-    document.body.appendChild(button);
-    document.body.appendChild(overlay);
-
-    const elements = {
-      overlay,
-      close: overlay.querySelector("#readerSettingsClose"),
-      reset: overlay.querySelector("#readerSettingsReset"),
-      siteTheme: overlay.querySelector("#settingSiteTheme"),
-      readerWidth: overlay.querySelector("#settingReaderWidth"),
-      fontSize: overlay.querySelector("#settingFontSize"),
-      lineHeight: overlay.querySelector("#settingLineHeight"),
-      textAlign: overlay.querySelector("#settingTextAlign"),
-      hideFoxes: overlay.querySelector("#settingHideFoxes"),
+    const close = function () {
+      overlay.hidden = true;
     };
 
-    elements.siteTheme.value = settings.siteTheme;
-    elements.readerWidth.value = settings.readerWidth;
-    elements.fontSize.value = String(settings.readerFontSize);
-    elements.lineHeight.value = String(settings.readerLineHeight);
-    elements.textAlign.value = settings.textAlign;
-    elements.hideFoxes.checked = Boolean(settings.hideFoxes);
+    cancel.onclick = close;
 
-    button.addEventListener("click", function () {
-      overlay.hidden = false;
-    });
-
-    elements.close.addEventListener("click", function () {
-      overlay.hidden = true;
-    });
-
-    overlay.addEventListener("click", function (event) {
-      if (event.target === overlay) {
-        overlay.hidden = true;
-      }
-    });
-
-    function updateSetting(name, value) {
-      const current = getSettings();
-      current[name] = value;
-      saveSettings(current);
-      applySettings();
-    }
-
-    elements.siteTheme.addEventListener("change", () => updateSetting("siteTheme", elements.siteTheme.value));
-    elements.readerWidth.addEventListener("change", () => updateSetting("readerWidth", elements.readerWidth.value));
-    elements.fontSize.addEventListener("change", () => updateSetting("readerFontSize", Number(elements.fontSize.value)));
-    elements.lineHeight.addEventListener("change", () => updateSetting("readerLineHeight", Number(elements.lineHeight.value)));
-    elements.textAlign.addEventListener("change", () => updateSetting("textAlign", elements.textAlign.value));
-    elements.hideFoxes.addEventListener("change", () => updateSetting("hideFoxes", elements.hideFoxes.checked));
-
-    elements.reset.addEventListener("click", function () {
-      saveSettings(DEFAULT_SETTINGS);
-      applySettings();
-      overlay.hidden = true;
-      location.reload();
-    });
+    confirm.onclick = function () {
+      const shouldRemember = remember && remember.checked;
+      close();
+      onConfirm(shouldRemember);
+    };
   }
 
   function escapeHtml(value) {
     return String(value || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
   }
-
-  function escapeHtmlAttribute(value) {
-    return escapeHtml(value);
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-    applySettings();
-    saveCurrentChapterProgress();
-    renderContinueReadingPanel();
-    updateNovelReadButton();
-    markReadChapters();
-    initLibrarySort();
-    initDescriptionToggle();
-    initSpoilers();
-    initMiniAppExpandButton();
-    createSettingsPanel();
-  });
 })();
