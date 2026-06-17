@@ -105,6 +105,12 @@
                   {{ novel.display_title }}
                 </h2>
 
+                {% if novel.description %}
+                  <p class="novel-description catalog-description">
+                    {{ novel.description }}
+                  </p>
+                {% endif %}
+
                 <div class="novel-meta-line">
                   {% if novel.total_chapters %}
                     <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
