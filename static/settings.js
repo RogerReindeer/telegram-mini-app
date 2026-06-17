@@ -25,6 +25,7 @@
     initSettings();
     initLibraryView();
     initLibrarySort();
+    initLibrarySearch();
     initLibraryNovelMeta();
     initNovelPageMeta();
     initChapterProgress();
@@ -33,9 +34,6 @@
     initReadChapterMarks();
     initCollapsibleDescription();
     initSpoilerReveal();
-    fitAllNovelTitles();
-
-    window.addEventListener("resize", debounce(fitAllNovelTitles, 120));
   });
 
   function initTelegram() {
@@ -328,7 +326,6 @@
         current[input.dataset.setting] = input.value;
         saveSettings(current);
         applySettings();
-        fitAllNovelTitles();
 
         if (input.dataset.setting === "accentColor") {
           const colorInput = overlay.querySelector("[data-setting-color]");
@@ -369,7 +366,6 @@
         saveSettings({ ...DEFAULT_SETTINGS });
         fillSettingsInputs(getSettings());
         applySettings();
-        fitAllNovelTitles();
       });
     }
 
@@ -418,21 +414,19 @@
       return;
     }
 
-    const savedView = localStorage.getItem(STORAGE_KEYS.libraryView) || "grid";
-
+    const savedView = localStorage.getItem(STORAGE_KEYS.libraryView) || "list";
     applyLibraryView(savedView);
 
     buttons.forEach(function (button) {
       button.addEventListener("click", function () {
-        const view = button.dataset.libraryViewButton || "grid";
+        const view = button.dataset.libraryViewButton || "list";
         localStorage.setItem(STORAGE_KEYS.libraryView, view);
         applyLibraryView(view);
-        fitAllNovelTitles();
       });
     });
 
     function applyLibraryView(view) {
-      const normalizedView = view === "list" ? "list" : "grid";
+      const normalizedView = view === "grid" ? "grid" : "list";
 
       list.dataset.libraryView = normalizedView;
       list.classList.toggle("novel-list-grid", normalizedView === "grid");
@@ -442,6 +436,47 @@
         button.classList.toggle("active", button.dataset.libraryViewButton === normalizedView);
       });
     }
+  }
+
+  function initLibrarySearch() {
+    const input = document.getElementById("librarySearch");
+    const list = document.getElementById("libraryList");
+    const empty = document.getElementById("libraryEmptySearch");
+
+    if (!input || !list) {
+      return;
+    }
+
+    input.addEventListener("input", applyLibrarySearch);
+
+    function applyLibrarySearch() {
+      const query = normalizeSearchText(input.value);
+      const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
+      let visibleCount = 0;
+
+      cards.forEach(function (card) {
+        const title = normalizeSearchText(card.dataset.title || card.dataset.novelTitle || "");
+        const isVisible = !query || title.includes(query);
+
+        card.hidden = !isVisible;
+
+        if (isVisible) {
+          visibleCount += 1;
+        }
+      });
+
+      if (empty) {
+        empty.hidden = visibleCount !== 0;
+      }
+    }
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/ё/g, "е")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function initLibrarySort() {
@@ -469,6 +504,10 @@
           return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
         }
 
+        if (mode === "translated") {
+          return Number(b.dataset.translatedChapters || 0) - Number(a.dataset.translatedChapters || 0);
+        }
+
         if (mode === "added") {
           return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
         }
@@ -483,8 +522,6 @@
       cards.forEach(function (card) {
         list.appendChild(card);
       });
-
-      fitAllNovelTitles();
     });
   }
 
@@ -502,41 +539,6 @@
     }
 
     return 4;
-  }
-
-  function fitAllNovelTitles() {
-    document.querySelectorAll("[data-fit-title]").forEach(fitNovelTitle);
-  }
-
-  function fitNovelTitle(title) {
-    title.style.fontSize = "";
-    title.style.lineHeight = "";
-    title.style.maxHeight = "";
-
-    const card = title.closest("[data-library-novel-card]");
-
-    if (!card) {
-      return;
-    }
-
-    const isList = document.getElementById("libraryList")?.dataset.libraryView === "list";
-    const maxHeight = isList ? 70 : 58;
-    const minFont = isList ? 12 : 11;
-    let fontSize = isList ? 19 : 17;
-
-    title.style.maxHeight = `${maxHeight}px`;
-    title.style.overflow = "visible";
-
-    while (fontSize > minFont) {
-      title.style.fontSize = `${fontSize}px`;
-      title.style.lineHeight = "1.12";
-
-      if (title.scrollHeight <= maxHeight) {
-        break;
-      }
-
-      fontSize -= 1;
-    }
   }
 
   function initLibraryNovelMeta() {
@@ -865,14 +867,5 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
-  }
-
-  function debounce(callback, delay) {
-    let timer = null;
-
-    return function () {
-      clearTimeout(timer);
-      timer = setTimeout(callback, delay);
-    };
   }
 })();
