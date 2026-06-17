@@ -344,36 +344,6 @@ h1 {
   background: #f3e7dc;
 }
 
-.translation-status-emoji {
-  position: absolute;
-  top: 7px;
-  left: 7px;
-  z-index: 5;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.95);
-  background: rgba(255, 255, 255, 0.86);
-  font-size: 15px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-}
-
-.translation-status-emoji.status-completed {
-  background: rgba(220, 252, 231, 0.96);
-}
-
-.translation-status-emoji.status-in_progress,
-.translation-status-emoji.status-in-progress {
-  background: rgba(255, 237, 213, 0.96);
-}
-
-.translation-status-emoji.status-paused {
-  background: rgba(255, 255, 255, 0.96);
-}
-
 .library-status-label {
   width: 100%;
   min-height: 26px;
@@ -404,23 +374,6 @@ h1 {
   background: #ffffff;
   color: #4b5563;
   border: 1px solid rgba(107, 114, 128, 0.22);
-}
-
-.translation-status-dot {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 5;
-  width: 15px;
-  height: 15px;
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
-}
-
-.title-status-dot {
-  top: 8px;
-  left: 8px;
 }
 
 .status-in_progress,
@@ -459,25 +412,6 @@ h1 {
   background: #ffffff;
   color: #4b5563;
   border: 1px solid rgba(107, 114, 128, 0.22);
-}
-
-.adult-cover-badge {
-  position: absolute;
-  top: 7px;
-  right: 7px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 34px;
-  height: 26px;
-  padding: 0 7px;
-  border-radius: 999px;
-  background: #dc2626;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 900;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
 }
 
 .novel-info {
@@ -921,11 +855,6 @@ body[data-site-theme="dark"] .collapsible-description:not(.is-expanded) .collaps
 
 .chapter-row-locked {
   opacity: 0.78;
-}
-
-.chapter-row-more {
-  background: rgba(242, 140, 56, 0.08);
-  font-style: italic;
 }
 
 .chapter-title {
@@ -1461,12 +1390,6 @@ body[data-text-align="justify"] .chapter-content {
     font-size: 10.5px;
     min-height: 24px;
     padding: 5px 4px;
-  }
-
-  .translation-status-emoji {
-    width: 26px;
-    height: 26px;
-    font-size: 14px;
   }
 
   .title-hero-content {
