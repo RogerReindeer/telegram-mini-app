@@ -354,7 +354,7 @@ h1 {
   position: relative;
   display: flex;
   gap: 14px;
-  min-height: 226px;
+  min-height: 176px;
   padding: 14px;
   border-radius: var(--card-radius);
   background: var(--card-bg);
@@ -538,7 +538,7 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: auto;
+  margin-top: 4px;
   margin-bottom: 0;
 }
 
@@ -1463,7 +1463,7 @@ body[data-text-align="justify"] .chapter-content {
 
   .novel-card {
     gap: 12px;
-    min-height: 260px;
+    min-height: 200px;
   }
 
   .catalog-cover-column {
