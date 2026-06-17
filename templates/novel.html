@@ -157,7 +157,18 @@
         </header>
 
         {% if grouped_chapters %}
-          <div class="chapter-list">
+          {% set paid_stats = namespace(total=0) %}
+          {% for group in grouped_chapters %}
+            {% for chapter in group.chapters %}
+              {% if chapter.access_level == 'subscriber' %}
+                {% set paid_stats.total = paid_stats.total + 1 %}
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+
+          {% set paid_state = namespace(visible=0, hidden=0) %}
+
+          <div class="chapter-list" data-chapter-list>
             {% for group in grouped_chapters %}
               {% if group.title %}
                 <div class="volume-header">
@@ -177,18 +188,47 @@
                     <span class="chapter-access chapter-access-public">читать</span>
                   </a>
                 {% elif chapter.access_level == 'subscriber' %}
-                  <a
-                    class="chapter-row chapter-row-locked"
-                    href="/chapter/{{ chapter.id }}"
-                    data-chapter-row
-                    data-chapter-id="{{ chapter.id }}"
-                  >
-                    <span class="chapter-title">{{ chapter.title }}</span>
-                    <span class="chapter-access chapter-access-locked">🔒 подписка</span>
-                  </a>
+                  {% if paid_state.visible < 3 %}
+                    {% set paid_state.visible = paid_state.visible + 1 %}
+                    <a
+                      class="chapter-row chapter-row-locked"
+                      href="/chapter/{{ chapter.id }}"
+                      data-chapter-row
+                      data-chapter-id="{{ chapter.id }}"
+                    >
+                      <span class="chapter-title">{{ chapter.title }}</span>
+                      <span class="chapter-access chapter-access-locked">🔒 подписка</span>
+                    </a>
+                  {% else %}
+                    {% set paid_state.hidden = paid_state.hidden + 1 %}
+                    <a
+                      class="chapter-row chapter-row-locked paid-chapter-extra"
+                      href="/chapter/{{ chapter.id }}"
+                      data-chapter-row
+                      data-chapter-id="{{ chapter.id }}"
+                      data-paid-extra
+                      hidden
+                    >
+                      <span class="chapter-title">{{ chapter.title }}</span>
+                      <span class="chapter-access chapter-access-locked">🔒 подписка</span>
+                    </a>
+                  {% endif %}
                 {% endif %}
               {% endfor %}
             {% endfor %}
+
+            {% if paid_stats.total > 3 %}
+              <div class="paid-chapters-fade" data-paid-fade>
+                <button
+                  class="paid-chapters-toggle"
+                  type="button"
+                  data-paid-toggle
+                  data-hidden-count="{{ paid_stats.total - 3 }}"
+                >
+                  Показать ещё {{ paid_stats.total - 3 }} платных глав
+                </button>
+              </div>
+            {% endif %}
           </div>
         {% else %}
           <div class="empty">
