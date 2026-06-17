@@ -825,9 +825,7 @@ def sync_miniapp_sheets_to_db() -> dict:
     }
 
 
-def build_chapter_display_list(
-    chapters: list[dict],
-) -> tuple[list[dict], int]:
+def build_chapter_display_list(chapters: list[dict]) -> tuple[list[dict], int]:
     sorted_chapters = sorted(
         chapters,
         key=lambda chapter: (
