@@ -10,158 +10,254 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body class="page-library">
-  <main class="page page-top">
-    <section class="reader-layout catalog-layout">
-      <header class="catalog-header">
-        <div>
-          <div class="brand-kicker">Зефиркины баоцзы</div>
+<body class="page-library library-redesign">
+  <main class="library-app-shell">
+    <section class="library-screen">
+      <header class="library-hero">
+        <div class="library-hero-main">
+          <div class="library-brand">Зефиркины баоцзы</div>
           <h1>Библиотека</h1>
-          <p class="subtitle">Выберите новеллу для чтения.</p>
+          <p>Выберите новеллу для чтения.</p>
         </div>
 
         {% if fox.fox_peek %}
-          <img class="catalog-fox catalog-fox-mirrored" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
+          <img class="library-hero-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
         {% endif %}
       </header>
 
-      <section class="continue-reading-block">
-        <div class="continue-reading-header">
-          <div>
-            <h2>Продолжить читать</h2>
-            <p>Последние книги, которые вы открывали.</p>
-          </div>
+      <section class="library-actions">
+        <button class="library-action-button" type="button" id="librarySearchToggle">
+          <span class="library-action-icon">⌕</span>
+          <span>Поиск</span>
+        </button>
 
-          <button class="continue-clear-button" type="button" id="clearReadingHistory" hidden>
-            Очистить
-          </button>
-        </div>
+        <button class="library-action-button" type="button" id="libraryFilterToggle">
+          <span class="library-action-icon">☷</span>
+          <span>Фильтры</span>
+        </button>
 
-        <div class="continue-reading-scroll" id="readingHistory">
-          <div class="reading-history-empty">
-            Здесь появится история чтения, когда вы откроете первую главу.
-          </div>
-        </div>
-      </section>
-
-      <section class="library-toolbar">
-        <label class="sort-label">
-          Сортировка
+        <label class="library-sort-pill">
+          <span>Сортировка:</span>
           <select id="librarySort">
+            <option value="smart">Умная</option>
             <option value="sort-order">По умолчанию</option>
-            <option value="title">По названию А-Я</option>
-            <option value="status">По статусу перевода</option>
-            <option value="chapters">По количеству глав на карточке</option>
-            <option value="translated">По количеству переведённых глав</option>
-            <option value="added">По дате добавления</option>
-            <option value="relation">По тегу Гет/Слэш/Джен</option>
+            <option value="title">А-Я</option>
+            <option value="status">Статус</option>
+            <option value="chapters">Главы</option>
+            <option value="translated">Переведено</option>
+            <option value="added">Новинки</option>
           </select>
         </label>
       </section>
 
-      {% if novels %}
-        <div class="novel-list" id="libraryList">
-          {% for novel in novels %}
-            <a
-              class="novel-card"
-              href="/novel/{{ novel.slug }}"
-              title="{{ novel.tags_tooltip or novel.tags or '' }}"
-              data-library-novel-card
-              data-novel-id="{{ novel.id }}"
-              data-novel-slug="{{ novel.slug }}"
-              data-novel-title="{{ novel.display_title }}"
-              data-novel-cover="{{ novel.cover_url or '' }}"
-              data-title="{{ novel.display_title|lower }}"
-              data-sort-order="{{ novel.sort_order or novel.id }}"
-              data-status="{{ novel.translation_status or 'in_progress' }}"
-              data-chapters="{{ novel.display_chapters_count or novel.total_chapters or 0 }}"
-              data-translated-chapters="{{ novel.translated_chapters or 0 }}"
-              data-available-chapters="{{ novel.available_chapters_count or 0 }}"
-              data-progress="{{ novel.progress_percent or 0 }}"
-              data-added="{{ novel.added_date or '' }}"
-              data-relation="{{ novel.relation_type or '' }}"
-            >
-              <span class="new-chapters-badge" data-new-chapters-badge hidden></span>
+      <section class="library-search-panel" id="librarySearchPanel" hidden>
+        <label class="library-search-input-wrap">
+          <span>⌕</span>
+          <input
+            id="librarySearchInput"
+            type="search"
+            placeholder="Поиск по названию, жанру, тегам"
+            autocomplete="off"
+          >
+          <button type="button" id="librarySearchClear" aria-label="Очистить поиск">×</button>
+        </label>
 
-              <div class="catalog-cover-column">
-                <div class="novel-cover-wrap">
+        <div class="library-quick-tags">
+          <button type="button" data-quick-filter="Сянься/Уся">Сянься/Уся</button>
+          <button type="button" data-quick-filter="Слэш">Слэш</button>
+          <button type="button" data-quick-filter="Гет">Гет</button>
+          <button type="button" data-quick-filter="Романтика">Романтика</button>
+          <button type="button" data-quick-filter="Переводится">Переводится</button>
+        </div>
+      </section>
+
+      <section class="library-active-filters" id="libraryActiveFilters" hidden></section>
+
+      <section class="library-update-banner" id="libraryUpdateBanner" hidden>
+        <div class="library-update-icon">🔔</div>
+        <div class="library-update-text">
+          <div class="library-update-title">Новая глава</div>
+          <div class="library-update-subtitle" id="libraryUpdateText"></div>
+        </div>
+        <a class="library-update-button" id="libraryUpdateButton" href="#">Читать</a>
+        <button class="library-update-close" type="button" id="libraryUpdateClose">×</button>
+      </section>
+
+      {% if novels %}
+        <section class="library-section" data-library-section="reading">
+          <button class="library-section-header" type="button" data-section-toggle="reading">
+            <span>
+              Читаю
+              <span class="library-section-count" data-section-count="reading">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-list" data-section-list="reading"></div>
+        </section>
+
+        <section class="library-section" data-library-section="start">
+          <button class="library-section-header" type="button" data-section-toggle="start">
+            <span>
+              Можно начать
+              <span class="library-section-count" data-section-count="start">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-list" data-section-list="start"></div>
+        </section>
+
+        <section class="library-section" data-library-section="finished">
+          <button class="library-section-header" type="button" data-section-toggle="finished">
+            <span>
+              Прочитано
+              <span class="library-section-count" data-section-count="finished">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-list" data-section-list="finished"></div>
+        </section>
+
+        <section class="library-section" data-library-section="hidden" hidden>
+          <div class="library-section-list" id="libraryRawCards">
+            {% for novel in novels %}
+              <article
+                class="library-book-card"
+                data-library-novel-card
+                data-novel-id="{{ novel.id }}"
+                data-novel-slug="{{ novel.slug }}"
+                data-novel-title="{{ novel.display_title }}"
+                data-novel-cover="{{ novel.cover_url or '' }}"
+                data-title="{{ novel.display_title|lower }}"
+                data-description="{{ novel.description or '' }}"
+                data-tags="{{ novel.tags or '' }}"
+                data-sort-order="{{ novel.sort_order or novel.id }}"
+                data-status="{{ novel.translation_status or 'in_progress' }}"
+                data-status-label="{{ novel.translation_status_label or 'Переводится' }}"
+                data-chapters="{{ novel.display_chapters_count or novel.total_chapters or 0 }}"
+                data-translated-chapters="{{ novel.translated_chapters or 0 }}"
+                data-available-chapters="{{ novel.available_chapters_count or 0 }}"
+                data-progress="{{ novel.progress_percent or 0 }}"
+                data-added="{{ novel.added_date or '' }}"
+                data-relation="{{ novel.relation_type or '' }}"
+              >
+                <a class="library-book-cover-link" href="/novel/{{ novel.slug }}">
                   {% if novel.cover_url %}
                     <img
-                      class="novel-cover"
+                      class="library-book-cover"
                       src="{{ novel.cover_url }}"
                       alt="{{ novel.display_title }}"
                       onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                     >
-                    <div class="novel-cover placeholder" style="display:none;">📖</div>
+                    <span class="library-book-cover library-book-cover-placeholder" style="display:none;">обложка</span>
                   {% else %}
-                    <div class="novel-cover placeholder">📖</div>
+                    <span class="library-book-cover library-book-cover-placeholder">обложка</span>
                   {% endif %}
-                </div>
+                </a>
 
-                <div class="library-status-label status-{{ novel.translation_status or 'in_progress' }}">
-                  {{ novel.translation_status_label or 'Переводится' }}
-                </div>
-              </div>
+                <div class="library-book-body">
+                  <div class="library-book-topline">
+                    <a class="library-book-title" href="/novel/{{ novel.slug }}">
+                      {{ novel.display_title }}
+                    </a>
 
-              <div class="novel-info">
-                <h2 class="novel-card-title">
-                  {{ novel.display_title }}
-                </h2>
-
-                {% if novel.description %}
-                  <p class="novel-description catalog-description">
-                    {{ novel.description }}
-                  </p>
-                {% endif %}
-
-                <div class="novel-meta-line">
-                  {% if novel.display_chapters_count or novel.total_chapters %}
-                    <span class="meta-pill">
-                      📚 {{ novel.display_chapters_count or novel.total_chapters }} глав
-                    </span>
-                  {% endif %}
-
-                  {% if novel.translated_chapters %}
-                    <span class="meta-pill">🖋 {{ novel.translated_chapters }} переведено</span>
-                  {% endif %}
-
-                  {% if novel.progress_percent is not none %}
-                    <span class="meta-pill progress-pill">
-                      <span>✨ {{ novel.progress_percent }}%</span>
-                      <span class="progress-mini">
-                        <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
-                      </span>
-                    </span>
-                  {% endif %}
-                </div>
-
-                {% if novel.catalog_tag_items %}
-                  <div class="novel-tags catalog-tags" title="{{ novel.tags_tooltip or novel.tags }}">
-                    {% for tag in novel.catalog_tag_items %}
-                      {% if tag.is_spoiler %}
-                        <span class="tag tag-spoiler tag-spoiler-locked">спойлер</span>
-                      {% else %}
-                        <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
-                      {% endif %}
-                    {% endfor %}
-
-                    {% if novel.catalog_hidden_tags > 0 %}
-                      <span class="tag tag-more">…</span>
-                    {% endif %}
+                    <button class="library-book-menu" type="button" aria-label="Меню книги">⋮</button>
                   </div>
-                {% endif %}
-              </div>
-            </a>
-          {% endfor %}
+
+                  {% if novel.description %}
+                    <p class="library-book-description">
+                      {{ novel.description }}
+                    </p>
+                  {% endif %}
+
+                  <div class="library-book-state-line" data-card-state-line></div>
+
+                  <div class="library-progress-row" data-card-progress-row>
+                    <span class="library-progress-track">
+                      <span class="library-progress-fill" data-card-progress-fill></span>
+                    </span>
+                    <span class="library-progress-text" data-card-progress-text></span>
+                  </div>
+
+                  <div class="library-book-bottom">
+                    <div class="library-card-tags">
+                      {% if novel.catalog_tag_items %}
+                        {% for tag in novel.catalog_tag_items[:3] %}
+                          {% if tag.is_spoiler %}
+                            <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
+                          {% else %}
+                            <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+
+                    <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>
+                      Начать
+                    </a>
+                  </div>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+
+        <div class="library-empty-filter" id="libraryEmptyFilter" hidden>
+          Ничего не нашлось. Попробуйте убрать фильтр или изменить поиск.
         </div>
       {% else %}
-        <div class="empty">
-          {% if fox.fox_side %}
-            <img class="empty-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
-          {% endif %}
-          <div>В библиотеке пока нет активных новелл.</div>
+        <div class="library-empty-filter">
+          В библиотеке пока нет активных новелл.
         </div>
       {% endif %}
+    </section>
+
+    <section class="library-filter-sheet" id="libraryFilterSheet" hidden>
+      <div class="library-filter-backdrop" data-filter-close></div>
+
+      <div class="library-filter-panel">
+        <div class="library-filter-handle"></div>
+
+        <header class="library-filter-header">
+          <h2>Фильтры</h2>
+          <button type="button" data-filter-close>×</button>
+        </header>
+
+        <div class="library-filter-group">
+          <h3>Статус</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="all" class="active">Все</button>
+            <button type="button" data-filter-chip="reading">Читаю</button>
+            <button type="button" data-filter-chip="in_progress">Переводится</button>
+            <button type="button" data-filter-chip="completed">Завершено</button>
+            <button type="button" data-filter-chip="finished">Прочитано</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Формат</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="Слэш">Слэш</button>
+            <button type="button" data-filter-chip="Гет">Гет</button>
+            <button type="button" data-filter-chip="Джен">Джен</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Жанр / сеттинг</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="Сянься/Уся">Сянься/Уся</button>
+            <button type="button" data-filter-chip="Фэнтези">Фэнтези</button>
+            <button type="button" data-filter-chip="Современность">Современность</button>
+            <button type="button" data-filter-chip="Романтика">Романтика</button>
+            <button type="button" data-filter-chip="Иссекай/Попаданцы">Иссекай/Попаданцы</button>
+          </div>
+        </div>
+
+        <footer class="library-filter-footer">
+          <button type="button" class="library-filter-reset" id="libraryFilterReset">Сбросить</button>
+          <button type="button" class="library-filter-apply" id="libraryFilterApply">Показать книги</button>
+        </footer>
+      </div>
     </section>
   </main>
 
