@@ -17,13 +17,19 @@
     <section class="library-screen">
       <header class="library-hero">
         <div class="library-hero-main">
-          <div class="library-brand">Зефиркины баоцзы</div>
+          <div class="library-brand">
+            Зефиркины баоцзы
+            <span class="library-brand-bao">🥟</span>
+          </div>
+
           <h1>Библиотека</h1>
           <p>Выберите новеллу для чтения.</p>
         </div>
 
         {% if header_fox %}
           <img class="library-hero-fox" src="{{ header_fox }}" alt="Лисичка" data-fox>
+        {% else %}
+          <div class="library-hero-fox-placeholder" data-fox>🦊</div>
         {% endif %}
       </header>
 
@@ -97,6 +103,7 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
+
           <div class="library-section-list" data-section-list="reading"></div>
         </section>
 
@@ -108,7 +115,24 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
+
           <div class="library-section-list" data-section-list="start"></div>
+        </section>
+
+        <section class="library-section" data-library-section="waiting">
+          <button class="library-section-header" type="button" data-section-toggle="waiting">
+            <span>
+              Жду доступа
+              <span class="library-section-count" data-section-count="waiting">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+
+          <div class="library-section-helper">
+            Здесь будут книги, у которых пока нет открытых глав или доступ закрыт.
+          </div>
+
+          <div class="library-section-list" data-section-list="waiting"></div>
         </section>
 
         <section class="library-section" data-library-section="finished">
@@ -119,6 +143,7 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
+
           <div class="library-section-list" data-section-list="finished"></div>
         </section>
 
@@ -182,10 +207,10 @@
 
                   <div class="library-book-state-line" data-card-state-line></div>
 
-                  <div class="library-card-actions-row">
-                    <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>
-                      Начать
-                    </a>
+                  <div class="library-card-stats">
+                    <span title="Открыто для Странствующего читателя">🌱 {{ novel.available_chapters_count or 0 }}</span>
+                    <span title="Переведено">📜 {{ novel.translated_chapters or 0 }}</span>
+                    <span title="Всего глав">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
                   </div>
 
                   <div class="library-progress-row" data-card-progress-row>
@@ -195,38 +220,28 @@
                     <span class="library-progress-text" data-card-progress-text></span>
                   </div>
 
-                  <div class="library-card-stats">
-                    <span title="Всего глав">📚 {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
-                    <span title="Переведено">🖊 {{ novel.translated_chapters or 0 }}</span>
-                    <span title="Прогресс перевода">✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%</span>
+                  <div class="library-card-tags">
+                    {% set card_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
 
-                    {% if novel.access_badge %}
-                      <span title="{{ novel.access_badge.label }}">
-                        {{ novel.access_badge.icon }} {{ novel.access_badge.label }}
-                      </span>
+                    {% if card_tags %}
+                      {% for tag in card_tags %}
+                        {% if loop.index <= 4 %}
+                          {% if tag.is_spoiler %}
+                            <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
+                          {% else %}
+                            <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
+                          {% endif %}
+                        {% endif %}
+                      {% endfor %}
                     {% endif %}
                   </div>
 
-                  <div class="library-book-bottom">
-                    <div class="library-card-tags">
-                      {% set card_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
+                  <div class="library-card-footer">
+                    <span class="library-card-state-pill" data-card-state-pill></span>
 
-                      {% if card_tags %}
-                        {% for tag in card_tags %}
-                          {% if loop.index <= 5 %}
-                            {% if tag.is_spoiler %}
-                              <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
-                            {% else %}
-                              <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
-                            {% endif %}
-                          {% endif %}
-                        {% endfor %}
-                      {% endif %}
-
-                      {% if novel.catalog_hidden_tags and novel.catalog_hidden_tags > 0 %}
-                        <span class="library-mini-tag library-mini-tag-more">...</span>
-                      {% endif %}
-                    </div>
+                    <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>
+                      Начать читать
+                    </a>
                   </div>
                 </div>
               </article>
@@ -235,11 +250,13 @@
         </section>
 
         <div class="library-empty-filter" id="libraryEmptyFilter" hidden>
-          Ничего не нашлось. Попробуйте убрать фильтр или изменить поиск.
+          <div class="library-empty-fox">🦊</div>
+          <div>Ничего не нашлось. Попробуйте убрать фильтр или изменить поиск.</div>
         </div>
       {% else %}
         <div class="library-empty-filter">
-          В библиотеке пока нет активных новелл.
+          <div class="library-empty-fox">🦊</div>
+          <div>В библиотеке пока нет активных новелл.</div>
         </div>
       {% endif %}
     </section>
@@ -256,17 +273,21 @@
         </header>
 
         <div class="library-filter-group">
-          <h3>Статус чтения</h3>
+          <h3>Статус</h3>
+
           <div class="library-filter-chips">
             <button type="button" data-filter-chip="all" class="active">Все</button>
             <button type="button" data-filter-chip="reading">Читаю</button>
             <button type="button" data-filter-chip="new">Новая глава</button>
+            <button type="button" data-filter-chip="start">Можно начать</button>
+            <button type="button" data-filter-chip="waiting">Жду доступа</button>
             <button type="button" data-filter-chip="finished">Прочитано</button>
           </div>
         </div>
 
         <div class="library-filter-group">
           <h3>Статус проекта</h3>
+
           <div class="library-filter-chips">
             <button type="button" data-filter-chip="in_progress">Переводится</button>
             <button type="button" data-filter-chip="completed">Завершено</button>
@@ -276,6 +297,7 @@
 
         <div class="library-filter-group">
           <h3>Формат</h3>
+
           <div class="library-filter-chips">
             <button type="button" data-filter-chip="Слэш">Слэш</button>
             <button type="button" data-filter-chip="Гет">Гет</button>
@@ -285,6 +307,7 @@
 
         <div class="library-filter-group">
           <h3>Жанр / сеттинг</h3>
+
           <div class="library-filter-chips">
             <button type="button" data-filter-chip="Сянься/Уся">Сянься/Уся</button>
             <button type="button" data-filter-chip="Фэнтези">Фэнтези</button>
@@ -293,6 +316,18 @@
             <button type="button" data-filter-chip="Иссекай/Попаданцы">Иссекай/Попаданцы</button>
           </div>
         </div>
+
+        <section class="library-filter-legend">
+          <h3>Что означают статусы</h3>
+
+          <div class="library-filter-legend-grid">
+            <div><span>📖</span><strong>Читаю</strong><small>Вы уже начали эту новеллу.</small></div>
+            <div><span>✨</span><strong>Новая глава</strong><small>Появилось продолжение после вашего чтения.</small></div>
+            <div><span>🌱</span><strong>Можно начать</strong><small>Есть доступные главы.</small></div>
+            <div><span>🔒</span><strong>Жду доступа</strong><small>Открытых глав пока нет.</small></div>
+            <div><span>✅</span><strong>Прочитано</strong><small>Вы дочитали всё доступное.</small></div>
+          </div>
+        </section>
 
         <footer class="library-filter-footer">
           <button type="button" class="library-filter-reset" id="libraryFilterReset">Сбросить</button>
