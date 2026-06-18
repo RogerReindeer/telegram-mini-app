@@ -581,126 +581,150 @@
     updateFilterApplyButton(visibleTotal);
   }
 
-  function prepareLibraryCard(card, historyByNovel, readIds) {
-    const novelId = String(card.dataset.novelId || "");
-    const historyItem = historyByNovel[novelId];
+ function prepareLibraryCard(card, historyByNovel, readIds) {
+  const novelId = String(card.dataset.novelId || "");
+  const historyItem = historyByNovel[novelId];
 
-    const chapters = Number(card.dataset.chapters || 0);
-    const translated = Number(card.dataset.translatedChapters || 0);
-    const available = Number(card.dataset.availableChapters || 0);
-    const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
+  const chapters = Number(card.dataset.chapters || 0);
+  const translated = Number(card.dataset.translatedChapters || 0);
+  const available = Number(card.dataset.availableChapters || 0);
+  const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
+  const projectStatus = String(card.dataset.status || "");
+  const projectStatusLabel = card.dataset.statusLabel || "Переводится";
 
-    const button = card.querySelector("[data-card-main-button]");
-    const stateLine = card.querySelector("[data-card-state-line]");
-    const progressFill = card.querySelector("[data-card-progress-fill]");
-    const progressText = card.querySelector("[data-card-progress-text]");
+  const button = card.querySelector("[data-card-main-button]");
+  const stateLine = card.querySelector("[data-card-state-line]");
+  const progressFill = card.querySelector("[data-card-progress-fill]");
+  const progressText = card.querySelector("[data-card-progress-text]");
 
-    card.classList.remove("is-reading", "is-new", "is-finished", "is-start");
+  card.classList.remove("is-reading", "is-new", "is-finished", "is-start");
 
-    if (progressFill) {
-      const visualProgress = historyItem && historyItem.chapterIndex && available
-        ? clampNumber(historyItem.chapterIndex / available * 100, 0, 100)
-        : projectProgress;
+  const safeHistoryIndex = historyItem && historyItem.chapterIndex
+    ? Math.min(Number(historyItem.chapterIndex || 0), available || Number(historyItem.chapterIndex || 0))
+    : 0;
 
-      progressFill.style.width = `${visualProgress}%`;
+  if (progressFill) {
+    const visualProgress = historyItem && safeHistoryIndex && available
+      ? clampNumber(safeHistoryIndex / available * 100, 0, 100)
+      : projectProgress;
+
+    progressFill.style.width = `${visualProgress}%`;
+  }
+
+  if (progressText) {
+    if (historyItem && safeHistoryIndex && available) {
+      progressText.textContent = `${safeHistoryIndex} / ${available}`;
+    } else if (chapters) {
+      progressText.textContent = `${translated || 0} / ${chapters}`;
+    } else {
+      progressText.textContent = "";
+    }
+  }
+
+  const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+
+  if (historyItem && newCount > 0) {
+    card.classList.add("is-new");
+
+    if (stateLine) {
+      stateLine.innerHTML = `
+        <span class="library-status-chip library-status-new">Новая глава</span>
+        <span>Вы остановились: ${escapeHtml(historyItem.chapterTitle || "последняя прочитанная глава")}</span>
+      `;
     }
 
-    if (progressText) {
-      if (historyItem && historyItem.chapterIndex && available) {
-        progressText.textContent = `${historyItem.chapterIndex} / ${available}`;
-      } else if (chapters) {
-        progressText.textContent = `${translated || 0} / ${chapters}`;
-      } else {
-        progressText.textContent = "";
-      }
+    if (button) {
+      button.textContent = "Читать новую";
+      button.href = `/novel/${card.dataset.novelSlug || ""}`;
     }
 
-    const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+    return;
+  }
 
-    if (historyItem && newCount > 0) {
-      card.classList.add("is-new");
+  if (historyItem && available && safeHistoryIndex >= available) {
+    card.classList.add("is-finished");
 
+    if (projectStatus === "completed") {
       if (stateLine) {
         stateLine.innerHTML = `
-          <span class="library-status-chip library-status-new">Новая глава</span>
-          <span>Вы остановились на ${escapeHtml(historyItem.chapterTitle || "главе")}</span>
+          <span class="library-status-chip library-status-finished">Прочитано</span>
+          <span>Книга завершена, вы прочитали всё доступное</span>
         `;
       }
 
       if (button) {
-        button.textContent = "Читать новую";
-        button.href = `/novel/${card.dataset.novelSlug || ""}`;
-      }
-
-      return;
-    }
-
-    if (historyItem && available && Number(historyItem.chapterIndex || 0) >= available) {
-      card.classList.add("is-finished");
-
-      if (stateLine) {
-        stateLine.innerHTML = `
-          <span class="library-status-chip library-status-finished">Жду новую</span>
-          <span>Вы дошли до последней доступной главы</span>
-        `;
-      }
-
-      if (button) {
-        button.textContent = "К оглавлению";
-        button.href = `/novel/${card.dataset.novelSlug || ""}`;
-      }
-
-      if (String(card.dataset.status || "") === "completed") {
-        if (stateLine) {
-          stateLine.innerHTML = `
-            <span class="library-status-chip library-status-finished">Прочитано</span>
-            <span>Прочитано полностью</span>
-          `;
-        }
-
-        if (button) {
-          button.textContent = "Перечитать";
-          button.href = `/chapter/${historyItem.chapterId}`;
-        }
-      }
-
-      return;
-    }
-
-    if (historyItem) {
-      card.classList.add("is-reading");
-
-      if (stateLine) {
-        stateLine.innerHTML = `
-          <span class="library-status-chip">Читаю</span>
-          <span>Вы на главе ${escapeHtml(historyItem.chapterIndex || "")}</span>
-          <span>Доступно ${available || chapters || 0} из ${chapters || available || 0}</span>
-        `;
-      }
-
-      if (button) {
-        button.textContent = "Продолжить";
+        button.textContent = "Перечитать";
         button.href = `/chapter/${historyItem.chapterId}`;
       }
 
       return;
     }
 
-    card.classList.add("is-start");
-
     if (stateLine) {
-      const label = card.dataset.statusLabel || "Переводится";
-
       stateLine.innerHTML = `
-        <span class="library-status-chip">${escapeHtml(label)}</span>
+        <span class="library-status-chip library-status-finished">Жду новую</span>
+        <span>Вы дошли до последней доступной главы</span>
       `;
     }
 
     if (button) {
-      button.textContent = "Начать читать";
+      button.textContent = "К оглавлению";
       button.href = `/novel/${card.dataset.novelSlug || ""}`;
     }
+
+    return;
   }
+
+  if (historyItem) {
+    card.classList.add("is-reading");
+
+    if (stateLine) {
+      stateLine.innerHTML = `
+        <span class="library-status-chip">Читаю</span>
+        <span>Вы остановились: ${escapeHtml(historyItem.chapterTitle || "глава " + safeHistoryIndex)}</span>
+      `;
+    }
+
+    if (button) {
+      button.textContent = "Продолжить";
+      button.href = `/chapter/${historyItem.chapterId}`;
+    }
+
+    return;
+  }
+
+  card.classList.add("is-start");
+
+  if (!available) {
+    if (stateLine) {
+      stateLine.innerHTML = `
+        <span class="library-status-chip">Скоро</span>
+        <span>Открытых глав пока нет</span>
+      `;
+    }
+
+    if (button) {
+      button.textContent = "Скоро";
+      button.href = `/novel/${card.dataset.novelSlug || ""}`;
+      button.classList.add("is-disabled-soft");
+    }
+
+    return;
+  }
+
+  if (stateLine) {
+    stateLine.innerHTML = `
+      <span class="library-status-chip">${escapeHtml(projectStatusLabel)}</span>
+      <span>Открыто ${available} из ${chapters || available}</span>
+    `;
+  }
+
+  if (button) {
+    button.textContent = "Начать читать";
+    button.href = `/novel/${card.dataset.novelSlug || ""}`;
+    button.classList.remove("is-disabled-soft");
+  }
+}
 
   function getCardState(card, historyByNovel) {
     const novelId = String(card.dataset.novelId || "");
