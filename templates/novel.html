@@ -11,234 +11,186 @@
 </head>
 
 <body class="page-novel">
-  <main class="page page-top">
-    <article
-      class="reader-layout title-layout"
-      data-novel-page
-      data-novel-id="{{ novel.id }}"
-      data-novel-slug="{{ novel.slug }}"
-      data-novel-title="{{ novel.display_title }}"
-      data-first-chapter-id="{% if first_chapter %}{{ first_chapter.id }}{% endif %}"
-      data-first-chapter-title="{% if first_chapter %}{{ first_chapter.title }}{% endif %}"
-    >
-      <a class="back-link" href="/library">← Библиотека</a>
+  <main
+    class="page title-layout"
+    data-novel-page
+    data-novel-id="{{ novel.id }}"
+    data-novel-slug="{{ novel.slug }}"
+    data-novel-title="{{ novel.display_title }}"
+  >
+    <a class="back-link" href="/library">← В библиотеку</a>
 
-      <section class="title-hero">
-        {% if novel.cover_url %}
-          <div class="title-hero-bg" style="background-image: url('{{ novel.cover_url }}');"></div>
-        {% endif %}
+    <section class="title-hero">
+      {% if novel.cover_url %}
+        <div class="title-hero-bg" style="background-image:url('{{ novel.cover_url }}')"></div>
+      {% endif %}
 
-        <div class="title-hero-content">
-          <div class="novel-cover-wrap title-cover-wrap">
-            {% if novel.cover_url %}
-              <img
-                class="title-cover"
-                src="{{ novel.cover_url }}"
-                alt="{{ novel.display_title }}"
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-              >
-              <div class="title-cover placeholder" style="display:none;">📖</div>
-            {% else %}
-              <div class="title-cover placeholder">📖</div>
-            {% endif %}
-          </div>
-
-          <div class="title-info">
-            <div class="novel-page-title-line">
-              <div>
-                <h1>{{ novel.display_title }}</h1>
-
-                {% if novel.title_en %}
-                  <p class="novel-title-en">{{ novel.title_en }}</p>
-                {% endif %}
-              </div>
-
-              {% if fox.fox_side %}
-                <img class="inline-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
-              {% endif %}
-            </div>
-
-            <div class="title-status-line">
-              <span class="status-label status-{{ novel.translation_status or 'in_progress' }}">
-                {{ novel.translation_status_label or 'Переводится' }}
-              </span>
-
-              <span class="meta-pill">✍️ {{ novel.translation_author or 'Зефиркины баоцзы' }}</span>
-
-              {% if novel.display_chapters_count or novel.total_chapters %}
-                <span class="meta-pill">
-                  📚 {{ novel.display_chapters_count or novel.total_chapters }} глав
-                </span>
-              {% endif %}
-
-              {% if novel.translated_chapters %}
-                <span class="meta-pill">🖋 {{ novel.translated_chapters }} переведено</span>
-              {% endif %}
-
-              {% if novel.progress_percent is not none %}
-                <span class="meta-pill progress-pill">
-                  <span>✨ {{ novel.progress_percent }}%</span>
-                  <span class="progress-mini">
-                    <span style="width: {{ novel.progress_percent or 0 }}%;"></span>
-                  </span>
-                </span>
-              {% endif %}
-            </div>
-
-            {% if novel.tag_items %}
-              <div class="novel-tags full-tags" title="{{ novel.tags_tooltip or novel.tags }}">
-                {% for tag in novel.tag_items %}
-                  {% if tag.is_spoiler %}
-                    <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}">
-                      спойлер
-                    </button>
-                  {% else %}
-                    <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
-                  {% endif %}
-                {% endfor %}
-              </div>
-            {% endif %}
-
-            {% if novel.description %}
-              <div class="novel-description novel-description-full collapsible-description" data-collapsible-description>
-                <div class="collapsible-description-content">
-                  {% for paragraph in novel.description.split('\n') %}
-                    {% if paragraph.strip() %}
-                      <p>{{ paragraph }}</p>
-                    {% endif %}
-                  {% endfor %}
-                </div>
-
-                <button class="description-toggle" type="button" data-description-toggle>
-                  Ещё
-                </button>
-              </div>
-            {% endif %}
-          </div>
+      <div class="title-hero-content">
+        <div class="title-cover-wrap">
+          {% if novel.cover_url %}
+            <img class="title-cover" src="{{ novel.cover_url }}" alt="{{ novel.display_title }}">
+          {% else %}
+            <div class="title-cover placeholder">📖</div>
+          {% endif %}
         </div>
-      </section>
 
-      {% if novel.top_description or novel.bottom_description %}
-        <section class="character-info">
-          {% if novel.top_description %}
-            <div class="character-card">
-              <h2>Актив</h2>
-              <p>{{ novel.top_description }}</p>
-            </div>
-          {% endif %}
+        <div class="title-info">
+          <div class="novel-page-title-line">
+            <div>
+              <h1>{{ novel.display_title }}</h1>
 
-          {% if novel.bottom_description %}
-            <div class="character-card">
-              <h2>Пассив</h2>
-              <p>{{ novel.bottom_description }}</p>
-            </div>
-          {% endif %}
-        </section>
-      {% endif %}
-
-      {% if first_chapter %}
-        <section class="novel-read-action">
-          <a
-            class="primary-read-button"
-            id="novelReadButton"
-            href="/chapter/{{ first_chapter.id }}"
-            data-default-href="/chapter/{{ first_chapter.id }}"
-            data-default-text="Начать читать"
-          >
-            Начать читать
-          </a>
-        </section>
-      {% endif %}
-
-      <section class="chapters-section">
-        <header class="section-header">
-          <h2 class="section-title">Оглавление</h2>
-          {% if fox.fox_hearts %}
-            <img class="section-fox" src="{{ fox.fox_hearts }}" alt="Лисичка" data-fox>
-          {% endif %}
-        </header>
-
-        {% if grouped_chapters %}
-          {% set paid_stats = namespace(total=0) %}
-          {% for group in grouped_chapters %}
-            {% for chapter in group.chapters %}
-              {% if chapter.access_level == 'subscriber' %}
-                {% set paid_stats.total = paid_stats.total + 1 %}
+              {% if novel.title_en %}
+                <p class="novel-title-en">{{ novel.title_en }}</p>
               {% endif %}
-            {% endfor %}
-          {% endfor %}
+            </div>
 
-          {% set paid_state = namespace(visible=0, hidden=0) %}
+            {% if fox.fox_pic %}
+              <img class="inline-fox" src="{{ fox.fox_pic }}" alt="Лисичка" data-fox>
+            {% endif %}
+          </div>
 
-          <div class="chapter-list" data-chapter-list>
-            {% for group in grouped_chapters %}
-              {% if group.title %}
-                <div class="volume-header">
-                  <span>{{ group.title }}</span>
-                </div>
-              {% endif %}
+          <div class="title-status-line">
+            <span
+              class="status-label status-{{ novel.translation_status }}"
+              style="background: {{ novel.translation_status_color }}"
+            >
+              {{ novel.translation_status_label }}
+            </span>
 
-              {% for chapter in group.chapters %}
-                {% if chapter.access_level == 'public' %}
-                  <a
-                    class="chapter-row"
-                    href="/chapter/{{ chapter.id }}"
-                    data-chapter-row
-                    data-chapter-id="{{ chapter.id }}"
-                  >
-                    <span class="chapter-title">{{ chapter.title }}</span>
-                    <span class="chapter-access chapter-access-public">читать</span>
-                  </a>
-                {% elif chapter.access_level == 'subscriber' %}
-                  {% if paid_state.visible < 3 %}
-                    {% set paid_state.visible = paid_state.visible + 1 %}
-                    <a
-                      class="chapter-row chapter-row-locked"
-                      href="/chapter/{{ chapter.id }}"
-                      data-chapter-row
-                      data-chapter-id="{{ chapter.id }}"
-                    >
-                      <span class="chapter-title">{{ chapter.title }}</span>
-                      <span class="chapter-access chapter-access-locked">🔒 подписка</span>
-                    </a>
-                  {% else %}
-                    {% set paid_state.hidden = paid_state.hidden + 1 %}
-                    <a
-                      class="chapter-row chapter-row-locked paid-chapter-extra"
-                      href="/chapter/{{ chapter.id }}"
-                      data-chapter-row
-                      data-chapter-id="{{ chapter.id }}"
-                      data-paid-extra
-                      hidden
-                    >
-                      <span class="chapter-title">{{ chapter.title }}</span>
-                      <span class="chapter-access chapter-access-locked">🔒 подписка</span>
-                    </a>
-                  {% endif %}
+            {% if novel.age_rating %}
+              <span class="meta-pill">{{ novel.age_rating }}</span>
+            {% endif %}
+
+            {% if novel.access_badge %}
+              <span class="meta-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
+            {% endif %}
+          </div>
+
+          <div class="novel-meta-line">
+            <span class="meta-pill">📚 {{ novel.display_chapters_count or novel.total_chapters or 0 }} глав</span>
+            <span class="meta-pill">🖊 {{ novel.translated_chapters or 0 }} переведено</span>
+
+            <span class="meta-pill progress-pill">
+              ✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%
+              <span class="progress-mini">
+                <span style="width: {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%"></span>
+              </span>
+            </span>
+
+            {% if novel.original_language %}
+              <span class="meta-pill">{{ novel.original_language }}</span>
+            {% endif %}
+
+            {% if novel.translation_author %}
+              <span class="meta-pill">Перевод: {{ novel.translation_author }}</span>
+            {% endif %}
+          </div>
+
+          {% if novel.tag_items %}
+            <div class="novel-tags">
+              {% for tag in novel.tag_items %}
+                {% if tag.is_spoiler %}
+                  <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}">спойлер</button>
+                {% else %}
+                  <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
                 {% endif %}
               {% endfor %}
-            {% endfor %}
+            </div>
+          {% endif %}
 
-            {% if paid_stats.total > 3 %}
-              <div class="paid-chapters-fade" data-paid-fade>
-                <button
-                  class="paid-chapters-toggle"
-                  type="button"
-                  data-paid-toggle
-                  data-hidden-count="{{ paid_stats.total - 3 }}"
-                >
-                  Показать ещё {{ paid_stats.total - 3 }} платных глав
-                </button>
+          {% if novel.description %}
+            <section class="collapsible-description" data-collapsible-description>
+              <div class="collapsible-description-content">
+                <p class="novel-description">{{ novel.description }}</p>
               </div>
-            {% endif %}
-          </div>
-        {% else %}
-          <div class="empty">
-            Главы пока не добавлены.
-          </div>
+              <button class="description-toggle" type="button" data-description-toggle>Ещё</button>
+            </section>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+
+    {% if novel.top_description or novel.bottom_description %}
+      <section class="character-info">
+        {% if novel.top_description %}
+          <article class="character-card">
+            <h2>Актив</h2>
+            <p>{{ novel.top_description }}</p>
+          </article>
+        {% endif %}
+
+        {% if novel.bottom_description %}
+          <article class="character-card">
+            <h2>Пассив</h2>
+            <p>{{ novel.bottom_description }}</p>
+          </article>
         {% endif %}
       </section>
-    </article>
+    {% endif %}
+
+    {% if chapters and chapters|length > 0 %}
+      <section class="novel-read-action">
+        <a class="primary-read-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">
+          Начать читать
+        </a>
+      </section>
+    {% endif %}
+
+    <section class="chapters-section">
+      <div class="section-header">
+        <h2 class="section-title">Оглавление</h2>
+
+        {% if fox.fox_side %}
+          <img class="section-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+        {% endif %}
+      </div>
+
+      {% if chapters %}
+        <div class="chapter-list">
+          {% set ns = namespace(current_volume='') %}
+
+          {% for chapter in chapters %}
+            {% set volume_label = chapter.volume_title or chapter.volume or chapter.volume_no %}
+
+            {% if volume_label and volume_label != ns.current_volume %}
+              {% set ns.current_volume = volume_label %}
+              <div class="volume-header">
+                {% if chapter.volume_title %}
+                  {{ chapter.volume_title }}
+                {% elif chapter.volume_no %}
+                  Том {{ chapter.volume_no }}
+                {% else %}
+                  {{ chapter.volume }}
+                {% endif %}
+              </div>
+            {% endif %}
+
+            <a
+              class="chapter-row {% if chapter.is_paid_extra %}paid-chapter-extra{% endif %}"
+              href="/chapter/{{ chapter.chapter_id }}"
+              data-chapter-row
+              data-chapter-id="{{ chapter.chapter_id }}"
+              {% if chapter.is_paid_extra %}data-paid-extra hidden{% endif %}
+            >
+              <span class="chapter-title">{{ chapter.display_title }}</span>
+              <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
+            </a>
+          {% endfor %}
+
+          {% if hidden_subscriber_count and hidden_subscriber_count > 0 %}
+            <div class="paid-chapters-fade" data-paid-fade>
+              <button class="paid-chapters-toggle" type="button" data-paid-toggle>
+                Показать ещё {{ hidden_subscriber_count }} платных глав
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <div class="empty">
+          Главы пока не добавлены.
+        </div>
+      {% endif %}
+    </section>
   </main>
 
   <script>
