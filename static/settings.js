@@ -5,6 +5,7 @@
     novelMeta: "zefirki_novel_meta",
     readChapters: "zefirki_read_chapters",
     spoilerConfirmed: "zefirki_spoiler_confirmed",
+    libraryFilter: "zefirki_library_filter",
   };
 
   const DEFAULT_SETTINGS = {
@@ -20,16 +21,18 @@
     appSize: "normal",
   };
 
+  const DEFAULT_FILTER = {
+    query: "",
+    chips: [],
+  };
+
   document.addEventListener("DOMContentLoaded", function () {
     initTelegram();
     initSettings();
     initAppSizeButton();
-    initLibrarySort();
-    initLibraryNovelMeta();
+    initLibrary();
     initNovelPageMeta();
     initChapterProgress();
-    initReadingHistory();
-    initNewChapterBadges();
     initNovelReadButton();
     initReadChapterMarks();
     initCollapsibleDescription();
@@ -49,11 +52,19 @@
 
   function requestSoftExpand() {
     try {
-      if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.expand === "function") {
-        window.Telegram.WebApp.expand();
+      if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+
+        if (typeof tg.ready === "function") {
+          tg.ready();
+        }
+
+        if (typeof tg.expand === "function") {
+          tg.expand();
+        }
       }
     } catch (error) {
-      console.log("Telegram soft expand skipped:", error);
+      console.log("Telegram expand skipped:", error);
     }
   }
 
@@ -101,10 +112,10 @@
     const body = document.body;
 
     body.dataset.siteTheme = settings.siteTheme || "light";
-    body.dataset.readerTheme = settings.readerTheme;
-    body.dataset.readerWidth = settings.readerWidth;
-    body.dataset.textAlign = settings.textAlign;
-    body.dataset.appSize = settings.appSize || "normal";
+    body.dataset.readerTheme = settings.readerTheme || DEFAULT_SETTINGS.readerTheme;
+    body.dataset.readerWidth = settings.readerWidth || DEFAULT_SETTINGS.readerWidth;
+    body.dataset.textAlign = settings.textAlign || DEFAULT_SETTINGS.textAlign;
+    body.dataset.appSize = settings.appSize || DEFAULT_SETTINGS.appSize;
 
     body.classList.toggle("hide-foxes", Boolean(settings.hideFoxes));
 
@@ -113,7 +124,7 @@
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || DEFAULT_SETTINGS.lineHeight);
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing || DEFAULT_SETTINGS.paragraphSpacing}px`);
 
-    applyReaderTheme(settings.readerTheme);
+    applyReaderTheme(settings.readerTheme || DEFAULT_SETTINGS.readerTheme);
     updateAppSizeButton();
   }
 
@@ -149,31 +160,31 @@
   }
 
   function initAppSizeButton() {
-    if (document.querySelector("[data-app-size-toggle]")) {
-      updateAppSizeButton();
-      return;
+    let button = document.querySelector("[data-app-size-toggle]");
+
+    if (!button) {
+      button = document.createElement("button");
+      button.className = "app-size-fab";
+      button.type = "button";
+      button.dataset.appSizeToggle = "true";
+
+      button.addEventListener("click", function () {
+        const settings = getSettings();
+
+        if (settings.appSize === "large") {
+          settings.appSize = "normal";
+        } else {
+          settings.appSize = "large";
+          requestSoftExpand();
+        }
+
+        saveSettings(settings);
+        applySettings();
+      });
+
+      document.body.appendChild(button);
     }
 
-    const button = document.createElement("button");
-    button.className = "app-size-fab";
-    button.type = "button";
-    button.dataset.appSizeToggle = "true";
-
-    button.addEventListener("click", function () {
-      const settings = getSettings();
-
-      if (settings.appSize === "large") {
-        settings.appSize = "normal";
-      } else {
-        settings.appSize = "large";
-        requestSoftExpand();
-      }
-
-      saveSettings(settings);
-      applySettings();
-    });
-
-    document.body.appendChild(button);
     updateAppSizeButton();
   }
 
@@ -193,6 +204,889 @@
       "aria-label",
       isLarge ? "Вернуть обычный размер" : "Расширить окно"
     );
+  }
+
+  function initLibrary() {
+    const raw = document.getElementById("libraryRawCards");
+
+    if (!raw) {
+      return;
+    }
+
+    initLibraryNovelMeta();
+    initLibrarySearch();
+    initLibraryFilters();
+    initLibrarySectionToggles();
+    renderLibraryCards();
+  }
+
+  function getLibraryFilter() {
+    return {
+      ...DEFAULT_FILTER,
+      ...readJson(STORAGE_KEYS.libraryFilter, {}),
+    };
+  }
+
+  function saveLibraryFilter(filter) {
+    writeJson(STORAGE_KEYS.libraryFilter, filter);
+  }
+
+  function initLibrarySearch() {
+    const toggle = document.getElementById("librarySearchToggle");
+    const panel = document.getElementById("librarySearchPanel");
+    const input = document.getElementById("librarySearchInput");
+    const clear = document.getElementById("librarySearchClear");
+
+    if (!toggle || !panel || !input) {
+      return;
+    }
+
+    const filter = getLibraryFilter();
+
+    input.value = filter.query || "";
+
+    toggle.addEventListener("click", function () {
+      panel.hidden = !panel.hidden;
+
+      if (!panel.hidden) {
+        input.focus();
+      }
+    });
+
+    input.addEventListener("input", function () {
+      const current = getLibraryFilter();
+
+      current.query = input.value.trim();
+
+      saveLibraryFilter(current);
+      renderLibraryCards();
+    });
+
+    if (clear) {
+      clear.addEventListener("click", function () {
+        const current = getLibraryFilter();
+
+        current.query = "";
+        input.value = "";
+
+        saveLibraryFilter(current);
+        renderLibraryCards();
+        input.focus();
+      });
+    }
+
+    document.querySelectorAll("[data-quick-filter]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        toggleFilterChip(button.dataset.quickFilter);
+      });
+    });
+  }
+
+  function initLibraryFilters() {
+    const open = document.getElementById("libraryFilterToggle");
+    const sheet = document.getElementById("libraryFilterSheet");
+    const reset = document.getElementById("libraryFilterReset");
+    const apply = document.getElementById("libraryFilterApply");
+
+    if (!open || !sheet) {
+      return;
+    }
+
+    open.addEventListener("click", function () {
+      syncFilterSheetButtons();
+      sheet.hidden = false;
+    });
+
+    sheet.querySelectorAll("[data-filter-close]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        sheet.hidden = true;
+      });
+    });
+
+    sheet.querySelectorAll("[data-filter-chip]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const chip = button.dataset.filterChip;
+
+        if (chip === "all") {
+          const current = getLibraryFilter();
+
+          current.chips = [];
+
+          saveLibraryFilter(current);
+          syncFilterSheetButtons();
+          renderLibraryCards();
+          return;
+        }
+
+        toggleFilterChip(chip);
+        syncFilterSheetButtons();
+      });
+    });
+
+    if (reset) {
+      reset.addEventListener("click", function () {
+        const current = getLibraryFilter();
+
+        current.chips = [];
+        current.query = "";
+
+        saveLibraryFilter(current);
+
+        const input = document.getElementById("librarySearchInput");
+        if (input) {
+          input.value = "";
+        }
+
+        syncFilterSheetButtons();
+        renderLibraryCards();
+      });
+    }
+
+    if (apply) {
+      apply.addEventListener("click", function () {
+        sheet.hidden = true;
+        renderLibraryCards();
+      });
+    }
+  }
+
+  function toggleFilterChip(chip) {
+    const current = getLibraryFilter();
+    const normalized = String(chip || "").trim();
+
+    if (!normalized) {
+      return;
+    }
+
+    if (current.chips.includes(normalized)) {
+      current.chips = current.chips.filter(function (item) {
+        return item !== normalized;
+      });
+    } else {
+      current.chips.push(normalized);
+    }
+
+    saveLibraryFilter(current);
+    renderLibraryCards();
+  }
+
+  function syncFilterSheetButtons() {
+    const current = getLibraryFilter();
+
+    document.querySelectorAll("[data-filter-chip]").forEach(function (button) {
+      const chip = button.dataset.filterChip;
+
+      if (chip === "all") {
+        button.classList.toggle("active", current.chips.length === 0);
+      } else {
+        button.classList.toggle("active", current.chips.includes(chip));
+      }
+    });
+  }
+
+  function renderActiveFilters() {
+    const filter = getLibraryFilter();
+    const wrap = document.getElementById("libraryActiveFilters");
+
+    if (!wrap) {
+      return;
+    }
+
+    const items = [];
+
+    filter.chips.forEach(function (chip) {
+      items.push(`
+        <button type="button" data-remove-filter="${escapeHtml(chip)}">
+          ${escapeHtml(chip)} <span>×</span>
+        </button>
+      `);
+    });
+
+    if (filter.query) {
+      items.push(`
+        <button type="button" data-clear-search>
+          Поиск: ${escapeHtml(filter.query)} <span>×</span>
+        </button>
+      `);
+    }
+
+    wrap.hidden = items.length === 0;
+    wrap.innerHTML = items.join("");
+
+    wrap.querySelectorAll("[data-remove-filter]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        toggleFilterChip(button.dataset.removeFilter);
+      });
+    });
+
+    const clearSearch = wrap.querySelector("[data-clear-search]");
+
+    if (clearSearch) {
+      clearSearch.addEventListener("click", function () {
+        const current = getLibraryFilter();
+
+        current.query = "";
+
+        saveLibraryFilter(current);
+
+        const input = document.getElementById("librarySearchInput");
+        if (input) {
+          input.value = "";
+        }
+
+        renderLibraryCards();
+      });
+    }
+  }
+
+  function initLibrarySectionToggles() {
+    document.querySelectorAll("[data-section-toggle]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const sectionName = button.dataset.sectionToggle;
+        const section = document.querySelector(`[data-library-section="${cssEscape(sectionName)}"]`);
+
+        if (!section) {
+          return;
+        }
+
+        section.classList.toggle("collapsed");
+      });
+    });
+  }
+
+  function initLibraryNovelMeta() {
+    const cards = document.querySelectorAll("[data-library-novel-card]");
+
+    if (!cards.length) {
+      return;
+    }
+
+    const meta = readJson(STORAGE_KEYS.novelMeta, {});
+
+    cards.forEach(function (card) {
+      const novelId = card.dataset.novelId;
+
+      if (!novelId) {
+        return;
+      }
+
+      meta[novelId] = {
+        novelId,
+        novelSlug: card.dataset.novelSlug || "",
+        novelTitle: card.dataset.novelTitle || "",
+        coverUrl: card.dataset.novelCover || "",
+      };
+    });
+
+    writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+  function renderLibraryCards() {
+    const raw = document.getElementById("libraryRawCards");
+
+    if (!raw) {
+      return;
+    }
+
+    const readingList = document.querySelector('[data-section-list="reading"]');
+    const startList = document.querySelector('[data-section-list="start"]');
+    const finishedList = document.querySelector('[data-section-list="finished"]');
+    const empty = document.getElementById("libraryEmptyFilter");
+
+    if (!readingList || !startList || !finishedList) {
+      return;
+    }
+
+    const allCards = Array.from(raw.querySelectorAll("[data-library-novel-card]"));
+    const filter = getLibraryFilter();
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    const readIds = readJson(STORAGE_KEYS.readChapters, []);
+
+    const historyByNovel = {};
+
+    history.forEach(function (item) {
+      historyByNovel[String(item.novelId)] = item;
+    });
+
+    const buckets = {
+      reading: [],
+      start: [],
+      finished: [],
+    };
+
+    allCards.forEach(function (card) {
+      prepareLibraryCard(card, historyByNovel, readIds);
+
+      if (!cardMatchesFilter(card, filter, historyByNovel)) {
+        raw.appendChild(card);
+        return;
+      }
+
+      const state = getCardState(card, historyByNovel);
+
+      buckets[state].push(card);
+    });
+
+    sortCards(buckets.reading);
+    sortCards(buckets.start);
+    sortCards(buckets.finished);
+
+    readingList.innerHTML = "";
+    startList.innerHTML = "";
+    finishedList.innerHTML = "";
+
+    buckets.reading.forEach(function (card) {
+      readingList.appendChild(card);
+    });
+
+    buckets.start.forEach(function (card) {
+      startList.appendChild(card);
+    });
+
+    buckets.finished.forEach(function (card) {
+      finishedList.appendChild(card);
+    });
+
+    updateSection("reading", buckets.reading.length);
+    updateSection("start", buckets.start.length);
+    updateSection("finished", buckets.finished.length);
+
+    const visibleTotal = buckets.reading.length + buckets.start.length + buckets.finished.length;
+
+    if (empty) {
+      empty.hidden = visibleTotal !== 0;
+    }
+
+    renderActiveFilters();
+    renderLibraryUpdateBanner(buckets.reading);
+  }
+
+  function prepareLibraryCard(card, historyByNovel, readIds) {
+    const novelId = String(card.dataset.novelId || "");
+    const historyItem = historyByNovel[novelId];
+
+    const chapters = Number(card.dataset.chapters || 0);
+    const translated = Number(card.dataset.translatedChapters || 0);
+    const available = Number(card.dataset.availableChapters || 0);
+    const progress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
+
+    const button = card.querySelector("[data-card-main-button]");
+    const stateLine = card.querySelector("[data-card-state-line]");
+    const progressFill = card.querySelector("[data-card-progress-fill]");
+    const progressText = card.querySelector("[data-card-progress-text]");
+
+    card.classList.remove("is-reading", "is-new", "is-finished", "is-start");
+
+    if (progressFill) {
+      const visualProgress = historyItem && historyItem.chapterIndex && available
+        ? clampNumber(historyItem.chapterIndex / available * 100, 0, 100)
+        : progress;
+
+      progressFill.style.width = `${visualProgress}%`;
+    }
+
+    if (progressText) {
+      if (historyItem && historyItem.chapterIndex && available) {
+        progressText.textContent = `${historyItem.chapterIndex} / ${available}`;
+      } else if (chapters) {
+        progressText.textContent = `${translated || 0} / ${chapters}`;
+      } else {
+        progressText.textContent = "";
+      }
+    }
+
+    const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+
+    if (historyItem && newCount > 0) {
+      card.classList.add("is-new");
+
+      if (stateLine) {
+        stateLine.innerHTML = `
+          <span class="library-status-chip library-status-new">Новая глава</span>
+          <span>Вы остановились на ${escapeHtml(historyItem.chapterTitle || "главе")}</span>
+        `;
+      }
+
+      if (button) {
+        button.textContent = "Читать новую";
+        button.href = `/novel/${card.dataset.novelSlug || ""}`;
+      }
+
+      return;
+    }
+
+    if (historyItem && available && historyItem.chapterIndex >= available) {
+      card.classList.add("is-finished");
+
+      if (stateLine) {
+        stateLine.innerHTML = `
+          <span class="library-status-chip library-status-finished">Прочитано</span>
+          <span>Прочитано полностью</span>
+        `;
+      }
+
+      if (button) {
+        button.textContent = "Перечитать";
+        button.href = `/chapter/${historyItem.chapterId}`;
+      }
+
+      return;
+    }
+
+    if (historyItem) {
+      card.classList.add("is-reading");
+
+      if (stateLine) {
+        stateLine.innerHTML = `
+          <span>Вы на главе ${escapeHtml(historyItem.chapterIndex || "")}</span>
+          <span>Доступно ${available || chapters || 0} из ${chapters || available || 0}</span>
+        `;
+      }
+
+      if (button) {
+        button.textContent = "Продолжить";
+        button.href = `/chapter/${historyItem.chapterId}`;
+      }
+
+      return;
+    }
+
+    card.classList.add("is-start");
+
+    if (stateLine) {
+      const label = card.dataset.statusLabel || "Переводится";
+
+      stateLine.innerHTML = `
+        <span class="library-status-chip">${escapeHtml(label)}</span>
+      `;
+    }
+
+    if (button) {
+      button.textContent = "Начать";
+      button.href = `/novel/${card.dataset.novelSlug || ""}`;
+    }
+  }
+
+  function getCardState(card, historyByNovel) {
+    const novelId = String(card.dataset.novelId || "");
+    const historyItem = historyByNovel[novelId];
+
+    if (!historyItem) {
+      return "start";
+    }
+
+    const available = Number(card.dataset.availableChapters || 0);
+    const newCount = getNewChapterCount(novelId, historyItem.availableChapters);
+
+    if (newCount > 0) {
+      return "reading";
+    }
+
+    if (available && Number(historyItem.chapterIndex || 0) >= available) {
+      return "finished";
+    }
+
+    return "reading";
+  }
+
+  function cardMatchesFilter(card, filter, historyByNovel) {
+    const query = String(filter.query || "").toLowerCase().trim();
+    const chips = filter.chips || [];
+
+    const haystack = [
+      card.dataset.novelTitle,
+      card.dataset.title,
+      card.dataset.description,
+      card.dataset.tags,
+      card.dataset.statusLabel,
+      card.dataset.relation,
+    ].join(" ").toLowerCase();
+
+    if (query && !haystack.includes(query)) {
+      return false;
+    }
+
+    for (const chip of chips) {
+      if (!chip || chip === "all") {
+        continue;
+      }
+
+      if (chip === "reading") {
+        if (!historyByNovel[String(card.dataset.novelId || "")]) {
+          return false;
+        }
+
+        continue;
+      }
+
+      if (chip === "finished") {
+        const item = historyByNovel[String(card.dataset.novelId || "")];
+        const available = Number(card.dataset.availableChapters || 0);
+
+        if (!item || !available || Number(item.chapterIndex || 0) < available) {
+          return false;
+        }
+
+        continue;
+      }
+
+      if (chip === "in_progress" || chip === "completed" || chip === "paused") {
+        if (card.dataset.status !== chip) {
+          return false;
+        }
+
+        continue;
+      }
+
+      if (!haystack.includes(String(chip).toLowerCase())) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function sortCards(cards) {
+    const select = document.getElementById("librarySort");
+    const mode = select ? select.value : "smart";
+
+    cards.sort(function (a, b) {
+      if (mode === "title") {
+        return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
+      }
+
+      if (mode === "status") {
+        return statusWeight(a.dataset.status) - statusWeight(b.dataset.status);
+      }
+
+      if (mode === "chapters") {
+        return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
+      }
+
+      if (mode === "translated") {
+        return Number(b.dataset.translatedChapters || 0) - Number(a.dataset.translatedChapters || 0);
+      }
+
+      if (mode === "added") {
+        return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
+      }
+
+      return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
+    });
+  }
+
+  function updateSection(name, count) {
+    const section = document.querySelector(`[data-library-section="${cssEscape(name)}"]`);
+    const countEl = document.querySelector(`[data-section-count="${cssEscape(name)}"]`);
+
+    if (countEl) {
+      countEl.textContent = String(count);
+    }
+
+    if (section) {
+      section.hidden = count === 0;
+    }
+  }
+
+  function renderLibraryUpdateBanner(readingCards) {
+    const banner = document.getElementById("libraryUpdateBanner");
+    const text = document.getElementById("libraryUpdateText");
+    const button = document.getElementById("libraryUpdateButton");
+    const close = document.getElementById("libraryUpdateClose");
+
+    if (!banner || !text || !button) {
+      return;
+    }
+
+    const newCard = readingCards.find(function (card) {
+      return card.classList.contains("is-new");
+    });
+
+    if (!newCard) {
+      banner.hidden = true;
+      return;
+    }
+
+    const title = newCard.dataset.novelTitle || "Новелла";
+    const available = Number(newCard.dataset.availableChapters || 0);
+
+    text.textContent = `${title} — доступна глава ${available}`;
+    button.href = `/novel/${newCard.dataset.novelSlug || ""}`;
+    banner.hidden = false;
+
+    if (close) {
+      close.onclick = function () {
+        banner.hidden = true;
+      };
+    }
+  }
+
+  function initNovelPageMeta() {
+    const page = document.querySelector("[data-novel-page]");
+
+    if (!page) {
+      return;
+    }
+
+    const novelId = page.dataset.novelId;
+
+    if (!novelId) {
+      return;
+    }
+
+    const cover = document.querySelector(".title-cover");
+    const meta = readJson(STORAGE_KEYS.novelMeta, {});
+
+    meta[novelId] = {
+      novelId,
+      novelSlug: page.dataset.novelSlug || "",
+      novelTitle: page.dataset.novelTitle || "",
+      coverUrl: cover && cover.tagName === "IMG" ? cover.getAttribute("src") || "" : "",
+    };
+
+    writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+  function initChapterProgress() {
+    const page = document.querySelector("[data-chapter-page]");
+
+    if (!page) {
+      return;
+    }
+
+    const isLocked = page.dataset.isLocked === "true";
+
+    if (isLocked) {
+      return;
+    }
+
+    const novelId = page.dataset.novelId;
+    const novelSlug = page.dataset.novelSlug;
+    const novelTitle = page.dataset.novelTitle;
+    const chapterId = page.dataset.chapterId;
+    const chapterTitle = page.dataset.chapterTitle;
+    const chapterIndex = Number(page.dataset.chapterIndex || 0);
+    const availableChapters = Number(page.dataset.availableChapters || 0);
+
+    if (!novelId || !chapterId) {
+      return;
+    }
+
+    const meta = readJson(STORAGE_KEYS.novelMeta, {});
+    const novelMeta = meta[novelId] || {};
+
+    const item = {
+      novelId,
+      novelSlug: novelSlug || novelMeta.novelSlug || "",
+      novelTitle: novelTitle || novelMeta.novelTitle || "",
+      coverUrl: novelMeta.coverUrl || "",
+      chapterId,
+      chapterTitle: chapterTitle || "",
+      chapterIndex,
+      availableChapters,
+      updatedAt: Date.now(),
+    };
+
+    saveReadingHistoryItem(item);
+    saveReadChapter(chapterId);
+  }
+
+  function saveReadingHistoryItem(item) {
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    const filtered = history.filter(function (entry) {
+      return String(entry.novelId) !== String(item.novelId);
+    });
+
+    filtered.push(item);
+
+    writeJson(STORAGE_KEYS.readingHistory, filtered.slice(-50));
+  }
+
+  function saveReadChapter(chapterId) {
+    const ids = readJson(STORAGE_KEYS.readChapters, []);
+
+    if (!ids.includes(String(chapterId))) {
+      ids.push(String(chapterId));
+    }
+
+    writeJson(STORAGE_KEYS.readChapters, ids.slice(-2000));
+  }
+
+  function getNewChapterCount(novelId, lastKnownAvailableChapters) {
+    const card = document.querySelector(
+      `[data-library-novel-card][data-novel-id="${cssEscape(String(novelId))}"]`
+    );
+
+    if (!card) {
+      return 0;
+    }
+
+    const currentAvailable = Number(card.dataset.availableChapters || 0);
+    const previousAvailable = Number(lastKnownAvailableChapters || 0);
+
+    if (!currentAvailable || !previousAvailable) {
+      return 0;
+    }
+
+    return Math.max(0, currentAvailable - previousAvailable);
+  }
+
+  function initNovelReadButton() {
+    const page = document.querySelector("[data-novel-page]");
+    const button = document.getElementById("novelReadButton");
+
+    if (!page || !button) {
+      return;
+    }
+
+    const novelId = page.dataset.novelId;
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    const item = history.find(function (entry) {
+      return String(entry.novelId) === String(novelId);
+    });
+
+    if (item && item.chapterId) {
+      button.href = `/chapter/${item.chapterId}`;
+      button.textContent = item.chapterTitle
+        ? `Продолжить с ${item.chapterTitle}`
+        : "Продолжить чтение";
+    }
+  }
+
+  function initReadChapterMarks() {
+    const readIds = readJson(STORAGE_KEYS.readChapters, []);
+
+    if (!readIds.length) {
+      return;
+    }
+
+    document.querySelectorAll("[data-chapter-row]").forEach(function (row) {
+      if (readIds.includes(String(row.dataset.chapterId))) {
+        row.classList.add("chapter-row-read");
+      }
+    });
+  }
+
+  function initCollapsibleDescription() {
+    document.querySelectorAll("[data-collapsible-description]").forEach(function (block) {
+      const content = block.querySelector(".collapsible-description-content");
+      const button = block.querySelector("[data-description-toggle]");
+
+      if (!content || !button) {
+        return;
+      }
+
+      if (content.scrollHeight <= 120) {
+        button.hidden = true;
+        block.classList.add("is-expanded");
+        return;
+      }
+
+      button.addEventListener("click", function () {
+        const expanded = block.classList.toggle("is-expanded");
+
+        button.textContent = expanded ? "Свернуть" : "Ещё";
+      });
+    });
+  }
+
+  function initPaidChapterReveal() {
+    const button = document.querySelector("[data-paid-toggle]");
+
+    if (!button) {
+      return;
+    }
+
+    button.addEventListener("click", function () {
+      document.querySelectorAll("[data-paid-extra]").forEach(function (row) {
+        row.hidden = false;
+
+        requestAnimationFrame(function () {
+          row.classList.add("paid-chapter-extra-open");
+        });
+      });
+
+      const fade = document.querySelector("[data-paid-fade]");
+
+      if (fade) {
+        fade.remove();
+      }
+    });
+  }
+
+  function initSpoilerReveal() {
+    document.querySelectorAll("[data-spoiler]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const confirmed = localStorage.getItem(STORAGE_KEYS.spoilerConfirmed) === "true";
+
+        if (confirmed) {
+          revealSpoiler(button);
+          return;
+        }
+
+        showSpoilerWarning(function (remember) {
+          if (remember) {
+            localStorage.setItem(STORAGE_KEYS.spoilerConfirmed, "true");
+          }
+
+          revealSpoiler(button);
+        });
+      });
+    });
+  }
+
+  function revealSpoiler(button) {
+    button.textContent = button.dataset.spoiler || "";
+    button.classList.remove("tag-spoiler");
+    button.classList.add("tag-spoiler-opened");
+  }
+
+  function showSpoilerWarning(onConfirm) {
+    let overlay = document.querySelector("[data-spoiler-warning-overlay]");
+
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "spoiler-warning-overlay";
+      overlay.dataset.spoilerWarningOverlay = "true";
+
+      overlay.innerHTML = `
+        <div class="spoiler-warning-modal">
+          <h2>Осторожно, спойлер</h2>
+          <p>Этот тег может раскрыть важную деталь сюжета.</p>
+
+          <label class="spoiler-warning-check">
+            <input type="checkbox" data-spoiler-remember>
+            <span>Больше не предупреждать</span>
+          </label>
+
+          <div class="spoiler-warning-actions">
+            <button type="button" class="spoiler-warning-cancel" data-spoiler-cancel>Не открывать</button>
+            <button type="button" class="spoiler-warning-confirm" data-spoiler-confirm>Показать</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+    }
+
+    overlay.hidden = false;
+
+    const cancel = overlay.querySelector("[data-spoiler-cancel]");
+    const confirm = overlay.querySelector("[data-spoiler-confirm]");
+    const remember = overlay.querySelector("[data-spoiler-remember]");
+
+    const close = function () {
+      overlay.hidden = true;
+    };
+
+    cancel.onclick = close;
+
+    confirm.onclick = function () {
+      const shouldRemember = remember && remember.checked;
+
+      close();
+      onConfirm(shouldRemember);
+    };
   }
 
   function createSettingsUi() {
@@ -478,313 +1372,20 @@
     return (window.ZEFIRKI_FOX && window.ZEFIRKI_FOX[name]) || "";
   }
 
-  function initLibrarySort() {
-    const select = document.getElementById("librarySort");
-    const list = document.getElementById("libraryList");
-
-    if (!select || !list) {
-      return;
-    }
-
-    select.addEventListener("change", function () {
-      const cards = Array.from(list.querySelectorAll("[data-library-novel-card]"));
-      const mode = select.value;
-
-      cards.sort(function (a, b) {
-        if (mode === "title") {
-          return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
-        }
-
-        if (mode === "status") {
-          return statusWeight(a.dataset.status) - statusWeight(b.dataset.status);
-        }
-
-        if (mode === "chapters") {
-          return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
-        }
-
-        if (mode === "translated") {
-          return Number(b.dataset.translatedChapters || 0) - Number(a.dataset.translatedChapters || 0);
-        }
-
-        if (mode === "added") {
-          return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
-        }
-
-        if (mode === "relation") {
-          return String(a.dataset.relation || "").localeCompare(String(b.dataset.relation || ""), "ru");
-        }
-
-        return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
-      });
-
-      cards.forEach(function (card) {
-        list.appendChild(card);
-      });
-    });
-  }
-
   function statusWeight(status) {
-    if (status === "completed") {
-      return 1;
-    }
-
-    if (status === "in_progress") {
-      return 2;
-    }
-
-    if (status === "paused") {
-      return 3;
-    }
+    if (status === "completed") return 1;
+    if (status === "in_progress") return 2;
+    if (status === "paused") return 3;
 
     return 4;
   }
 
-  function initLibraryNovelMeta() {
-    const cards = document.querySelectorAll("[data-library-novel-card]");
-
-    if (!cards.length) {
-      return;
+  function clampNumber(value, min, max) {
+    if (Number.isNaN(value)) {
+      return min;
     }
 
-    const meta = readJson(STORAGE_KEYS.novelMeta, {});
-
-    cards.forEach(function (card) {
-      const novelId = card.dataset.novelId;
-
-      if (!novelId) {
-        return;
-      }
-
-      meta[novelId] = {
-        novelId,
-        novelSlug: card.dataset.novelSlug || "",
-        novelTitle: card.dataset.novelTitle || "",
-        coverUrl: card.dataset.novelCover || "",
-      };
-    });
-
-    writeJson(STORAGE_KEYS.novelMeta, meta);
-  }
-
-  function initNovelPageMeta() {
-    const page = document.querySelector("[data-novel-page]");
-
-    if (!page) {
-      return;
-    }
-
-    const novelId = page.dataset.novelId;
-
-    if (!novelId) {
-      return;
-    }
-
-    const cover = document.querySelector(".title-cover");
-    const meta = readJson(STORAGE_KEYS.novelMeta, {});
-
-    meta[novelId] = {
-      novelId,
-      novelSlug: page.dataset.novelSlug || "",
-      novelTitle: page.dataset.novelTitle || "",
-      coverUrl: cover && cover.tagName === "IMG" ? cover.getAttribute("src") || "" : "",
-    };
-
-    writeJson(STORAGE_KEYS.novelMeta, meta);
-  }
-
-  function initChapterProgress() {
-    const page = document.querySelector("[data-chapter-page]");
-
-    if (!page) {
-      return;
-    }
-
-    const isLocked = page.dataset.isLocked === "true";
-
-    if (isLocked) {
-      return;
-    }
-
-    const novelId = page.dataset.novelId;
-    const novelSlug = page.dataset.novelSlug;
-    const novelTitle = page.dataset.novelTitle;
-    const chapterId = page.dataset.chapterId;
-    const chapterTitle = page.dataset.chapterTitle;
-    const chapterIndex = Number(page.dataset.chapterIndex || 0);
-    const availableChapters = Number(page.dataset.availableChapters || 0);
-
-    if (!novelId || !chapterId) {
-      return;
-    }
-
-    const meta = readJson(STORAGE_KEYS.novelMeta, {});
-    const novelMeta = meta[novelId] || {};
-
-    const item = {
-      novelId,
-      novelSlug: novelSlug || novelMeta.novelSlug || "",
-      novelTitle: novelTitle || novelMeta.novelTitle || "",
-      coverUrl: novelMeta.coverUrl || "",
-      chapterId,
-      chapterTitle: chapterTitle || "",
-      chapterIndex,
-      availableChapters,
-      updatedAt: Date.now(),
-    };
-
-    saveReadingHistoryItem(item);
-    saveReadChapter(chapterId);
-  }
-
-  function saveReadingHistoryItem(item) {
-    const history = readJson(STORAGE_KEYS.readingHistory, []);
-    const filtered = history.filter(function (entry) {
-      return String(entry.novelId) !== String(item.novelId);
-    });
-
-    filtered.push(item);
-
-    writeJson(STORAGE_KEYS.readingHistory, filtered.slice(-50));
-  }
-
-  function saveReadChapter(chapterId) {
-    const ids = readJson(STORAGE_KEYS.readChapters, []);
-
-    if (!ids.includes(String(chapterId))) {
-      ids.push(String(chapterId));
-    }
-
-    writeJson(STORAGE_KEYS.readChapters, ids.slice(-2000));
-  }
-
-  function initReadingHistory() {
-    const container = document.getElementById("readingHistory");
-
-    if (!container) {
-      return;
-    }
-
-    renderReadingHistory();
-
-    const clearButton = document.getElementById("clearReadingHistory");
-
-    if (clearButton) {
-      clearButton.addEventListener("click", function () {
-        localStorage.removeItem(STORAGE_KEYS.readingHistory);
-        renderReadingHistory();
-        initNewChapterBadges();
-      });
-    }
-  }
-
-  function renderReadingHistory() {
-    const container = document.getElementById("readingHistory");
-    const clearButton = document.getElementById("clearReadingHistory");
-
-    if (!container) {
-      return;
-    }
-
-    const history = readJson(STORAGE_KEYS.readingHistory, []);
-
-    if (clearButton) {
-      clearButton.hidden = history.length === 0;
-    }
-
-    if (!history.length) {
-      container.innerHTML = `
-        <div class="reading-history-empty">
-          Здесь появится история чтения, когда вы откроете первую главу.
-        </div>
-      `;
-      return;
-    }
-
-    const cards = history.map(function (item) {
-      const newCount = getNewChapterCount(item.novelId, item.chapterIndex);
-      const newBadge = newCount > 0
-        ? `<span class="continue-new-badge">+${newCount}</span>`
-        : "";
-
-      const coverHtml = item.coverUrl
-        ? `<img class="continue-card-cover" src="${escapeHtml(item.coverUrl)}" alt="${escapeHtml(item.novelTitle || "")}">`
-        : `<div class="continue-card-cover continue-card-cover-placeholder">📖</div>`;
-
-      return `
-        <article class="continue-card">
-          ${newBadge}
-          <a class="continue-card-cover-link" href="/novel/${escapeHtml(item.novelSlug || "")}">
-            ${coverHtml}
-          </a>
-
-          <div class="continue-card-body">
-            <a class="continue-card-title" href="/novel/${escapeHtml(item.novelSlug || "")}">
-              ${escapeHtml(item.novelTitle || "Без названия")}
-            </a>
-
-            <div class="continue-card-chapter">
-              ${escapeHtml(item.chapterTitle || "Глава")}
-            </div>
-
-            <a class="continue-card-button" href="/chapter/${escapeHtml(item.chapterId)}">
-              Продолжить
-            </a>
-          </div>
-        </article>
-      `;
-    });
-
-    container.innerHTML = cards.join("");
-    container.scrollLeft = container.scrollWidth;
-  }
-
-  function initNewChapterBadges() {
-    const history = readJson(STORAGE_KEYS.readingHistory, []);
-    const byNovel = {};
-
-    history.forEach(function (item) {
-      byNovel[String(item.novelId)] = item;
-    });
-
-    document.querySelectorAll("[data-library-novel-card]").forEach(function (card) {
-      const novelId = String(card.dataset.novelId || "");
-      const badge = card.querySelector("[data-new-chapters-badge]");
-      const historyItem = byNovel[novelId];
-
-      if (!badge || !historyItem) {
-        if (badge) {
-          badge.hidden = true;
-        }
-        return;
-      }
-
-      const newCount = getNewChapterCount(novelId, historyItem.chapterIndex);
-
-      if (newCount > 0) {
-        badge.textContent = `+${newCount}`;
-        badge.hidden = false;
-      } else {
-        badge.hidden = true;
-      }
-    });
-  }
-
-  function getNewChapterCount(novelId, chapterIndex) {
-    const card = document.querySelector(`[data-library-novel-card][data-novel-id="${cssEscape(String(novelId))}"]`);
-
-    if (!card) {
-      return 0;
-    }
-
-    const available = Number(card.dataset.availableChapters || 0);
-    const readIndex = Number(chapterIndex || 0);
-
-    if (!available || !readIndex) {
-      return 0;
-    }
-
-    return Math.max(0, available - readIndex);
+    return Math.min(max, Math.max(min, value));
   }
 
   function cssEscape(value) {
@@ -793,164 +1394,6 @@
     }
 
     return value.replace(/"/g, '\\"');
-  }
-
-  function initNovelReadButton() {
-    const page = document.querySelector("[data-novel-page]");
-    const button = document.getElementById("novelReadButton");
-
-    if (!page || !button) {
-      return;
-    }
-
-    const novelId = page.dataset.novelId;
-    const history = readJson(STORAGE_KEYS.readingHistory, []);
-    const item = history.find(function (entry) {
-      return String(entry.novelId) === String(novelId);
-    });
-
-    if (item && item.chapterId) {
-      button.href = `/chapter/${item.chapterId}`;
-      button.textContent = item.chapterTitle
-        ? `Продолжить с ${item.chapterTitle}`
-        : "Продолжить чтение";
-    }
-  }
-
-  function initReadChapterMarks() {
-    const readIds = readJson(STORAGE_KEYS.readChapters, []);
-
-    if (!readIds.length) {
-      return;
-    }
-
-    document.querySelectorAll("[data-chapter-row]").forEach(function (row) {
-      if (readIds.includes(String(row.dataset.chapterId))) {
-        row.classList.add("chapter-row-read");
-      }
-    });
-  }
-
-  function initCollapsibleDescription() {
-    document.querySelectorAll("[data-collapsible-description]").forEach(function (block) {
-      const content = block.querySelector(".collapsible-description-content");
-      const button = block.querySelector("[data-description-toggle]");
-
-      if (!content || !button) {
-        return;
-      }
-
-      if (content.scrollHeight <= 120) {
-        button.hidden = true;
-        block.classList.add("is-expanded");
-        return;
-      }
-
-      button.addEventListener("click", function () {
-        const expanded = block.classList.toggle("is-expanded");
-
-        button.textContent = expanded ? "Свернуть" : "Ещё";
-      });
-    });
-  }
-
-  function initPaidChapterReveal() {
-    const button = document.querySelector("[data-paid-toggle]");
-
-    if (!button) {
-      return;
-    }
-
-    button.addEventListener("click", function () {
-      document.querySelectorAll("[data-paid-extra]").forEach(function (row) {
-        row.hidden = false;
-
-        requestAnimationFrame(function () {
-          row.classList.add("paid-chapter-extra-open");
-        });
-      });
-
-      const fade = document.querySelector("[data-paid-fade]");
-
-      if (fade) {
-        fade.remove();
-      }
-    });
-  }
-
-  function initSpoilerReveal() {
-    document.querySelectorAll("[data-spoiler]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        const confirmed = localStorage.getItem(STORAGE_KEYS.spoilerConfirmed) === "true";
-
-        if (confirmed) {
-          revealSpoiler(button);
-          return;
-        }
-
-        showSpoilerWarning(function (remember) {
-          if (remember) {
-            localStorage.setItem(STORAGE_KEYS.spoilerConfirmed, "true");
-          }
-
-          revealSpoiler(button);
-        });
-      });
-    });
-  }
-
-  function revealSpoiler(button) {
-    button.textContent = button.dataset.spoiler || "";
-    button.classList.remove("tag-spoiler");
-    button.classList.add("tag-spoiler-opened");
-  }
-
-  function showSpoilerWarning(onConfirm) {
-    let overlay = document.querySelector("[data-spoiler-warning-overlay]");
-
-    if (!overlay) {
-      overlay = document.createElement("div");
-      overlay.className = "spoiler-warning-overlay";
-      overlay.dataset.spoilerWarningOverlay = "true";
-
-      overlay.innerHTML = `
-        <div class="spoiler-warning-modal">
-          <h2>Осторожно, спойлер</h2>
-          <p>Этот тег может раскрыть важную деталь сюжета.</p>
-
-          <label class="spoiler-warning-check">
-            <input type="checkbox" data-spoiler-remember>
-            <span>Больше не предупреждать</span>
-          </label>
-
-          <div class="spoiler-warning-actions">
-            <button type="button" class="spoiler-warning-cancel" data-spoiler-cancel>Не открывать</button>
-            <button type="button" class="spoiler-warning-confirm" data-spoiler-confirm>Показать</button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(overlay);
-    }
-
-    overlay.hidden = false;
-
-    const cancel = overlay.querySelector("[data-spoiler-cancel]");
-    const confirm = overlay.querySelector("[data-spoiler-confirm]");
-    const remember = overlay.querySelector("[data-spoiler-remember]");
-
-    const close = function () {
-      overlay.hidden = true;
-    };
-
-    cancel.onclick = close;
-
-    confirm.onclick = function () {
-      const shouldRemember = remember && remember.checked;
-
-      close();
-      onConfirm(shouldRemember);
-    };
   }
 
   function escapeHtml(value) {
