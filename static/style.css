@@ -1994,3 +1994,64 @@ body[data-site-theme="dark"] .library-filter-chips button {
     display: none;
   }
 }
+.library-hero {
+  overflow: visible;
+}
+
+.library-hero-fox {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  transform: scaleX(-1) rotate(4deg);
+  filter: drop-shadow(0 14px 22px rgba(92, 56, 25, 0.16));
+}
+
+.library-card-actions-row {
+  margin: 6px 0 10px;
+}
+
+.library-card-actions-row .library-project-status-chip {
+  display: none !important;
+}
+
+.library-card-button.is-disabled-soft {
+  background: #eee4da;
+  color: #8a7a70;
+  box-shadow: none;
+}
+
+.library-book-state-line .library-status-chip + span {
+  min-width: 0;
+}
+
+.library-book-title {
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.library-card-stats span[title="Прогресс перевода"] {
+  color: #ff640a;
+}
+
+.library-card-stats span[title="Всего глав"],
+.library-card-stats span[title="Переведено"] {
+  color: #2b211c;
+}
+
+.library-book-card.is-start .library-status-chip {
+  background: rgba(255, 238, 220, 0.95);
+  color: #ff640a;
+}
+
+.library-book-card.is-new .library-status-chip.library-status-new {
+  box-shadow: 0 8px 18px rgba(255, 100, 10, 0.22);
+}
+
+@media (max-width: 640px) {
+  .library-hero-fox {
+    width: 82px;
+    height: 82px;
+  }
+}
