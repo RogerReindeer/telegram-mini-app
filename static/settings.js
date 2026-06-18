@@ -41,7 +41,6 @@
     try {
       if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.ready();
-        window.Telegram.WebApp.expand();
       }
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
@@ -50,7 +49,7 @@
 
   function requestSoftExpand() {
     try {
-      if (window.Telegram && window.Telegram.WebApp) {
+      if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.expand === "function") {
         window.Telegram.WebApp.expand();
       }
     } catch (error) {
@@ -360,6 +359,7 @@
     });
 
     const close = overlay.querySelector("[data-settings-close]");
+
     if (close) {
       close.addEventListener("click", function () {
         overlay.hidden = true;
@@ -383,12 +383,15 @@
     overlay.querySelectorAll("[data-setting]").forEach(function (input) {
       input.addEventListener("change", function () {
         const current = getSettings();
+
         current[input.dataset.setting] = input.value;
+
         saveSettings(current);
         applySettings();
 
         if (input.dataset.setting === "accentColor") {
           const colorInput = overlay.querySelector("[data-setting-color]");
+
           if (colorInput) {
             colorInput.value = input.value;
           }
@@ -399,21 +402,27 @@
     overlay.querySelectorAll("[data-setting-checkbox]").forEach(function (input) {
       input.addEventListener("change", function () {
         const current = getSettings();
+
         current[input.dataset.settingCheckbox] = input.checked;
+
         saveSettings(current);
         applySettings();
       });
     });
 
     const colorInput = overlay.querySelector("[data-setting-color]");
+
     if (colorInput) {
       colorInput.addEventListener("input", function () {
         const current = getSettings();
+
         current.accentColor = colorInput.value;
+
         saveSettings(current);
         applySettings();
 
         const select = overlay.querySelector('[data-setting="accentColor"]');
+
         if (select) {
           select.value = colorInput.value;
         }
@@ -421,6 +430,7 @@
     }
 
     const reset = overlay.querySelector("[data-settings-reset]");
+
     if (reset) {
       reset.addEventListener("click", function () {
         saveSettings({ ...DEFAULT_SETTINGS });
@@ -430,6 +440,7 @@
     }
 
     const aboutFoxWrap = overlay.querySelector("[data-about-fox-wrap]");
+
     if (aboutFoxWrap) {
       const foxUrl = getFoxUrl("fox_sitting_front") || getFoxUrl("fox_pic") || getFoxUrl("fox_peek");
 
@@ -457,6 +468,7 @@
     });
 
     const colorInput = document.querySelector("[data-setting-color]");
+
     if (colorInput) {
       colorInput.value = settings.accentColor || DEFAULT_SETTINGS.accentColor;
     }
@@ -836,6 +848,7 @@
 
       button.addEventListener("click", function () {
         const expanded = block.classList.toggle("is-expanded");
+
         button.textContent = expanded ? "Свернуть" : "Ещё";
       });
     });
@@ -858,6 +871,7 @@
       });
 
       const fade = document.querySelector("[data-paid-fade]");
+
       if (fade) {
         fade.remove();
       }
@@ -933,6 +947,7 @@
 
     confirm.onclick = function () {
       const shouldRemember = remember && remember.checked;
+
       close();
       onConfirm(shouldRemember);
     };
