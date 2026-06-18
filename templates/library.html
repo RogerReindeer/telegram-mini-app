@@ -74,9 +74,9 @@
               data-title="{{ novel.display_title|lower }}"
               data-sort-order="{{ novel.sort_order or novel.id }}"
               data-status="{{ novel.translation_status or 'in_progress' }}"
-              data-chapters="{{ novel.display_chapters_count or novel.available_chapters_count or novel.total_chapters or 0 }}"
+              data-chapters="{{ novel.display_chapters_count or novel.total_chapters or 0 }}"
               data-translated-chapters="{{ novel.translated_chapters or 0 }}"
-              data-available-chapters="{{ novel.available_chapters_count or novel.display_chapters_count or 0 }}"
+              data-available-chapters="{{ novel.available_chapters_count or 0 }}"
               data-progress="{{ novel.progress_percent or 0 }}"
               data-added="{{ novel.added_date or '' }}"
               data-relation="{{ novel.relation_type or '' }}"
@@ -115,9 +115,9 @@
                 {% endif %}
 
                 <div class="novel-meta-line">
-                  {% if novel.display_chapters_count or novel.available_chapters_count or novel.total_chapters %}
+                  {% if novel.display_chapters_count or novel.total_chapters %}
                     <span class="meta-pill">
-                      📚 {{ novel.display_chapters_count or novel.available_chapters_count or novel.total_chapters }} глав
+                      📚 {{ novel.display_chapters_count or novel.total_chapters }} глав
                     </span>
                   {% endif %}
 
