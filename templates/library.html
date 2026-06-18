@@ -66,6 +66,7 @@
           <button type="button" data-quick-filter="Сянься/Уся">Сянься/Уся</button>
           <button type="button" data-quick-filter="Слэш">Слэш</button>
           <button type="button" data-quick-filter="Гет">Гет</button>
+          <button type="button" data-quick-filter="Джен">Джен</button>
           <button type="button" data-quick-filter="Романтика">Романтика</button>
           <button type="button" data-quick-filter="Переводится">Переводится</button>
         </div>
@@ -75,12 +76,14 @@
 
       <section class="library-update-banner" id="libraryUpdateBanner" hidden>
         <div class="library-update-icon">🔔</div>
+
         <div class="library-update-text">
           <div class="library-update-title">Новая глава</div>
           <div class="library-update-subtitle" id="libraryUpdateText"></div>
         </div>
+
         <a class="library-update-button" id="libraryUpdateButton" href="#">Читать</a>
-        <button class="library-update-close" type="button" id="libraryUpdateClose">×</button>
+        <button class="library-update-close" type="button" id="libraryUpdateClose" aria-label="Скрыть">×</button>
       </section>
 
       {% if novels %}
@@ -181,11 +184,13 @@
                   <div class="library-book-bottom">
                     <div class="library-card-tags">
                       {% if novel.catalog_tag_items %}
-                        {% for tag in novel.catalog_tag_items[:3] %}
-                          {% if tag.is_spoiler %}
-                            <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
-                          {% else %}
-                            <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
+                        {% for tag in novel.catalog_tag_items %}
+                          {% if loop.index <= 3 %}
+                            {% if tag.is_spoiler %}
+                              <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
+                            {% else %}
+                              <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
+                            {% endif %}
                           {% endif %}
                         {% endfor %}
                       {% endif %}
@@ -219,17 +224,25 @@
 
         <header class="library-filter-header">
           <h2>Фильтры</h2>
-          <button type="button" data-filter-close>×</button>
+          <button type="button" data-filter-close aria-label="Закрыть">×</button>
         </header>
 
         <div class="library-filter-group">
-          <h3>Статус</h3>
+          <h3>Статус чтения</h3>
           <div class="library-filter-chips">
             <button type="button" data-filter-chip="all" class="active">Все</button>
             <button type="button" data-filter-chip="reading">Читаю</button>
+            <button type="button" data-filter-chip="new">Новая глава</button>
+            <button type="button" data-filter-chip="finished">Прочитано</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Статус проекта</h3>
+          <div class="library-filter-chips">
             <button type="button" data-filter-chip="in_progress">Переводится</button>
             <button type="button" data-filter-chip="completed">Завершено</button>
-            <button type="button" data-filter-chip="finished">Прочитано</button>
+            <button type="button" data-filter-chip="paused">На паузе</button>
           </div>
         </div>
 
