@@ -157,6 +157,31 @@ def to_float(value):
         return None
 
 
+def parse_chapter_no_number(value):
+    text = clean_value(value).replace(",", ".")
+
+    if not text:
+        return None
+
+    direct = to_float(text)
+
+    if direct is not None:
+        return direct
+
+    match = re.search(r"(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*(\d+))?", text, re.IGNORECASE)
+
+    if not match:
+        return None
+
+    base = int(match.group(1))
+    part = match.group(2)
+
+    if part:
+        return base + int(part) / 100
+
+    return float(base)
+
+
 def normalize_progress_percent(value):
     number = to_float(value)
 
@@ -244,25 +269,39 @@ def normalize_chapter_no_for_unit(value):
     number = to_float(value)
 
     if number is not None:
-        if number.is_integer():
-            return str(int(number))
+        int_part = int(number)
 
-        return str(number).rstrip("0").rstrip(".")
+        if int_part > 0:
+            return str(int_part)
 
     text = clean_value(value)
 
     if not text:
         return ""
 
+    text = text.lower()
+    text = text.replace("ё", "е")
     text = text.replace(",", ".")
-    text = re.sub(r"\s+", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
 
-    part_match = re.match(r"^(\d+)(?:[-_.](?:part|p|ч|часть)?\d+)?$", text, re.IGNORECASE)
+    patterns = [
+        r"^(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*\d+)?$",
+        r"^(\d+)\s+(?:часть|ч|part|p)\s*\d+$",
+        r"^глава\s*(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*\d+)?$",
+    ]
 
-    if part_match:
-        return part_match.group(1)
+    for pattern in patterns:
+        match = re.match(pattern, text, re.IGNORECASE)
 
-    return text.lower()
+        if match:
+            return match.group(1)
+
+    match = re.search(r"(\d+)", text)
+
+    if match:
+        return match.group(1)
+
+    return text
 
 
 def chapter_unit_key(chapter: dict):
@@ -282,6 +321,18 @@ def chapter_unit_key(chapter: dict):
         return f"id:{chapter_id}"
 
     return ""
+
+
+def count_chapter_units_for_card(chapters: list[dict]) -> int:
+    keys = set()
+
+    for chapter in chapters:
+        key = chapter_unit_key(chapter)
+
+        if key:
+            keys.add(key)
+
+    return len(keys)
 
 
 def count_available_chapter_units(chapters: list[dict]) -> int:
@@ -376,7 +427,6 @@ def relation_color_from_type(relation_type: str):
 
 def translation_meta_from_status(status: str, schedule_mode: str, progress_percent):
     combined = f"{status or ''} {schedule_mode or ''}".lower()
-
     progress = normalize_progress_percent(progress_percent)
 
     if (
@@ -776,7 +826,7 @@ def sync_chapters_to_db(db: Client) -> dict:
     for row_number, row in enumerate(rows, start=2):
         base_chapter_code = clean_value(row.get("ChapterID"))
         novel_id = to_int(row.get("NovelID"))
-        chapter_no = to_float(row.get("ChapterNo"))
+        chapter_no = parse_chapter_no_number(row.get("ChapterNo"))
 
         skip_reasons = []
 
@@ -798,7 +848,7 @@ def sync_chapters_to_db(db: Client) -> dict:
             continue
 
         if not base_chapter_code:
-            base_chapter_code = f"{novel_id}-{chapter_no:g}-{row_number}"
+            base_chapter_code = f"{novel_id}-{row.get('ChapterNo')}-{row_number}"
 
         if base_chapter_code in used_codes:
             duplicate_base_codes.append(base_chapter_code)
@@ -1166,8 +1216,6 @@ async def library(request: Request):
         chapter_count_result = (
             db.table("chapters")
             .select("novel_id, id, chapter_code, chapter_no, access_level, is_visible, sort_order")
-            .eq("is_visible", True)
-            .in_("access_level", ["public", "subscriber"])
             .order("novel_id")
             .order("sort_order")
             .execute()
@@ -1186,12 +1234,13 @@ async def library(request: Request):
         for novel in novels:
             prepare_novel_for_template(novel)
 
-            available_chapters_count = count_available_chapter_units(
-                chapters_by_novel.get(novel.get("id"), [])
-            )
+            all_chapters = chapters_by_novel.get(novel.get("id"), [])
 
+            display_chapters_count = count_chapter_units_for_card(all_chapters)
+            available_chapters_count = count_available_chapter_units(all_chapters)
+
+            novel["display_chapters_count"] = display_chapters_count or novel.get("total_chapters") or 0
             novel["available_chapters_count"] = available_chapters_count
-            novel["display_chapters_count"] = available_chapters_count or novel.get("total_chapters") or 0
 
         return templates.TemplateResponse(
             request,
@@ -1233,19 +1282,21 @@ async def novel_page(request: Request, slug: str):
             db.table("chapters")
             .select("*")
             .eq("novel_id", novel["id"])
-            .eq("is_visible", True)
             .order("sort_order")
             .execute()
         )
 
-        chapters = chapters_result.data or []
+        all_chapters = chapters_result.data or []
 
-        display_chapters, hidden_subscriber_count = build_chapter_display_list(chapters)
+        display_chapters, hidden_subscriber_count = build_chapter_display_list(
+            [chapter for chapter in all_chapters if chapter.get("is_visible") is True]
+        )
+
         grouped_chapters = group_chapters_by_volume(display_chapters)
         first_chapter = get_first_readable_chapter(display_chapters)
 
+        novel["display_chapters_count"] = count_chapter_units_for_card(all_chapters) or novel.get("total_chapters") or 0
         novel["available_chapters_count"] = count_available_chapter_units(display_chapters)
-        novel["display_chapters_count"] = novel["available_chapters_count"] or novel.get("total_chapters") or 0
 
         return templates.TemplateResponse(
             request,
@@ -1433,10 +1484,9 @@ async def debug_library_data():
                 "access_level,is_visible,telegraph_url,"
                 "telegraph_free_url,telegraph_premium_url,sort_order"
             )
-            .eq("is_visible", True)
             .order("novel_id")
             .order("sort_order")
-            .limit(200)
+            .limit(500)
             .execute()
         )
 
@@ -1454,20 +1504,22 @@ async def debug_library_data():
 
         for novel in novels_result.data or []:
             prepared = dict(novel)
-            prepared["display_chapters_count"] = count_available_chapter_units(
-                chapters_by_novel.get(novel.get("id"), [])
-            )
+            all_chapters = chapters_by_novel.get(novel.get("id"), [])
+
+            prepared["display_chapters_count"] = count_chapter_units_for_card(all_chapters)
+            prepared["available_chapters_count"] = count_available_chapter_units(all_chapters)
             prepared["normalized_progress_percent"] = normalize_progress_percent(
                 novel.get("progress_percent")
             )
+
             novels_sample.append(prepared)
 
         return {
             "status": "ok",
             "novels_count": len(novels_result.data or []),
             "chapters_count_sample": len(chapters_result.data or []),
-            "novels_sample": novels_sample[:20],
-            "chapters_sample": chapters_result.data[:50] if chapters_result.data else [],
+            "novels_sample": novels_sample[:30],
+            "chapters_sample": chapters_result.data[:100] if chapters_result.data else [],
         }
 
     except Exception as error:
