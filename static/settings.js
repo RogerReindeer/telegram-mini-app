@@ -17,11 +17,13 @@
     textAlign: "left",
     hideFoxes: false,
     accentColor: "#f28c38",
+    appSize: "normal",
   };
 
   document.addEventListener("DOMContentLoaded", function () {
     initTelegram();
     initSettings();
+    initAppSizeButton();
     initLibrarySort();
     initLibraryNovelMeta();
     initNovelPageMeta();
@@ -43,6 +45,16 @@
       }
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
+    }
+  }
+
+  function requestSoftExpand() {
+    try {
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.expand();
+      }
+    } catch (error) {
+      console.log("Telegram soft expand skipped:", error);
     }
   }
 
@@ -93,6 +105,7 @@
     body.dataset.readerTheme = settings.readerTheme;
     body.dataset.readerWidth = settings.readerWidth;
     body.dataset.textAlign = settings.textAlign;
+    body.dataset.appSize = settings.appSize || "normal";
 
     body.classList.toggle("hide-foxes", Boolean(settings.hideFoxes));
 
@@ -102,6 +115,7 @@
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing || DEFAULT_SETTINGS.paragraphSpacing}px`);
 
     applyReaderTheme(settings.readerTheme);
+    updateAppSizeButton();
   }
 
   function applyReaderTheme(theme) {
@@ -133,6 +147,53 @@
     document.documentElement.style.setProperty("--reader-bg", "#fffaf3");
     document.documentElement.style.setProperty("--reader-text-color", "#111111");
     document.documentElement.style.setProperty("--reader-link-color", "#b45309");
+  }
+
+  function initAppSizeButton() {
+    if (document.querySelector("[data-app-size-toggle]")) {
+      updateAppSizeButton();
+      return;
+    }
+
+    const button = document.createElement("button");
+    button.className = "app-size-fab";
+    button.type = "button";
+    button.dataset.appSizeToggle = "true";
+
+    button.addEventListener("click", function () {
+      const settings = getSettings();
+
+      if (settings.appSize === "large") {
+        settings.appSize = "normal";
+      } else {
+        settings.appSize = "large";
+        requestSoftExpand();
+      }
+
+      saveSettings(settings);
+      applySettings();
+    });
+
+    document.body.appendChild(button);
+    updateAppSizeButton();
+  }
+
+  function updateAppSizeButton() {
+    const button = document.querySelector("[data-app-size-toggle]");
+
+    if (!button) {
+      return;
+    }
+
+    const settings = getSettings();
+    const isLarge = settings.appSize === "large";
+
+    button.textContent = isLarge ? "↙" : "↗";
+    button.title = isLarge ? "Вернуть обычный размер" : "Расширить окно";
+    button.setAttribute(
+      "aria-label",
+      isLarge ? "Вернуть обычный размер" : "Расширить окно"
+    );
   }
 
   function createSettingsUi() {
