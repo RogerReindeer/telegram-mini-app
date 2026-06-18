@@ -11,6 +11,8 @@
 </head>
 
 <body class="page-library library-redesign">
+  {% set header_fox = fox.fox_peek or fox.fox_pic or fox.fox_sitting_front or fox.fox_side %}
+
   <main class="library-app-shell">
     <section class="library-screen">
       <header class="library-hero">
@@ -20,8 +22,8 @@
           <p>Выберите новеллу для чтения.</p>
         </div>
 
-        {% if fox.fox_peek %}
-          <img class="library-hero-fox" src="{{ fox.fox_peek }}" alt="Лисичка" data-fox>
+        {% if header_fox %}
+          <img class="library-hero-fox" src="{{ header_fox }}" alt="Лисичка" data-fox>
         {% endif %}
       </header>
 
@@ -184,10 +186,6 @@
                     <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>
                       Начать
                     </a>
-
-                    <span class="library-project-status-chip">
-                      {{ novel.translation_status_label or 'Переводится' }}
-                    </span>
                   </div>
 
                   <div class="library-progress-row" data-card-progress-row>
