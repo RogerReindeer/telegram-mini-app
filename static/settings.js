@@ -53,14 +53,14 @@
   function requestSoftExpand() {
     try {
       if (window.Telegram && window.Telegram.WebApp) {
-        const tg = window.Telegram.WebApp;
+        const telegram = window.Telegram.WebApp;
 
-        if (typeof tg.ready === "function") {
-          tg.ready();
+        if (typeof telegram.ready === "function") {
+          telegram.ready();
         }
 
-        if (typeof tg.expand === "function") {
-          tg.expand();
+        if (typeof telegram.expand === "function") {
+          telegram.expand();
         }
       }
     } catch (error) {
@@ -216,6 +216,7 @@
     initLibraryNovelMeta();
     initLibrarySearch();
     initLibraryFilters();
+    initLibrarySortControl();
     initLibrarySectionToggles();
     renderLibraryCards();
   }
@@ -294,6 +295,7 @@
 
     open.addEventListener("click", function () {
       syncFilterSheetButtons();
+      updateFilterApplyButton();
       sheet.hidden = false;
     });
 
@@ -315,11 +317,13 @@
           saveLibraryFilter(current);
           syncFilterSheetButtons();
           renderLibraryCards();
+          updateFilterApplyButton();
           return;
         }
 
         toggleFilterChip(chip);
         syncFilterSheetButtons();
+        updateFilterApplyButton();
       });
     });
 
@@ -333,12 +337,14 @@
         saveLibraryFilter(current);
 
         const input = document.getElementById("librarySearchInput");
+
         if (input) {
           input.value = "";
         }
 
         syncFilterSheetButtons();
         renderLibraryCards();
+        updateFilterApplyButton();
       });
     }
 
@@ -348,6 +354,18 @@
         renderLibraryCards();
       });
     }
+  }
+
+  function initLibrarySortControl() {
+    const select = document.getElementById("librarySort");
+
+    if (!select) {
+      return;
+    }
+
+    select.addEventListener("change", function () {
+      renderLibraryCards();
+    });
   }
 
   function toggleFilterChip(chip) {
@@ -430,6 +448,7 @@
         saveLibraryFilter(current);
 
         const input = document.getElementById("librarySearchInput");
+
         if (input) {
           input.value = "";
         }
@@ -497,7 +516,7 @@
       return;
     }
 
-    const allCards = Array.from(raw.querySelectorAll("[data-library-novel-card]"));
+    const allCards = Array.from(document.querySelectorAll("[data-library-novel-card]"));
     const filter = getLibraryFilter();
     const history = readJson(STORAGE_KEYS.readingHistory, []);
     const readIds = readJson(STORAGE_KEYS.readChapters, []);
@@ -559,6 +578,7 @@
 
     renderActiveFilters();
     renderLibraryUpdateBanner(buckets.reading);
+    updateFilterApplyButton(visibleTotal);
   }
 
   function prepareLibraryCard(card, historyByNovel, readIds) {
@@ -568,7 +588,7 @@
     const chapters = Number(card.dataset.chapters || 0);
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
-    const progress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
+    const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
 
     const button = card.querySelector("[data-card-main-button]");
     const stateLine = card.querySelector("[data-card-state-line]");
@@ -580,7 +600,7 @@
     if (progressFill) {
       const visualProgress = historyItem && historyItem.chapterIndex && available
         ? clampNumber(historyItem.chapterIndex / available * 100, 0, 100)
-        : progress;
+        : projectProgress;
 
       progressFill.style.width = `${visualProgress}%`;
     }
@@ -615,7 +635,7 @@
       return;
     }
 
-    if (historyItem && available && historyItem.chapterIndex >= available) {
+    if (historyItem && available && Number(historyItem.chapterIndex || 0) >= available) {
       card.classList.add("is-finished");
 
       if (stateLine) {
@@ -719,6 +739,16 @@
         continue;
       }
 
+      if (chip === "new") {
+        const item = historyByNovel[String(card.dataset.novelId || "")];
+
+        if (!item || getNewChapterCount(card.dataset.novelId, item.availableChapters) <= 0) {
+          return false;
+        }
+
+        continue;
+      }
+
       if (chip === "finished") {
         const item = historyByNovel[String(card.dataset.novelId || "")];
         const available = Number(card.dataset.availableChapters || 0);
@@ -771,21 +801,51 @@
         return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
       }
 
+      if (mode === "smart") {
+        const aNew = a.classList.contains("is-new") ? 0 : 1;
+        const bNew = b.classList.contains("is-new") ? 0 : 1;
+
+        if (aNew !== bNew) {
+          return aNew - bNew;
+        }
+      }
+
       return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
     });
   }
 
   function updateSection(name, count) {
     const section = document.querySelector(`[data-library-section="${cssEscape(name)}"]`);
-    const countEl = document.querySelector(`[data-section-count="${cssEscape(name)}"]`);
+    const countElement = document.querySelector(`[data-section-count="${cssEscape(name)}"]`);
 
-    if (countEl) {
-      countEl.textContent = String(count);
+    if (countElement) {
+      countElement.textContent = String(count);
     }
 
     if (section) {
       section.hidden = count === 0;
     }
+  }
+
+  function updateFilterApplyButton(knownCount) {
+    const button = document.getElementById("libraryFilterApply");
+
+    if (!button) {
+      return;
+    }
+
+    if (typeof knownCount === "number") {
+      button.textContent = `Показать ${knownCount} книг`;
+      return;
+    }
+
+    const visibleCards = document.querySelectorAll(
+      '[data-section-list="reading"] [data-library-novel-card], ' +
+      '[data-section-list="start"] [data-library-novel-card], ' +
+      '[data-section-list="finished"] [data-library-novel-card]'
+    );
+
+    button.textContent = `Показать ${visibleCards.length} книг`;
   }
 
   function renderLibraryUpdateBanner(readingCards) {
