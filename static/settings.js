@@ -509,10 +509,11 @@
 
     const readingList = document.querySelector('[data-section-list="reading"]');
     const startList = document.querySelector('[data-section-list="start"]');
+    const waitingList = document.querySelector('[data-section-list="waiting"]');
     const finishedList = document.querySelector('[data-section-list="finished"]');
     const empty = document.getElementById("libraryEmptyFilter");
 
-    if (!readingList || !startList || !finishedList) {
+    if (!readingList || !startList || !waitingList || !finishedList) {
       return;
     }
 
@@ -530,6 +531,7 @@
     const buckets = {
       reading: [],
       start: [],
+      waiting: [],
       finished: [],
     };
 
@@ -548,10 +550,12 @@
 
     sortCards(buckets.reading);
     sortCards(buckets.start);
+    sortCards(buckets.waiting);
     sortCards(buckets.finished);
 
     readingList.innerHTML = "";
     startList.innerHTML = "";
+    waitingList.innerHTML = "";
     finishedList.innerHTML = "";
 
     buckets.reading.forEach(function (card) {
@@ -562,15 +566,24 @@
       startList.appendChild(card);
     });
 
+    buckets.waiting.forEach(function (card) {
+      waitingList.appendChild(card);
+    });
+
     buckets.finished.forEach(function (card) {
       finishedList.appendChild(card);
     });
 
     updateSection("reading", buckets.reading.length);
     updateSection("start", buckets.start.length);
+    updateSection("waiting", buckets.waiting.length);
     updateSection("finished", buckets.finished.length);
 
-    const visibleTotal = buckets.reading.length + buckets.start.length + buckets.finished.length;
+    const visibleTotal =
+      buckets.reading.length +
+      buckets.start.length +
+      buckets.waiting.length +
+      buckets.finished.length;
 
     if (empty) {
       empty.hidden = visibleTotal !== 0;
@@ -589,25 +602,39 @@
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
     const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
+    const projectStatus = String(card.dataset.status || "in_progress");
 
     const button = card.querySelector("[data-card-main-button]");
     const stateLine = card.querySelector("[data-card-state-line]");
     const progressFill = card.querySelector("[data-card-progress-fill]");
     const progressText = card.querySelector("[data-card-progress-text]");
 
-    card.classList.remove("is-reading", "is-new", "is-finished", "is-start");
+    card.classList.remove(
+      "is-reading",
+      "is-new",
+      "is-finished",
+      "is-start",
+      "is-waiting",
+      "is-soon"
+    );
+
+    const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+    const userChapterIndex = historyItem ? Number(historyItem.chapterIndex || 0) : 0;
+    const hasAvailableChapters = available > 0;
 
     if (progressFill) {
-      const visualProgress = historyItem && historyItem.chapterIndex && available
-        ? clampNumber(historyItem.chapterIndex / available * 100, 0, 100)
-        : projectProgress;
+      let visualProgress = projectProgress;
+
+      if (historyItem && userChapterIndex && available) {
+        visualProgress = clampNumber(userChapterIndex / available * 100, 0, 100);
+      }
 
       progressFill.style.width = `${visualProgress}%`;
     }
 
     if (progressText) {
-      if (historyItem && historyItem.chapterIndex && available) {
-        progressText.textContent = `${historyItem.chapterIndex} / ${available}`;
+      if (historyItem && userChapterIndex && available) {
+        progressText.textContent = `${userChapterIndex} / ${available}`;
       } else if (chapters) {
         progressText.textContent = `${translated || 0} / ${chapters}`;
       } else {
@@ -615,7 +642,24 @@
       }
     }
 
-    const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+    if (!hasAvailableChapters) {
+      card.classList.add("is-soon");
+
+      if (stateLine) {
+        stateLine.innerHTML = `
+          <span class="library-status-chip library-status-soon">Скоро</span>
+          <span>Открытых глав пока нет</span>
+        `;
+      }
+
+      if (button) {
+        button.textContent = "Скоро";
+        button.href = `/novel/${card.dataset.novelSlug || ""}`;
+        button.setAttribute("aria-disabled", "true");
+      }
+
+      return;
+    }
 
     if (historyItem && newCount > 0) {
       card.classList.add("is-new");
@@ -630,24 +674,45 @@
       if (button) {
         button.textContent = "Читать новую";
         button.href = `/novel/${card.dataset.novelSlug || ""}`;
+        button.removeAttribute("aria-disabled");
       }
 
       return;
     }
 
-    if (historyItem && available && Number(historyItem.chapterIndex || 0) >= available) {
-      card.classList.add("is-finished");
+    if (historyItem && available && userChapterIndex >= available) {
+      if (projectStatus === "completed") {
+        card.classList.add("is-finished");
+
+        if (stateLine) {
+          stateLine.innerHTML = `
+            <span class="library-status-chip library-status-finished">Прочитано</span>
+            <span>Книга прочитана полностью</span>
+          `;
+        }
+
+        if (button) {
+          button.textContent = "Перечитать";
+          button.href = `/chapter/${historyItem.chapterId}`;
+          button.removeAttribute("aria-disabled");
+        }
+
+        return;
+      }
+
+      card.classList.add("is-waiting");
 
       if (stateLine) {
         stateLine.innerHTML = `
-          <span class="library-status-chip library-status-finished">Прочитано</span>
-          <span>Прочитано полностью</span>
+          <span class="library-status-chip library-status-waiting">Жду новую</span>
+          <span>Вы дошли до последней доступной главы</span>
         `;
       }
 
       if (button) {
-        button.textContent = "Перечитать";
-        button.href = `/chapter/${historyItem.chapterId}`;
+        button.textContent = "К оглавлению";
+        button.href = `/novel/${card.dataset.novelSlug || ""}`;
+        button.removeAttribute("aria-disabled");
       }
 
       return;
@@ -658,14 +723,16 @@
 
       if (stateLine) {
         stateLine.innerHTML = `
-          <span>Вы на главе ${escapeHtml(historyItem.chapterIndex || "")}</span>
-          <span>Доступно ${available || chapters || 0} из ${chapters || available || 0}</span>
+          <span class="library-status-chip library-status-reading">Читаю</span>
+          <span>Вы на главе ${escapeHtml(userChapterIndex || "")}</span>
+          <span>Открыто ${available || chapters || 0} из ${chapters || available || 0}</span>
         `;
       }
 
       if (button) {
         button.textContent = "Продолжить";
         button.href = `/chapter/${historyItem.chapterId}`;
+        button.removeAttribute("aria-disabled");
       }
 
       return;
@@ -674,36 +741,54 @@
     card.classList.add("is-start");
 
     if (stateLine) {
-      const label = card.dataset.statusLabel || "Переводится";
+      const projectLabel = card.dataset.statusLabel || "В процессе перевода";
+      const accessIcon = card.dataset.accessIcon || "";
+      const accessLabel = card.dataset.accessLabel || "";
 
       stateLine.innerHTML = `
-        <span class="library-status-chip">${escapeHtml(label)}</span>
+        <span class="library-status-chip">${escapeHtml(projectLabel)}</span>
+        ${
+          accessIcon || accessLabel
+            ? `<span>${escapeHtml(accessIcon)} ${escapeHtml(accessLabel)}</span>`
+            : ""
+        }
       `;
     }
 
     if (button) {
       button.textContent = "Начать";
       button.href = `/novel/${card.dataset.novelSlug || ""}`;
+      button.removeAttribute("aria-disabled");
     }
   }
 
   function getCardState(card, historyByNovel) {
     const novelId = String(card.dataset.novelId || "");
     const historyItem = historyByNovel[novelId];
+    const available = Number(card.dataset.availableChapters || 0);
+    const projectStatus = String(card.dataset.status || "in_progress");
+
+    if (!available) {
+      return "start";
+    }
 
     if (!historyItem) {
       return "start";
     }
 
-    const available = Number(card.dataset.availableChapters || 0);
     const newCount = getNewChapterCount(novelId, historyItem.availableChapters);
+    const userChapterIndex = Number(historyItem.chapterIndex || 0);
 
     if (newCount > 0) {
       return "reading";
     }
 
-    if (available && Number(historyItem.chapterIndex || 0) >= available) {
-      return "finished";
+    if (available && userChapterIndex >= available) {
+      if (projectStatus === "completed") {
+        return "finished";
+      }
+
+      return "waiting";
     }
 
     return "reading";
@@ -720,6 +805,10 @@
       card.dataset.tags,
       card.dataset.statusLabel,
       card.dataset.relation,
+      card.dataset.sizeCode,
+      card.dataset.sizeLabel,
+      card.dataset.accessLabel,
+      card.dataset.ageRating,
     ].join(" ").toLowerCase();
 
     if (query && !haystack.includes(query)) {
@@ -732,7 +821,15 @@
       }
 
       if (chip === "reading") {
-        if (!historyByNovel[String(card.dataset.novelId || "")]) {
+        const item = historyByNovel[String(card.dataset.novelId || "")];
+
+        if (!item) {
+          return false;
+        }
+
+        const state = getCardState(card, historyByNovel);
+
+        if (state !== "reading") {
           return false;
         }
 
@@ -749,11 +846,20 @@
         continue;
       }
 
-      if (chip === "finished") {
-        const item = historyByNovel[String(card.dataset.novelId || "")];
-        const available = Number(card.dataset.availableChapters || 0);
+      if (chip === "waiting") {
+        const state = getCardState(card, historyByNovel);
 
-        if (!item || !available || Number(item.chapterIndex || 0) < available) {
+        if (state !== "waiting") {
+          return false;
+        }
+
+        continue;
+      }
+
+      if (chip === "finished") {
+        const state = getCardState(card, historyByNovel);
+
+        if (state !== "finished") {
           return false;
         }
 
@@ -808,6 +914,13 @@
         if (aNew !== bNew) {
           return aNew - bNew;
         }
+
+        const aProgress = Number(a.dataset.progress || 0);
+        const bProgress = Number(b.dataset.progress || 0);
+
+        if (aProgress !== bProgress) {
+          return bProgress - aProgress;
+        }
       }
 
       return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
@@ -842,6 +955,7 @@
     const visibleCards = document.querySelectorAll(
       '[data-section-list="reading"] [data-library-novel-card], ' +
       '[data-section-list="start"] [data-library-novel-card], ' +
+      '[data-section-list="waiting"] [data-library-novel-card], ' +
       '[data-section-list="finished"] [data-library-novel-card]'
     );
 
