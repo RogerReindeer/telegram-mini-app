@@ -157,31 +157,6 @@ def to_float(value):
         return None
 
 
-def parse_chapter_no_number(value):
-    text = clean_value(value).replace(",", ".")
-
-    if not text:
-        return None
-
-    direct = to_float(text)
-
-    if direct is not None:
-        return direct
-
-    match = re.search(r"(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*(\d+))?", text, re.IGNORECASE)
-
-    if not match:
-        return None
-
-    base = int(match.group(1))
-    part = match.group(2)
-
-    if part:
-        return base + int(part) / 100
-
-    return float(base)
-
-
 def normalize_progress_percent(value):
     number = to_float(value)
 
@@ -221,6 +196,7 @@ def to_bool(value):
         "✅",
         "☑",
         "checked",
+        "on",
     )
 
 
@@ -255,6 +231,35 @@ def format_date_ru(value):
     return value
 
 
+def parse_chapter_no_number(value):
+    text = clean_value(value).replace(",", ".")
+
+    if not text:
+        return None
+
+    direct = to_float(text)
+
+    if direct is not None:
+        return direct
+
+    match = re.search(
+        r"(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*(\d+))?",
+        text,
+        re.IGNORECASE,
+    )
+
+    if not match:
+        return None
+
+    base = int(match.group(1))
+    part = match.group(2)
+
+    if part:
+        return base + int(part) / 100
+
+    return float(base)
+
+
 def clean_chapter_title(value):
     text = clean_value(value)
 
@@ -285,9 +290,10 @@ def normalize_chapter_no_for_unit(value):
     text = re.sub(r"\s+", " ", text).strip()
 
     patterns = [
-        r"^(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*\d+)?$",
+        r"^(\d+)(?:\s*(?:-|\.|/|_)\s*(?:часть|ч|part|p)?\s*\d+)?$",
         r"^(\d+)\s+(?:часть|ч|part|p)\s*\d+$",
-        r"^глава\s*(\d+)(?:\s*(?:-|\.|/)\s*(?:часть|ч|part|p)?\s*\d+)?$",
+        r"^глава\s*(\d+)(?:\s*(?:-|\.|/|_)\s*(?:часть|ч|part|p)?\s*\d+)?$",
+        r"^(\d+)\s*[\(\[]\s*(?:часть|ч|part|p)?\s*\d+\s*[\)\]]$",
     ]
 
     for pattern in patterns:
@@ -361,11 +367,18 @@ def split_tags(tags: str):
     ]
 
 
+def normalize_tag_for_compare(tag: str):
+    return (
+        clean_value(tag)
+        .replace("!", "")
+        .replace("ё", "е")
+        .lower()
+        .strip()
+    )
+
+
 def normalized_tags(tags: str):
-    return [
-        tag.replace("!", "").strip().lower()
-        for tag in split_tags(tags)
-    ]
+    return [normalize_tag_for_compare(tag) for tag in split_tags(tags)]
 
 
 def relation_icon_from_tags(tags: str):
@@ -383,7 +396,11 @@ def relation_icon_from_tags(tags: str):
     ):
         return "💙"
 
-    if "джен" in tags_lower:
+    if (
+        "джен" in tags_lower
+        or "нет любовной линии" in tags_lower
+        or "без любовной линии" in tags_lower
+    ):
         return "💚"
 
     return ""
@@ -404,7 +421,11 @@ def relation_type_from_tags(tags: str):
     ):
         return "Слэш"
 
-    if "джен" in tags_lower:
+    if (
+        "джен" in tags_lower
+        or "нет любовной линии" in tags_lower
+        or "без любовной линии" in tags_lower
+    ):
         return "Джен"
 
     return ""
@@ -425,6 +446,87 @@ def relation_color_from_type(relation_type: str):
     return ""
 
 
+def age_rating_from_tags(tags: str):
+    tags_lower = normalized_tags(tags)
+
+    for rating in ("18+", "16+", "12+", "6+", "0+"):
+        if rating.lower() in tags_lower:
+            return rating
+
+    for tag in tags_lower:
+        match = re.match(r"^(?:r-?|р-?)?(18|16|12|6|0)\+$", tag)
+
+        if match:
+            return f"{match.group(1)}+"
+
+    return ""
+
+
+def size_meta_from_tags(tags: str):
+    tags_lower = normalized_tags(tags)
+
+    if "мини" in tags_lower or "s" in tags_lower:
+        return {
+            "code": "S",
+            "label": "Мини",
+        }
+
+    if "миди" in tags_lower or "m" in tags_lower:
+        return {
+            "code": "M",
+            "label": "Миди",
+        }
+
+    if "макси" in tags_lower or "l" in tags_lower:
+        return {
+            "code": "L",
+            "label": "Макси",
+        }
+
+    return {
+        "code": "",
+        "label": "",
+    }
+
+
+def access_badge_from_model(access_model: str, early_access_mode: str = ""):
+    text = f"{access_model or ''} {early_access_mode or ''}".lower()
+
+    if "boostyonly" in text or "boosty only" in text or "🎁" in text:
+        return {
+            "icon": "🎁",
+            "label": "Boosty only",
+            "class_name": "access-boosty",
+        }
+
+    if "paid" in text or "плат" in text or "🔴" in text:
+        return {
+            "icon": "🔴",
+            "label": "Платно",
+            "class_name": "access-paid",
+        }
+
+    if "partial" in text or "част" in text or "early" in text or "⏰" in text or "🟡" in text:
+        return {
+            "icon": "🟡",
+            "label": "Часть платно",
+            "class_name": "access-partial",
+        }
+
+    if "core" in text or "🌷" in text or "🟢" in text:
+        return {
+            "icon": "🟢",
+            "label": "Через 🌱",
+            "class_name": "access-core",
+        }
+
+    return {
+        "icon": "",
+        "label": "",
+        "class_name": "",
+    }
+
+
 def translation_meta_from_status(status: str, schedule_mode: str, progress_percent):
     combined = f"{status or ''} {schedule_mode or ''}".lower()
     progress = normalize_progress_percent(progress_percent)
@@ -435,13 +537,13 @@ def translation_meta_from_status(status: str, schedule_mode: str, progress_perce
         or "pause" in combined
         or "paused" in combined
         or "hold" in combined
-        or "⏸" in combined
+        or "⏳" in combined
     ):
         return {
             "value": "paused",
-            "label": "На паузе",
-            "color": "#ffffff",
-            "icon": "⏸",
+            "label": "На передержке",
+            "color": "#f2c94c",
+            "icon": "⏳",
         }
 
     if (
@@ -454,14 +556,14 @@ def translation_meta_from_status(status: str, schedule_mode: str, progress_perce
     ):
         return {
             "value": "completed",
-            "label": "Завершён",
+            "label": "Завершена",
             "color": "#44bb44",
             "icon": "✅",
         }
 
     return {
         "value": "in_progress",
-        "label": "Переводится",
+        "label": "В процессе перевода",
         "color": "#f59e0b",
         "icon": "🛠",
     }
@@ -474,7 +576,7 @@ def translation_status_icon_from_value(value: str):
         return "✅"
 
     if value == "paused":
-        return "⏸"
+        return "⏳"
 
     return "🛠"
 
@@ -483,7 +585,10 @@ def tag_class_for_text(tag: str):
     clean_tag = tag.replace("!", "").strip()
     tag_lower = clean_tag.lower()
 
-    if tag_lower in ("18+", "r18", "r-18", "nc-17"):
+    if tag_lower in ("he", "хэ"):
+        return "tag-he"
+
+    if tag_lower in ("18+", "16+", "12+", "6+", "0+", "r18", "r-18", "nc-17"):
         return "tag-rating"
 
     if tag_lower == "гет":
@@ -492,8 +597,11 @@ def tag_class_for_text(tag: str):
     if tag_lower in ("слэш", "bl", "бл", "данмэй", "danmei"):
         return "tag-slash"
 
-    if tag_lower == "джен":
+    if tag_lower in ("джен", "нет любовной линии", "без любовной линии"):
         return "tag-gen"
+
+    if tag_lower in ("мини", "миди", "макси"):
+        return "tag-size"
 
     if tag_lower in (
         "китай",
@@ -508,6 +616,12 @@ def tag_class_for_text(tag: str):
     ):
         return "tag-country"
 
+    if "pov" in tag_lower:
+        return "tag-pov"
+
+    if tag_lower in ("сянься/уся", "уся/сянься", "фэнтези", "современность", "романтика"):
+        return "tag-genre"
+
     return ""
 
 
@@ -521,6 +635,10 @@ def prepare_tag_items(tags: str):
         if not text:
             continue
 
+        if text.upper() == "HE":
+            is_spoiler = False
+            text = "HE"
+
         items.append({
             "text": text,
             "is_spoiler": is_spoiler,
@@ -528,6 +646,99 @@ def prepare_tag_items(tags: str):
         })
 
     return items
+
+
+CARD_TAG_PRIORITY = [
+    "гет",
+    "слэш",
+    "bl",
+    "бл",
+    "данмэй",
+    "danmei",
+    "джен",
+    "нет любовной линии",
+    "китай",
+    "корея",
+    "япония",
+    "мини",
+    "миди",
+    "макси",
+    "pov героини",
+    "pov пассива",
+    "pov актива",
+    "сянься/уся",
+    "уся/сянься",
+    "фэнтези",
+    "современность",
+    "романтика",
+    "he",
+]
+
+
+def prepare_card_tag_items(tags: str, limit: int = 5):
+    source_tags = split_tags(tags)
+    prepared = []
+    skipped_count = 0
+    seen = set()
+
+    def normalize_card_text(raw_tag: str):
+        is_spoiler = raw_tag.startswith("!")
+        text = raw_tag[1:].strip() if is_spoiler else raw_tag.strip()
+
+        if not text:
+            return None
+
+        if is_spoiler and text.upper() != "HE":
+            return None
+
+        if text.upper() == "HE":
+            return "HE"
+
+        if text.strip().upper() in ("G", "S", "M", "L"):
+            return None
+
+        return text
+
+    candidates = []
+
+    for index, raw_tag in enumerate(source_tags):
+        text = normalize_card_text(raw_tag)
+
+        if not text:
+            skipped_count += 1
+            continue
+
+        compare = normalize_tag_for_compare(text)
+
+        if compare in seen:
+            continue
+
+        seen.add(compare)
+
+        if compare in CARD_TAG_PRIORITY:
+            priority = CARD_TAG_PRIORITY.index(compare)
+        else:
+            priority = 999 + index
+
+        candidates.append({
+            "text": text,
+            "compare": compare,
+            "priority": priority,
+            "class_name": tag_class_for_text(text),
+        })
+
+    candidates.sort(key=lambda item: item["priority"])
+
+    for item in candidates[:limit]:
+        prepared.append({
+            "text": item["text"],
+            "is_spoiler": False,
+            "class_name": item["class_name"],
+        })
+
+    hidden_count = max(0, len(candidates) - len(prepared)) + skipped_count
+
+    return prepared, hidden_count
 
 
 def prepare_novel_for_template(novel: dict):
@@ -548,6 +759,18 @@ def prepare_novel_for_template(novel: dict):
     )
 
     tag_items = prepare_tag_items(tags)
+    card_tag_items, card_hidden_tags = prepare_card_tag_items(tags)
+
+    size_meta = size_meta_from_tags(tags)
+    access_badge = access_badge_from_model(
+        clean_value(novel.get("access_model")),
+        clean_value(novel.get("early_access_mode")),
+    )
+
+    age_rating = clean_value(novel.get("age_rating")) or age_rating_from_tags(tags)
+
+    if not age_rating and to_bool(novel.get("has_adult_badge")):
+        age_rating = "18+"
 
     if post_icons:
         novel["display_title"] = f"{post_icons} {title}".strip()
@@ -555,9 +778,16 @@ def prepare_novel_for_template(novel: dict):
         novel["display_title"] = title
 
     novel["post_icons"] = post_icons
+
     novel["relation_type"] = relation_type
     novel["relation_icon"] = relation_icon
     novel["relation_color"] = relation_color
+
+    novel["size_code"] = size_meta["code"]
+    novel["size_label"] = size_meta["label"]
+
+    novel["access_badge"] = access_badge
+    novel["age_rating"] = age_rating
 
     novel["translation_status"] = clean_value(novel.get("translation_status")) or translation_meta["value"]
     novel["translation_status_label"] = clean_value(novel.get("translation_status_label")) or translation_meta["label"]
@@ -565,18 +795,22 @@ def prepare_novel_for_template(novel: dict):
     novel["translation_status_icon"] = translation_status_icon_from_value(novel["translation_status"])
 
     if novel["translation_status"] == "completed":
-        novel["translation_status_label"] = "Завершён"
+        novel["translation_status_label"] = "Завершена"
     elif novel["translation_status"] == "paused":
-        novel["translation_status_label"] = "На паузе"
+        novel["translation_status_label"] = "На передержке"
     else:
-        novel["translation_status_label"] = "Переводится"
+        novel["translation_status_label"] = "В процессе перевода"
+
+    novel["project_status_icon"] = novel["translation_status_icon"]
 
     novel["tags_tooltip"] = clean_value(novel.get("tags_tooltip")) or tags
     novel["tags_short"] = clean_value(novel.get("tags_short")) or "; ".join(split_tags(tags)[:10])
 
     novel["tag_items"] = tag_items
-    novel["catalog_tag_items"] = tag_items[:10]
-    novel["catalog_hidden_tags"] = max(0, len(tag_items) - 10)
+    novel["catalog_tag_items"] = card_tag_items
+    novel["card_tag_items"] = card_tag_items
+    novel["catalog_hidden_tags"] = card_hidden_tags
+    novel["card_hidden_tags"] = card_hidden_tags
 
     translated = to_float(novel.get("translated_chapters"))
     total = to_float(novel.get("total_chapters"))
@@ -771,7 +1005,7 @@ def sync_novels_to_db(db: Client) -> int:
             "relation_type": relation_type,
             "relation_icon": relation_icon,
             "relation_color": relation_color,
-            "age_rating": clean_value(row.get("AgeRating")),
+            "age_rating": clean_value(row.get("AgeRating")) or age_rating_from_tags(tags),
             "has_adult_badge": to_bool(row.get("HasAdultBadge")),
             "sort_order": to_float(row.get("SortOrder")) or novel_id,
             "is_visible": is_visible,
@@ -1470,7 +1704,9 @@ async def debug_library_data():
             db.table("novels")
             .select(
                 "id,title,post_icons,slug,is_visible,sort_order,"
-                "translation_status,translation_status_label,total_chapters,translated_chapters,progress_percent"
+                "translation_status,translation_status_label,total_chapters,"
+                "translated_chapters,progress_percent,tags,age_rating,"
+                "access_model,schedule_mode,early_access_mode,relation_type,relation_icon"
             )
             .eq("is_visible", True)
             .order("sort_order")
@@ -1486,7 +1722,7 @@ async def debug_library_data():
             )
             .order("novel_id")
             .order("sort_order")
-            .limit(500)
+            .limit(1000)
             .execute()
         )
 
@@ -1503,7 +1739,7 @@ async def debug_library_data():
         novels_sample = []
 
         for novel in novels_result.data or []:
-            prepared = dict(novel)
+            prepared = prepare_novel_for_template(dict(novel))
             all_chapters = chapters_by_novel.get(novel.get("id"), [])
 
             prepared["display_chapters_count"] = count_chapter_units_for_card(all_chapters)
