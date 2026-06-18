@@ -129,6 +129,7 @@ def get_admin_supabase() -> Client:
 def clean_value(value):
     if value is None:
         return ""
+
     return str(value).strip()
 
 
@@ -154,6 +155,24 @@ def to_float(value):
         return float(value)
     except ValueError:
         return None
+
+
+def normalize_progress_percent(value):
+    number = to_float(value)
+
+    if number is None:
+        return None
+
+    while number > 100:
+        number = number / 100
+
+    if number < 0:
+        number = 0
+
+    if number > 100:
+        number = 100
+
+    return round(number, 1)
 
 
 def to_bool(value):
@@ -213,11 +232,74 @@ def format_date_ru(value):
 
 def clean_chapter_title(value):
     text = clean_value(value)
+
     text = re.sub(r"--+", "", text)
     text = re.sub(r"—\s*—+", "", text)
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
+
+
+def normalize_chapter_no_for_unit(value):
+    number = to_float(value)
+
+    if number is not None:
+        if number.is_integer():
+            return str(int(number))
+
+        return str(number).rstrip("0").rstrip(".")
+
+    text = clean_value(value)
+
+    if not text:
+        return ""
+
+    text = text.replace(",", ".")
+    text = re.sub(r"\s+", "", text)
+
+    part_match = re.match(r"^(\d+)(?:[-_.](?:part|p|ч|часть)?\d+)?$", text, re.IGNORECASE)
+
+    if part_match:
+        return part_match.group(1)
+
+    return text.lower()
+
+
+def chapter_unit_key(chapter: dict):
+    chapter_no = normalize_chapter_no_for_unit(chapter.get("chapter_no"))
+
+    if chapter_no:
+        return f"chapter-no:{chapter_no}"
+
+    chapter_code = clean_value(chapter.get("chapter_code"))
+
+    if chapter_code:
+        return f"chapter-code:{chapter_code}"
+
+    chapter_id = clean_value(chapter.get("id"))
+
+    if chapter_id:
+        return f"id:{chapter_id}"
+
+    return ""
+
+
+def count_available_chapter_units(chapters: list[dict]) -> int:
+    keys = set()
+
+    for chapter in chapters:
+        if chapter.get("access_level") not in ("public", "subscriber"):
+            continue
+
+        if chapter.get("is_visible") is False:
+            continue
+
+        key = chapter_unit_key(chapter)
+
+        if key:
+            keys.add(key)
+
+    return len(keys)
 
 
 def split_tags(tags: str):
@@ -295,11 +377,7 @@ def relation_color_from_type(relation_type: str):
 def translation_meta_from_status(status: str, schedule_mode: str, progress_percent):
     combined = f"{status or ''} {schedule_mode or ''}".lower()
 
-    progress = None
-    try:
-        progress = float(str(progress_percent).replace(",", ".").replace("%", ""))
-    except Exception:
-        progress = None
+    progress = normalize_progress_percent(progress_percent)
 
     if (
         "пауз" in combined
@@ -411,10 +489,12 @@ def prepare_novel_for_template(novel: dict):
     relation_icon = clean_value(novel.get("relation_icon")) or relation_icon_from_tags(tags)
     relation_color = clean_value(novel.get("relation_color")) or relation_color_from_type(relation_type)
 
+    stored_progress = normalize_progress_percent(novel.get("progress_percent"))
+
     translation_meta = translation_meta_from_status(
         clean_value(novel.get("status")),
         clean_value(novel.get("schedule_mode")),
-        novel.get("progress_percent"),
+        stored_progress,
     )
 
     tag_items = prepare_tag_items(tags)
@@ -448,12 +528,15 @@ def prepare_novel_for_template(novel: dict):
     novel["catalog_tag_items"] = tag_items[:10]
     novel["catalog_hidden_tags"] = max(0, len(tag_items) - 10)
 
-    if novel.get("progress_percent") is None:
-        translated = to_float(novel.get("translated_chapters"))
-        total = to_float(novel.get("total_chapters"))
+    translated = to_float(novel.get("translated_chapters"))
+    total = to_float(novel.get("total_chapters"))
 
-        if translated is not None and total and total > 0:
-            novel["progress_percent"] = round(translated / total * 100, 1)
+    if stored_progress is not None:
+        novel["progress_percent"] = stored_progress
+    elif translated is not None and total and total > 0:
+        novel["progress_percent"] = round(min(100, max(0, translated / total * 100)), 1)
+    else:
+        novel["progress_percent"] = None
 
     return novel
 
@@ -600,7 +683,7 @@ def sync_novels_to_db(db: Client) -> int:
         tags = clean_value(row.get("Tags"))
         status = clean_value(row.get("Status"))
         schedule_mode = clean_value(row.get("ScheduleMode"))
-        progress_percent = to_float(row.get("ProgressPercent"))
+        progress_percent = normalize_progress_percent(row.get("ProgressPercent"))
 
         relation_type = clean_value(row.get("RelationType")) or relation_type_from_tags(tags)
         relation_icon = clean_value(row.get("RelationIcon")) or relation_icon_from_tags(tags)
@@ -906,7 +989,7 @@ def get_chapter_index_info(db: Client, chapter: dict):
 
     result = (
         db.table("chapters")
-        .select("id, sort_order, chapter_no, access_level")
+        .select("id, chapter_code, chapter_no, sort_order, access_level, is_visible")
         .eq("novel_id", novel_id)
         .eq("is_visible", True)
         .in_("access_level", ["public", "subscriber"])
@@ -915,13 +998,23 @@ def get_chapter_index_info(db: Client, chapter: dict):
     )
 
     chapters = result.data or []
-    available_count = len(chapters)
+    unit_keys = []
+    current_key = chapter_unit_key(chapter)
+
+    for item in chapters:
+        key = chapter_unit_key(item)
+
+        if not key:
+            continue
+
+        if key not in unit_keys:
+            unit_keys.append(key)
+
+    available_count = len(unit_keys)
     chapter_index = 0
 
-    for index, item in enumerate(chapters, start=1):
-        if item.get("id") == chapter.get("id"):
-            chapter_index = index
-            break
+    if current_key in unit_keys:
+        chapter_index = unit_keys.index(current_key) + 1
 
     return chapter_index, available_count
 
@@ -1072,21 +1165,33 @@ async def library(request: Request):
 
         chapter_count_result = (
             db.table("chapters")
-            .select("novel_id, id")
+            .select("novel_id, id, chapter_code, chapter_no, access_level, is_visible, sort_order")
             .eq("is_visible", True)
             .in_("access_level", ["public", "subscriber"])
+            .order("novel_id")
+            .order("sort_order")
             .execute()
         )
 
-        available_by_novel = {}
+        chapters_by_novel = {}
 
         for row in chapter_count_result.data or []:
             novel_id = row.get("novel_id")
-            available_by_novel[novel_id] = available_by_novel.get(novel_id, 0) + 1
+
+            if novel_id not in chapters_by_novel:
+                chapters_by_novel[novel_id] = []
+
+            chapters_by_novel[novel_id].append(row)
 
         for novel in novels:
             prepare_novel_for_template(novel)
-            novel["available_chapters_count"] = available_by_novel.get(novel.get("id"), 0)
+
+            available_chapters_count = count_available_chapter_units(
+                chapters_by_novel.get(novel.get("id"), [])
+            )
+
+            novel["available_chapters_count"] = available_chapters_count
+            novel["display_chapters_count"] = available_chapters_count or novel.get("total_chapters") or 0
 
         return templates.TemplateResponse(
             request,
@@ -1138,6 +1243,9 @@ async def novel_page(request: Request, slug: str):
         display_chapters, hidden_subscriber_count = build_chapter_display_list(chapters)
         grouped_chapters = group_chapters_by_volume(display_chapters)
         first_chapter = get_first_readable_chapter(display_chapters)
+
+        novel["available_chapters_count"] = count_available_chapter_units(display_chapters)
+        novel["display_chapters_count"] = novel["available_chapters_count"] or novel.get("total_chapters") or 0
 
         return templates.TemplateResponse(
             request,
@@ -1328,16 +1436,38 @@ async def debug_library_data():
             .eq("is_visible", True)
             .order("novel_id")
             .order("sort_order")
-            .limit(30)
+            .limit(200)
             .execute()
         )
+
+        chapters_by_novel = {}
+
+        for chapter in chapters_result.data or []:
+            novel_id = chapter.get("novel_id")
+
+            if novel_id not in chapters_by_novel:
+                chapters_by_novel[novel_id] = []
+
+            chapters_by_novel[novel_id].append(chapter)
+
+        novels_sample = []
+
+        for novel in novels_result.data or []:
+            prepared = dict(novel)
+            prepared["display_chapters_count"] = count_available_chapter_units(
+                chapters_by_novel.get(novel.get("id"), [])
+            )
+            prepared["normalized_progress_percent"] = normalize_progress_percent(
+                novel.get("progress_percent")
+            )
+            novels_sample.append(prepared)
 
         return {
             "status": "ok",
             "novels_count": len(novels_result.data or []),
             "chapters_count_sample": len(chapters_result.data or []),
-            "novels_sample": novels_result.data[:10] if novels_result.data else [],
-            "chapters_sample": chapters_result.data[:20] if chapters_result.data else [],
+            "novels_sample": novels_sample[:20],
+            "chapters_sample": chapters_result.data[:50] if chapters_result.data else [],
         }
 
     except Exception as error:
