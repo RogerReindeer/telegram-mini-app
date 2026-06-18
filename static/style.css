@@ -1628,3 +1628,184 @@ body[data-site-theme="dark"] .paid-chapters-fade {
   font-size: 13px;
   line-height: 1;
 }
+.app-size-fab {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(80, 50, 20, 0.22);
+}
+
+.app-size-fab:active {
+  transform: scale(0.96);
+}
+
+body[data-app-size="large"] .page {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+body[data-app-size="large"] .catalog-layout,
+body[data-app-size="large"] .title-layout {
+  max-width: min(1280px, calc(100vw - 16px));
+}
+
+body[data-app-size="large"] .chapter-layout {
+  max-width: min(1040px, calc(100vw - 16px));
+}
+
+.chapter-content-shell {
+  position: relative;
+  width: min(100%, 720px);
+  margin-top: 22px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+body[data-reader-width="comfort"] .chapter-layout {
+  max-width: min(820px, calc(100vw - 24px));
+}
+
+body[data-reader-width="comfort"] .chapter-content-shell {
+  width: min(100%, 720px);
+}
+
+body[data-reader-width="full"] .chapter-layout {
+  max-width: min(1040px, calc(100vw - 24px));
+}
+
+body[data-reader-width="full"] .chapter-content-shell {
+  width: min(100%, 860px);
+}
+
+body[data-reader-width="wide"] .chapter-layout {
+  max-width: min(1180px, calc(100vw - 24px));
+  width: 100%;
+}
+
+body[data-reader-width="wide"] .chapter-content-shell {
+  width: min(100%, 980px);
+}
+
+body[data-app-size="large"][data-reader-width="comfort"] .chapter-layout {
+  max-width: min(920px, calc(100vw - 16px));
+}
+
+body[data-app-size="large"][data-reader-width="comfort"] .chapter-content-shell {
+  width: min(100%, 760px);
+}
+
+body[data-app-size="large"][data-reader-width="full"] .chapter-layout {
+  max-width: min(1120px, calc(100vw - 16px));
+}
+
+body[data-app-size="large"][data-reader-width="full"] .chapter-content-shell {
+  width: min(100%, 920px);
+}
+
+body[data-app-size="large"][data-reader-width="wide"] .chapter-layout {
+  max-width: min(1280px, calc(100vw - 16px));
+  width: 100%;
+}
+
+body[data-app-size="large"][data-reader-width="wide"] .chapter-content-shell {
+  width: min(100%, 1040px);
+}
+
+.chapter-side-fox {
+  left: -58px;
+  top: 20px;
+  width: 72px;
+}
+
+.chapter-navigation {
+  width: min(100%, 720px);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+body[data-reader-width="comfort"] .chapter-navigation {
+  width: min(100%, 720px);
+}
+
+body[data-reader-width="full"] .chapter-navigation {
+  width: min(100%, 860px);
+}
+
+body[data-reader-width="wide"] .chapter-navigation {
+  width: min(100%, 980px);
+}
+
+body[data-app-size="large"][data-reader-width="comfort"] .chapter-navigation {
+  width: min(100%, 760px);
+}
+
+body[data-app-size="large"][data-reader-width="full"] .chapter-navigation {
+  width: min(100%, 920px);
+}
+
+body[data-app-size="large"][data-reader-width="wide"] .chapter-navigation {
+  width: min(100%, 1040px);
+}
+
+@media (max-width: 940px) {
+  .chapter-side-fox {
+    left: -42px;
+    width: 58px;
+  }
+}
+
+@media (max-width: 820px) {
+  .chapter-content-shell {
+    width: 100%;
+  }
+
+  body[data-reader-width="comfort"] .chapter-content-shell,
+  body[data-reader-width="full"] .chapter-content-shell,
+  body[data-reader-width="wide"] .chapter-content-shell,
+  body[data-app-size="large"][data-reader-width="comfort"] .chapter-content-shell,
+  body[data-app-size="large"][data-reader-width="full"] .chapter-content-shell,
+  body[data-app-size="large"][data-reader-width="wide"] .chapter-content-shell {
+    width: 100%;
+  }
+
+  .chapter-side-fox {
+    left: 8px;
+    top: -34px;
+    width: 56px;
+  }
+
+  .chapter-content {
+    padding-top: 30px;
+  }
+
+  .chapter-navigation,
+  body[data-reader-width="comfort"] .chapter-navigation,
+  body[data-reader-width="full"] .chapter-navigation,
+  body[data-reader-width="wide"] .chapter-navigation,
+  body[data-app-size="large"][data-reader-width="comfort"] .chapter-navigation,
+  body[data-app-size="large"][data-reader-width="full"] .chapter-navigation,
+  body[data-app-size="large"][data-reader-width="wide"] .chapter-navigation {
+    width: 100%;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-size-fab {
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+}
