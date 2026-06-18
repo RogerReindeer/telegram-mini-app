@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import html
 from datetime import datetime, timezone
 from typing import Any
@@ -9,7 +8,7 @@ from urllib.parse import quote
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -164,10 +163,6 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
-# -------------------------
-# базовые утилиты
-# -------------------------
-
 def clean_value(value: Any) -> str:
     if value is None:
         return ""
@@ -182,7 +177,6 @@ def clean_value(value: Any) -> str:
 
 def normalize_slug(value: Any) -> str:
     value = clean_value(value).lower()
-
     value = value.replace("ё", "е")
     value = re.sub(r"[^\wа-яА-Я-]+", "-", value, flags=re.UNICODE)
     value = re.sub(r"-+", "-", value)
@@ -249,17 +243,17 @@ def to_bool(value: Any, default: bool = False) -> bool:
     return default
 
 
-def normalize_progress_percent(value: Any) -> float:
+def normalize_progress_percent(value: Any) -> float | int:
     progress = to_float(value, 0.0)
 
     while progress > 100:
         progress = progress / 100
 
     if progress < 0:
-        return 0.0
+        return 0
 
     if progress > 100:
-        return 100.0
+        return 100
 
     if progress.is_integer():
         return int(progress)
@@ -308,7 +302,6 @@ def split_tags(tags: Any) -> list[str]:
         return []
 
     parts = re.split(r"[;,\n]+", text)
-
     result = []
 
     for part in parts:
@@ -335,10 +328,6 @@ def compact_title_with_icons(post_icons: Any, title: Any) -> str:
 
     return f"{icons} {title_text}"
 
-
-# -------------------------
-# Supabase REST
-# -------------------------
 
 def supabase_ready() -> bool:
     return bool(SUPABASE_URL and SUPABASE_KEY)
@@ -442,10 +431,6 @@ def db_upsert(
     return []
 
 
-# -------------------------
-# теги
-# -------------------------
-
 def tag_class_name(tag: str) -> str:
     text = clean_value(tag).replace("!", "").lower()
 
@@ -476,7 +461,6 @@ def prepare_tag_items(tags: str) -> list[dict]:
     for raw_tag in split_tags(tags):
         text = clean_value(raw_tag)
         is_spoiler = text.startswith("!")
-
         shown_text = text[1:].strip() if is_spoiler else text
 
         if not shown_text:
@@ -676,10 +660,6 @@ def build_card_tag_items(tag_items: list[dict]) -> list[dict]:
     return card_tag_items
 
 
-# -------------------------
-# статусы и доступы
-# -------------------------
-
 def normalize_translation_status(raw_status: Any, raw_label: Any = "") -> str:
     text = f"{clean_value(raw_status)} {clean_value(raw_label)}".lower()
 
@@ -768,10 +748,6 @@ def build_access_badge(access_model: Any, early_access_mode: Any = "") -> dict |
     }
 
 
-# -------------------------
-# главы и подсчёты
-# -------------------------
-
 def parse_chapter_no_number(value: Any) -> float:
     text = clean_value(value)
 
@@ -779,7 +755,6 @@ def parse_chapter_no_number(value: Any) -> float:
         return 0.0
 
     text = text.replace(",", ".")
-
     match = re.search(r"\d+(?:\.\d+)?", text)
 
     if not match:
@@ -798,6 +773,7 @@ def normalize_chapter_no_for_unit(value: Any) -> str:
         return ""
 
     text = text.replace(",", ".").strip()
+    lowered = text.lower()
 
     patterns = [
         r"^(\d+)[-–—_]\d+$",
@@ -805,8 +781,6 @@ def normalize_chapter_no_for_unit(value: Any) -> str:
         r"^(\d+)\s*(?:часть|ч\.|part)\s*\d+$",
         r"^глава\s*(\d+)",
     ]
-
-    lowered = text.lower()
 
     for pattern in patterns:
         match = re.search(pattern, lowered, flags=re.IGNORECASE)
@@ -913,7 +887,10 @@ def prepare_chapter_for_template(chapter: dict) -> dict:
         prepared["access_label"] = "Закрыта"
         prepared["access_class"] = "chapter-access-hidden"
 
-    prepared["sort_value"] = to_float(chapter.get("sort_order"), parse_chapter_no_number(chapter.get("chapter_no")))
+    prepared["sort_value"] = to_float(
+        chapter.get("sort_order"),
+        parse_chapter_no_number(chapter.get("chapter_no")),
+    )
 
     return prepared
 
@@ -1028,10 +1005,6 @@ def get_neighbor_chapters(chapters: list[dict], current_chapter_id: str) -> tupl
 
     return previous_chapter, next_chapter
 
-
-# -------------------------
-# подготовка новелл
-# -------------------------
 
 def prepare_novel_for_template(novel: dict) -> dict:
     prepared = dict(novel)
@@ -1151,10 +1124,6 @@ def attach_chapter_counts_to_novels(
     return result
 
 
-# -------------------------
-# Telegraph
-# -------------------------
-
 def telegraph_path_from_url(url: str) -> str:
     text = clean_value(url)
 
@@ -1232,7 +1201,6 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
 
     result = data.get("result") or {}
     content = result.get("content") or []
-
     html_content = "".join(render_telegraph_node(node) for node in content)
 
     return {
@@ -1241,16 +1209,11 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
     }, ""
 
 
-# -------------------------
-# нормализация входящих данных sync
-# -------------------------
-
 def normalize_dict_keys(row: dict, key_map: dict[str, str]) -> dict:
     normalized = {}
 
     for key, value in row.items():
         mapped_key = key_map.get(key, key)
-
         normalized[mapped_key] = value
 
     return normalized
@@ -1268,6 +1231,7 @@ def normalize_novel_row(row: dict) -> dict:
     row = normalize_dict_keys(row, KEY_MAP_NOVEL)
 
     title = clean_value(row.get("title"))
+
     row["id"] = clean_value(row.get("id"))
 
     if not row["id"]:
@@ -1309,7 +1273,10 @@ def normalize_novel_row(row: dict) -> dict:
     row["sort_order"] = to_float(row.get("sort_order"), to_float(row.get("id"), 999999))
     row["is_visible"] = to_bool(row.get("is_visible"), True)
     row["age_rating"] = clean_value(row.get("age_rating")) or get_age_rating_from_tags(row["tags"])
-    row["has_adult_badge"] = to_bool(row.get("has_adult_badge"), False) or row["age_rating"] in ("18+", "21+", "NC-17", "R")
+    row["has_adult_badge"] = (
+        to_bool(row.get("has_adult_badge"), False)
+        or row["age_rating"] in ("18+", "21+", "NC-17", "R")
+    )
 
     row["relation_type"] = clean_value(row.get("relation_type"))
     row["relation_icon"] = clean_value(row.get("relation_icon"))
@@ -1392,10 +1359,6 @@ def normalize_fox_row(row: dict) -> dict:
 
     return filter_columns(normalized, FOX_TABLE_COLUMNS)
 
-
-# -------------------------
-# загрузка данных
-# -------------------------
 
 def get_fox() -> dict[str, str]:
     default_fox = {
@@ -1522,10 +1485,6 @@ def get_novel_by_id(novel_id: str) -> dict | None:
     return rows[0]
 
 
-# -------------------------
-# роуты
-# -------------------------
-
 @app.get("/health")
 async def health():
     return {
@@ -1539,7 +1498,7 @@ async def home():
     return RedirectResponse(url="/library")
 
 
-@app.get("/library", response_class=HTMLResponse)
+@app.get("/library")
 async def library(request: Request):
     novels = get_all_novels(include_hidden=False)
     chapters = get_all_chapters()
@@ -1548,9 +1507,9 @@ async def library(request: Request):
     prepared_novels = attach_chapter_counts_to_novels(novels, chapters)
 
     return templates.TemplateResponse(
+        request,
         "library.html",
         {
-            "request": request,
             "app_title": APP_TITLE,
             "novels": prepared_novels,
             "fox": fox,
@@ -1558,7 +1517,7 @@ async def library(request: Request):
     )
 
 
-@app.get("/novel/{slug}", response_class=HTMLResponse)
+@app.get("/novel/{slug}")
 async def novel_page(request: Request, slug: str):
     novel = get_novel_by_slug(slug)
 
@@ -1586,9 +1545,9 @@ async def novel_page(request: Request, slug: str):
     display_chapters, hidden_subscriber_count = build_chapter_display_list(visible_chapters)
 
     return templates.TemplateResponse(
+        request,
         "novel.html",
         {
-            "request": request,
             "app_title": APP_TITLE,
             "novel": prepared_novel,
             "chapters": display_chapters,
@@ -1599,7 +1558,7 @@ async def novel_page(request: Request, slug: str):
     )
 
 
-@app.get("/chapter/{chapter_id}", response_class=HTMLResponse)
+@app.get("/chapter/{chapter_id}")
 async def chapter_page(request: Request, chapter_id: str):
     chapter = get_chapter_by_id(chapter_id)
 
@@ -1614,8 +1573,6 @@ async def chapter_page(request: Request, chapter_id: str):
     all_chapters = get_novel_chapters(clean_value(novel.get("id")))
     prepared_chapter = prepare_chapter_for_template(chapter)
     prepared_novel = prepare_novel_for_template(novel)
-
-    prepared_chapter["novels"] = prepared_novel
 
     previous_chapter, next_chapter = get_neighbor_chapters(
         all_chapters,
@@ -1639,9 +1596,9 @@ async def chapter_page(request: Request, chapter_id: str):
     fox = get_fox()
 
     return templates.TemplateResponse(
+        request,
         "chapter.html",
         {
-            "request": request,
             "app_title": APP_TITLE,
             "chapter": prepared_chapter,
             "novel": prepared_novel,
@@ -1656,10 +1613,6 @@ async def chapter_page(request: Request, chapter_id: str):
         },
     )
 
-
-# -------------------------
-# API / debug
-# -------------------------
 
 @app.get("/api/library")
 async def api_library():
@@ -1691,10 +1644,6 @@ async def api_novel(slug: str):
         "chapters": [prepare_chapter_for_template(chapter) for chapter in chapters],
     }
 
-
-# -------------------------
-# sync из Google Sheets
-# -------------------------
 
 def validate_sync_token(request: Request, token: str | None) -> None:
     if not SYNC_TOKEN:
@@ -1806,16 +1755,12 @@ async def sync_from_sheets_alias(
     return await sync_from_sheets(request, token)
 
 
-# -------------------------
-# fallback ошибок
-# -------------------------
-
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
     return templates.TemplateResponse(
+        request,
         "index.html",
         {
-            "request": request,
             "app_title": APP_TITLE,
             "error": "Страница не найдена.",
         },
