@@ -65,8 +65,10 @@
 
               <span class="meta-pill">✍️ {{ novel.translation_author or 'Зефиркины баоцзы' }}</span>
 
-              {% if novel.total_chapters %}
-                <span class="meta-pill">📚 {{ novel.total_chapters }} глав</span>
+              {% if novel.display_chapters_count or novel.available_chapters_count or novel.total_chapters %}
+                <span class="meta-pill">
+                  📚 {{ novel.display_chapters_count or novel.available_chapters_count or novel.total_chapters }} глав
+                </span>
               {% endif %}
 
               {% if novel.translated_chapters %}
