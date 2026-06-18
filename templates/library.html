@@ -68,7 +68,7 @@
           <button type="button" data-quick-filter="Гет">Гет</button>
           <button type="button" data-quick-filter="Джен">Джен</button>
           <button type="button" data-quick-filter="Романтика">Романтика</button>
-          <button type="button" data-quick-filter="Переводится">Переводится</button>
+          <button type="button" data-quick-filter="HE">HE</button>
         </div>
       </section>
 
@@ -109,6 +109,17 @@
           <div class="library-section-list" data-section-list="start"></div>
         </section>
 
+        <section class="library-section" data-library-section="waiting">
+          <button class="library-section-header" type="button" data-section-toggle="waiting">
+            <span>
+              Жду новую
+              <span class="library-section-count" data-section-count="waiting">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-list" data-section-list="waiting"></div>
+        </section>
+
         <section class="library-section" data-library-section="finished">
           <button class="library-section-header" type="button" data-section-toggle="finished">
             <span>
@@ -135,32 +146,60 @@
                 data-tags="{{ novel.tags or '' }}"
                 data-sort-order="{{ novel.sort_order or novel.id }}"
                 data-status="{{ novel.translation_status or 'in_progress' }}"
-                data-status-label="{{ novel.translation_status_label or 'Переводится' }}"
+                data-status-label="{{ novel.translation_status_label or 'В процессе перевода' }}"
+                data-project-status-icon="{{ novel.project_status_icon or novel.translation_status_icon or '' }}"
+                data-relation-icon="{{ novel.relation_icon or '' }}"
+                data-relation="{{ novel.relation_type or '' }}"
+                data-size-code="{{ novel.size_code or '' }}"
+                data-size-label="{{ novel.size_label or '' }}"
+                data-access-icon="{{ novel.access_badge.icon or '' }}"
+                data-access-label="{{ novel.access_badge.label or '' }}"
+                data-access-class="{{ novel.access_badge.class_name or '' }}"
+                data-age-rating="{{ novel.age_rating or '' }}"
                 data-chapters="{{ novel.display_chapters_count or novel.total_chapters or 0 }}"
                 data-translated-chapters="{{ novel.translated_chapters or 0 }}"
                 data-available-chapters="{{ novel.available_chapters_count or 0 }}"
                 data-progress="{{ novel.progress_percent or 0 }}"
                 data-added="{{ novel.added_date or '' }}"
-                data-relation="{{ novel.relation_type or '' }}"
               >
                 <a class="library-book-cover-link" href="/novel/{{ novel.slug }}">
-                  {% if novel.cover_url %}
-                    <img
-                      class="library-book-cover"
-                      src="{{ novel.cover_url }}"
-                      alt="{{ novel.display_title }}"
-                      onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
-                    >
-                    <span class="library-book-cover library-book-cover-placeholder" style="display:none;">обложка</span>
-                  {% else %}
-                    <span class="library-book-cover library-book-cover-placeholder">обложка</span>
-                  {% endif %}
+                  <span class="library-cover-frame">
+                    {% if novel.cover_url %}
+                      <img
+                        class="library-book-cover"
+                        src="{{ novel.cover_url }}"
+                        alt="{{ novel.display_title }}"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                      >
+                      <span class="library-book-cover library-book-cover-placeholder" style="display:none;">обложка</span>
+                    {% else %}
+                      <span class="library-book-cover library-book-cover-placeholder">обложка</span>
+                    {% endif %}
+
+                    {% if novel.age_rating %}
+                      <span class="library-age-badge">{{ novel.age_rating }}</span>
+                    {% endif %}
+                  </span>
                 </a>
 
                 <div class="library-book-body">
                   <div class="library-book-topline">
                     <a class="library-book-title" href="/novel/{{ novel.slug }}">
-                      {{ novel.display_title }}
+                      <span class="library-title-icons">
+                        {% if novel.relation_icon %}
+                          <span class="library-title-icon">{{ novel.relation_icon }}</span>
+                        {% endif %}
+
+                        {% if novel.project_status_icon %}
+                          <span class="library-title-icon">{{ novel.project_status_icon }}</span>
+                        {% endif %}
+
+                        {% if novel.size_code %}
+                          <span class="library-size-code">{{ novel.size_code }}</span>
+                        {% endif %}
+                      </span>
+
+                      <span class="library-title-text">{{ novel.display_title }}</span>
                     </a>
 
                     <button class="library-book-menu" type="button" aria-label="Меню книги">⋮</button>
@@ -181,18 +220,42 @@
                     <span class="library-progress-text" data-card-progress-text></span>
                   </div>
 
+                  <div class="library-project-stats">
+                    {% if novel.display_chapters_count or novel.total_chapters %}
+                      <span class="library-stat-chip">
+                        📚 {{ novel.display_chapters_count or novel.total_chapters }}
+                      </span>
+                    {% endif %}
+
+                    {% if novel.translated_chapters %}
+                      <span class="library-stat-chip">
+                        🖋 {{ novel.translated_chapters }}
+                      </span>
+                    {% endif %}
+
+                    {% if novel.progress_percent is not none %}
+                      <span class="library-stat-chip">
+                        ✨ {{ novel.progress_percent }}%
+                      </span>
+                    {% endif %}
+
+                    {% if novel.access_badge.icon %}
+                      <span class="library-stat-chip library-access-chip {{ novel.access_badge.class_name }}">
+                        {{ novel.access_badge.icon }} {{ novel.access_badge.label }}
+                      </span>
+                    {% endif %}
+                  </div>
+
                   <div class="library-book-bottom">
                     <div class="library-card-tags">
-                      {% if novel.catalog_tag_items %}
-                        {% for tag in novel.catalog_tag_items %}
-                          {% if loop.index <= 3 %}
-                            {% if tag.is_spoiler %}
-                              <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
-                            {% else %}
-                              <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
-                            {% endif %}
-                          {% endif %}
+                      {% if novel.card_tag_items %}
+                        {% for tag in novel.card_tag_items %}
+                          <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
                         {% endfor %}
+
+                        {% if novel.card_hidden_tags > 0 %}
+                          <span class="library-mini-tag library-mini-tag-more">…</span>
+                        {% endif %}
                       {% endif %}
                     </div>
 
@@ -233,6 +296,7 @@
             <button type="button" data-filter-chip="all" class="active">Все</button>
             <button type="button" data-filter-chip="reading">Читаю</button>
             <button type="button" data-filter-chip="new">Новая глава</button>
+            <button type="button" data-filter-chip="waiting">Жду новую</button>
             <button type="button" data-filter-chip="finished">Прочитано</button>
           </div>
         </div>
@@ -240,29 +304,43 @@
         <div class="library-filter-group">
           <h3>Статус проекта</h3>
           <div class="library-filter-chips">
-            <button type="button" data-filter-chip="in_progress">Переводится</button>
-            <button type="button" data-filter-chip="completed">Завершено</button>
-            <button type="button" data-filter-chip="paused">На паузе</button>
+            <button type="button" data-filter-chip="in_progress">В переводе</button>
+            <button type="button" data-filter-chip="completed">Завершена</button>
+            <button type="button" data-filter-chip="paused">На передержке</button>
           </div>
         </div>
 
         <div class="library-filter-group">
           <h3>Формат</h3>
           <div class="library-filter-chips">
-            <button type="button" data-filter-chip="Слэш">Слэш</button>
             <button type="button" data-filter-chip="Гет">Гет</button>
+            <button type="button" data-filter-chip="Слэш">Слэш</button>
             <button type="button" data-filter-chip="Джен">Джен</button>
+            <button type="button" data-filter-chip="Нет любовной линии">Нет любовной линии</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Размер</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="Мини">Мини</button>
+            <button type="button" data-filter-chip="Миди">Миди</button>
+            <button type="button" data-filter-chip="Макси">Макси</button>
           </div>
         </div>
 
         <div class="library-filter-group">
           <h3>Жанр / сеттинг</h3>
           <div class="library-filter-chips">
+            <button type="button" data-filter-chip="Китай">Китай</button>
+            <button type="button" data-filter-chip="Корея">Корея</button>
+            <button type="button" data-filter-chip="Япония">Япония</button>
             <button type="button" data-filter-chip="Сянься/Уся">Сянься/Уся</button>
             <button type="button" data-filter-chip="Фэнтези">Фэнтези</button>
             <button type="button" data-filter-chip="Современность">Современность</button>
             <button type="button" data-filter-chip="Романтика">Романтика</button>
             <button type="button" data-filter-chip="Иссекай/Попаданцы">Иссекай/Попаданцы</button>
+            <button type="button" data-filter-chip="HE">HE</button>
           </div>
         </div>
 
