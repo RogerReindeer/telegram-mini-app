@@ -1578,3 +1578,250 @@ img[data-fox] {
     max-height: 92px;
   }
 }
+
+/* v8: fox visibility, blurred covers, readable descriptions, safer responsive layout */
+[data-fox] {
+  display: block;
+  object-fit: contain;
+  max-width: 100%;
+  pointer-events: none;
+}
+
+.library-hero-fox,
+.novel-title-fox,
+.section-fox,
+.chapter-side-fox,
+.chapter-footer-fox,
+.library-empty-fox-img,
+.about-fox {
+  opacity: 1;
+  visibility: visible;
+}
+
+.library-book-card-v4 {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.library-card-cover-bg {
+  position: absolute;
+  inset: -24px;
+  z-index: -2;
+  display: block;
+  background-position: center;
+  background-size: cover;
+  filter: blur(26px) saturate(1.12);
+  opacity: 0.18;
+  transform: scale(1.08);
+}
+
+.library-book-card-v4::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(255, 250, 245, 0.94), rgba(255, 250, 245, 0.78)),
+    rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+}
+
+.library-book-card-v4 .library-book-cover-link,
+.library-book-card-v4 .library-book-body,
+.library-book-card-v4 .library-book-menu {
+  position: relative;
+  z-index: 1;
+}
+
+.library-card-menu {
+  z-index: 2200;
+  max-width: min(320px, calc(100vw - 28px));
+}
+
+.library-card-menu[hidden] {
+  display: none !important;
+}
+
+.novel-hero-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.novel-hero-blur {
+  position: absolute;
+  inset: -34px;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  filter: blur(34px) saturate(1.18);
+  opacity: 0.38;
+  transform: scale(1.08);
+}
+
+.novel-hero-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, rgba(255, 250, 245, 0.96) 0%, rgba(255, 250, 245, 0.88) 48%, rgba(255, 250, 245, 0.56) 100%);
+  pointer-events: none;
+}
+
+.novel-hero-content-v2 {
+  position: relative;
+  z-index: 2;
+}
+
+.novel-description-v2 {
+  max-width: 760px;
+}
+
+.novel-description-v2-content {
+  max-height: 9.5em;
+  overflow: hidden;
+}
+
+.novel-description-v2-content p {
+  margin: 0 0 0.72em;
+  line-height: 1.58;
+}
+
+.novel-description-v2.is-expanded .novel-description-v2-content,
+.collapsible-description.is-expanded .novel-description-v2-content {
+  max-height: none;
+}
+
+.novel-description-v2:not(.is-expanded) .novel-description-v2-content::after,
+.collapsible-description:not(.is-expanded) .novel-description-v2-content::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3.2em;
+  background: linear-gradient(to bottom, rgba(255,250,245,0), rgba(255,250,245,0.98));
+  pointer-events: none;
+}
+
+.novel-description-v2-content {
+  position: relative;
+}
+
+.novel-description-toggle-v2 {
+  min-height: 40px;
+  min-width: 92px;
+  margin-top: 8px;
+}
+
+.chapter-content {
+  overflow-wrap: break-word;
+}
+
+.chapter-content a[href*="boosty"],
+.chapter-content a[href*="Boosty"],
+.chapter-content a[href*="telegraph"],
+.chapter-content a[href*="teletype"] {
+  word-break: break-word;
+}
+
+@media (min-width: 900px) {
+  .library-section-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .library-section-favorites .library-section-list,
+  .library-section[data-library-section="reading"] .library-section-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .library-book-card-v4 {
+    min-height: 214px;
+  }
+}
+
+@media (max-width: 720px) {
+  .library-card-cover-bg {
+    inset: -18px;
+    filter: blur(20px) saturate(1.1);
+    opacity: 0.15;
+  }
+
+  .library-hero-v4 {
+    align-items: flex-start;
+  }
+
+  .library-hero-fox {
+    flex: 0 0 auto;
+    width: clamp(64px, 22vw, 96px);
+    height: clamp(64px, 22vw, 96px);
+  }
+
+  .novel-hero-card::before {
+    background: rgba(255,250,245,0.9);
+  }
+
+  .novel-hero-blur {
+    opacity: 0.28;
+  }
+
+  .novel-title-fox,
+  .section-fox {
+    width: 58px;
+    height: 58px;
+  }
+
+  .chapter-side-fox {
+    width: 58px;
+    height: 58px;
+    left: 10px;
+    top: -32px;
+  }
+
+  .chapter-content-shell {
+    margin-top: 34px;
+  }
+}
+
+@media (max-width: 520px) {
+  .library-book-card-v4 {
+    grid-template-columns: 96px minmax(0, 1fr);
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 96px;
+  }
+
+  .library-book-card-v4 .library-book-cover {
+    height: 136px;
+  }
+
+  .library-book-card-v4 .library-card-stats,
+  .library-book-card-v4 .library-card-tags {
+    gap: 6px;
+  }
+
+  .library-book-card-v4 .library-card-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .library-book-card-v4 .library-card-button,
+  .library-book-card-v4 .library-card-state-pill {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .novel-description-v2-content {
+    max-height: 8.2em;
+  }
+}
