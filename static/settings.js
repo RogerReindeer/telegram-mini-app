@@ -157,7 +157,6 @@
     initLibrarySortControl();
     initLibrarySectionToggles();
     initLibraryCardMenus();
-    initLibraryFavoriteButtons();
     renderLibraryCards();
   }
 
@@ -363,30 +362,6 @@
       if (event.key === "Escape") {
         closeAllCardMenus();
       }
-    });
-  }
-
-  function initLibraryFavoriteButtons() {
-    document.addEventListener("click", function (event) {
-      const button = event.target.closest("[data-card-favorite-button]");
-
-      if (!button) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const card = button.closest("[data-library-novel-card]");
-
-      if (!card) {
-        return;
-      }
-
-      const novelId = card.dataset.novelId || "";
-
-      toggleIdInList(STORAGE_KEYS.favoriteNovels, novelId);
-      renderLibraryCards();
     });
   }
 
@@ -693,17 +668,6 @@
     const statePill = card.querySelector("[data-card-state-pill]");
     const progressFill = card.querySelector("[data-card-progress-fill]");
     const progressText = card.querySelector("[data-card-progress-text]");
-    const favoriteButton = card.querySelector("[data-card-favorite-button]");
-    const isFavoriteNow = getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId);
-
-    if (favoriteButton) {
-      favoriteButton.textContent = isFavoriteNow ? "♥" : "♡";
-      favoriteButton.classList.toggle("is-active", isFavoriteNow);
-      favoriteButton.setAttribute(
-        "aria-label",
-        isFavoriteNow ? "Убрать из избранного" : "Добавить в избранное"
-      );
-    }
 
     card.classList.remove(
       "is-reading",
@@ -720,7 +684,7 @@
       button.classList.remove("is-disabled-soft");
     }
 
-    if (isFavoriteNow) {
+    if (getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId)) {
       card.classList.add("is-favorite");
     }
 
@@ -815,6 +779,7 @@
     const haystack = [
       card.dataset.novelTitle,
       card.dataset.title,
+      card.dataset.description,
       card.dataset.tags,
       card.dataset.statusLabel,
       card.dataset.relation,
