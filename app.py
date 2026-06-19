@@ -3,7 +3,7 @@ import re
 import html
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urljoin, urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -69,8 +69,17 @@ KEY_MAP_CHAPTER = {
 }
 
 KEY_MAP_FOX = {
-    "Name": "name", "name": "name", "Название": "name",
-    "URL": "url", "Url": "url", "url": "url", "Ссылка": "url",
+    "Name": "name",
+    "name": "name",
+    "Название": "name",
+    "Fox": "name",
+    "fox": "name",
+    "URL": "url",
+    "Url": "url",
+    "url": "url",
+    "Ссылка": "url",
+    "ImageURL": "url",
+    "ImageUrl": "url",
 }
 
 app = FastAPI(title="Zefirki Reader Mini App")
@@ -689,6 +698,161 @@ def telegraph_path_from_url(url: str) -> str:
     return text
 
 
+def is_probably_direct_image_url(url: Any) -> bool:
+    text = clean_value(url)
+
+    if not text:
+        return False
+
+    lowered = text.split("?")[0].lower()
+
+    return bool(
+        re.search(r"\.(?:png|jpe?g|webp|gif|avif|svg)$", lowered)
+        or "teletype.in/files/" in lowered
+        or "telegra.ph/file/" in lowered
+    )
+
+
+def extract_first_image_from_html(page_url: str, html_text: str) -> str:
+    patterns = [
+        r'<meta[^>]+property=["\']og:image["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+name=["\']twitter:image["\'][^>]+content=["\']([^"\']+)["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:image["\']',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+name=["\']twitter:image["\']',
+        r'<img[^>]+src=["\']([^"\']+)["\']',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, html_text, flags=re.IGNORECASE | re.DOTALL)
+
+        if match:
+            src = html.unescape(clean_value(match.group(1)))
+
+            if src:
+                return urljoin(page_url, src)
+
+    return ""
+
+
+def resolve_external_image_url(url: Any) -> str:
+    """Return a browser-displayable image URL.
+
+    Fox images are stored in the Excel/Google Sheets tab `fox` as Teletype links.
+    If the link is already a direct image URL, it is used as-is. If it is a
+    Teletype/Telegraph page URL, the first page image is extracted and used.
+    """
+    text = clean_value(url)
+
+    if not text:
+        return ""
+
+    if text.startswith("//"):
+        text = f"https:{text}"
+
+    if text.startswith("http://"):
+        text = "https://" + text[len("http://"):]
+
+    if is_probably_direct_image_url(text):
+        return text
+
+    parsed = urlparse(text)
+    host = parsed.netloc.lower()
+
+    if "teletype.in" not in host and "telegra.ph" not in host:
+        return text
+
+    try:
+        response = requests.get(
+            text,
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=15,
+        )
+        response.raise_for_status()
+    except Exception:
+        return text
+
+    extracted = extract_first_image_from_html(text, response.text)
+
+    return extracted or text
+
+
+def html_to_plain_text(fragment: str) -> str:
+    text = re.sub(r"(?is)<br\s*/?>", "\n", fragment)
+    text = re.sub(r"(?is)<[^>]+>", "", text)
+    text = html.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def is_chapter_service_block(fragment: str) -> bool:
+    text = html_to_plain_text(fragment)
+    normalized = text.lower().replace("ё", "е")
+
+    if not normalized:
+        return True
+
+    if normalized in ("--", "—", "–", "***", "* * *"):
+        return True
+
+    footer_markers = (
+        "перевод зефиркины",
+        "перевод: зефиркины",
+        "зефиркины баоцы",
+        "зефиркины баоцзы",
+        "спасибо что читаете с нами",
+        "спасибо, что читаете с нами",
+    )
+
+    if any(marker in normalized for marker in footer_markers):
+        return True
+
+    navigation_markers = (
+        "к оглавлению",
+        "оглавление",
+        "следующая глава",
+        "следующая",
+        "прошлая глава",
+        "предыдущая глава",
+        "предыдущая",
+        "назад",
+        "вперед",
+        "вперёд",
+        "next chapter",
+        "previous chapter",
+        "contents",
+    )
+
+    if len(normalized) <= 160 and any(marker in normalized for marker in navigation_markers):
+        return True
+
+    return False
+
+
+def clean_chapter_content_html(html_content: str) -> str:
+    content = clean_value(html_content)
+
+    if not content:
+        return ""
+
+    block_pattern = re.compile(
+        r"(?is)<(p|h1|h2|h3|h4|blockquote|li|div|a)\b[^>]*>.*?</\1>"
+    )
+
+    def replace_block(match: re.Match) -> str:
+        block = match.group(0)
+
+        if is_chapter_service_block(block):
+            return ""
+
+        return block
+
+    cleaned = block_pattern.sub(replace_block, content)
+    cleaned = re.sub(r"(?is)<hr\s*/?>", "", cleaned)
+    cleaned = re.sub(r"(?is)(?:\s|&nbsp;)*$", "", cleaned).strip()
+
+    return cleaned
+
+
 def render_telegraph_node(node: Any) -> str:
     if isinstance(node, str):
         return html.escape(node)
@@ -717,8 +881,9 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
     path = telegraph_path_from_url(url)
     if not path:
         return None, ""
+    api_url = f"https://api.telegra.ph/getPage/{quote(path)}"
     try:
-        response = requests.get(f"https://api.telegra.ph/getPage/{quote(path)}", params={"return_content": "true"}, timeout=20)
+        response = requests.get(api_url, params={"return_content": "true"}, timeout=20)
         response.raise_for_status()
         data = response.json()
     except Exception as error:
@@ -726,7 +891,8 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
     if not data.get("ok"):
         return None, data.get("error") or "Telegraph вернул ошибку."
     result = data.get("result") or {}
-    html_content = "".join(render_telegraph_node(node) for node in result.get("content") or [])
+    raw_html = "".join(render_telegraph_node(node) for node in result.get("content") or [])
+    html_content = clean_chapter_content_html(raw_html)
     return {"title": result.get("title") or "", "content_html": html_content}, ""
 
 
@@ -790,46 +956,94 @@ def normalize_chapter_row(row: dict) -> dict:
     return filter_columns(row, CHAPTER_TABLE_COLUMNS)
 
 
-def normalize_fox_row(row: dict) -> dict:
-    row = normalize_dict_keys(row, KEY_MAP_FOX)
-    return filter_columns({"name": clean_value(row.get("name")), "url": clean_value(row.get("url"))}, FOX_TABLE_COLUMNS)
+def normalize_fox_name(value: Any) -> str:
+    name = clean_value(value)
 
+    if not name:
+        return ""
 
-def normalize_fox_key(name: Any) -> str:
-    key = clean_value(name).strip().lower()
-    key = key.replace("-", "_").replace(" ", "_")
+    # В листе fox имя может быть записано как fox_side.png, fox_pic.jpg и т.п.
+    # Для сайта это должен быть чистый ключ: fox_side, fox_pic.
+    name = re.sub(r"\.(png|jpg|jpeg|webp|gif)$", "", name.strip(), flags=re.IGNORECASE)
+    name = name.lower()
+    name = name.replace("-", "_").replace(" ", "_")
+    name = re.sub(r"[^a-z0-9_а-яё]+", "", name)
+    name = re.sub(r"_+", "_", name).strip("_")
 
     aliases = {
         "peek": "fox_peek",
         "foxpeek": "fox_peek",
         "fox_peek": "fox_peek",
+        "fox_peek_png": "fox_peek",
         "pic": "fox_pic",
         "foxpic": "fox_pic",
         "fox_pic": "fox_pic",
+        "fox_pic_png": "fox_pic",
         "side": "fox_side",
         "foxside": "fox_side",
         "fox_side": "fox_side",
+        "fox_side_png": "fox_side",
         "sitting": "fox_sitting_front",
         "sitting_front": "fox_sitting_front",
         "foxsittingfront": "fox_sitting_front",
         "fox_sitting_front": "fox_sitting_front",
+        "fox_sitting_front_png": "fox_sitting_front",
+        "fox_sitting_side": "fox_sitting_side",
+        "fox_sitting_side_png": "fox_sitting_side",
+        "fox_sleeping": "fox_sleeping",
+        "fox_sleeping_png": "fox_sleeping",
+        "fox_standing_paws_up": "fox_standing_paws_up",
+        "fox_standing_paws_up_png": "fox_standing_paws_up",
+        "fox_heart": "fox_heart",
+        "fox_heart_png": "fox_heart",
+        "fox_jump_paws_up": "fox_jump_paws_up",
+        "fox_jump_paws_up_png": "fox_jump_paws_up",
+        "fox_laying_paws": "fox_laying_paws",
+        "fox_laying_paws_png": "fox_laying_paws",
+        "fox_peek_left": "fox_peek_left",
+        "fox_peek_left_png": "fox_peek_left",
+        "fox_peek_right": "fox_peek_right",
+        "fox_peek_right_png": "fox_peek_right",
         "лисичка_сбоку": "fox_side",
         "лисичка_в_шапке": "fox_peek",
         "лисичка": "fox_pic",
     }
 
-    return aliases.get(key, key)
+    return aliases.get(name, name)
+
+
+def normalize_fox_key(name: Any) -> str:
+    return normalize_fox_name(name)
+
+
+def normalize_fox_row(row: dict) -> dict:
+    row = normalize_dict_keys(row, KEY_MAP_FOX)
+    return filter_columns(
+        {
+            "name": normalize_fox_name(row.get("name")),
+            "url": resolve_external_image_url(row.get("url")),
+        },
+        FOX_TABLE_COLUMNS,
+    )
 
 
 def get_fox() -> dict[str, str]:
     # Лисички берутся не из /static, а из таблицы fox,
     # которая синхронизируется из Excel/Google Sheets листа fox.
-    # В url должен быть прямой URL картинки Teletype/CDN, пригодный для <img src>.
+    # url может быть прямой ссылкой на картинку Teletype/Telegraph.
     default_fox = {
-        "fox_peek": "",
-        "fox_pic": "",
         "fox_side": "",
+        "fox_pic": "",
+        "fox_peek": "",
+        "fox_peek_left": "",
+        "fox_peek_right": "",
         "fox_sitting_front": "",
+        "fox_sitting_side": "",
+        "fox_sleeping": "",
+        "fox_standing_paws_up": "",
+        "fox_heart": "",
+        "fox_jump_paws_up": "",
+        "fox_laying_paws": "",
     }
 
     if not supabase_ready():
@@ -841,8 +1055,8 @@ def get_fox() -> dict[str, str]:
         return default_fox
 
     for row in rows:
-        name = normalize_fox_key(row.get("name"))
-        url = clean_value(row.get("url"))
+        name = normalize_fox_name(row.get("name"))
+        url = resolve_external_image_url(row.get("url"))
 
         if name and url:
             default_fox[name] = url
@@ -955,6 +1169,12 @@ async def chapter_page(request: Request, chapter_id: str):
     return templates.TemplateResponse(request, "chapter.html", {"app_title": APP_TITLE, "chapter": prepared_chapter, "novel": prepared_novel, "previous_chapter": previous_chapter, "next_chapter": next_chapter, "chapter_index": index_info["chapter_index"], "available_chapters": index_info["available_chapters"], "is_locked": is_locked, "telegraph_content": telegraph_content, "telegraph_error": telegraph_error, "fox": fox})
 
 
+@app.get("/api/fox")
+async def api_fox():
+    fox = get_fox()
+    return {"status": "ok", "fox": fox}
+
+
 @app.get("/api/library")
 async def api_library():
     novels = get_all_novels(include_hidden=False)
@@ -1025,4 +1245,4 @@ async def sync_from_sheets_alias(request: Request, token: str | None = Query(def
 
 @app.exception_handler(404)
 async def not_found_handler(request: Request, exc: HTTPException):
-    return templates.TemplateResponse(request, "index.html", {"app_title": APP_TITLE, "error": "Страница не найдена."}, status_code=404)
+    return templates.TemplateResponse(request, "index.html", {"app_title": APP_TITLE, "error": "Страница не найдена.", "fox": get_fox()}, status_code=404)
