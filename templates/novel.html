@@ -44,8 +44,13 @@
               {% endif %}
             </div>
 
-            {% if fox.fox_pic %}
-              <img class="inline-fox" src="{{ fox.fox_pic }}" alt="Лисичка" data-fox>
+            {% if fox.fox_pic or fox.fox_sitting_front or fox.fox_peek %}
+              <img
+                class="inline-fox"
+                src="{{ fox.fox_pic or fox.fox_sitting_front or fox.fox_peek }}"
+                alt="Лисичка"
+                data-fox
+              >
             {% endif %}
           </div>
 
@@ -67,8 +72,9 @@
           </div>
 
           <div class="novel-meta-line">
-            <span class="meta-pill">📚 {{ novel.display_chapters_count or novel.total_chapters or 0 }} глав</span>
-            <span class="meta-pill">🖊 {{ novel.translated_chapters or 0 }} переведено</span>
+            <span class="meta-pill">🌱 {{ novel.available_chapters_count or 0 }} открыто</span>
+            <span class="meta-pill">📜 {{ novel.translated_chapters or 0 }} переведено</span>
+            <span class="meta-pill">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
 
             <span class="meta-pill progress-pill">
               ✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%
@@ -140,8 +146,13 @@
       <div class="section-header">
         <h2 class="section-title">Оглавление</h2>
 
-        {% if fox.fox_side %}
-          <img class="section-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+        {% if fox.fox_side or fox.fox_pic or fox.fox_peek %}
+          <img
+            class="section-fox"
+            src="{{ fox.fox_side or fox.fox_pic or fox.fox_peek }}"
+            alt="Лисичка"
+            data-fox
+          >
         {% endif %}
       </div>
 
