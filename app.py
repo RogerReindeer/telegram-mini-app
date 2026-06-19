@@ -151,9 +151,11 @@ KEY_MAP_CHAPTER = {
 KEY_MAP_FOX = {
     "Name": "name",
     "name": "name",
+    "Название": "name",
     "URL": "url",
     "Url": "url",
     "url": "url",
+    "Ссылка": "url",
 }
 
 
@@ -313,6 +315,19 @@ def split_tags(tags: Any) -> list[str]:
     return result
 
 
+def strip_leading_service_icons_from_title(title: Any) -> str:
+    title_text = clean_value(title)
+
+    if not title_text:
+        return ""
+
+    return re.sub(
+        r"^[\s💙❤️💚✅🛠⏳🟢🟡🔴🎁📗📖]+",
+        "",
+        title_text,
+    ).strip()
+
+
 def compact_title_with_icons(post_icons: Any, title: Any) -> str:
     title_text = clean_value(title)
     icons = clean_value(post_icons)
@@ -321,12 +336,14 @@ def compact_title_with_icons(post_icons: Any, title: Any) -> str:
         return ""
 
     if not icons:
+        return strip_leading_service_icons_from_title(title_text) or title_text
+
+    clean_title = strip_leading_service_icons_from_title(title_text)
+
+    if not clean_title:
         return title_text
 
-    if title_text.startswith(icons):
-        return title_text
-
-    return f"{icons} {title_text}"
+    return f"{icons} {clean_title}"
 
 
 def supabase_ready() -> bool:
@@ -1047,9 +1064,9 @@ def prepare_novel_for_template(novel: dict) -> dict:
     prepared["bottom_description"] = clean_value(novel.get("bottom_description"))
     prepared["tags"] = tags
     prepared["tag_items"] = tag_items
-    prepared["catalog_tag_items"] = card_tag_items[:5]
-    prepared["card_tag_items"] = card_tag_items[:5]
-    prepared["catalog_hidden_tags"] = max(0, len(card_tag_items) - 5)
+    prepared["catalog_tag_items"] = card_tag_items[:4]
+    prepared["card_tag_items"] = card_tag_items[:4]
+    prepared["catalog_hidden_tags"] = max(0, len(card_tag_items) - 4)
 
     prepared["age_rating"] = (
         clean_value(novel.get("age_rating"))
