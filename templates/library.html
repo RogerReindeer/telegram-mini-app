@@ -162,7 +162,6 @@
                 data-novel-title="{{ novel.display_title }}"
                 data-novel-cover="{{ novel.cover_url or '' }}"
                 data-title="{{ novel.display_title|lower }}"
-                data-description="{{ novel.description or '' }}"
                 data-tags="{{ novel.tags or '' }}"
                 data-sort-order="{{ novel.sort_order or novel.id }}"
                 data-status="{{ novel.translation_status or 'in_progress' }}"
@@ -210,12 +209,6 @@
 
                   <div class="library-book-state-line" data-card-state-line></div>
 
-                  <div class="library-card-stats">
-                    <span title="Открыто для Странствующего читателя">🌱 {{ novel.available_chapters_count or 0 }}</span>
-                    <span title="Переведено">📜 {{ novel.translated_chapters or 0 }}</span>
-                    <span title="Всего глав">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
-                  </div>
-
                   <div class="library-progress-row" data-card-progress-row>
                     <span class="library-progress-track">
                       <span class="library-progress-fill" data-card-progress-fill></span>
@@ -241,7 +234,17 @@
 
                   <div class="library-card-footer">
                     <span class="library-card-state-pill" data-card-state-pill></span>
-                    <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>Начать читать</a>
+
+                    <div class="library-card-actions-bottom">
+                      <button
+                        class="library-card-favorite-button"
+                        type="button"
+                        aria-label="Добавить в избранное"
+                        data-card-favorite-button
+                      >♡</button>
+
+                      <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>Начать читать</a>
+                    </div>
                   </div>
                 </div>
               </article>
