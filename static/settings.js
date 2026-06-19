@@ -34,6 +34,7 @@
     initReadChapterMarks();
     initCollapsibleDescription();
     initPaidChapterReveal();
+    initChapterSortToggle();
     initSpoilerReveal();
   });
 
@@ -578,6 +579,57 @@
       document.querySelectorAll("[data-paid-extra]").forEach(function (row) { row.hidden = false; requestAnimationFrame(function () { row.classList.add("paid-chapter-extra-open"); }); });
       document.querySelector("[data-paid-fade]")?.remove();
     });
+  }
+
+  function initChapterSortToggle() {
+    const button = document.querySelector("[data-chapter-sort-toggle]");
+    const list = document.querySelector("[data-chapter-list]");
+
+    if (!button || !list) {
+      return;
+    }
+
+    const label = button.querySelector("[data-chapter-sort-label]");
+
+    button.addEventListener("click", function () {
+      const currentOrder = button.dataset.sortOrder === "desc" ? "desc" : "asc";
+      const nextOrder = currentOrder === "asc" ? "desc" : "asc";
+
+      button.dataset.sortOrder = nextOrder;
+
+      if (label) {
+        label.textContent = nextOrder === "asc"
+          ? "Сортировка: по порядку"
+          : "Сортировка: новые сверху";
+      }
+
+      sortChapterList(list, nextOrder);
+    });
+  }
+
+  function sortChapterList(list, order) {
+    const fade = list.querySelector("[data-paid-fade]");
+    const rows = Array.from(list.querySelectorAll("[data-chapter-row]"));
+    const volumeHeaders = Array.from(list.querySelectorAll("[data-volume-header]"));
+
+    rows.sort(function (a, b) {
+      const aValue = Number(a.dataset.sortValue || 0);
+      const bValue = Number(b.dataset.sortValue || 0);
+
+      return order === "asc" ? aValue - bValue : bValue - aValue;
+    });
+
+    volumeHeaders.forEach(function (header) {
+      header.remove();
+    });
+
+    rows.forEach(function (row) {
+      list.appendChild(row);
+    });
+
+    if (fade) {
+      list.appendChild(fade);
+    }
   }
 
   function initSpoilerReveal() {
