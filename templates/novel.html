@@ -11,8 +11,8 @@
 </head>
 
 <body class="page-novel novel-redesign-page">
-  {% set title_fox = fox.fox_pic or fox.fox_sitting_front or fox.fox_peek %}
-  {% set side_fox = fox.fox_side or fox.fox_pic or fox.fox_peek %}
+  {% set title_fox = fox.fox_heart or fox.fox_sitting_front or fox.fox_pic or fox.fox_peek_right or fox.fox_peek_left or fox.fox_peek %}
+  {% set side_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_pic or fox.fox_peek_right or fox.fox_peek %}
 
   <main
     class="page title-layout novel-redesign-layout"
@@ -81,12 +81,21 @@
             </span>
           </div>
 
-          {% if novel.description %}
+          {% if novel.description_paragraphs %}
+            <section class="novel-description-v2" data-collapsible-description>
+              <div class="collapsible-description-content novel-description-v2-content">
+                {% for paragraph in novel.description_paragraphs %}
+                  <p>{{ paragraph }}</p>
+                {% endfor %}
+              </div>
+              <button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Ещё</button>
+            </section>
+          {% elif novel.description %}
             <section class="novel-description-v2" data-collapsible-description>
               <div class="collapsible-description-content novel-description-v2-content">
                 <p>{{ novel.description }}</p>
               </div>
-              <button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Свернуть</button>
+              <button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Ещё</button>
             </section>
           {% endif %}
 
