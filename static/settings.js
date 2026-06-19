@@ -6,6 +6,9 @@
     readChapters: "zefirki_read_chapters",
     spoilerConfirmed: "zefirki_spoiler_confirmed",
     libraryFilter: "zefirki_library_filter",
+    hiddenNovels: "zefirki_hidden_novels",
+    favoriteNovels: "zefirki_favorite_novels",
+    completedNovels: "zefirki_completed_novels",
   };
 
   const DEFAULT_SETTINGS = {
@@ -153,6 +156,7 @@
     initLibraryFilters();
     initLibrarySortControl();
     initLibrarySectionToggles();
+    initLibraryCardMenus();
     renderLibraryCards();
   }
 
@@ -304,84 +308,389 @@
 
   function initLibraryNovelMeta() {
     const meta = readJson(STORAGE_KEYS.novelMeta, {});
+
     document.querySelectorAll("[data-library-novel-card]").forEach(function (card) {
       const novelId = card.dataset.novelId;
-      if (!novelId) return;
-      meta[novelId] = { novelId, novelSlug: card.dataset.novelSlug || "", novelTitle: card.dataset.novelTitle || "", coverUrl: card.dataset.novelCover || "" };
+
+      if (!novelId) {
+        return;
+      }
+
+      meta[novelId] = {
+        novelId,
+        novelSlug: card.dataset.novelSlug || "",
+        novelTitle: card.dataset.novelTitle || "",
+        coverUrl: card.dataset.novelCover || "",
+      };
     });
+
     writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+  function initLibraryCardMenus() {
+    document.addEventListener("click", function (event) {
+      const menuButton = event.target.closest("[data-card-menu-button]");
+
+      if (menuButton) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const card = menuButton.closest("[data-library-novel-card]");
+
+        if (!card) {
+          return;
+        }
+
+        toggleCardMenu(card, menuButton);
+        return;
+      }
+
+      const menuAction = event.target.closest("[data-card-menu-action]");
+
+      if (menuAction) {
+        event.preventDefault();
+        handleCardMenuAction(menuAction);
+        return;
+      }
+
+      if (!event.target.closest("[data-card-menu]")) {
+        closeAllCardMenus();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeAllCardMenus();
+      }
+    });
+  }
+
+  function toggleCardMenu(card, button) {
+    const existing = card.querySelector("[data-card-menu]");
+
+    closeAllCardMenus(card);
+
+    if (existing) {
+      existing.remove();
+      button.setAttribute("aria-expanded", "false");
+      return;
+    }
+
+    const menu = buildCardMenu(card);
+
+    card.appendChild(menu);
+    button.setAttribute("aria-expanded", "true");
+  }
+
+  function closeAllCardMenus(exceptCard) {
+    document.querySelectorAll("[data-card-menu]").forEach(function (menu) {
+      const card = menu.closest("[data-library-novel-card]");
+
+      if (exceptCard && card === exceptCard) {
+        return;
+      }
+
+      const button = card ? card.querySelector("[data-card-menu-button]") : null;
+
+      if (button) {
+        button.setAttribute("aria-expanded", "false");
+      }
+
+      menu.remove();
+    });
+  }
+
+  function buildCardMenu(card) {
+    const novelId = card.dataset.novelId || "";
+    const isFavorite = getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId);
+    const state = card.dataset.cardState || "";
+
+    const items = [
+      ["contents", "☷", "К оглавлению"],
+      ["favorite", isFavorite ? "♡" : "♡", isFavorite ? "Убрать из избранного" : "Добавить в избранное"],
+      ["mark-read", "✓", "Отметить как прочитанное"],
+      ["remove-reading", "◌", "Убрать из читаю"],
+      ["reset-progress", "↻", "Сбросить прогресс"],
+      ["reread", "↺", "Перечитать сначала"],
+      ["hide", "◌", "Скрыть карточку"],
+    ];
+
+    if (state === "completed") {
+      items[2] = ["unmark-read", "✓", "Убрать из прочитанного"];
+    }
+
+    const menu = document.createElement("div");
+    menu.className = "library-card-menu-popover";
+    menu.dataset.cardMenu = "true";
+    menu.dataset.novelId = novelId;
+    menu.setAttribute("role", "menu");
+
+    menu.innerHTML = items.map(function (item) {
+      return `
+        <button type="button" role="menuitem" data-card-menu-action="${item[0]}" data-novel-id="${escapeHtml(novelId)}">
+          <span class="library-card-menu-icon">${item[1]}</span>
+          <span>${escapeHtml(item[2])}</span>
+        </button>
+      `;
+    }).join("");
+
+    return menu;
+  }
+
+  function handleCardMenuAction(actionButton) {
+    const action = actionButton.dataset.cardMenuAction;
+    const novelId = actionButton.dataset.novelId || "";
+    const card = document.querySelector(`[data-library-novel-card][data-novel-id="${cssEscape(novelId)}"]`);
+
+    if (!card) {
+      closeAllCardMenus();
+      return;
+    }
+
+    const novelSlug = card.dataset.novelSlug || "";
+
+    if (action === "contents") {
+      window.location.href = `/novel/${novelSlug}`;
+      return;
+    }
+
+    if (action === "favorite") {
+      toggleIdInList(STORAGE_KEYS.favoriteNovels, novelId);
+      closeAllCardMenus();
+      renderLibraryCards();
+      return;
+    }
+
+    if (action === "mark-read") {
+      addIdToList(STORAGE_KEYS.completedNovels, novelId);
+      closeAllCardMenus();
+      renderLibraryCards();
+      return;
+    }
+
+    if (action === "unmark-read") {
+      removeIdFromList(STORAGE_KEYS.completedNovels, novelId);
+      closeAllCardMenus();
+      renderLibraryCards();
+      return;
+    }
+
+    if (action === "remove-reading" || action === "reset-progress") {
+      removeReadingHistoryForNovel(novelId);
+      removeIdFromList(STORAGE_KEYS.completedNovels, novelId);
+      closeAllCardMenus();
+      renderLibraryCards();
+      return;
+    }
+
+    if (action === "reread") {
+      removeReadingHistoryForNovel(novelId);
+      removeIdFromList(STORAGE_KEYS.completedNovels, novelId);
+      closeAllCardMenus();
+      window.location.href = `/novel/${novelSlug}`;
+      return;
+    }
+
+    if (action === "hide") {
+      addIdToList(STORAGE_KEYS.hiddenNovels, novelId);
+      closeAllCardMenus();
+      renderLibraryCards();
+    }
+  }
+
+  function getIdList(key) {
+    const list = readJson(key, []);
+
+    if (!Array.isArray(list)) {
+      return [];
+    }
+
+    return list.map(String);
+  }
+
+  function writeIdList(key, list) {
+    writeJson(key, Array.from(new Set(list.map(String))));
+  }
+
+  function addIdToList(key, id) {
+    if (!id) {
+      return;
+    }
+
+    const list = getIdList(key);
+
+    if (!list.includes(String(id))) {
+      list.push(String(id));
+    }
+
+    writeIdList(key, list);
+  }
+
+  function removeIdFromList(key, id) {
+    writeIdList(key, getIdList(key).filter(function (item) {
+      return item !== String(id);
+    }));
+  }
+
+  function toggleIdInList(key, id) {
+    const list = getIdList(key);
+
+    if (list.includes(String(id))) {
+      removeIdFromList(key, id);
+    } else {
+      addIdToList(key, id);
+    }
+  }
+
+  function removeReadingHistoryForNovel(novelId) {
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+
+    if (!Array.isArray(history)) {
+      return;
+    }
+
+    writeJson(STORAGE_KEYS.readingHistory, history.filter(function (entry) {
+      return String(entry.novelId) !== String(novelId);
+    }));
   }
 
   function renderLibraryCards() {
     const raw = document.getElementById("libraryRawCards");
-    if (!raw) return;
+
+    if (!raw) {
+      return;
+    }
+
     const lists = {
       reading: document.querySelector('[data-section-list="reading"]'),
       start: document.querySelector('[data-section-list="start"]'),
       waiting: document.querySelector('[data-section-list="waiting"]'),
       finished: document.querySelector('[data-section-list="finished"]'),
     };
-    if (!lists.reading || !lists.start || !lists.waiting || !lists.finished) return;
+
+    if (!lists.reading || !lists.start || !lists.waiting || !lists.finished) {
+      return;
+    }
 
     const filter = getLibraryFilter();
     const history = readJson(STORAGE_KEYS.readingHistory, []);
     const readIds = readJson(STORAGE_KEYS.readChapters, []);
+    const hiddenNovels = getIdList(STORAGE_KEYS.hiddenNovels);
+    const completedNovels = getIdList(STORAGE_KEYS.completedNovels);
     const historyByNovel = {};
-    history.forEach((item) => { historyByNovel[String(item.novelId)] = item; });
-    const buckets = { reading: [], start: [], waiting: [], finished: [] };
+
+    history.forEach(function (item) {
+      historyByNovel[String(item.novelId)] = item;
+    });
+
+    const buckets = {
+      reading: [],
+      start: [],
+      waiting: [],
+      finished: [],
+    };
 
     Array.from(document.querySelectorAll("[data-library-novel-card]")).forEach(function (card) {
-      const state = prepareLibraryCard(card, historyByNovel, readIds);
+      const novelId = String(card.dataset.novelId || "");
+
+      if (hiddenNovels.includes(novelId)) {
+        raw.appendChild(card);
+        return;
+      }
+
+      const state = prepareLibraryCard(card, historyByNovel, readIds, completedNovels);
       card.dataset.cardState = state;
+
       if (!cardMatchesFilter(card, filter)) {
         raw.appendChild(card);
         return;
       }
-      if (state === "new" || state === "reading" || state === "waiting_new") buckets.reading.push(card);
-      else if (state === "start") buckets.start.push(card);
-      else if (state === "locked" || state === "soon") buckets.waiting.push(card);
-      else buckets.finished.push(card);
+
+      if (state === "new" || state === "reading" || state === "waiting_new") {
+        buckets.reading.push(card);
+      } else if (state === "start") {
+        buckets.start.push(card);
+      } else if (state === "locked" || state === "soon") {
+        buckets.waiting.push(card);
+      } else {
+        buckets.finished.push(card);
+      }
     });
 
     Object.values(buckets).forEach(sortCards);
+
     Object.keys(lists).forEach(function (key) {
       lists[key].innerHTML = "";
-      buckets[key].forEach((card) => lists[key].appendChild(card));
+      buckets[key].forEach(function (card) {
+        lists[key].appendChild(card);
+      });
       updateSection(key, buckets[key].length);
     });
+
     const visibleTotal = buckets.reading.length + buckets.start.length + buckets.waiting.length + buckets.finished.length;
     const empty = document.getElementById("libraryEmptyFilter");
-    if (empty) empty.hidden = visibleTotal !== 0;
+
+    if (empty) {
+      empty.hidden = visibleTotal !== 0;
+    }
+
     renderActiveFilters();
     renderLibraryUpdateBanner(buckets.reading);
     updateFilterApplyButton(visibleTotal);
   }
 
-  function prepareLibraryCard(card, historyByNovel) {
+  function prepareLibraryCard(card, historyByNovel, readIds, completedNovels) {
     const novelId = String(card.dataset.novelId || "");
     const historyItem = historyByNovel[novelId];
+    const isCompletedByUser = Array.isArray(completedNovels) && completedNovels.includes(novelId);
+
     const chapters = Number(card.dataset.chapters || 0);
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
     const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
     const projectStatus = String(card.dataset.status || "");
     const projectStatusLabel = card.dataset.statusLabel || "Переводится";
+
     const button = card.querySelector("[data-card-main-button]");
     const stateLine = card.querySelector("[data-card-state-line]");
     const statePill = card.querySelector("[data-card-state-pill]");
     const progressFill = card.querySelector("[data-card-progress-fill]");
     const progressText = card.querySelector("[data-card-progress-text]");
 
-    card.classList.remove("is-reading", "is-new", "is-finished", "is-start", "is-waiting", "is-locked", "is-soon");
-    if (button) button.classList.remove("is-disabled-soft");
+    card.classList.remove(
+      "is-reading",
+      "is-new",
+      "is-finished",
+      "is-start",
+      "is-waiting",
+      "is-locked",
+      "is-soon",
+      "is-favorite"
+    );
 
-    const safeHistoryIndex = historyItem && historyItem.chapterIndex ? Math.min(Number(historyItem.chapterIndex || 0), available || Number(historyItem.chapterIndex || 0)) : 0;
+    if (button) {
+      button.classList.remove("is-disabled-soft");
+    }
+
+    if (getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId)) {
+      card.classList.add("is-favorite");
+    }
+
+    const safeHistoryIndex = historyItem && historyItem.chapterIndex
+      ? Math.min(Number(historyItem.chapterIndex || 0), available || Number(historyItem.chapterIndex || 0))
+      : 0;
+
     const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+
     let state = "start";
     let visualProgress = projectProgress;
     let progressLabel = chapters ? `${translated || 0} / ${chapters}` : "";
 
-    if (!historyItem && !available) {
+    if (isCompletedByUser) {
+      state = "completed";
+      visualProgress = 100;
+      progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
+    } else if (!historyItem && !available) {
       state = projectStatus === "soon" ? "soon" : "locked";
       visualProgress = 0;
       progressLabel = "0 / 0";
@@ -403,23 +712,50 @@
       progressLabel = available ? `0 / ${available}` : `${translated || 0} / ${chapters || 0}`;
     }
 
-    if (progressFill) progressFill.style.width = `${visualProgress}%`;
-    if (progressText) progressText.textContent = progressLabel;
+    if (progressFill) {
+      progressFill.style.width = `${visualProgress}%`;
+    }
+
+    if (progressText) {
+      progressText.textContent = progressLabel;
+    }
 
     const configs = {
       new: ["is-new is-reading", "Появилась новая доступная глава", "✨ Новая глава", "state-new", "Читать новую", `/novel/${card.dataset.novelSlug || ""}`],
       reading: ["is-reading", `Вы на главе ${escapeHtml(safeHistoryIndex || "")}`, "📖 Читаю", "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
       waiting_new: ["is-reading is-waiting", "Всё доступное прочитано", "⏳ Жду новую главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      completed: ["is-finished", "Прочитано полностью", "✅ Прочитано", "state-completed", "Перечитать", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
+      completed: ["is-finished", "Прочитано полностью", "✅ Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
       locked: ["is-locked", "Открытых глав пока нет", "🔒 Жду доступа", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "Главы пока не открыты", "Скоро", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
       start: ["is-start", projectStatusLabel, "🌱 Можно начать", "state-start", "Начать читать", `/novel/${card.dataset.novelSlug || ""}`],
     };
+
     const config = configs[state] || configs.start;
-    config[0].split(" ").forEach((cls) => cls && card.classList.add(cls));
-    if (stateLine) stateLine.innerHTML = `<span>${config[1]}</span>`;
-    if (statePill) { statePill.textContent = config[2]; statePill.className = `library-card-state-pill ${config[3]}`; }
-    if (button) { button.textContent = config[4]; button.href = config[5]; if (state === "soon") button.classList.add("is-disabled-soft"); }
+
+    config[0].split(" ").forEach(function (cls) {
+      if (cls) {
+        card.classList.add(cls);
+      }
+    });
+
+    if (stateLine) {
+      stateLine.innerHTML = `<span>${config[1]}</span>`;
+    }
+
+    if (statePill) {
+      statePill.textContent = config[2];
+      statePill.className = `library-card-state-pill ${config[3]}`;
+    }
+
+    if (button) {
+      button.textContent = config[4];
+      button.href = config[5];
+
+      if (state === "soon") {
+        button.classList.add("is-disabled-soft");
+      }
+    }
+
     return state;
   }
 
@@ -427,54 +763,155 @@
     const query = String(filter.query || "").toLowerCase().trim();
     const chips = filter.chips || [];
     const state = card.dataset.cardState || "";
-    const haystack = [card.dataset.novelTitle, card.dataset.title, card.dataset.description, card.dataset.tags, card.dataset.statusLabel, card.dataset.relation].join(" ").toLowerCase();
-    if (query && !haystack.includes(query)) return false;
-    for (const chip of chips) {
-      if (!chip || chip === "all") continue;
-      if (chip === "reading") { if (!(state === "reading" || state === "new" || state === "waiting_new")) return false; continue; }
-      if (chip === "new") { if (state !== "new") return false; continue; }
-      if (chip === "start") { if (state !== "start") return false; continue; }
-      if (chip === "waiting") { if (!(state === "locked" || state === "soon")) return false; continue; }
-      if (chip === "finished") { if (state !== "completed") return false; continue; }
-      if (chip === "in_progress" || chip === "completed" || chip === "paused") { if (card.dataset.status !== chip) return false; continue; }
-      if (!haystack.includes(String(chip).toLowerCase())) return false;
+    const haystack = [
+      card.dataset.novelTitle,
+      card.dataset.title,
+      card.dataset.description,
+      card.dataset.tags,
+      card.dataset.statusLabel,
+      card.dataset.relation,
+    ].join(" ").toLowerCase();
+
+    if (query && !haystack.includes(query)) {
+      return false;
     }
+
+    for (const chip of chips) {
+      if (!chip || chip === "all") {
+        continue;
+      }
+
+      if (chip === "reading") {
+        if (!(state === "reading" || state === "new" || state === "waiting_new")) {
+          return false;
+        }
+        continue;
+      }
+
+      if (chip === "new") {
+        if (state !== "new") {
+          return false;
+        }
+        continue;
+      }
+
+      if (chip === "start") {
+        if (state !== "start") {
+          return false;
+        }
+        continue;
+      }
+
+      if (chip === "waiting") {
+        if (!(state === "locked" || state === "soon")) {
+          return false;
+        }
+        continue;
+      }
+
+      if (chip === "finished") {
+        if (state !== "completed") {
+          return false;
+        }
+        continue;
+      }
+
+      if (chip === "in_progress" || chip === "completed" || chip === "paused") {
+        if (card.dataset.status !== chip) {
+          return false;
+        }
+        continue;
+      }
+
+      if (!haystack.includes(String(chip).toLowerCase())) {
+        return false;
+      }
+    }
+
     return true;
   }
 
   function sortCards(cards) {
     const mode = document.getElementById("librarySort")?.value || "smart";
+
     cards.sort(function (a, b) {
-      if (mode === "title") return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
-      if (mode === "status") return statusWeight(a.dataset.status) - statusWeight(b.dataset.status);
-      if (mode === "chapters") return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
-      if (mode === "translated") return Number(b.dataset.translatedChapters || 0) - Number(a.dataset.translatedChapters || 0);
-      if (mode === "added") return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
+      if (mode === "title") {
+        return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
+      }
+
+      if (mode === "status") {
+        return statusWeight(a.dataset.status) - statusWeight(b.dataset.status);
+      }
+
+      if (mode === "chapters") {
+        return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
+      }
+
+      if (mode === "translated") {
+        return Number(b.dataset.translatedChapters || 0) - Number(a.dataset.translatedChapters || 0);
+      }
+
+      if (mode === "added") {
+        return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
+      }
+
       if (mode === "smart") {
         const stateWeightA = cardStateWeight(a.dataset.cardState);
         const stateWeightB = cardStateWeight(b.dataset.cardState);
-        if (stateWeightA !== stateWeightB) return stateWeightA - stateWeightB;
+
+        if (stateWeightA !== stateWeightB) {
+          return stateWeightA - stateWeightB;
+        }
       }
+
       return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
     });
   }
 
   function cardStateWeight(state) {
-    return { new: 1, reading: 2, waiting_new: 3, start: 4, locked: 5, soon: 6, completed: 7 }[state] || 99;
+    return {
+      new: 1,
+      reading: 2,
+      waiting_new: 3,
+      start: 4,
+      locked: 5,
+      soon: 6,
+      completed: 7,
+    }[state] || 99;
   }
 
   function updateSection(name, count) {
     const section = document.querySelector(`[data-library-section="${cssEscape(name)}"]`);
     const countElement = document.querySelector(`[data-section-count="${cssEscape(name)}"]`);
-    if (countElement) countElement.textContent = String(count);
-    if (section) section.hidden = count === 0;
+
+    if (countElement) {
+      countElement.textContent = String(count);
+    }
+
+    if (section) {
+      section.hidden = count === 0;
+    }
   }
 
   function updateFilterApplyButton(knownCount) {
     const button = document.getElementById("libraryFilterApply");
-    if (!button) return;
-    if (typeof knownCount === "number") { button.textContent = `Показать ${knownCount} книг`; return; }
-    const visibleCards = document.querySelectorAll('[data-section-list="reading"] [data-library-novel-card], [data-section-list="start"] [data-library-novel-card], [data-section-list="waiting"] [data-library-novel-card], [data-section-list="finished"] [data-library-novel-card]');
+
+    if (!button) {
+      return;
+    }
+
+    if (typeof knownCount === "number") {
+      button.textContent = `Показать ${knownCount} книг`;
+      return;
+    }
+
+    const visibleCards = document.querySelectorAll(
+      '[data-section-list="reading"] [data-library-novel-card], ' +
+      '[data-section-list="start"] [data-library-novel-card], ' +
+      '[data-section-list="waiting"] [data-library-novel-card], ' +
+      '[data-section-list="finished"] [data-library-novel-card]'
+    );
+
     button.textContent = `Показать ${visibleCards.length} книг`;
   }
 
@@ -483,13 +920,29 @@
     const text = document.getElementById("libraryUpdateText");
     const button = document.getElementById("libraryUpdateButton");
     const close = document.getElementById("libraryUpdateClose");
-    if (!banner || !text || !button) return;
-    const newCard = readingCards.find((card) => card.dataset.cardState === "new");
-    if (!newCard) { banner.hidden = true; return; }
+
+    if (!banner || !text || !button) {
+      return;
+    }
+
+    const newCard = readingCards.find(function (card) {
+      return card.dataset.cardState === "new";
+    });
+
+    if (!newCard) {
+      banner.hidden = true;
+      return;
+    }
+
     text.textContent = `${newCard.dataset.novelTitle || "Новелла"} — доступна глава ${Number(newCard.dataset.availableChapters || 0)}`;
     button.href = `/novel/${newCard.dataset.novelSlug || ""}`;
     banner.hidden = false;
-    if (close) close.onclick = function () { banner.hidden = true; };
+
+    if (close) {
+      close.onclick = function () {
+        banner.hidden = true;
+      };
+    }
   }
 
   function initNovelPageMeta() {
@@ -692,7 +1145,10 @@
     if (colorInput) colorInput.addEventListener("input", function () { const current = getSettings(); current.accentColor = colorInput.value; saveSettings(current); applySettings(); });
     overlay.querySelector("[data-settings-reset]")?.addEventListener("click", function () { saveSettings({ ...DEFAULT_SETTINGS }); fillSettingsInputs(getSettings()); applySettings(); });
     const aboutFoxWrap = overlay.querySelector("[data-about-fox-wrap]");
-    if (aboutFoxWrap) { const foxUrl = getFoxUrl("fox_sitting_front") || getFoxUrl("fox_pic") || getFoxUrl("fox_peek"); aboutFoxWrap.innerHTML = foxUrl ? `<img class="about-fox" src="${escapeHtml(foxUrl)}" alt="Лисичка" data-fox>` : `<div class="about-fox-emoji" data-fox>🦊</div>`; }
+    if (aboutFoxWrap) {
+      const foxUrl = getFoxUrl("fox_sitting_front") || getFoxUrl("fox_pic") || getFoxUrl("fox_peek") || getFoxUrl("fox_side");
+      aboutFoxWrap.innerHTML = foxUrl ? `<img class="about-fox" src="${escapeHtml(foxUrl)}" alt="Лисичка" data-fox>` : "";
+    }
   }
 
   function fillSettingsInputs(settings) {
