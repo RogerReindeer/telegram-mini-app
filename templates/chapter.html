@@ -27,8 +27,10 @@
 
     <header class="chapter-header">
       <h1>{{ chapter.display_title }}</h1>
+
       <div class="chapter-subtitle">
         <span class="meta-pill">{{ novel.display_title }}</span>
+
         {% if chapter.access_label %}
           <span class="meta-pill">{{ chapter.access_label }}</span>
         {% endif %}
@@ -54,8 +56,13 @@
     {% endif %}
 
     <section class="chapter-content-shell">
-      {% if fox.fox_side %}
-        <img class="chapter-side-fox" src="{{ fox.fox_side }}" alt="Лисичка" data-fox>
+      {% if fox.fox_side or fox.fox_pic or fox.fox_peek %}
+        <img
+          class="chapter-side-fox"
+          src="{{ fox.fox_side or fox.fox_pic or fox.fox_peek }}"
+          alt="Лисичка"
+          data-fox
+        >
       {% endif %}
 
       <article class="chapter-content {% if is_locked %}chapter-content-locked{% endif %}">
@@ -85,9 +92,14 @@
       {% endif %}
     </nav>
 
-    {% if fox.fox_pic %}
+    {% if fox.fox_sitting_front or fox.fox_pic or fox.fox_peek %}
       <div class="chapter-footer-fox-wrap">
-        <img class="chapter-footer-fox" src="{{ fox.fox_pic }}" alt="Лисичка" data-fox>
+        <img
+          class="chapter-footer-fox"
+          src="{{ fox.fox_sitting_front or fox.fox_pic or fox.fox_peek }}"
+          alt="Лисичка"
+          data-fox
+        >
       </div>
     {% endif %}
   </main>
