@@ -407,7 +407,7 @@
 
     const items = [
       ["contents", "☷", "К оглавлению"],
-      ["favorite", isFavorite ? "♡" : "♡", isFavorite ? "Убрать из избранного" : "Добавить в избранное"],
+      ["favorite", isFavorite ? "♥" : "♡", isFavorite ? "Убрать из избранного" : "Добавить в избранное"],
       ["mark-read", "✓", "Отметить как прочитанное"],
       ["remove-reading", "◌", "Убрать из читаю"],
       ["reset-progress", "↻", "Сбросить прогресс"],
@@ -562,13 +562,14 @@
     }
 
     const lists = {
+      favorite: document.querySelector('[data-section-list="favorite"]'),
       reading: document.querySelector('[data-section-list="reading"]'),
       start: document.querySelector('[data-section-list="start"]'),
       waiting: document.querySelector('[data-section-list="waiting"]'),
       finished: document.querySelector('[data-section-list="finished"]'),
     };
 
-    if (!lists.reading || !lists.start || !lists.waiting || !lists.finished) {
+    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished) {
       return;
     }
 
@@ -576,6 +577,7 @@
     const history = readJson(STORAGE_KEYS.readingHistory, []);
     const readIds = readJson(STORAGE_KEYS.readChapters, []);
     const hiddenNovels = getIdList(STORAGE_KEYS.hiddenNovels);
+    const favoriteNovels = getIdList(STORAGE_KEYS.favoriteNovels);
     const completedNovels = getIdList(STORAGE_KEYS.completedNovels);
     const historyByNovel = {};
 
@@ -584,6 +586,7 @@
     });
 
     const buckets = {
+      favorite: [],
       reading: [],
       start: [],
       waiting: [],
@@ -600,9 +603,15 @@
 
       const state = prepareLibraryCard(card, historyByNovel, readIds, completedNovels);
       card.dataset.cardState = state;
+      card.dataset.isFavorite = favoriteNovels.includes(novelId) ? "true" : "false";
 
       if (!cardMatchesFilter(card, filter)) {
         raw.appendChild(card);
+        return;
+      }
+
+      if (favoriteNovels.includes(novelId)) {
+        buckets.favorite.push(card);
         return;
       }
 
@@ -627,7 +636,10 @@
       updateSection(key, buckets[key].length);
     });
 
-    const visibleTotal = buckets.reading.length + buckets.start.length + buckets.waiting.length + buckets.finished.length;
+    const visibleTotal = Object.values(buckets).reduce(function (sum, list) {
+      return sum + list.length;
+    }, 0);
+
     const empty = document.getElementById("libraryEmptyFilter");
 
     if (empty) {
@@ -635,7 +647,7 @@
     }
 
     renderActiveFilters();
-    renderLibraryUpdateBanner(buckets.reading);
+    renderLibraryUpdateBanner(buckets.reading.concat(buckets.favorite));
     updateFilterApplyButton(visibleTotal);
   }
 
@@ -763,6 +775,7 @@
     const query = String(filter.query || "").toLowerCase().trim();
     const chips = filter.chips || [];
     const state = card.dataset.cardState || "";
+    const isFavorite = card.dataset.isFavorite === "true" || card.classList.contains("is-favorite");
     const haystack = [
       card.dataset.novelTitle,
       card.dataset.title,
@@ -778,6 +791,13 @@
 
     for (const chip of chips) {
       if (!chip || chip === "all") {
+        continue;
+      }
+
+      if (chip === "favorite") {
+        if (!isFavorite) {
+          return false;
+        }
         continue;
       }
 
@@ -906,6 +926,7 @@
     }
 
     const visibleCards = document.querySelectorAll(
+      '[data-section-list="favorite"] [data-library-novel-card], ' +
       '[data-section-list="reading"] [data-library-novel-card], ' +
       '[data-section-list="start"] [data-library-novel-card], ' +
       '[data-section-list="waiting"] [data-library-novel-card], ' +
