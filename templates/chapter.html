@@ -59,10 +59,10 @@
     {% endif %}
 
     <section class="chapter-content-shell">
-      {% if fox.fox_side or fox.fox_pic or fox.fox_peek %}
+      {% if fox.fox_side or fox.fox_laying_paws or fox.fox_pic or fox.fox_peek_right or fox.fox_peek %}
         <img
           class="chapter-side-fox"
-          src="{{ fox.fox_side or fox.fox_pic or fox.fox_peek }}"
+          src="{{ fox.fox_side or fox.fox_laying_paws or fox.fox_pic or fox.fox_peek_right or fox.fox_peek }}"
           alt="Лисичка"
           data-fox
         >
@@ -95,11 +95,11 @@
       {% endif %}
     </nav>
 
-    {% if fox.fox_sitting_front or fox.fox_pic or fox.fox_peek %}
+    {% if fox.fox_sitting_front or fox.fox_sleeping or fox.fox_pic or fox.fox_peek_right or fox.fox_peek %}
       <div class="chapter-footer-fox-wrap">
         <img
           class="chapter-footer-fox"
-          src="{{ fox.fox_sitting_front or fox.fox_pic or fox.fox_peek }}"
+          src="{{ fox.fox_sitting_front or fox.fox_sleeping or fox.fox_pic or fox.fox_peek_right or fox.fox_peek }}"
           alt="Лисичка"
           data-fox
         >
