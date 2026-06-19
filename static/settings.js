@@ -98,7 +98,15 @@
     body.dataset.readerWidth = settings.readerWidth || "comfort";
     body.dataset.textAlign = settings.textAlign || "left";
     body.dataset.appSize = settings.appSize || "normal";
-    body.classList.toggle("hide-foxes", Boolean(settings.hideFoxes));
+
+    // В этой версии лисички — обязательный фирменный элемент.
+    // Если в старом localStorage была включена настройка hideFoxes, она могла скрыть все изображения.
+    if (settings.hideFoxes) {
+      settings.hideFoxes = false;
+      saveSettings(settings);
+    }
+    body.classList.remove("hide-foxes");
+
     document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULT_SETTINGS.accentColor);
     document.documentElement.style.setProperty("--reader-font-size", `${settings.fontSize || 16}px`);
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
