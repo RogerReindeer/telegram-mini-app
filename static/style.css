@@ -1348,3 +1348,304 @@ html {
     font-size: 13px;
   }
 }
+
+/* v6 requirements: adaptive touch UI, compact library cards, Teletype fox only */
+:root {
+  --tap-size: 44px;
+  --tap-gap: 12px;
+}
+
+body {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Arial,
+    sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.library-action-button,
+.library-sort-pill,
+.library-sort-pill select,
+.library-search-input-wrap,
+.library-search-input-wrap input,
+.library-search-input-wrap button,
+.library-quick-tags button,
+.library-active-filters button,
+.library-update-button,
+.library-update-close,
+.library-section-header,
+.library-book-menu,
+.library-card-button,
+.library-card-favorite-button,
+.library-filter-chips button,
+.library-filter-reset,
+.library-filter-apply,
+.settings-fab,
+.app-size-fab,
+.settings-close,
+.settings-tab,
+.settings-field select,
+.settings-field input,
+.settings-reset,
+.description-toggle,
+.paid-chapters-toggle,
+.chapter-nav-button,
+.primary-read-button,
+.back-link {
+  min-height: var(--tap-size);
+}
+
+.library-book-menu,
+.library-update-close,
+.settings-fab,
+.app-size-fab,
+.settings-close,
+.library-card-favorite-button {
+  min-width: var(--tap-size);
+}
+
+.library-v4 .library-book-card-v4 {
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.library-v4 .library-book-title {
+  font-size: 16px;
+  line-height: 1.28;
+  letter-spacing: -0.018em;
+}
+
+.library-v4 .library-book-state-line {
+  color: #6f625d;
+}
+
+.library-v4 .library-card-stats {
+  display: none !important;
+}
+
+.library-v4 .library-progress-row {
+  margin: 2px 0 4px;
+}
+
+.library-v4 .library-card-tags {
+  margin-top: 0;
+  margin-bottom: 4px;
+}
+
+.library-v4 .library-card-footer {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: stretch;
+  margin-top: auto;
+}
+
+.library-v4 .library-card-actions-bottom {
+  display: grid;
+  grid-template-columns: var(--tap-size) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.library-card-favorite-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 106, 0, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: #ff640a;
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(92, 56, 25, 0.08);
+}
+
+.library-card-favorite-button.is-active {
+  border-color: rgba(139, 92, 246, 0.32);
+  background: rgba(139, 92, 246, 0.14);
+  color: #6b3fe8;
+}
+
+.library-v4 .library-card-button {
+  min-height: var(--tap-size);
+  font-size: 14px;
+}
+
+.library-v4 .library-card-state-pill {
+  min-height: 34px;
+  padding-inline: 12px;
+  font-size: 13px;
+}
+
+.library-v4 .library-card-menu-popover button {
+  min-height: var(--tap-size);
+  font-size: 14px;
+}
+
+.library-v4 .library-empty-filter {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+}
+
+.library-empty-fox-img,
+.about-fox,
+.inline-fox,
+.section-fox,
+.chapter-side-fox,
+.chapter-footer-fox,
+.library-hero-fox {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* No emoji fox placeholders: foxes are rendered only when a URL exists in the fox table. */
+.library-empty-fox,
+.about-fox-emoji,
+.library-hero-fox-placeholder {
+  display: none !important;
+}
+
+/* Settings should also be comfortable on touch screens. */
+.settings-field select,
+.settings-field input[type="color"] {
+  min-height: var(--tap-size);
+  font-size: 14px;
+}
+
+.settings-check {
+  min-height: var(--tap-size);
+}
+
+.settings-check input {
+  width: 22px;
+  height: 22px;
+}
+
+@media (max-width: 760px) {
+  body.page-chapter,
+  body.page-novel {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .chapter-navigation {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left));
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 900;
+    width: auto !important;
+    max-width: none !important;
+    margin: 0;
+    padding: 10px;
+    border: 1px solid rgba(87, 54, 31, 0.12);
+    border-radius: 24px;
+    background: rgba(255, 250, 245, 0.92);
+    box-shadow: 0 18px 48px rgba(80, 50, 20, 0.22);
+    backdrop-filter: blur(18px);
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: 8px;
+  }
+
+  .chapter-nav-button {
+    min-height: var(--tap-size);
+    padding: 10px 12px;
+    font-size: 14px;
+    box-shadow: none;
+  }
+
+  .chapter-nav-placeholder {
+    display: block;
+    min-height: var(--tap-size);
+  }
+
+  .novel-read-action {
+    position: sticky;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    z-index: 800;
+    display: grid;
+    padding: 10px 0;
+  }
+
+  .novel-read-action .primary-read-button {
+    width: calc(100% - 24px);
+    margin: 0 auto;
+    min-height: 52px;
+    font-size: 15px;
+    box-shadow: 0 16px 36px rgba(255, 100, 10, 0.24);
+  }
+
+  .library-actions,
+  .library-search-panel,
+  .library-update-banner,
+  .library-section,
+  .library-filter-panel,
+  .library-book-card-v4 {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .library-v4 .library-book-card-v4 {
+    grid-template-columns: 104px minmax(0, 1fr);
+  }
+
+  .library-v4 .library-book-cover-link,
+  .library-v4 .library-cover-frame,
+  .library-v4 .library-book-cover {
+    width: 104px;
+  }
+
+  .library-v4 .library-book-cover {
+    height: 148px;
+  }
+
+  .library-v4 .library-book-title {
+    font-size: 15px;
+  }
+
+  .library-v4 .library-section-list {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 430px) {
+  .library-app-shell {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .library-actions {
+    gap: var(--tap-gap);
+  }
+
+  .library-v4 .library-book-card-v4 {
+    grid-template-columns: 92px minmax(0, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .library-v4 .library-book-cover-link,
+  .library-v4 .library-cover-frame,
+  .library-v4 .library-book-cover {
+    width: 92px;
+  }
+
+  .library-v4 .library-book-cover {
+    height: 132px;
+  }
+
+  .library-v4 .library-card-actions-bottom {
+    grid-template-columns: var(--tap-size) minmax(0, 1fr);
+  }
+
+  .library-v4 .library-mini-tag:nth-child(n+4) {
+    display: none;
+  }
+}
