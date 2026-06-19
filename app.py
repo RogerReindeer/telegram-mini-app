@@ -622,6 +622,32 @@ def get_neighbor_chapters(chapters: list[dict], current_chapter_id: str) -> tupl
     return (available[index - 1] if index > 0 else None, available[index + 1] if index + 1 < len(available) else None)
 
 
+
+def split_text_paragraphs(value: Any) -> list[str]:
+    """Preserve paragraph breaks from the sheet instead of rendering a wall of text."""
+    text = clean_value(value)
+
+    if not text:
+        return []
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    if "\n\n" in text:
+        parts = re.split(r"\n\s*\n", text)
+    else:
+        parts = text.split("\n")
+
+    paragraphs = []
+
+    for part in parts:
+        paragraph = re.sub(r"[ \t]+", " ", clean_value(part))
+
+        if paragraph:
+            paragraphs.append(paragraph)
+
+    return paragraphs
+
 def prepare_novel_for_template(novel: dict) -> dict:
     prepared = dict(novel)
     title = clean_value(novel.get("title"))
@@ -640,6 +666,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "post_icons": post_icons,
         "cover_url": clean_value(novel.get("cover_url")),
         "description": clean_value(novel.get("description")),
+        "description_paragraphs": split_text_paragraphs(novel.get("description")),
         "top_description": clean_value(novel.get("top_description")),
         "bottom_description": clean_value(novel.get("bottom_description")),
         "tags": tags,
@@ -801,10 +828,24 @@ def is_chapter_service_block(fragment: str) -> bool:
         "зефиркины баоцзы",
         "спасибо что читаете с нами",
         "спасибо, что читаете с нами",
+        "спасибо что читаете вместе с нами",
+        "спасибо, что читаете вместе с нами",
+        "купить полный перевод",
+        "полный перевод boosty",
+        "boosty/telegraph",
+        "boosty / telegraph",
+        "boosty / teletype",
+        "boosty/teletype",
     )
 
     if any(marker in normalized for marker in footer_markers):
         return True
+
+    # Часто в конце главы есть отдельная ссылка/пункт покупки полного перевода.
+    # Удаляем именно короткий служебный блок, а не любое упоминание Boosty внутри текста.
+    if len(normalized) <= 220 and ("boosty" in normalized or "telegraph" in normalized or "teletype" in normalized):
+        if any(marker in normalized for marker in ("купить", "полный перевод", "подпис", "ранний доступ")):
+            return True
 
     navigation_markers = (
         "к оглавлению",
@@ -847,6 +888,25 @@ def clean_chapter_content_html(html_content: str) -> str:
         return block
 
     cleaned = block_pattern.sub(replace_block, content)
+
+    # На всякий случай вычищаем хвосты, если они пришли не отдельным <p>, а текстом внутри блока.
+    trailing_patterns = (
+        r"(?is)<p[^>]*>\s*(?:--|—|–)\s*</p>\s*",
+        r"(?is)<p[^>]*>\s*спасибо[, ]+что читаете(?: вместе)? с нами!?\s*(?:💙)?\s*</p>\s*",
+        r"(?is)<p[^>]*>\s*перевод\s+зефиркины\s+бао[цз]ы.*?</p>\s*",
+        r"(?is)<p[^>]*>.*?купить\s+полный\s+перевод.*?</p>\s*",
+        r"(?is)<a[^>]*>.*?купить\s+полный\s+перевод.*?</a>\s*",
+    )
+
+    changed = True
+    while changed:
+        changed = False
+        for pattern in trailing_patterns:
+            updated = re.sub(pattern, "", cleaned).strip()
+            if updated != cleaned:
+                cleaned = updated
+                changed = True
+
     cleaned = re.sub(r"(?is)<hr\s*/?>", "", cleaned)
     cleaned = re.sub(r"(?is)(?:\s|&nbsp;)*$", "", cleaned).strip()
 
