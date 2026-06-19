@@ -347,6 +347,7 @@ def is_card_hidden_tag(tag: Any) -> bool:
         "🟢", "🟡", "🔴", "🎁", "📗", "📖", "завершена", "завершено",
         "в процессе перевода", "переводится", "на передержке", "скоро", "часть платно",
         "частично платно", "платно", "boosty only",
+        "ch", "cn", "zh", "ru", "en",
     }
     return normalized in hidden_tags
 
@@ -460,11 +461,35 @@ def chapter_has_readable_url(chapter: dict) -> bool:
 
 
 def chapter_is_available(chapter: dict) -> bool:
+    """True means the chapter text can be opened inside the reader now.
+
+    Paid / subscription / early-access chapters are intentionally NOT readable
+    in the MiniApp until access checking is implemented. They remain visible
+    in the table of contents with a Boosty subscription label, but their
+    Telegraph/Teletype content is not fetched or shown.
+    """
     if chapter.get("is_visible") is not True:
         return False
-    if not chapter_has_readable_url(chapter):
+
+    access_level = clean_value(chapter.get("access_level")).lower()
+
+    if access_level != "public":
         return False
-    return clean_value(chapter.get("access_level")).lower() in ("public", "subscriber", "premium", "paid", "early")
+
+    public_url = (
+        clean_value(chapter.get("telegraph_free_url"))
+        or clean_value(chapter.get("telegraph_url"))
+    )
+
+    if not public_url:
+        return False
+
+    free_release_date = clean_value(chapter.get("free_release_date"))
+
+    if free_release_date and not is_date_open(free_release_date):
+        return False
+
+    return True
 
 
 def count_chapter_units_for_card(chapters: list[dict]) -> int:
@@ -477,9 +502,14 @@ def count_available_chapter_units(chapters: list[dict]) -> int:
 
 def choose_chapter_url(chapter: dict) -> str:
     access_level = clean_value(chapter.get("access_level")).lower()
-    if access_level == "public":
-        return clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_url")) or clean_value(chapter.get("telegraph_premium_url"))
-    return clean_value(chapter.get("telegraph_premium_url")) or clean_value(chapter.get("telegraph_url")) or clean_value(chapter.get("telegraph_free_url"))
+
+    if access_level != "public":
+        return ""
+
+    return (
+        clean_value(chapter.get("telegraph_free_url"))
+        or clean_value(chapter.get("telegraph_url"))
+    )
 
 
 def prepare_chapter_for_template(chapter: dict) -> dict:
@@ -494,12 +524,15 @@ def prepare_chapter_for_template(chapter: dict) -> dict:
     prepared["url"] = choose_chapter_url(chapter)
     prepared["is_available"] = chapter_is_available(chapter)
     access_level = clean_value(chapter.get("access_level")).lower()
-    if access_level == "public":
+    if access_level == "public" and prepared["is_available"]:
         prepared["access_label"] = "🌱 Открыта"
         prepared["access_class"] = "chapter-access-public"
     elif access_level in ("subscriber", "premium", "paid", "early"):
-        prepared["access_label"] = "📜 Для подписчиков"
+        prepared["access_label"] = "📜 По подписке Boosty"
         prepared["access_class"] = "chapter-access-locked"
+    elif access_level == "public":
+        prepared["access_label"] = "⏳ Скоро откроется"
+        prepared["access_class"] = "chapter-access-hidden"
     else:
         prepared["access_label"] = "Закрыта"
         prepared["access_class"] = "chapter-access-hidden"
@@ -512,18 +545,35 @@ def sort_chapters(chapters: list[dict]) -> list[dict]:
 
 
 def build_chapter_display_list(chapters: list[dict]) -> tuple[list[dict], int]:
-    prepared = [prepare_chapter_for_template(chapter) for chapter in sort_chapters(chapters) if chapter.get("is_visible") is True]
-    paid_seen = 0
+    prepared = [
+        prepare_chapter_for_template(chapter)
+        for chapter in sort_chapters(chapters)
+        if chapter.get("is_visible") is True
+    ]
+
     hidden_subscriber_count = 0
+    has_reached_open_block = False
+
     for chapter in prepared:
-        is_paid = clean_value(chapter.get("access_level")).lower() in ("subscriber", "premium", "paid", "early")
+        access_level = clean_value(chapter.get("access_level")).lower()
+        is_paid = access_level in ("subscriber", "premium", "paid", "early")
+        is_open = chapter.get("is_available") is True
+
         chapter["is_paid_extra"] = False
-        if is_paid:
-            paid_seen += 1
-            if paid_seen > 3:
-                chapter["is_paid_extra"] = True
-                chapter["hidden"] = True
-                hidden_subscriber_count += 1
+        chapter["hidden"] = False
+
+        if is_open:
+            has_reached_open_block = True
+            continue
+
+        # Платные главы в самом начале оглавления показываем полностью:
+        # это превью раннего/Boosty-доступа. Платные главы после открытого блока
+        # сворачиваем под кнопку в конце, чтобы список не превращался в стену замков.
+        if is_paid and has_reached_open_block:
+            chapter["is_paid_extra"] = True
+            chapter["hidden"] = True
+            hidden_subscriber_count += 1
+
     return prepared, hidden_subscriber_count
 
 
@@ -745,19 +795,58 @@ def normalize_fox_row(row: dict) -> dict:
     return filter_columns({"name": clean_value(row.get("name")), "url": clean_value(row.get("url"))}, FOX_TABLE_COLUMNS)
 
 
+def normalize_fox_key(name: Any) -> str:
+    key = clean_value(name).strip().lower()
+    key = key.replace("-", "_").replace(" ", "_")
+
+    aliases = {
+        "peek": "fox_peek",
+        "foxpeek": "fox_peek",
+        "fox_peek": "fox_peek",
+        "pic": "fox_pic",
+        "foxpic": "fox_pic",
+        "fox_pic": "fox_pic",
+        "side": "fox_side",
+        "foxside": "fox_side",
+        "fox_side": "fox_side",
+        "sitting": "fox_sitting_front",
+        "sitting_front": "fox_sitting_front",
+        "foxsittingfront": "fox_sitting_front",
+        "fox_sitting_front": "fox_sitting_front",
+        "лисичка_сбоку": "fox_side",
+        "лисичка_в_шапке": "fox_peek",
+        "лисичка": "fox_pic",
+    }
+
+    return aliases.get(key, key)
+
+
 def get_fox() -> dict[str, str]:
-    default_fox = {"fox_peek": "", "fox_pic": "", "fox_side": "", "fox_sitting_front": ""}
+    # Лисички берутся не из /static, а из таблицы fox,
+    # которая синхронизируется из Excel/Google Sheets листа fox.
+    # В url должен быть прямой URL картинки Teletype/CDN, пригодный для <img src>.
+    default_fox = {
+        "fox_peek": "",
+        "fox_pic": "",
+        "fox_side": "",
+        "fox_sitting_front": "",
+    }
+
     if not supabase_ready():
         return default_fox
+
     try:
         rows = db_select("fox", select="name,url")
     except Exception:
         return default_fox
+
     for row in rows:
-        name = clean_value(row.get("name"))
+        name = normalize_fox_key(row.get("name"))
         url = clean_value(row.get("url"))
+
         if name and url:
             default_fox[name] = url
+
     return default_fox
 
 
