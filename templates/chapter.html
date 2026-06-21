@@ -2,15 +2,16 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>{{ chapter.display_title }} — {{ novel.display_title }}</title>
-
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
 <body class="page-chapter">
+  {% set reader_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_peek_left or fox.fox_pic %}
+  {% set footer_fox = fox.fox_sitting_front or fox.fox_sleeping or fox.fox_heart or fox.fox_pic %}
+
   <main
     class="page reader-layout chapter-layout"
     data-chapter-page
@@ -23,49 +24,22 @@
     data-available-chapters="{{ available_chapters }}"
     data-is-locked="{{ 'true' if is_locked else 'false' }}"
   >
-    <a class="back-link" href="/novel/{{ novel.slug }}">← К оглавлению</a>
+    <div class="page-top-row chapter-top-row">
+      <a class="back-link" href="/novel/{{ novel.slug }}">← К оглавлению</a>
+      <span class="viewer-role-badge viewer-role-{{ viewer.role }}">{{ viewer.role_label }}</span>
+    </div>
 
     <header class="chapter-header">
       <h1>{{ chapter.display_title }}</h1>
-
       <div class="chapter-subtitle">
         <span class="meta-pill">{{ novel.display_title }}</span>
-
-        {% if chapter.access_label %}
-          <span class="meta-pill">{{ chapter.access_label }}</span>
-        {% endif %}
+        <span class="meta-pill">{{ chapter.access_label }}</span>
       </div>
     </header>
 
-    {% if is_locked %}
-      <section class="locked-chapter-notice locked-chapter-notice-boosty">
-        <div class="locked-title">Глава скрыта</div>
-        <p>
-          Содержимое платной главы не показывается в читалке. Эта глава доступна по подписке на Boosty
-          или в раннем доступе, в зависимости от настроек проекта.
-        </p>
-        <p>
-          Откройте оглавление, чтобы выбрать доступную главу, или перейдите на Boosty через пост/описание проекта.
-        </p>
-        <a href="/novel/{{ novel.slug }}">К оглавлению</a>
-      </section>
-    {% endif %}
-
-    {% if telegraph_error %}
-      <section class="locked-chapter-notice">
-        <div class="locked-title">Не удалось загрузить главу</div>
-        <p>{{ telegraph_error }}</p>
-      </section>
-    {% endif %}
-
-    <section class="chapter-content-shell">
-      {% if fox.fox_side or fox.fox_laying_paws or fox.fox_pic or fox.fox_peek_right or fox.fox_peek %}
-        <img
-          class="chapter-side-fox"
-          src="{{ fox.fox_side or fox.fox_laying_paws or fox.fox_pic or fox.fox_peek_right or fox.fox_peek }}"
-          alt="Лисичка"
-          data-fox
-        >
+    <section class="chapter-content-shell {% if is_locked %}chapter-content-shell-preview{% endif %}">
+      {% if reader_fox %}
+        <img class="chapter-side-fox" src="{{ reader_fox }}" alt="Лисичка" data-fox>
       {% endif %}
 
       {% if not is_locked %}
@@ -76,18 +50,55 @@
             <p>Текст главы пока не загрузился.</p>
           {% endif %}
         </article>
+      {% else %}
+        <article class="chapter-content chapter-preview-card">
+          {% if preview_text %}
+            <p class="chapter-preview-text">{{ preview_text }}</p>
+          {% else %}
+            <p class="chapter-preview-text">Начало этой главы доступно для ознакомления, а продолжение открывается после проверки подписки.</p>
+          {% endif %}
+
+          <div class="chapter-blurred-preview" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+
+          <section class="chapter-paywall">
+            {% if footer_fox %}
+              <img class="chapter-paywall-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>
+            {% endif %}
+            <div class="chapter-paywall-copy">
+              <h2>{{ access_copy.title }}</h2>
+              <p>{{ access_copy.description }}</p>
+              <p class="chapter-paywall-current">Сейчас: {{ viewer.role_label }}</p>
+            </div>
+            <div class="chapter-paywall-actions">
+              {% if required_role == 'traveler' and viewer.traveler_join_url %}
+                <a class="subscription-button subscription-button-traveler" href="{{ viewer.traveler_join_url }}" data-telegram-link>🌱 Странствующий читатель</a>
+              {% endif %}
+              {% if viewer.keeper_join_url %}
+                <a class="subscription-button subscription-button-keeper" href="{{ viewer.keeper_join_url }}" data-telegram-link>📜 Хранитель свитков</a>
+              {% endif %}
+              <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ ещё раз</button>
+            </div>
+          </section>
+        </article>
       {% endif %}
     </section>
 
-    <nav class="chapter-navigation">
+    {% if telegraph_error %}
+      <section class="locked-chapter-notice">
+        <div class="locked-title">Не удалось загрузить текст</div>
+        <p>{{ telegraph_error }}</p>
+      </section>
+    {% endif %}
+
+    <nav class="chapter-navigation" aria-label="Навигация по главам">
       {% if previous_chapter %}
         <a class="chapter-nav-button" href="/chapter/{{ previous_chapter.chapter_id }}">← Прошлая</a>
       {% else %}
         <span class="chapter-nav-placeholder"></span>
       {% endif %}
-
       <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К оглавлению</a>
-
       {% if next_chapter %}
         <a class="chapter-nav-button" href="/chapter/{{ next_chapter.chapter_id }}">Следующая →</a>
       {% else %}
@@ -95,20 +106,16 @@
       {% endif %}
     </nav>
 
-    {% if fox.fox_sitting_front or fox.fox_sleeping or fox.fox_pic or fox.fox_peek_right or fox.fox_peek %}
+    {% if footer_fox and not is_locked %}
       <div class="chapter-footer-fox-wrap">
-        <img
-          class="chapter-footer-fox"
-          src="{{ fox.fox_sitting_front or fox.fox_sleeping or fox.fox_pic or fox.fox_peek_right or fox.fox_peek }}"
-          alt="Лисичка"
-          data-fox
-        >
+        <img class="chapter-footer-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>
       </div>
     {% endif %}
   </main>
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
+    window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
   <script src="/static/settings.js"></script>
 </body>

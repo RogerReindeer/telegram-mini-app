@@ -1,16 +1,22 @@
 import os
 import re
 import html
+import json
+import hmac
+import time
+import base64
+import hashlib
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import quote, urljoin, urlparse
+from urllib.parse import quote, urljoin, urlparse, parse_qsl
 
 import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from bs4 import BeautifulSoup
 
 load_dotenv()
 
@@ -18,6 +24,27 @@ APP_TITLE = "Зефиркины баоцзы"
 SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or ""
 SYNC_TOKEN = os.getenv("SYNC_TOKEN") or ""
+
+# Telegram Mini App authentication and membership-based access.
+TELEGRAM_BOT_TOKEN = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+TRAVELER_CHAT_ID = (os.getenv("TRAVELER_CHAT_ID") or "").strip()
+KEEPER_CHAT_ID = (os.getenv("KEEPER_CHAT_ID") or "").strip()
+TRAVELER_JOIN_URL = (os.getenv("TRAVELER_JOIN_URL") or "").strip()
+KEEPER_JOIN_URL = (os.getenv("KEEPER_JOIN_URL") or "").strip()
+SESSION_SECRET = (os.getenv("SESSION_SECRET") or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or "change-me").encode("utf-8")
+AUTH_COOKIE_NAME = "zefirki_access"
+AUTH_SESSION_TTL_SECONDS = int(os.getenv("AUTH_SESSION_TTL_SECONDS") or "900")
+TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = int(os.getenv("TELEGRAM_INIT_DATA_MAX_AGE_SECONDS") or "86400")
+MEMBERSHIP_CACHE_SECONDS = int(os.getenv("MEMBERSHIP_CACHE_SECONDS") or "300")
+APP_ENV = (os.getenv("APP_ENV") or "production").lower()
+
+ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
+ROLE_LABELS = {
+    "guest": "Гость",
+    "traveler": "🌱 Странствующий читатель",
+    "keeper": "📜 Хранитель свитков",
+}
+_membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 NOVEL_TABLE_COLUMNS = {
     "id", "slug", "title", "title_en", "post_icons", "cover_url", "description", "tags",
@@ -86,6 +113,265 @@ app = FastAPI(title="Zefirki Reader Mini App")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+
+def role_rank(role: Any) -> int:
+    return ROLE_RANK.get(str(role or "guest").lower(), 0)
+
+
+def public_viewer(viewer: dict[str, Any]) -> dict[str, Any]:
+    role = str(viewer.get("role") or "guest")
+    return {
+        "authenticated": bool(viewer.get("authenticated")),
+        "user_id": viewer.get("user_id"),
+        "first_name": viewer.get("first_name") or "",
+        "username": viewer.get("username") or "",
+        "role": role,
+        "role_label": ROLE_LABELS.get(role, ROLE_LABELS["guest"]),
+        "traveler_join_url": TRAVELER_JOIN_URL,
+        "keeper_join_url": KEEPER_JOIN_URL,
+    }
+
+
+def b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def b64url_decode(data: str) -> bytes:
+    padding = "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(data + padding)
+
+
+def make_session_token(viewer: dict[str, Any]) -> str:
+    payload = {
+        "user_id": int(viewer["user_id"]),
+        "first_name": str(viewer.get("first_name") or "")[:120],
+        "username": str(viewer.get("username") or "")[:120],
+        "role": str(viewer.get("role") or "guest"),
+        "exp": int(time.time()) + AUTH_SESSION_TTL_SECONDS,
+    }
+    body = b64url_encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    signature = b64url_encode(hmac.new(SESSION_SECRET, body.encode("ascii"), hashlib.sha256).digest())
+    return f"{body}.{signature}"
+
+
+def parse_session_token(token: str) -> dict[str, Any] | None:
+    if not token or "." not in token:
+        return None
+    body, signature = token.split(".", 1)
+    expected = b64url_encode(hmac.new(SESSION_SECRET, body.encode("ascii"), hashlib.sha256).digest())
+    if not hmac.compare_digest(signature, expected):
+        return None
+    try:
+        payload = json.loads(b64url_decode(body).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if int(payload.get("exp") or 0) < int(time.time()):
+        return None
+    role = str(payload.get("role") or "guest")
+    if role not in ROLE_RANK:
+        return None
+    return {
+        "authenticated": True,
+        "user_id": int(payload.get("user_id")),
+        "first_name": str(payload.get("first_name") or ""),
+        "username": str(payload.get("username") or ""),
+        "role": role,
+    }
+
+
+def viewer_from_request(request: Request) -> dict[str, Any]:
+    session = parse_session_token(request.cookies.get(AUTH_COOKIE_NAME, ""))
+    if session:
+        return session
+    return {
+        "authenticated": False,
+        "user_id": None,
+        "first_name": "",
+        "username": "",
+        "role": "guest",
+    }
+
+
+def validate_telegram_init_data(init_data: str) -> dict[str, Any]:
+    if not TELEGRAM_BOT_TOKEN:
+        raise HTTPException(status_code=503, detail="TELEGRAM_BOT_TOKEN не настроен")
+    try:
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True, strict_parsing=True))
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail="Некорректные данные Telegram") from exc
+
+    received_hash = pairs.pop("hash", "")
+    if not received_hash:
+        raise HTTPException(status_code=401, detail="Telegram hash отсутствует")
+
+    data_check_string = "\n".join(f"{key}={pairs[key]}" for key in sorted(pairs))
+    secret_key = hmac.new(b"WebAppData", TELEGRAM_BOT_TOKEN.encode("utf-8"), hashlib.sha256).digest()
+    calculated_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(received_hash, calculated_hash):
+        raise HTTPException(status_code=401, detail="Подпись Telegram не прошла проверку")
+
+    auth_date = int(pairs.get("auth_date") or 0)
+    now = int(time.time())
+    if not auth_date or auth_date > now + 60 or now - auth_date > TELEGRAM_INIT_DATA_MAX_AGE_SECONDS:
+        raise HTTPException(status_code=401, detail="Данные Telegram устарели")
+
+    try:
+        user = json.loads(pairs.get("user") or "{}")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=401, detail="Пользователь Telegram не найден") from exc
+    if not user.get("id"):
+        raise HTTPException(status_code=401, detail="ID пользователя Telegram отсутствует")
+    return user
+
+
+def telegram_member_is_active(result: dict[str, Any]) -> bool:
+    status = str(result.get("status") or "")
+    if status in {"creator", "administrator", "member"}:
+        return True
+    if status == "restricted":
+        return bool(result.get("is_member"))
+    return False
+
+
+def check_telegram_membership(chat_id: str, user_id: int) -> bool:
+    if not TELEGRAM_BOT_TOKEN or not chat_id:
+        return False
+    try:
+        response = requests.get(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getChatMember",
+            params={"chat_id": chat_id, "user_id": user_id},
+            timeout=12,
+        )
+        data = response.json()
+    except (requests.RequestException, ValueError) as error:
+        print("Telegram membership check failed:", error)
+        return False
+    if not data.get("ok"):
+        print("Telegram getChatMember error:", data.get("description"))
+        return False
+    return telegram_member_is_active(data.get("result") or {})
+
+
+def resolve_telegram_role(user_id: int) -> str:
+    cached = _membership_cache.get(user_id)
+    now = time.time()
+    if cached and cached[0] > now:
+        return str(cached[1].get("role") or "guest")
+
+    # Keeper wins if the user belongs to both groups.
+    if check_telegram_membership(KEEPER_CHAT_ID, user_id):
+        role = "keeper"
+    elif check_telegram_membership(TRAVELER_CHAT_ID, user_id):
+        role = "traveler"
+    else:
+        role = "guest"
+    _membership_cache[user_id] = (now + MEMBERSHIP_CACHE_SECONDS, {"role": role})
+    return role
+
+
+def authenticate_telegram_viewer(init_data: str) -> dict[str, Any]:
+    user = validate_telegram_init_data(init_data)
+    user_id = int(user["id"])
+    role = resolve_telegram_role(user_id)
+    return {
+        "authenticated": True,
+        "user_id": user_id,
+        "first_name": str(user.get("first_name") or ""),
+        "username": str(user.get("username") or ""),
+        "role": role,
+    }
+
+
+def novel_required_role(novel: dict) -> str:
+    text = f"{novel.get('access_model', '')} {novel.get('early_access_mode', '')}".lower()
+    if any(marker in text for marker in ("keeper", "хранитель", "📜")):
+        return "keeper"
+    if any(marker in text for marker in ("boostyonly", "boosty only", "boosty", "🎁")):
+        return "traveler"
+    return "guest"
+
+
+def normalize_required_role(access_level: Any) -> str:
+    text = clean_value(access_level).lower()
+    if text in {"", "public", "free", "open", "guest"}:
+        return "guest"
+    if text in {"subscriber", "subscription", "boosty", "traveler", "reader", "stranger"}:
+        return "traveler"
+    if text in {"premium", "paid", "early", "keeper", "guardian", "all", "hidden"}:
+        return "keeper"
+    if any(marker in text for marker in ("boosty", "подпис", "странств")):
+        return "traveler"
+    return "keeper"
+
+
+def viewer_can_access_required_role(viewer_role: str, required_role: str) -> bool:
+    return role_rank(viewer_role) >= role_rank(required_role)
+
+
+def chapter_public_url(chapter: dict) -> str:
+    required = normalize_required_role(chapter.get("access_level"))
+    free_url = clean_value(chapter.get("telegraph_free_url"))
+    if free_url:
+        return free_url
+    if required == "guest":
+        return clean_value(chapter.get("telegraph_url"))
+    return ""
+
+
+def chapter_premium_url(chapter: dict) -> str:
+    return (
+        clean_value(chapter.get("telegraph_premium_url"))
+        or clean_value(chapter.get("telegraph_url"))
+        or clean_value(chapter.get("telegraph_free_url"))
+    )
+
+
+def chapter_public_ready(chapter: dict) -> bool:
+    if not chapter_public_url(chapter):
+        return False
+    release = clean_value(chapter.get("free_release_date"))
+    return not release or is_date_open(release)
+
+
+def chapter_premium_ready(chapter: dict) -> bool:
+    if not chapter_premium_url(chapter):
+        return False
+    release = clean_value(chapter.get("premium_release_date"))
+    return not release or is_date_open(release)
+
+
+def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
+    required = normalize_required_role(chapter.get("access_level"))
+    if viewer_role == "keeper":
+        return chapter_premium_url(chapter)
+    if chapter.get("is_visible") is not True:
+        return ""
+    if chapter_public_ready(chapter):
+        return chapter_public_url(chapter)
+    if viewer_role == "traveler" and required == "traveler" and chapter_premium_ready(chapter):
+        return chapter_premium_url(chapter)
+    return ""
+
+
+def chapter_preview_url(chapter: dict) -> str:
+    if chapter.get("is_visible") is not True:
+        return ""
+    release = clean_value(chapter.get("premium_release_date"))
+    if release and not is_date_open(release):
+        return ""
+    return chapter_premium_url(chapter)
+
+
+def access_copy(required_role: str) -> dict[str, str]:
+    if required_role == "keeper":
+        return {
+            "title": "Продолжение доступно Хранителю свитков",
+            "description": "Хранитель свитков открывает абсолютно все главы и все книги читалки.",
+        }
+    return {
+        "title": "Продолжение доступно по подписке",
+        "description": "🌱 Странствующий читатель открывает главы подписки Boosty. 📜 Хранитель свитков открывает абсолютно всё.",
+    }
 
 def clean_value(value: Any) -> str:
     if value is None:
@@ -469,82 +755,55 @@ def chapter_has_readable_url(chapter: dict) -> bool:
     return bool(clean_value(chapter.get("telegraph_url")) or clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_premium_url")))
 
 
-def chapter_is_available(chapter: dict) -> bool:
-    """True means the chapter text can be opened inside the reader now.
-
-    Paid / subscription / early-access chapters are intentionally NOT readable
-    in the MiniApp until access checking is implemented. They remain visible
-    in the table of contents with a Boosty subscription label, but their
-    Telegraph/Teletype content is not fetched or shown.
-    """
-    if chapter.get("is_visible") is not True:
-        return False
-
-    access_level = clean_value(chapter.get("access_level")).lower()
-
-    if access_level != "public":
-        return False
-
-    public_url = (
-        clean_value(chapter.get("telegraph_free_url"))
-        or clean_value(chapter.get("telegraph_url"))
-    )
-
-    if not public_url:
-        return False
-
-    free_release_date = clean_value(chapter.get("free_release_date"))
-
-    if free_release_date and not is_date_open(free_release_date):
-        return False
-
-    return True
+def chapter_is_available(chapter: dict, viewer_role: str = "guest") -> bool:
+    return bool(chapter_content_url_for_role(chapter, viewer_role))
 
 
 def count_chapter_units_for_card(chapters: list[dict]) -> int:
     return len({chapter_unit_key(chapter) for chapter in chapters})
 
 
-def count_available_chapter_units(chapters: list[dict]) -> int:
-    return len({chapter_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter)})
+def count_available_chapter_units(chapters: list[dict], viewer_role: str = "guest") -> int:
+    return len({chapter_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter, viewer_role)})
 
 
-def choose_chapter_url(chapter: dict) -> str:
-    access_level = clean_value(chapter.get("access_level")).lower()
-
-    if access_level != "public":
-        return ""
-
-    return (
-        clean_value(chapter.get("telegraph_free_url"))
-        or clean_value(chapter.get("telegraph_url"))
-    )
+def choose_chapter_url(chapter: dict, viewer_role: str = "guest") -> str:
+    return chapter_content_url_for_role(chapter, viewer_role)
 
 
-def prepare_chapter_for_template(chapter: dict) -> dict:
+def prepare_chapter_for_template(chapter: dict, viewer_role: str = "guest") -> dict:
     prepared = dict(chapter)
     chapter_code = chapter_code_value(chapter)
+    required_role = normalize_required_role(chapter.get("access_level"))
     prepared["id"] = chapter_code
     prepared["chapter_id"] = chapter_code
     prepared["chapter_code"] = chapter_code
     prepared["chapter_no"] = clean_value(chapter.get("chapter_no"))
     prepared["title"] = clean_value(chapter.get("title")) or f"Глава {prepared['chapter_no']}"
     prepared["display_title"] = prepared["title"]
-    prepared["url"] = choose_chapter_url(chapter)
-    prepared["is_available"] = chapter_is_available(chapter)
-    access_level = clean_value(chapter.get("access_level")).lower()
-    if access_level == "public" and prepared["is_available"]:
-        prepared["access_label"] = "🌱 Открыта"
+    prepared["required_role"] = required_role
+    prepared["url"] = choose_chapter_url(chapter, viewer_role)
+    prepared["is_available"] = bool(prepared["url"])
+    prepared["viewer_role"] = viewer_role
+
+    if prepared["is_available"]:
+        if required_role == "guest":
+            prepared["access_label"] = "🌱 Открыта"
+        elif viewer_role == "keeper":
+            prepared["access_label"] = "📜 Доступ Хранителя"
+        else:
+            prepared["access_label"] = "🌱 Доступ по подписке"
         prepared["access_class"] = "chapter-access-public"
-    elif access_level in ("subscriber", "premium", "paid", "early"):
-        prepared["access_label"] = "📜 По подписке Boosty"
+    elif required_role == "traveler":
+        prepared["access_label"] = "🌱 Странствующий читатель"
         prepared["access_class"] = "chapter-access-locked"
-    elif access_level == "public":
+    elif required_role == "keeper":
+        prepared["access_label"] = "📜 Хранитель свитков"
+        prepared["access_class"] = "chapter-access-keeper"
+    else:
         prepared["access_label"] = "⏳ Скоро откроется"
         prepared["access_class"] = "chapter-access-hidden"
-    else:
-        prepared["access_label"] = "Закрыта"
-        prepared["access_class"] = "chapter-access-hidden"
+
     prepared["sort_value"] = to_float(chapter.get("sort_order"), parse_chapter_no_number(chapter.get("chapter_no")))
     return prepared
 
@@ -553,41 +812,37 @@ def sort_chapters(chapters: list[dict]) -> list[dict]:
     return sorted(chapters, key=lambda chapter: (to_float(chapter.get("sort_order"), parse_chapter_no_number(chapter.get("chapter_no"))), parse_chapter_no_number(chapter.get("chapter_no")), chapter_code_value(chapter)))
 
 
-def build_chapter_display_list(chapters: list[dict]) -> tuple[list[dict], int]:
+def build_chapter_display_list(chapters: list[dict], viewer_role: str = "guest") -> tuple[list[dict], int]:
     prepared = [
-        prepare_chapter_for_template(chapter)
+        prepare_chapter_for_template(chapter, viewer_role)
         for chapter in sort_chapters(chapters)
-        if chapter.get("is_visible") is True
+        if viewer_role == "keeper" or chapter.get("is_visible") is True
     ]
 
-    hidden_subscriber_count = 0
+    hidden_locked_count = 0
     has_reached_open_block = False
-
     for chapter in prepared:
-        access_level = clean_value(chapter.get("access_level")).lower()
-        is_paid = access_level in ("subscriber", "premium", "paid", "early")
-        is_open = chapter.get("is_available") is True
-
+        is_locked = not chapter.get("is_available")
         chapter["is_paid_extra"] = False
         chapter["hidden"] = False
-
-        if is_open:
+        if chapter.get("is_available"):
             has_reached_open_block = True
             continue
-
-        # Платные главы в самом начале оглавления показываем полностью:
-        # это превью раннего/Boosty-доступа. Платные главы после открытого блока
-        # сворачиваем под кнопку в конце, чтобы список не превращался в стену замков.
-        if is_paid and has_reached_open_block:
+        # Locked chapters at the beginning remain visible. Locked chapters after
+        # the first readable block are collapsed under the reveal button.
+        if is_locked and has_reached_open_block:
             chapter["is_paid_extra"] = True
             chapter["hidden"] = True
-            hidden_subscriber_count += 1
+            hidden_locked_count += 1
+    return prepared, hidden_locked_count
 
-    return prepared, hidden_subscriber_count
 
-
-def get_chapter_index_info(chapters: list[dict], current_chapter_id: str) -> dict:
-    sorted_visible = [prepare_chapter_for_template(chapter) for chapter in sort_chapters(chapters) if chapter_is_available(chapter)]
+def get_chapter_index_info(chapters: list[dict], current_chapter_id: str, viewer_role: str = "guest") -> dict:
+    sorted_visible = [
+        prepare_chapter_for_template(chapter, viewer_role)
+        for chapter in sort_chapters(chapters)
+        if chapter_is_available(chapter, viewer_role)
+    ]
     units = []
     seen_units = set()
     for chapter in sorted_visible:
@@ -600,27 +855,21 @@ def get_chapter_index_info(chapters: list[dict], current_chapter_id: str) -> dic
         if clean_value(unit.get("chapter_id")) == clean_value(current_chapter_id):
             current_index = index
             break
-    if not current_index:
-        current_key = ""
-        for chapter in sorted_visible:
-            if clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id):
-                current_key = chapter_unit_key(chapter)
-                break
-        if current_key:
-            for index, unit in enumerate(units, start=1):
-                if unit["unit_key"] == current_key:
-                    current_index = index
-                    break
     return {"chapter_index": current_index, "available_chapters": len(units)}
 
 
-def get_neighbor_chapters(chapters: list[dict], current_chapter_id: str) -> tuple[dict | None, dict | None]:
-    available = [prepare_chapter_for_template(chapter) for chapter in sort_chapters(chapters) if chapter_is_available(chapter)]
+def get_neighbor_chapters(chapters: list[dict], current_chapter_id: str, viewer_role: str = "guest") -> tuple[dict | None, dict | None]:
+    available = [
+        prepare_chapter_for_template(chapter, viewer_role)
+        for chapter in sort_chapters(chapters)
+        if chapter_is_available(chapter, viewer_role)
+    ]
     index = next((i for i, chapter in enumerate(available) if clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id)), None)
     if index is None:
         return None, None
-    return (available[index - 1] if index > 0 else None, available[index + 1] if index + 1 < len(available) else None)
-
+    previous_chapter = available[index - 1] if index > 0 else None
+    next_chapter = available[index + 1] if index + 1 < len(available) else None
+    return previous_chapter, next_chapter
 
 
 def split_text_paragraphs(value: Any) -> list[str]:
@@ -697,7 +946,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
     return prepared
 
 
-def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict]) -> list[dict]:
+def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict], viewer_role: str = "guest") -> list[dict]:
     chapters_by_novel: dict[str, list[dict]] = {}
     for chapter in chapters:
         novel_id = clean_value(chapter.get("novel_id"))
@@ -707,8 +956,13 @@ def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict]) ->
     for novel in novels:
         prepared = prepare_novel_for_template(novel)
         novel_chapters = chapters_by_novel.get(clean_value(prepared.get("id")), [])
+        prepared["required_role"] = novel_required_role(novel)
         prepared["display_chapters_count"] = count_chapter_units_for_card(novel_chapters) or prepared["total_chapters"] or 0
-        prepared["available_chapters_count"] = count_available_chapter_units(novel_chapters)
+        prepared["free_chapters_count"] = count_available_chapter_units(novel_chapters, "guest")
+        prepared["traveler_chapters_count"] = count_available_chapter_units(novel_chapters, "traveler")
+        prepared["keeper_chapters_count"] = count_available_chapter_units(novel_chapters, "keeper")
+        prepared["available_chapters_count"] = count_available_chapter_units(novel_chapters, viewer_role)
+        prepared["viewer_has_book_access"] = viewer_can_access_required_role(viewer_role, prepared["required_role"])
         result.append(prepared)
     return result
 
@@ -956,6 +1210,32 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
     return {"title": result.get("title") or "", "content_html": html_content}, ""
 
 
+
+def extract_preview_text(html_content: str, max_sentences: int = 2, max_chars: int = 460) -> str:
+    if not html_content:
+        return ""
+    soup = BeautifulSoup(html_content, "html.parser")
+    text = " ".join(soup.stripped_strings)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return ""
+    sentences = re.split(r"(?<=[.!?…])\s+", text)
+    preview = " ".join(sentences[:max_sentences]).strip()
+    if len(preview) > max_chars:
+        preview = preview[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
+    return preview
+
+
+def fetch_locked_preview(chapter: dict) -> tuple[str, str]:
+    url = chapter_preview_url(chapter)
+    if not url:
+        return "", ""
+    content, error = fetch_telegraph_content(url)
+    if error or not content:
+        return "", error
+    return extract_preview_text(content.get("content_html") or ""), ""
+
+
 def normalize_dict_keys(row: dict, key_map: dict[str, str]) -> dict:
     return {key_map.get(key, key): value for key, value in row.items()}
 
@@ -1145,10 +1425,13 @@ def get_all_chapters() -> list[dict]:
         return []
 
 
-def get_novel_by_slug(slug: str) -> dict | None:
+def get_novel_by_slug(slug: str, include_hidden: bool = False) -> dict | None:
     if not supabase_ready():
         return None
-    rows = db_select("novels", select="*", filters={"slug": f"eq.{slug}", "is_visible": "eq.true"}, limit=1)
+    filters = {"slug": f"eq.{slug}"}
+    if not include_hidden:
+        filters["is_visible"] = "eq.true"
+    rows = db_select("novels", select="*", filters=filters, limit=1)
     return rows[0] if rows else None
 
 
@@ -1174,7 +1457,13 @@ def get_novel_by_id(novel_id: str) -> dict | None:
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "supabase": "ok" if supabase_ready() else "not_configured"}
+    return {
+        "status": "ok",
+        "supabase": "ok" if supabase_ready() else "not_configured",
+        "telegram_bot": "ok" if TELEGRAM_BOT_TOKEN else "not_configured",
+        "traveler_chat": "ok" if TRAVELER_CHAT_ID else "not_configured",
+        "keeper_chat": "ok" if KEEPER_CHAT_ID else "not_configured",
+    }
 
 
 @app.get("/")
@@ -1184,49 +1473,109 @@ async def home():
 
 @app.get("/library")
 async def library(request: Request):
-    novels = get_all_novels(include_hidden=False)
+    viewer = viewer_from_request(request)
+    include_hidden = viewer.get("role") == "keeper"
+    novels = get_all_novels(include_hidden=include_hidden)
     chapters = get_all_chapters()
     fox = get_fox()
-    prepared_novels = attach_chapter_counts_to_novels(novels, chapters)
-    return templates.TemplateResponse(request, "library.html", {"app_title": APP_TITLE, "novels": prepared_novels, "fox": fox})
+    prepared_novels = attach_chapter_counts_to_novels(novels, chapters, str(viewer.get("role") or "guest"))
+    return templates.TemplateResponse(
+        request,
+        "library.html",
+        {"app_title": APP_TITLE, "novels": prepared_novels, "fox": fox, "viewer": public_viewer(viewer)},
+    )
 
 
 @app.get("/novel/{slug}")
 async def novel_page(request: Request, slug: str):
-    novel = get_novel_by_slug(slug)
+    viewer = viewer_from_request(request)
+    viewer_role = str(viewer.get("role") or "guest")
+    novel = get_novel_by_slug(slug, include_hidden=viewer_role == "keeper")
     if not novel:
+        raise HTTPException(status_code=404, detail="Новелла не найдена")
+    if not to_bool(novel.get("is_visible"), True) and viewer_role != "keeper":
         raise HTTPException(status_code=404, detail="Новелла не найдена")
     fox = get_fox()
     all_chapters = get_novel_chapters(clean_value(novel.get("id")))
     prepared_novel = prepare_novel_for_template(novel)
+    prepared_novel["required_role"] = novel_required_role(novel)
+    prepared_novel["viewer_has_book_access"] = viewer_can_access_required_role(viewer_role, prepared_novel["required_role"])
     prepared_novel["display_chapters_count"] = count_chapter_units_for_card(all_chapters) or prepared_novel["total_chapters"] or 0
-    prepared_novel["available_chapters_count"] = count_available_chapter_units(all_chapters)
-    visible_chapters = [chapter for chapter in all_chapters if chapter.get("is_visible") is True]
-    display_chapters, hidden_subscriber_count = build_chapter_display_list(visible_chapters)
-    return templates.TemplateResponse(request, "novel.html", {"app_title": APP_TITLE, "novel": prepared_novel, "chapters": display_chapters, "display_chapters": display_chapters, "hidden_subscriber_count": hidden_subscriber_count, "fox": fox})
+    prepared_novel["free_chapters_count"] = count_available_chapter_units(all_chapters, "guest")
+    prepared_novel["traveler_chapters_count"] = count_available_chapter_units(all_chapters, "traveler")
+    prepared_novel["keeper_chapters_count"] = count_available_chapter_units(all_chapters, "keeper")
+    prepared_novel["available_chapters_count"] = count_available_chapter_units(all_chapters, viewer_role)
+    visible_chapters = all_chapters if viewer_role == "keeper" else [chapter for chapter in all_chapters if chapter.get("is_visible") is True]
+    display_chapters, hidden_subscriber_count = build_chapter_display_list(visible_chapters, viewer_role)
+    return templates.TemplateResponse(
+        request,
+        "novel.html",
+        {
+            "app_title": APP_TITLE,
+            "novel": prepared_novel,
+            "chapters": display_chapters,
+            "display_chapters": display_chapters,
+            "hidden_subscriber_count": hidden_subscriber_count,
+            "fox": fox,
+            "viewer": public_viewer(viewer),
+        },
+    )
 
 
 @app.get("/chapter/{chapter_id}")
 async def chapter_page(request: Request, chapter_id: str):
+    viewer = viewer_from_request(request)
+    viewer_role = str(viewer.get("role") or "guest")
     chapter = get_chapter_by_id(chapter_id)
     if not chapter:
         raise HTTPException(status_code=404, detail="Глава не найдена")
     novel = get_novel_by_id(clean_value(chapter.get("novel_id")))
     if not novel:
         raise HTTPException(status_code=404, detail="Книга главы не найдена")
+    if not to_bool(novel.get("is_visible"), True) and viewer_role != "keeper":
+        raise HTTPException(status_code=404, detail="Глава не найдена")
+
     all_chapters = get_novel_chapters(clean_value(novel.get("id")))
-    prepared_chapter = prepare_chapter_for_template(chapter)
+    prepared_chapter = prepare_chapter_for_template(chapter, viewer_role)
     prepared_novel = prepare_novel_for_template(novel)
-    previous_chapter, next_chapter = get_neighbor_chapters(all_chapters, clean_value(prepared_chapter.get("chapter_id")))
-    index_info = get_chapter_index_info(all_chapters, clean_value(prepared_chapter.get("chapter_id")))
-    url = choose_chapter_url(chapter)
-    is_locked = not prepared_chapter["is_available"]
+    prepared_novel["required_role"] = novel_required_role(novel)
+    previous_chapter, next_chapter = get_neighbor_chapters(all_chapters, clean_value(prepared_chapter.get("chapter_id")), viewer_role)
+    index_info = get_chapter_index_info(all_chapters, clean_value(prepared_chapter.get("chapter_id")), viewer_role)
+    url = choose_chapter_url(chapter, viewer_role)
+    is_locked = not bool(url)
     telegraph_content = None
     telegraph_error = ""
-    if url and not is_locked:
+    preview_text = ""
+
+    if url:
         telegraph_content, telegraph_error = fetch_telegraph_content(url)
+    else:
+        preview_text, preview_error = fetch_locked_preview(chapter)
+        telegraph_error = preview_error if not preview_text else ""
+
+    required_role = normalize_required_role(chapter.get("access_level"))
     fox = get_fox()
-    return templates.TemplateResponse(request, "chapter.html", {"app_title": APP_TITLE, "chapter": prepared_chapter, "novel": prepared_novel, "previous_chapter": previous_chapter, "next_chapter": next_chapter, "chapter_index": index_info["chapter_index"], "available_chapters": index_info["available_chapters"], "is_locked": is_locked, "telegraph_content": telegraph_content, "telegraph_error": telegraph_error, "fox": fox})
+    return templates.TemplateResponse(
+        request,
+        "chapter.html",
+        {
+            "app_title": APP_TITLE,
+            "chapter": prepared_chapter,
+            "novel": prepared_novel,
+            "previous_chapter": previous_chapter,
+            "next_chapter": next_chapter,
+            "chapter_index": index_info["chapter_index"],
+            "available_chapters": index_info["available_chapters"],
+            "is_locked": is_locked,
+            "telegraph_content": telegraph_content,
+            "telegraph_error": telegraph_error,
+            "preview_text": preview_text,
+            "required_role": required_role,
+            "access_copy": access_copy(required_role),
+            "fox": fox,
+            "viewer": public_viewer(viewer),
+        },
+    )
 
 
 @app.get("/api/fox")
@@ -1236,20 +1585,72 @@ async def api_fox():
 
 
 @app.get("/api/library")
-async def api_library():
-    novels = get_all_novels(include_hidden=False)
+async def api_library(request: Request):
+    viewer = viewer_from_request(request)
+    viewer_role = str(viewer.get("role") or "guest")
+    novels = get_all_novels(include_hidden=viewer_role == "keeper")
     chapters = get_all_chapters()
-    prepared_novels = attach_chapter_counts_to_novels(novels, chapters)
-    return {"status": "ok", "novels_count": len(prepared_novels), "chapters_count": len(chapters), "novels_sample": prepared_novels}
+    prepared_novels = attach_chapter_counts_to_novels(novels, chapters, viewer_role)
+    return {
+        "status": "ok",
+        "viewer": public_viewer(viewer),
+        "novels_count": len(prepared_novels),
+        "chapters_count": len(chapters),
+        "novels_sample": prepared_novels,
+    }
 
 
 @app.get("/api/novel/{slug}")
-async def api_novel(slug: str):
-    novel = get_novel_by_slug(slug)
+async def api_novel(request: Request, slug: str):
+    viewer = viewer_from_request(request)
+    viewer_role = str(viewer.get("role") or "guest")
+    novel = get_novel_by_slug(slug, include_hidden=viewer_role == "keeper")
     if not novel:
         raise HTTPException(status_code=404, detail="Новелла не найдена")
     chapters = get_novel_chapters(clean_value(novel.get("id")))
-    return {"status": "ok", "novel": prepare_novel_for_template(novel), "chapters": [prepare_chapter_for_template(chapter) for chapter in chapters]}
+    return {
+        "status": "ok",
+        "viewer": public_viewer(viewer),
+        "novel": prepare_novel_for_template(novel),
+        "chapters": [prepare_chapter_for_template(chapter, viewer_role) for chapter in chapters],
+    }
+
+
+
+@app.get("/api/auth/me")
+async def api_auth_me(request: Request):
+    viewer = viewer_from_request(request)
+    return {"status": "ok", "viewer": public_viewer(viewer)}
+
+
+@app.post("/api/auth/telegram")
+async def api_auth_telegram(request: Request):
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Ожидался JSON") from exc
+    init_data = str(payload.get("init_data") or payload.get("initData") or "")
+    if not init_data:
+        raise HTTPException(status_code=400, detail="initData отсутствует")
+    viewer = authenticate_telegram_viewer(init_data)
+    response = JSONResponse({"status": "ok", "viewer": public_viewer(viewer)})
+    response.set_cookie(
+        AUTH_COOKIE_NAME,
+        make_session_token(viewer),
+        max_age=AUTH_SESSION_TTL_SECONDS,
+        httponly=True,
+        secure=APP_ENV == "production",
+        samesite="lax",
+        path="/",
+    )
+    return response
+
+
+@app.post("/api/auth/logout")
+async def api_auth_logout():
+    response = JSONResponse({"status": "ok"})
+    response.delete_cookie(AUTH_COOKIE_NAME, path="/")
+    return response
 
 
 def validate_sync_token(request: Request, token: str | None) -> None:

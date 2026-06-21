@@ -26,8 +26,11 @@
 
   const DEFAULT_FILTER = { query: "", chips: [] };
 
-  document.addEventListener("DOMContentLoaded", function () {
+  document.addEventListener("DOMContentLoaded", async function () {
     initTelegram();
+    const reloading = await initTelegramAuth();
+    if (reloading) return;
+
     initSettings();
     initAppSizeButton();
     initLibrary();
@@ -39,6 +42,7 @@
     initPaidChapterReveal();
     initChapterSortToggle();
     initSpoilerReveal();
+    initAccessActions();
   });
 
   function initTelegram() {
@@ -49,6 +53,109 @@
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
     }
+  }
+
+  function getTelegramWebApp() {
+    return window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  }
+
+  function simpleHash(value) {
+    let hash = 0;
+    const text = String(value || "");
+    for (let index = 0; index < text.length; index += 1) {
+      hash = ((hash << 5) - hash + text.charCodeAt(index)) | 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function showAuthOverlay() {
+    let overlay = document.querySelector("[data-auth-overlay]");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "auth-overlay";
+      overlay.dataset.authOverlay = "true";
+      overlay.innerHTML = `<div class="auth-overlay-card"><span class="auth-spinner"></span><span>Проверяем доступ в Telegram…</span></div>`;
+      document.body.appendChild(overlay);
+    }
+    overlay.hidden = false;
+  }
+
+  function hideAuthOverlay() {
+    const overlay = document.querySelector("[data-auth-overlay]");
+    if (overlay) overlay.hidden = true;
+  }
+
+  async function postTelegramAuth(initData) {
+    const response = await fetch("/api/auth/telegram", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ init_data: initData }),
+    });
+    const data = await response.json().catch(function () { return {}; });
+    if (!response.ok) {
+      throw new Error(data.detail || "Не удалось проверить доступ Telegram");
+    }
+    return data;
+  }
+
+  async function initTelegramAuth() {
+    const telegram = getTelegramWebApp();
+    const initData = telegram && telegram.initData ? telegram.initData : "";
+    const viewer = window.ZEFIRKI_VIEWER || {};
+
+    if (!initData || viewer.authenticated) return false;
+
+    const attemptKey = `zefirki_auth_attempt_${simpleHash(initData)}`;
+    if (sessionStorage.getItem(attemptKey) === "done") return false;
+
+    sessionStorage.setItem(attemptKey, "done");
+    showAuthOverlay();
+    try {
+      await postTelegramAuth(initData);
+      window.location.reload();
+      return true;
+    } catch (error) {
+      console.error(error);
+      hideAuthOverlay();
+      return false;
+    }
+  }
+
+  function initAccessActions() {
+    document.querySelectorAll("[data-telegram-link]").forEach(function (link) {
+      link.addEventListener("click", function (event) {
+        const telegram = getTelegramWebApp();
+        const href = link.getAttribute("href") || "";
+        if (telegram && href.startsWith("https://t.me/") && typeof telegram.openTelegramLink === "function") {
+          event.preventDefault();
+          telegram.openTelegramLink(href);
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-refresh-access]").forEach(function (button) {
+      button.addEventListener("click", async function () {
+        const telegram = getTelegramWebApp();
+        if (!telegram || !telegram.initData) {
+          alert("Откройте читалку внутри Telegram, чтобы проверить подписку.");
+          return;
+        }
+        button.disabled = true;
+        button.textContent = "Проверяем…";
+        showAuthOverlay();
+        try {
+          await postTelegramAuth(telegram.initData);
+          window.location.reload();
+        } catch (error) {
+          console.error(error);
+          hideAuthOverlay();
+          button.disabled = false;
+          button.textContent = "Проверить доступ ещё раз";
+          alert(error.message || "Не удалось проверить доступ");
+        }
+      });
+    });
   }
 
   function requestSoftExpand() {
@@ -1153,7 +1260,7 @@
     overlay.className = "settings-overlay";
     overlay.hidden = true;
     overlay.dataset.settingsOverlay = "true";
-    overlay.innerHTML = `<div class="settings-modal" role="dialog" aria-modal="true"><div class="settings-header"><div><h2>Настройки</h2><p>Оформление сайта и читалки.</p></div><button class="settings-close" type="button" data-settings-close>×</button></div><div class="settings-tabs"><button class="settings-tab active" type="button" data-settings-tab="reader">Читалка</button><button class="settings-tab" type="button" data-settings-tab="site">Сайт</button><button class="settings-tab" type="button" data-settings-tab="about">О проекте</button></div><section class="settings-section active" data-settings-section="reader"><label class="settings-field"><span>Тема текста</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Ширина текста</span><select data-setting="readerWidth"><option value="comfort">Комфортная</option><option value="full">Широкая</option><option value="wide">Почти вся страница</option></select></label><label class="settings-field"><span>Размер шрифта</span><select data-setting="fontSize"><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option></select></label><label class="settings-field"><span>Межстрочный интервал</span><select data-setting="lineHeight"><option value="1.45">1.45</option><option value="1.6">1.6</option><option value="1.75">1.75</option><option value="1.9">1.9</option></select></label><label class="settings-field"><span>Отступ абзацев</span><select data-setting="paragraphSpacing"><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label><label class="settings-field"><span>Выравнивание</span><select data-setting="textAlign"><option value="left">По левому краю</option><option value="justify">По ширине</option></select></label></section><section class="settings-section" data-settings-section="site"><label class="settings-field"><span>Тема сайта</span><select data-setting="siteTheme"><option value="light">Светлая</option><option value="system">Как в системе</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Акцентный цвет</span><span class="settings-color-row"><select data-setting="accentColor"><option value="#ff6a00">Апельсин</option><option value="#ec4899">Малина</option><option value="#8b5cf6">Фиолетовый</option><option value="#0ea5e9">Голубой</option><option value="#10b981">Зелёный</option></select><input type="color" data-setting-color value="#ff6a00"></span></label><label class="settings-check"><input type="checkbox" data-setting-checkbox="hideFoxes"><span>Спрятать лисичек</span></label></section><section class="settings-section" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе.</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section><div class="settings-footer"><button class="settings-reset" type="button" data-settings-reset>Сбросить настройки</button></div></div>`;
+    overlay.innerHTML = `<div class="settings-modal" role="dialog" aria-modal="true"><div class="settings-header"><div><h2>Настройки</h2><p>Оформление сайта и читалки.</p></div><button class="settings-close" type="button" data-settings-close>×</button></div><div class="settings-tabs"><button class="settings-tab active" type="button" data-settings-tab="reader">Читалка</button><button class="settings-tab" type="button" data-settings-tab="site">Сайт</button><button class="settings-tab" type="button" data-settings-tab="about">О проекте</button></div><section class="settings-section active" data-settings-section="reader"><label class="settings-field"><span>Тема текста</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Ширина текста</span><select data-setting="readerWidth"><option value="comfort">Комфортная</option><option value="full">Широкая</option><option value="wide">Почти вся страница</option></select></label><label class="settings-field"><span>Размер шрифта</span><select data-setting="fontSize"><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option></select></label><label class="settings-field"><span>Межстрочный интервал</span><select data-setting="lineHeight"><option value="1.45">1.45</option><option value="1.6">1.6</option><option value="1.75">1.75</option><option value="1.9">1.9</option></select></label><label class="settings-field"><span>Отступ абзацев</span><select data-setting="paragraphSpacing"><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label><label class="settings-field"><span>Выравнивание</span><select data-setting="textAlign"><option value="left">По левому краю</option><option value="justify">По ширине</option></select></label></section><section class="settings-section" data-settings-section="site"><label class="settings-field"><span>Тема сайта</span><select data-setting="siteTheme"><option value="light">Светлая</option><option value="system">Как в системе</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Акцентный цвет</span><span class="settings-color-row"><select data-setting="accentColor"><option value="#ff6a00">Апельсин</option><option value="#ec4899">Малина</option><option value="#8b5cf6">Фиолетовый</option><option value="#0ea5e9">Голубой</option><option value="#10b981">Зелёный</option></select><input type="color" data-setting-color value="#ff6a00"></span></label></section><section class="settings-section" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе.</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section><div class="settings-footer"><button class="settings-reset" type="button" data-settings-reset>Сбросить настройки</button></div></div>`;
     document.body.appendChild(fab);
     document.body.appendChild(overlay);
   }

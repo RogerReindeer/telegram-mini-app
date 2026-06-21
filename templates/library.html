@@ -25,6 +25,9 @@
 
           <h1>Библиотека</h1>
           <p>Выберите новеллу для чтения.</p>
+          <div class="viewer-role-badge viewer-role-{{ viewer.role }}" data-viewer-role>
+            {{ viewer.role_label }}
+          </div>
         </div>
 
         {% if header_fox %}
@@ -170,6 +173,10 @@
                 data-chapters="{{ novel.display_chapters_count or novel.total_chapters or 0 }}"
                 data-translated-chapters="{{ novel.translated_chapters or 0 }}"
                 data-available-chapters="{{ novel.available_chapters_count or 0 }}"
+                data-free-chapters="{{ novel.free_chapters_count or 0 }}"
+                data-traveler-chapters="{{ novel.traveler_chapters_count or 0 }}"
+                data-keeper-chapters="{{ novel.keeper_chapters_count or 0 }}"
+                data-required-role="{{ novel.required_role or 'guest' }}"
                 data-progress="{{ novel.normalized_progress_percent or novel.progress_percent or 0 }}"
                 data-added="{{ novel.added_date or '' }}"
                 data-relation="{{ novel.relation_type or '' }}"
@@ -214,9 +221,10 @@
                   <div class="library-book-state-line" data-card-state-line></div>
 
                   <div class="library-card-stats">
-                    <span title="Открыто для Странствующего читателя">🌱 {{ novel.available_chapters_count or 0 }}</span>
-                    <span title="Переведено">📜 {{ novel.translated_chapters or 0 }}</span>
-                    <span title="Всего глав">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
+                    <span title="Бесплатно открыто">🌱 {{ novel.free_chapters_count or 0 }}</span>
+                    <span title="Доступно Странствующему читателю">📜 {{ novel.traveler_chapters_count or 0 }}</span>
+                    <span title="Доступно Хранителю свитков">🔑 {{ novel.keeper_chapters_count or 0 }}</span>
+                    <span title="Переведено из общего количества">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
                   </div>
 
                   <div class="library-progress-row" data-card-progress-row>
@@ -331,6 +339,7 @@
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
+    window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
   <script src="/static/settings.js"></script>
 </body>

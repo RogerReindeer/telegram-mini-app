@@ -3,19 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>{{ app_title }}</title>
+
   <link rel="stylesheet" href="/static/style.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
+
 <body class="page-index">
+  {% set page_fox = fox.fox_sitting_front or fox.fox_pic or fox.fox_peek or fox.fox_side if fox is defined else '' %}
+
   <main class="page index-page">
-    <section class="empty">
-      <div class="library-empty-fox">🦊</div>
+    <section class="empty empty-with-fox">
+      {% if page_fox %}
+        <img class="library-empty-fox-img" src="{{ page_fox }}" alt="Лисичка" data-fox>
+      {% endif %}
+
       <h1>{{ app_title }}</h1>
-      {% if error %}<p>{{ error }}</p>{% else %}<p>Мини-читалка загружается.</p>{% endif %}
+
+      {% if error %}
+        <p>{{ error }}</p>
+      {% else %}
+        <p>Мини-читалка загружается.</p>
+      {% endif %}
+
       <a class="primary-read-button" href="/library">Перейти в библиотеку</a>
     </section>
   </main>
+
+  <script>
+    window.ZEFIRKI_FOX = {{ fox | default({}) | tojson }};
+  </script>
   <script src="/static/settings.js"></script>
 </body>
 </html>

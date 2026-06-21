@@ -21,7 +21,10 @@
     data-novel-slug="{{ novel.slug }}"
     data-novel-title="{{ novel.display_title }}"
   >
-    <a class="back-link novel-back-link" href="/library">← В библиотеку</a>
+    <div class="page-top-row">
+      <a class="back-link novel-back-link" href="/library">← В библиотеку</a>
+      <span class="viewer-role-badge viewer-role-{{ viewer.role }}">{{ viewer.role_label }}</span>
+    </div>
 
     <section class="novel-hero-card">
       {% if novel.cover_url %}
@@ -70,8 +73,9 @@
           </div>
 
           <div class="novel-stat-grid-v2">
-            <span class="novel-stat-pill-v2">🌱 {{ novel.available_chapters_count or 0 }} открыто</span>
-            <span class="novel-stat-pill-v2">📜 {{ novel.translated_chapters or 0 }} переведено</span>
+            <span class="novel-stat-pill-v2">🌱 {{ novel.free_chapters_count or 0 }} бесплатно</span>
+            <span class="novel-stat-pill-v2">📜 {{ novel.traveler_chapters_count or 0 }} по подписке</span>
+            <span class="novel-stat-pill-v2">🔑 {{ novel.keeper_chapters_count or 0 }} Хранителю</span>
             <span class="novel-stat-pill-v2">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
             <span class="novel-stat-pill-v2 novel-stat-progress-v2">
               ✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%
@@ -199,8 +203,10 @@
               <span class="chapter-row-main">
                 <span class="chapter-title">{{ chapter.display_title }}</span>
 
-                {% if chapter.access_class == 'chapter-access-locked' %}
-                  <span class="chapter-access chapter-access-boosty">Для подписчиков Boosty</span>
+                {% if chapter.required_role == 'traveler' and not chapter.is_available %}
+                  <span class="chapter-access chapter-access-boosty">🌱 Странствующий читатель</span>
+                {% elif chapter.required_role == 'keeper' and not chapter.is_available %}
+                  <span class="chapter-access chapter-access-keeper">📜 Хранитель свитков</span>
                 {% else %}
                   <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
                 {% endif %}
@@ -228,6 +234,7 @@
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
+    window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
   <script src="/static/settings.js"></script>
 </body>
