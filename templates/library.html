@@ -162,7 +162,7 @@
                 data-library-novel-card
                 data-novel-id="{{ novel.id }}"
                 data-novel-slug="{{ novel.slug }}"
-                data-novel-title="{{ novel.library_short_title }} {{ novel.library_secondary_title or novel.library_full_title }} {{ novel.library_english_title or '' }}"
+                data-novel-title="{{ novel.library_short_title }} {{ novel.library_secondary_title or '' }}"
                 data-novel-cover="{{ novel.cover_url or '' }}"
                 data-title="{{ (novel.library_short_title ~ ' ' ~ novel.library_full_title)|lower }}"
                 data-description="{{ novel.description or '' }}"
@@ -224,9 +224,11 @@
                     <button
                       class="library-book-menu"
                       type="button"
-                      aria-label="Меню книги"
+                      aria-label="Открыть меню книги"
+                      aria-haspopup="menu"
+                      aria-expanded="false"
                       data-card-menu-button
-                    >⋮</button>
+                    ><span aria-hidden="true">⋮</span></button>
                   </div>
 
                   {% if novel.library_secondary_title %}

@@ -517,6 +517,7 @@
   }
 
   function initLibraryCardMenus() {
+    // Capture-фаза нужна, чтобы клик по ⋮ не перехватывался кликабельной карточкой.
     document.addEventListener("click", function (event) {
       const menuButton = event.target.closest("[data-card-menu-button]");
 
@@ -525,54 +526,40 @@
         event.stopPropagation();
 
         const card = menuButton.closest("[data-library-novel-card]");
-
-        if (!card) {
-          return;
-        }
-
-        toggleCardMenu(card, menuButton);
+        if (card) toggleCardMenu(card, menuButton);
         return;
       }
 
       const menuAction = event.target.closest("[data-card-menu-action]");
-
       if (menuAction) {
         event.preventDefault();
+        event.stopPropagation();
         handleCardMenuAction(menuAction);
         return;
       }
 
-      if (!event.target.closest("[data-card-menu]")) {
+      // Любое нажатие за пределами открытого меню и его кнопки закрывает меню.
+      if (!event.target.closest("[data-card-menu]") && !event.target.closest("[data-card-menu-button]")) {
         closeAllCardMenus();
       }
-    });
+    }, true);
 
     document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        closeAllCardMenus();
-      }
+      if (event.key === "Escape") closeAllCardMenus();
     });
 
-    window.addEventListener("resize", function () {
-      closeAllCardMenus();
-    });
-
-    window.addEventListener("scroll", function () {
-      closeAllCardMenus();
-    }, { passive: true, capture: true });
+    window.addEventListener("resize", closeAllCardMenus);
+    window.addEventListener("orientationchange", closeAllCardMenus);
+    window.addEventListener("scroll", closeAllCardMenus, { passive: true, capture: true });
   }
 
   function toggleCardMenu(card, button) {
     const novelId = String(card.dataset.novelId || "");
     const existing = document.querySelector(`[data-card-menu][data-novel-id="${cssEscape(novelId)}"]`);
+    const wasOpen = Boolean(existing);
 
-    closeAllCardMenus(card);
-
-    if (existing) {
-      existing.remove();
-      button.setAttribute("aria-expanded", "false");
-      return;
-    }
+    closeAllCardMenus();
+    if (wasOpen) return;
 
     const menu = buildCardMenu(card);
     document.body.appendChild(menu);
@@ -588,9 +575,11 @@
     const buttonRect = button.getBoundingClientRect();
     const width = Math.min(300, Math.max(236, window.innerWidth - viewportGap * 2));
 
-    menu.style.width = `${width}px`;
-    menu.style.left = "0px";
-    menu.style.top = "0px";
+    menu.style.setProperty("width", `${width}px`);
+    menu.style.setProperty("left", "0px", "important");
+    menu.style.setProperty("top", "0px", "important");
+    menu.style.setProperty("right", "auto", "important");
+    menu.style.setProperty("bottom", "auto", "important");
     menu.style.visibility = "hidden";
 
     const menuHeight = Math.min(menu.scrollHeight, window.innerHeight - viewportGap * 2);
@@ -602,29 +591,19 @@
       top = Math.max(viewportGap, buttonRect.top - menuHeight - 8);
     }
 
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
-    menu.style.maxHeight = `${Math.max(160, window.innerHeight - viewportGap * 2)}px`;
+    menu.style.setProperty("left", `${Math.round(left)}px`, "important");
+    menu.style.setProperty("top", `${Math.round(top)}px`, "important");
+    menu.style.setProperty("max-height", `${Math.max(160, window.innerHeight - viewportGap * 2)}px`);
     menu.style.visibility = "visible";
   }
 
-  function closeAllCardMenus(exceptCard) {
-    const exceptNovelId = exceptCard ? String(exceptCard.dataset.novelId || "") : "";
-
+  function closeAllCardMenus() {
     document.querySelectorAll("[data-card-menu]").forEach(function (menu) {
-      const novelId = String(menu.dataset.novelId || "");
-
-      if (exceptNovelId && novelId === exceptNovelId) {
-        return;
-      }
-
-      const button = document.querySelector(`[data-library-novel-card][data-novel-id="${cssEscape(novelId)}"] [data-card-menu-button]`);
-
-      if (button) {
-        button.setAttribute("aria-expanded", "false");
-      }
-
       menu.remove();
+    });
+
+    document.querySelectorAll("[data-card-menu-button][aria-expanded=\"true\"]").forEach(function (button) {
+      button.setAttribute("aria-expanded", "false");
     });
   }
 

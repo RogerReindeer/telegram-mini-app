@@ -887,11 +887,12 @@ def split_text_paragraphs(value: Any) -> list[str]:
     return paragraphs
 
 def normalize_title_for_compare(value: Any) -> str:
-    """Нормализует название для сравнения без влияния регистра и пробелов."""
+    """Сравнивает названия без регистра, кавычек и декоративной пунктуации."""
     text = clean_value(value).casefold()
-    text = re.sub(r"\s+", " ", text).strip()
-    text = re.sub(r"[«»\"'`]+", "", text)
-    return text
+    # NovelShort и NovelTitleRu могут отличаться только кавычками, тире или
+    # дополнительными пробелами. Для выбора второй строки это одно название.
+    text = re.sub(r"[^0-9a-zа-яё]+", " ", text, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def prepare_novel_for_template(novel: dict) -> dict:
@@ -913,24 +914,42 @@ def prepare_novel_for_template(novel: dict) -> dict:
         or novel.get("novel_title_ru")
     )
 
-    # title хранит NovelShort. В title_en без миграции Supabase хранится:
-    # - NovelTitleRu, если короткое и полное русские названия различаются;
-    # - NovelTitleEn, если короткое и полное русские названия совпадают.
-    secondary_is_russian = bool(re.search(r"[А-Яа-яЁё]", secondary_title))
+    # В текущей схеме хранения:
+    #   title    = NovelShort;
+    #   title_en = нужная вторая строка библиотеки:
+    #              NovelTitleRu, если оно отличается от короткого,
+    #              NovelTitleEn, только если короткое и полное русские совпадают.
+    # Поэтому английское название не показывается как обычная дополнительная строка.
     short_title = explicit_short_title or title
-    full_title = explicit_full_title or (secondary_title if secondary_is_russian else title)
+    stored_secondary_title = secondary_title
+    stored_secondary_is_russian = bool(re.search(r"[А-Яа-яЁё]", stored_secondary_title))
+
+    if explicit_full_title:
+        full_title = explicit_full_title
+    elif stored_secondary_is_russian:
+        full_title = stored_secondary_title
+    else:
+        full_title = short_title
+
     english_title = clean_value(
         novel.get("english_title")
         or novel.get("novel_title_en")
         or novel.get("title_en_original")
-        or (secondary_title if secondary_title and not secondary_is_russian else "")
+        or (stored_secondary_title if stored_secondary_title and not stored_secondary_is_russian else "")
     )
 
     short_equals_full = bool(
         normalize_title_for_compare(short_title)
         and normalize_title_for_compare(short_title) == normalize_title_for_compare(full_title)
     )
-    library_secondary_title = english_title if short_equals_full else full_title
+
+    if explicit_full_title:
+        library_secondary_title = english_title if short_equals_full else full_title
+    else:
+        # После синхронизации title_en уже содержит ровно ту вторую строку,
+        # которая нужна карточке. Не пытаемся показывать английское название
+        # в остальных случаях.
+        library_secondary_title = stored_secondary_title
 
     tag_items = prepare_tag_items(tags)
     card_tag_items = build_card_tag_items(tag_items)

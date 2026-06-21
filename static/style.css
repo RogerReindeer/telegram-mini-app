@@ -3299,3 +3299,44 @@ body[data-site-theme="dark"] .library-v4 .library-sort-pill.is-active {
     transition: none !important;
   }
 }
+
+
+/* v13: исправление портального меню карточки и второй строки названия. */
+.library-book-card-v4 .library-book-menu {
+  z-index: 20 !important;
+  pointer-events: auto !important;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.library-book-card-v4 .library-book-menu > span {
+  display: block;
+  width: 100%;
+  transform: translateY(-1px);
+  font-family: Arial, sans-serif;
+  font-size: 28px;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+}
+
+.library-card-menu-popover {
+  position: fixed !important;
+  /* Не задаём inset: auto !important: он перекрывал inline top/left из JS. */
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 2147483000 !important;
+  display: block !important;
+  pointer-events: auto !important;
+  opacity: 1;
+}
+
+.library-card-menu-popover button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.library-book-subtitle:empty {
+  display: none;
+}
