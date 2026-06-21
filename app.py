@@ -889,8 +889,28 @@ def split_text_paragraphs(value: Any) -> list[str]:
 def prepare_novel_for_template(novel: dict) -> dict:
     prepared = dict(novel)
     title = clean_value(novel.get("title"))
+    secondary_title = clean_value(novel.get("title_en"))
     post_icons = clean_value(novel.get("post_icons"))
     tags = clean_value(novel.get("tags"))
+
+    explicit_short_title = clean_value(
+        novel.get("short_title")
+        or novel.get("title_short")
+        or novel.get("novel_short")
+        or novel.get("short_name")
+    )
+    explicit_full_title = clean_value(
+        novel.get("full_title")
+        or novel.get("title_ru")
+        or novel.get("novel_title_ru")
+    )
+
+    # После новой синхронизации title = NovelShort, title_en = NovelTitleRu.
+    # Для старых записей title_en всё ещё может содержать английское название.
+    # В таком случае не выводим его в библиотеке и считаем title полным русским названием.
+    secondary_is_russian = bool(re.search(r"[А-Яа-яЁё]", secondary_title))
+    short_title = explicit_short_title or title
+    full_title = explicit_full_title or (secondary_title if secondary_is_russian else title)
     tag_items = prepare_tag_items(tags)
     card_tag_items = build_card_tag_items(tag_items)
     translation_status = normalize_translation_status(novel.get("translation_status") or novel.get("status"), novel.get("translation_status_label"))
@@ -899,8 +919,13 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "id": clean_value(novel.get("id")),
         "slug": clean_value(novel.get("slug")) or normalize_slug(title),
         "title": title,
-        "display_title": compact_title_with_icons(post_icons, title),
-        "title_en": clean_value(novel.get("title_en")),
+        "display_title": compact_title_with_icons(post_icons, full_title or title),
+        # В библиотеке главным становится NovelShort, а второй строкой — NovelTitleRu.
+        "library_short_title": compact_title_with_icons(post_icons, short_title or title),
+        "library_full_title": full_title,
+        # На странице оглавления не повторяем полное русское название второй строкой.
+        # Старое английское название сохраняется только для записей старого формата.
+        "title_en": secondary_title if secondary_title and not secondary_is_russian else "",
         "post_icons": post_icons,
         "cover_url": clean_value(novel.get("cover_url")),
         "description": clean_value(novel.get("description")),
@@ -1271,7 +1296,38 @@ def filter_columns(row: dict, allowed_columns: set[str]) -> dict:
 
 
 def normalize_novel_row(row: dict) -> dict:
+    # Legend хранит короткое и полное русское названия отдельно.
+    # Сохраняем их в уже существующие поля Supabase, чтобы обновление
+    # не требовало добавления новых колонок:
+    #   NovelShort   -> title
+    #   NovelTitleRu -> title_en
+    raw_short_title = clean_value(
+        row.get("NovelShort")
+        or row.get("novel_short")
+        or row.get("ShortName")
+        or row.get("short_name")
+        or row.get("TitleShort")
+        or row.get("title_short")
+    )
+    raw_full_title = clean_value(
+        row.get("NovelTitleRu")
+        or row.get("NovelTitleRU")
+        or row.get("novel_title_ru")
+        or row.get("TitleRu")
+        or row.get("TitleRU")
+        or row.get("title_ru")
+        or row.get("FullTitle")
+        or row.get("full_title")
+    )
+
     row = normalize_dict_keys(row, KEY_MAP_NOVEL)
+
+    if raw_short_title:
+        row["title"] = raw_short_title
+
+    if raw_full_title:
+        row["title_en"] = raw_full_title
+
     title = clean_value(row.get("title"))
     row["id"] = clean_value(row.get("id")) or clean_value(row.get("novel_id"))
     row["slug"] = clean_value(row.get("slug")) or normalize_slug(title or row["id"])

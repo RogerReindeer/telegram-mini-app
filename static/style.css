@@ -2728,3 +2728,311 @@ body[data-site-theme="dark"] .novel-description-v2-content p {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 }
+
+/* =========================================================
+   V11 — компактная библиотека, единая типографика и portal-menu
+   ========================================================= */
+
+:root {
+  --ui-serif: Georgia, "Times New Roman", Times, serif;
+  --ui-control-size: clamp(13px, 1.7vw, 15px);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--ui-serif);
+}
+
+.page-library,
+.page-novel,
+.page-chapter {
+  font-family: var(--ui-serif);
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+}
+
+/* Поиск, фильтры и сортировка выглядят как единая группа управления. */
+.library-v4 .library-actions-v4 {
+  align-items: stretch;
+}
+
+.library-v4 .library-action-button,
+.library-v4 .library-sort-pill,
+.library-v4 .library-sort-pill select {
+  font-size: var(--ui-control-size);
+  line-height: 1.2;
+}
+
+.library-v4 .library-action-button,
+.library-v4 .library-sort-pill {
+  min-height: 46px;
+}
+
+.library-v4 .library-action-button > span:last-child,
+.library-v4 .library-sort-pill > span,
+.library-v4 .library-sort-pill select {
+  font-size: inherit;
+  font-weight: 700;
+}
+
+/* Счётчик раздела — настоящее центрированное число, а не смещённый текст. */
+.library-v4 .library-section-header > span:first-child {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.library-v4 .library-section-count,
+.library-v4 .library-section-count-favorite {
+  display: inline-flex;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  font-family: var(--ui-serif);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+/* Карточка больше не показывает переводческий процент и служебную строку состояния. */
+.library-v4 .library-book-state-line,
+.library-v4 .library-stat-percent {
+  display: none !important;
+}
+
+.library-book-card-v4 .library-card-stats {
+  gap: 8px;
+  margin: 2px 0 6px;
+}
+
+.library-book-card-v4 .library-card-stats span {
+  min-height: 30px;
+  padding: 0 11px;
+  font-family: var(--ui-serif);
+  font-size: clamp(11.5px, 1.5vw, 13px);
+  font-weight: 700;
+}
+
+.library-book-card-v4 .library-stat-available {
+  color: #514039;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+/* Прогресс чтения виден только тогда, когда JS определил книгу в
+   «Избранное» или «Читаю». Атрибут hidden имеет приоритет над старыми стилями. */
+.library-book-card-v4 .library-progress-row[hidden] {
+  display: none !important;
+}
+
+.library-book-card-v4 .library-progress-row:not([hidden]) {
+  display: grid;
+}
+
+.library-book-card-v4 .library-progress-text {
+  min-width: 46px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Лисичка остаётся фирменным элементом, но больше не конфликтует с заголовком и меню. */
+.library-book-card-v4 .library-card-fox {
+  top: auto;
+  right: 12px;
+  bottom: 8px;
+  z-index: 0;
+  width: clamp(42px, 6vw, 62px);
+  height: clamp(42px, 6vw, 62px);
+  opacity: 0.17;
+  pointer-events: none;
+}
+
+.library-book-card-v4 .library-book-cover-link,
+.library-book-card-v4 .library-book-body,
+.library-book-card-v4 .library-book-menu {
+  z-index: 2;
+}
+
+.library-book-card-v4 .library-book-topline {
+  min-height: 44px;
+  align-items: start;
+  padding-right: 0;
+}
+
+.library-book-card-v4 .library-book-title {
+  padding-right: 4px;
+  font-family: var(--ui-serif);
+  font-size: clamp(19px, 2.25vw, 27px);
+  font-weight: 700;
+  line-height: 1.13;
+  letter-spacing: -0.018em;
+}
+
+.library-book-card-v4 .library-book-subtitle {
+  max-width: 760px;
+  margin: -2px 0 2px;
+  padding-right: 0;
+  font-family: var(--ui-serif);
+  font-size: clamp(12px, 1.5vw, 14px);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.42;
+}
+
+/* Кнопка меню имеет стабильную круглую область нажатия. */
+.library-book-card-v4 .library-book-menu {
+  position: relative;
+  top: auto;
+  right: auto;
+  display: inline-flex;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  margin: -4px -4px 0 0;
+  padding: 0 0 7px;
+  border: 1px solid rgba(82, 54, 36, 0.09);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #2c211c;
+  font-family: Arial, sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 8px 20px rgba(70, 46, 29, 0.09);
+}
+
+.library-book-card-v4 .library-book-menu:hover,
+.library-book-card-v4 .library-book-menu:focus-visible,
+.library-book-card-v4 .library-book-menu[aria-expanded="true"] {
+  border-color: rgba(255, 106, 0, 0.22);
+  background: #fff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.12), 0 12px 28px rgba(70, 46, 29, 0.12);
+}
+
+/* Меню рендерится в document.body и поэтому не обрезается карточкой. */
+.library-card-menu-popover {
+  position: fixed !important;
+  inset: auto !important;
+  z-index: 10000 !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid rgba(80, 50, 20, 0.10);
+  border-radius: 18px;
+  background: rgba(255, 253, 250, 0.985);
+  box-shadow: 0 24px 70px rgba(45, 29, 20, 0.26);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  overscroll-behavior: contain;
+}
+
+.library-card-menu-popover::before {
+  display: none !important;
+}
+
+.library-card-menu-popover button {
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-family: var(--ui-serif);
+  font-size: clamp(13px, 1.6vw, 14px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.library-card-menu-popover button + button {
+  margin-top: 2px;
+}
+
+.library-card-menu-popover button span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.library-card-menu-icon {
+  font-family: Arial, sans-serif;
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .library-stat-available {
+  color: rgba(247, 238, 232, 0.88);
+  background: rgba(37, 31, 29, 0.76);
+}
+
+body[data-site-theme="dark"] .library-card-menu-popover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(31, 27, 25, 0.985);
+}
+
+body[data-site-theme="dark"] .library-card-menu-popover button,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu {
+  color: #f7eee8;
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(37, 31, 29, 0.82);
+}
+
+@media (max-width: 520px) {
+  .library-v4 .library-actions-v4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .library-v4 .library-action-button,
+  .library-v4 .library-sort-pill {
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .library-v4 .library-sort-pill {
+    grid-column: 1 / -1;
+  }
+
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(16px, 4.8vw, 19px);
+  }
+
+  .library-book-card-v4 .library-book-subtitle {
+    display: -webkit-box;
+    font-size: 11.5px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .library-book-card-v4 .library-card-stats span {
+    min-height: 27px;
+    padding: 0 8px;
+    font-size: 10.5px;
+  }
+
+  .library-book-card-v4 .library-card-footer {
+    padding-right: 34px;
+  }
+
+  .library-v4 .library-section-count,
+  .library-v4 .library-section-count-favorite {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
+    font-size: 12px;
+  }
+}

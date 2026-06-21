@@ -515,10 +515,19 @@
         closeAllCardMenus();
       }
     });
+
+    window.addEventListener("resize", function () {
+      closeAllCardMenus();
+    });
+
+    window.addEventListener("scroll", function () {
+      closeAllCardMenus();
+    }, { passive: true, capture: true });
   }
 
   function toggleCardMenu(card, button) {
-    const existing = card.querySelector("[data-card-menu]");
+    const novelId = String(card.dataset.novelId || "");
+    const existing = document.querySelector(`[data-card-menu][data-novel-id="${cssEscape(novelId)}"]`);
 
     closeAllCardMenus(card);
 
@@ -529,20 +538,50 @@
     }
 
     const menu = buildCardMenu(card);
-
-    card.appendChild(menu);
+    document.body.appendChild(menu);
+    positionCardMenu(menu, button);
     button.setAttribute("aria-expanded", "true");
+
+    const firstAction = menu.querySelector("[data-card-menu-action]");
+    if (firstAction) firstAction.focus({ preventScroll: true });
+  }
+
+  function positionCardMenu(menu, button) {
+    const viewportGap = 12;
+    const buttonRect = button.getBoundingClientRect();
+    const width = Math.min(300, Math.max(236, window.innerWidth - viewportGap * 2));
+
+    menu.style.width = `${width}px`;
+    menu.style.left = "0px";
+    menu.style.top = "0px";
+    menu.style.visibility = "hidden";
+
+    const menuHeight = Math.min(menu.scrollHeight, window.innerHeight - viewportGap * 2);
+    let left = buttonRect.right - width;
+    left = Math.max(viewportGap, Math.min(left, window.innerWidth - width - viewportGap));
+
+    let top = buttonRect.bottom + 8;
+    if (top + menuHeight > window.innerHeight - viewportGap) {
+      top = Math.max(viewportGap, buttonRect.top - menuHeight - 8);
+    }
+
+    menu.style.left = `${Math.round(left)}px`;
+    menu.style.top = `${Math.round(top)}px`;
+    menu.style.maxHeight = `${Math.max(160, window.innerHeight - viewportGap * 2)}px`;
+    menu.style.visibility = "visible";
   }
 
   function closeAllCardMenus(exceptCard) {
-    document.querySelectorAll("[data-card-menu]").forEach(function (menu) {
-      const card = menu.closest("[data-library-novel-card]");
+    const exceptNovelId = exceptCard ? String(exceptCard.dataset.novelId || "") : "";
 
-      if (exceptCard && card === exceptCard) {
+    document.querySelectorAll("[data-card-menu]").forEach(function (menu) {
+      const novelId = String(menu.dataset.novelId || "");
+
+      if (exceptNovelId && novelId === exceptNovelId) {
         return;
       }
 
-      const button = card ? card.querySelector("[data-card-menu-button]") : null;
+      const button = document.querySelector(`[data-library-novel-card][data-novel-id="${cssEscape(novelId)}"] [data-card-menu-button]`);
 
       if (button) {
         button.setAttribute("aria-expanded", "false");
@@ -707,6 +746,8 @@
   }
 
   function renderLibraryCards() {
+    closeAllCardMenus();
+
     const raw = document.getElementById("libraryRawCards");
 
     if (!raw) {
@@ -811,14 +852,11 @@
     const chapters = Number(card.dataset.chapters || 0);
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
-    const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
     const projectStatus = String(card.dataset.status || "");
-    const projectStatusLabel = card.dataset.statusLabel || "Переводится";
-    const allFree = card.dataset.allFree === "true";
 
     const button = card.querySelector("[data-card-main-button]");
-    const stateLine = card.querySelector("[data-card-state-line]");
     const statePill = card.querySelector("[data-card-state-pill]");
+    const progressRow = card.querySelector("[data-card-progress-row]");
     const progressFill = card.querySelector("[data-card-progress-fill]");
     const progressText = card.querySelector("[data-card-progress-text]");
 
@@ -837,7 +875,9 @@
       button.classList.remove("is-disabled-soft");
     }
 
-    if (getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId)) {
+    const isFavorite = getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId);
+
+    if (isFavorite) {
       card.classList.add("is-favorite");
     }
 
@@ -848,8 +888,8 @@
     const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
 
     let state = "start";
-    let visualProgress = projectProgress;
-    let progressLabel = chapters ? `${translated || 0} / ${chapters}` : "";
+    let visualProgress = 0;
+    let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
     if (isCompletedByUser) {
       state = "completed";
@@ -874,7 +914,15 @@
     } else {
       state = "start";
       visualProgress = 0;
-      progressLabel = available ? `0 / ${available}` : `${translated || 0} / ${chapters || 0}`;
+      progressLabel = available ? `0 / ${available}` : "0 / 0";
+    }
+
+    const isReadingSectionState = state === "new" || state === "reading" || state === "waiting_new";
+    const showReadingProgress = isFavorite || isReadingSectionState;
+
+    if (progressRow) {
+      progressRow.hidden = !showReadingProgress;
+      progressRow.setAttribute("aria-hidden", showReadingProgress ? "false" : "true");
     }
 
     if (progressFill) {
@@ -886,16 +934,16 @@
     }
 
     const configs = {
-      new: ["is-new is-reading", "Появилась новая доступная глава", "✨ Новая глава", "state-new", "Читать новую", `/novel/${card.dataset.novelSlug || ""}`],
-      reading: ["is-reading", `Вы на главе ${escapeHtml(safeHistoryIndex || "")}`, "📖 Читаю", "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
-      waiting_new: ["is-reading is-waiting", "Всё доступное прочитано", "⏳ Жду новую главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      completed: ["is-finished", "Прочитано полностью", "✅ Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
-      locked: ["is-locked", "Главы пока не открыты", "Скоро", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      soon: ["is-soon", "Главы пока не открыты", "Скоро", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
+      new: ["is-new is-reading", "", "✨ Новая глава", "state-new", "Читать новую", `/novel/${card.dataset.novelSlug || ""}`],
+      reading: ["is-reading", "", "📖 Читаю", "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
+      waiting_new: ["is-reading is-waiting", "", "⏳ Всё прочитано", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      completed: ["is-finished", "", "✅ Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
+      locked: ["is-locked", "", "Скоро", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      soon: ["is-soon", "", "Скоро", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
       start: [
         "is-start",
-        projectStatus === "completed" && allFree ? "Завершено · все главы открыты" : projectStatusLabel,
-        "🌱 Можно начать",
+        "",
+        "Можно начать",
         "state-start",
         "Начать читать",
         `/novel/${card.dataset.novelSlug || ""}`,
@@ -909,10 +957,6 @@
         card.classList.add(cls);
       }
     });
-
-    if (stateLine) {
-      stateLine.innerHTML = `<span>${config[1]}</span>`;
-    }
 
     if (statePill) {
       statePill.textContent = config[2];

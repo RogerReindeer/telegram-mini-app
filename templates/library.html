@@ -160,9 +160,9 @@
                 data-library-novel-card
                 data-novel-id="{{ novel.id }}"
                 data-novel-slug="{{ novel.slug }}"
-                data-novel-title="{{ novel.display_title }}"
+                data-novel-title="{{ novel.library_short_title }} {{ novel.library_full_title }}"
                 data-novel-cover="{{ novel.cover_url or '' }}"
-                data-title="{{ novel.display_title|lower }}"
+                data-title="{{ (novel.library_short_title ~ ' ' ~ novel.library_full_title)|lower }}"
                 data-description="{{ novel.description or '' }}"
                 data-tags="{{ novel.tags or '' }}"
                 data-sort-order="{{ novel.sort_order or novel.id }}"
@@ -182,7 +182,7 @@
                 data-card-href="/novel/{{ novel.slug }}"
                 role="link"
                 tabindex="0"
-                aria-label="Открыть оглавление: {{ novel.display_title }}"
+                aria-label="Открыть оглавление: {{ novel.library_short_title }}"
               >
                 {% if novel.cover_url %}
                   <span class="library-card-cover-bg" style="background-image: url('{{ novel.cover_url }}')"></span>
@@ -198,7 +198,7 @@
                       <img
                         class="library-book-cover"
                         src="{{ novel.cover_url }}"
-                        alt="{{ novel.display_title }}"
+                        alt="{{ novel.library_short_title }}"
                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
                       >
                       <span class="library-book-cover library-book-cover-placeholder" style="display:none;">обложка</span>
@@ -215,7 +215,7 @@
                 <div class="library-book-body">
                   <div class="library-book-topline">
                     <a class="library-book-title" href="/novel/{{ novel.slug }}">
-                      {{ novel.display_title }}
+                      {{ novel.library_short_title }}
                     </a>
 
                     <button
@@ -226,34 +226,20 @@
                     >⋮</button>
                   </div>
 
-                  {% if novel.title_en %}
-                    <div class="library-book-subtitle">{{ novel.title_en }}</div>
+                  {% if novel.library_full_title and novel.library_full_title != novel.library_short_title %}
+                    <div class="library-book-subtitle">{{ novel.library_full_title }}</div>
                   {% endif %}
 
-                  <div class="library-book-state-line" data-card-state-line></div>
-
-                  <div class="library-card-stats" aria-label="Сведения о публикации">
+                  <div class="library-card-stats" aria-label="Сведения о книге">
                     <span class="library-stat-status status-{{ novel.translation_status }}">
                       {{ novel.translation_status_label }}
                     </span>
-
-                    {% if novel.show_free_stat %}
-                      <span title="Бесплатно открыто">🌱 {{ novel.free_chapters_count }} бесплатно</span>
-                    {% endif %}
-
-                    {% if novel.show_traveler_stat %}
-                      <span title="Открыто по подписке">📜 {{ novel.traveler_chapters_count }} по подписке</span>
-                    {% endif %}
-
-                    {% if novel.show_keeper_stat %}
-                      <span title="Доступно Хранителю свитков">🔑 {{ novel.keeper_chapters_count }} Хранителю</span>
-                    {% endif %}
-
-                    <span title="Переведено из общего количества">✒ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
-                    <span class="library-stat-percent">✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%</span>
+                    <span class="library-stat-available" title="Главы, доступные вам сейчас">
+                      📖 Доступно: {{ novel.available_chapters_count or 0 }}
+                    </span>
                   </div>
 
-                  <div class="library-progress-row" data-card-progress-row>
+                  <div class="library-progress-row" data-card-progress-row hidden>
                     <span class="library-progress-track">
                       <span class="library-progress-fill" data-card-progress-fill></span>
                     </span>
