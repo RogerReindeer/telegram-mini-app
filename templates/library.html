@@ -96,7 +96,7 @@
 
       {% if novels %}
         <section class="library-section library-section-favorites" data-library-section="favorite">
-          <button class="library-section-header" type="button" data-section-toggle="favorite">
+          <button class="library-section-header" type="button" data-section-toggle="favorite" aria-expanded="true">
             <span>
               Избранное
               <span class="library-section-count library-section-count-favorite" data-section-count="favorite">0</span>
@@ -108,41 +108,43 @@
         </section>
 
         <section class="library-section" data-library-section="reading">
-          <button class="library-section-header" type="button" data-section-toggle="reading">
+          <button class="library-section-header" type="button" data-section-toggle="reading" aria-expanded="true">
             <span>
               Читаю
               <span class="library-section-count" data-section-count="reading">0</span>
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
+          <div class="library-section-helper">Книги, к которым вы уже приступили и можете продолжить чтение.</div>
           <div class="library-section-list" data-section-list="reading"></div>
         </section>
 
         <section class="library-section" data-library-section="start">
-          <button class="library-section-header" type="button" data-section-toggle="start">
+          <button class="library-section-header" type="button" data-section-toggle="start" aria-expanded="true">
             <span>
               Можно начать
               <span class="library-section-count" data-section-count="start">0</span>
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
+          <div class="library-section-helper">Книги, которые уже доступны и ждут первого открытия.</div>
           <div class="library-section-list" data-section-list="start"></div>
         </section>
 
         <section class="library-section" data-library-section="waiting">
-          <button class="library-section-header" type="button" data-section-toggle="waiting">
+          <button class="library-section-header" type="button" data-section-toggle="waiting" aria-expanded="true">
             <span>
               Скоро
               <span class="library-section-count" data-section-count="waiting">0</span>
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Новеллы, которые уже анонсированы, но ещё не открыты для чтения.</div>
+          <div class="library-section-helper">Книги, которые уже анонсированы и скоро появятся для чтения.</div>
           <div class="library-section-list" data-section-list="waiting"></div>
         </section>
 
         <section class="library-section" data-library-section="finished">
-          <button class="library-section-header" type="button" data-section-toggle="finished">
+          <button class="library-section-header" type="button" data-section-toggle="finished" aria-expanded="true">
             <span>
               Прочитано
               <span class="library-section-count" data-section-count="finished">0</span>
@@ -160,7 +162,7 @@
                 data-library-novel-card
                 data-novel-id="{{ novel.id }}"
                 data-novel-slug="{{ novel.slug }}"
-                data-novel-title="{{ novel.library_short_title }} {{ novel.library_full_title }}"
+                data-novel-title="{{ novel.library_short_title }} {{ novel.library_secondary_title or novel.library_full_title }} {{ novel.library_english_title or '' }}"
                 data-novel-cover="{{ novel.cover_url or '' }}"
                 data-title="{{ (novel.library_short_title ~ ' ' ~ novel.library_full_title)|lower }}"
                 data-description="{{ novel.description or '' }}"
@@ -173,6 +175,7 @@
                 data-available-chapters="{{ novel.available_chapters_count or 0 }}"
                 data-free-chapters="{{ novel.free_chapters_count or 0 }}"
                 data-traveler-chapters="{{ novel.traveler_chapters_count or 0 }}"
+                data-boosty-paid-chapters="{{ novel.boosty_paid_chapters_count or 0 }}"
                 data-keeper-chapters="{{ novel.keeper_chapters_count or 0 }}"
                 data-required-role="{{ novel.required_role or 'guest' }}"
                 data-progress="{{ novel.normalized_progress_percent or novel.progress_percent or 0 }}"
@@ -226,17 +229,28 @@
                     >⋮</button>
                   </div>
 
-                  {% if novel.library_full_title and novel.library_full_title != novel.library_short_title %}
-                    <div class="library-book-subtitle">{{ novel.library_full_title }}</div>
+                  {% if novel.library_secondary_title %}
+                    <div class="library-book-subtitle">{{ novel.library_secondary_title }}</div>
                   {% endif %}
 
                   <div class="library-card-stats" aria-label="Сведения о книге">
-                    <span class="library-stat-status status-{{ novel.translation_status }}">
+                    <span
+                      class="library-stat-status status-{{ novel.translation_status }}"
+                      data-project-status-pill
+                      data-project-status="{{ novel.translation_status }}"
+                      data-project-status-label="{{ novel.translation_status_label }}"
+                    >
                       {{ novel.translation_status_label }}
                     </span>
+                    <span class="library-card-state-pill" data-card-state-pill hidden></span>
                     <span class="library-stat-available" title="Главы, доступные вам сейчас">
-                      📖 Доступно: {{ novel.available_chapters_count or 0 }}
+                      📖 Доступно: {{ novel.available_chapters_count or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}
                     </span>
+                    {% if novel.show_boosty_paid_stat %}
+                      <span class="library-stat-boosty" title="Дополнительные главы, которые открываются по подписке Boosty">
+                        🌱 Boosty: {{ novel.boosty_paid_chapters_count }}
+                      </span>
+                    {% endif %}
                   </div>
 
                   <div class="library-progress-row" data-card-progress-row hidden>
@@ -262,9 +276,6 @@
                     {% endif %}
                   </div>
 
-                  <div class="library-card-footer">
-                    <span class="library-card-state-pill" data-card-state-pill></span>
-                  </div>
                 </div>
               </article>
             {% endfor %}

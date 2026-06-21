@@ -886,6 +886,14 @@ def split_text_paragraphs(value: Any) -> list[str]:
 
     return paragraphs
 
+def normalize_title_for_compare(value: Any) -> str:
+    """Нормализует название для сравнения без влияния регистра и пробелов."""
+    text = clean_value(value).casefold()
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"[«»\"'`]+", "", text)
+    return text
+
+
 def prepare_novel_for_template(novel: dict) -> dict:
     prepared = dict(novel)
     title = clean_value(novel.get("title"))
@@ -905,12 +913,25 @@ def prepare_novel_for_template(novel: dict) -> dict:
         or novel.get("novel_title_ru")
     )
 
-    # После новой синхронизации title = NovelShort, title_en = NovelTitleRu.
-    # Для старых записей title_en всё ещё может содержать английское название.
-    # В таком случае не выводим его в библиотеке и считаем title полным русским названием.
+    # title хранит NovelShort. В title_en без миграции Supabase хранится:
+    # - NovelTitleRu, если короткое и полное русские названия различаются;
+    # - NovelTitleEn, если короткое и полное русские названия совпадают.
     secondary_is_russian = bool(re.search(r"[А-Яа-яЁё]", secondary_title))
     short_title = explicit_short_title or title
     full_title = explicit_full_title or (secondary_title if secondary_is_russian else title)
+    english_title = clean_value(
+        novel.get("english_title")
+        or novel.get("novel_title_en")
+        or novel.get("title_en_original")
+        or (secondary_title if secondary_title and not secondary_is_russian else "")
+    )
+
+    short_equals_full = bool(
+        normalize_title_for_compare(short_title)
+        and normalize_title_for_compare(short_title) == normalize_title_for_compare(full_title)
+    )
+    library_secondary_title = english_title if short_equals_full else full_title
+
     tag_items = prepare_tag_items(tags)
     card_tag_items = build_card_tag_items(tag_items)
     translation_status = normalize_translation_status(novel.get("translation_status") or novel.get("status"), novel.get("translation_status_label"))
@@ -920,12 +941,14 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "slug": clean_value(novel.get("slug")) or normalize_slug(title),
         "title": title,
         "display_title": compact_title_with_icons(post_icons, full_title or title),
-        # В библиотеке главным становится NovelShort, а второй строкой — NovelTitleRu.
+        # В библиотеке главным становится NovelShort. Второй строкой показываем
+        # NovelTitleRu, а при совпадении короткого и полного названий — NovelTitleEn.
         "library_short_title": compact_title_with_icons(post_icons, short_title or title),
         "library_full_title": full_title,
-        # На странице оглавления не повторяем полное русское название второй строкой.
-        # Старое английское название сохраняется только для записей старого формата.
-        "title_en": secondary_title if secondary_title and not secondary_is_russian else "",
+        "library_english_title": english_title,
+        "library_secondary_title": library_secondary_title,
+        # На странице оглавления английское название выводится только когда оно известно.
+        "title_en": english_title,
         "post_icons": post_icons,
         "cover_url": clean_value(novel.get("cover_url")),
         "description": clean_value(novel.get("description")),
@@ -981,11 +1004,14 @@ def finalize_novel_access_summary(prepared: dict) -> dict:
     show_free = free_count > 0
     show_traveler = traveler_count > free_count
     show_keeper = keeper_count > max(free_count, traveler_count)
+    boosty_paid_count = max(0, traveler_count - free_count)
 
     prepared["all_chapters_free"] = all_free
     prepared["show_free_stat"] = show_free
     prepared["show_traveler_stat"] = show_traveler
     prepared["show_keeper_stat"] = show_keeper
+    prepared["boosty_paid_chapters_count"] = boosty_paid_count
+    prepared["show_boosty_paid_stat"] = boosty_paid_count > 0
     prepared["show_access_badge"] = bool(prepared.get("access_badge")) and not all_free
 
     # Для полностью бесплатной книги не показываем «Платно»,
@@ -1319,6 +1345,14 @@ def normalize_novel_row(row: dict) -> dict:
         or row.get("FullTitle")
         or row.get("full_title")
     )
+    raw_english_title = clean_value(
+        row.get("NovelTitleEn")
+        or row.get("NovelTitleEN")
+        or row.get("novel_title_en")
+        or row.get("EnglishTitle")
+        or row.get("english_title")
+        or row.get("TitleEN")
+    )
 
     row = normalize_dict_keys(row, KEY_MAP_NOVEL)
 
@@ -1326,7 +1360,13 @@ def normalize_novel_row(row: dict) -> dict:
         row["title"] = raw_short_title
 
     if raw_full_title:
-        row["title_en"] = raw_full_title
+        titles_are_equal = (
+            normalize_title_for_compare(raw_short_title or row.get("title"))
+            == normalize_title_for_compare(raw_full_title)
+        )
+        row["title_en"] = raw_english_title if titles_are_equal and raw_english_title else raw_full_title
+    elif raw_english_title:
+        row["title_en"] = raw_english_title
 
     title = clean_value(row.get("title"))
     row["id"] = clean_value(row.get("id")) or clean_value(row.get("novel_id"))

@@ -3036,3 +3036,266 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu {
     font-size: 12px;
   }
 }
+
+/* =========================================================
+   V12 — понятные статусы, пояснения разделов и микроанимации
+   ========================================================= */
+
+:root {
+  --ui-serif: "Times New Roman", Times, Georgia, serif;
+  --library-control-ease: cubic-bezier(.2, .75, .25, 1);
+}
+
+/* Пояснение остаётся видимым даже при свёрнутом списке. */
+.library-v4 .library-section-helper {
+  display: block;
+  margin: -2px 4px 11px;
+  color: #8a776c;
+  font-family: var(--ui-serif);
+  font-size: clamp(12px, 1.45vw, 13.5px);
+  line-height: 1.42;
+}
+
+.library-v4 .library-section.collapsed .library-section-list {
+  display: none !important;
+}
+
+.library-v4 .library-section.collapsed .library-section-helper {
+  display: block !important;
+  margin-bottom: 2px;
+}
+
+.library-v4 .library-section.collapsed .library-section-arrow {
+  transform: rotate(180deg);
+}
+
+/* Статус чтения стоит сразу после статуса проекта. */
+.library-book-card-v4 .library-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.library-book-card-v4 .library-card-stats > span {
+  flex: 0 0 auto;
+}
+
+.library-book-card-v4 .library-card-state-pill {
+  display: inline-flex;
+  width: auto;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 11px;
+  font-size: clamp(11.5px, 1.45vw, 13px);
+  line-height: 1;
+}
+
+.library-book-card-v4 .library-card-state-pill[hidden] {
+  display: none !important;
+}
+
+.library-book-card-v4 .library-stat-available,
+.library-book-card-v4 .library-stat-boosty,
+.library-book-card-v4 .library-stat-status,
+.library-book-card-v4 .library-card-state-pill {
+  min-height: 30px;
+  border: 1px solid rgba(82, 54, 36, 0.09);
+  border-radius: 999px;
+  padding-inline: 11px;
+  font-family: var(--ui-serif);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.library-book-card-v4 .library-stat-boosty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #654220;
+  background: rgba(255, 239, 210, 0.86);
+}
+
+.library-book-card-v4 .status-soon {
+  color: #6f4ca3;
+  background: rgba(237, 225, 255, 0.88);
+  border-color: rgba(111, 76, 163, 0.16);
+}
+
+/* Старые индикаторы избранного больше не накладываются на кнопку меню. */
+.library-book-card-v4.is-favorite .library-book-menu::after,
+.library-v4 .library-book-card-v4.is-favorite::before {
+  content: none !important;
+  display: none !important;
+}
+
+/* Меню остаётся над всей страницей и появляется мягко, без скачка. */
+.library-card-menu-popover {
+  animation: libraryMenuReveal 160ms var(--library-control-ease) both;
+  transform-origin: top right;
+}
+
+.library-card-menu-popover button {
+  transition:
+    background-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.library-card-menu-popover button:hover,
+.library-card-menu-popover button:focus-visible {
+  background: rgba(255, 106, 0, 0.08);
+  outline: none;
+  transform: translateX(2px);
+}
+
+@keyframes libraryMenuReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Единая живая группа Поиск / Фильтры / Сортировка. */
+.library-v4 .library-action-button,
+.library-v4 .library-sort-pill {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 180ms var(--library-control-ease),
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+  will-change: transform;
+}
+
+.library-v4 .library-action-button::after,
+.library-v4 .library-sort-pill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 106, 0, .16), transparent 62%);
+  opacity: 0;
+  transform: scale(.55);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 260ms var(--library-control-ease);
+}
+
+.library-v4 .library-action-button:hover,
+.library-v4 .library-sort-pill:hover,
+.library-v4 .library-action-button:focus-visible,
+.library-v4 .library-sort-pill:focus-within {
+  transform: translateY(-2px);
+  border-color: rgba(255, 106, 0, 0.22);
+  box-shadow: 0 12px 26px rgba(91, 55, 30, 0.12);
+  outline: none;
+}
+
+.library-v4 .library-action-button:active,
+.library-v4 .library-sort-pill:active {
+  transform: translateY(0) scale(.975);
+}
+
+.library-v4 .library-action-button.is-active,
+.library-v4 .library-sort-pill.is-active {
+  border-color: rgba(255, 106, 0, 0.28);
+  background: rgba(255, 247, 238, 0.96);
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.09);
+}
+
+.library-v4 .library-action-button.is-animating::after,
+.library-v4 .library-sort-pill.is-changing::after {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.library-v4 .library-action-button .library-action-icon {
+  transition: transform 220ms var(--library-control-ease);
+}
+
+.library-v4 .library-action-button.is-active .library-action-icon,
+.library-v4 .library-action-button.is-animating .library-action-icon {
+  transform: rotate(-7deg) scale(1.08);
+}
+
+.library-v4 .library-sort-pill.is-changing {
+  animation: libraryControlPulse 320ms var(--library-control-ease);
+}
+
+.library-search-panel:not([hidden]) {
+  animation: libraryPanelReveal 190ms var(--library-control-ease) both;
+}
+
+@keyframes libraryControlPulse {
+  0%, 100% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-2px) scale(1.015); }
+}
+
+@keyframes libraryPanelReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .library-stat-boosty {
+  color: #f7dfbb;
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(106, 75, 38, 0.44);
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .status-soon {
+  color: #e0c7ff;
+  border-color: rgba(224, 199, 255, 0.14);
+  background: rgba(93, 61, 126, 0.44);
+}
+
+body[data-site-theme="dark"] .library-v4 .library-section-helper {
+  color: rgba(245, 235, 228, 0.68);
+}
+
+body[data-site-theme="dark"] .library-v4 .library-action-button.is-active,
+body[data-site-theme="dark"] .library-v4 .library-sort-pill.is-active {
+  background: rgba(68, 47, 34, 0.94);
+}
+
+@media (max-width: 520px) {
+  .library-book-card-v4 .library-card-stats {
+    gap: 6px;
+  }
+
+  .library-book-card-v4 .library-stat-available,
+  .library-book-card-v4 .library-stat-boosty,
+  .library-book-card-v4 .library-stat-status,
+  .library-book-card-v4 .library-card-state-pill {
+    min-height: 28px;
+    padding-inline: 8px;
+    font-size: 10.5px;
+  }
+
+  .library-v4 .library-section-helper {
+    margin-inline: 2px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .library-card-menu-popover,
+  .library-search-panel:not([hidden]),
+  .library-v4 .library-action-button,
+  .library-v4 .library-sort-pill,
+  .library-v4 .library-action-button::after,
+  .library-v4 .library-sort-pill::after,
+  .library-card-menu-popover button {
+    animation: none !important;
+    transition: none !important;
+  }
+}

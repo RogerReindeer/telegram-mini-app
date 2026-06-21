@@ -284,6 +284,16 @@
     writeJson(STORAGE_KEYS.libraryFilter, filter);
   }
 
+  function animateLibraryControl(element, className = "is-animating", duration = 260) {
+    if (!element) return;
+    element.classList.remove(className);
+    void element.offsetWidth;
+    element.classList.add(className);
+    window.setTimeout(function () {
+      element.classList.remove(className);
+    }, duration);
+  }
+
   function initLibrarySearch() {
     const toggle = document.getElementById("librarySearchToggle");
     const panel = document.getElementById("librarySearchPanel");
@@ -292,9 +302,14 @@
     if (!toggle || !panel || !input) return;
 
     input.value = getLibraryFilter().query || "";
+    toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
     toggle.addEventListener("click", function () {
-      panel.hidden = !panel.hidden;
-      if (!panel.hidden) input.focus();
+      const willOpen = panel.hidden;
+      panel.hidden = !willOpen;
+      toggle.classList.toggle("is-active", willOpen);
+      toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      animateLibraryControl(toggle);
+      if (willOpen) input.focus();
     });
     input.addEventListener("input", function () {
       const current = getLibraryFilter();
@@ -324,13 +339,21 @@
     const apply = document.getElementById("libraryFilterApply");
     if (!open || !sheet) return;
 
+    open.setAttribute("aria-expanded", "false");
     open.addEventListener("click", function () {
       syncFilterSheetButtons();
       updateFilterApplyButton();
       sheet.hidden = false;
+      open.classList.add("is-active");
+      open.setAttribute("aria-expanded", "true");
+      animateLibraryControl(open);
     });
     sheet.querySelectorAll("[data-filter-close]").forEach(function (button) {
-      button.addEventListener("click", function () { sheet.hidden = true; });
+      button.addEventListener("click", function () {
+        sheet.hidden = true;
+        open.classList.remove("is-active");
+        open.setAttribute("aria-expanded", "false");
+      });
     });
     sheet.querySelectorAll("[data-filter-chip]").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -357,12 +380,24 @@
         updateFilterApplyButton();
       });
     }
-    if (apply) apply.addEventListener("click", function () { sheet.hidden = true; renderLibraryCards(); });
+    if (apply) apply.addEventListener("click", function () {
+      sheet.hidden = true;
+      open.classList.remove("is-active");
+      open.setAttribute("aria-expanded", "false");
+      renderLibraryCards();
+    });
   }
 
   function initLibrarySortControl() {
     const select = document.getElementById("librarySort");
-    if (select) select.addEventListener("change", renderLibraryCards);
+    const pill = select ? select.closest(".library-sort-pill") : null;
+    if (!select) return;
+    select.addEventListener("change", function () {
+      animateLibraryControl(pill, "is-changing", 340);
+      renderLibraryCards();
+    });
+    select.addEventListener("focus", function () { pill?.classList.add("is-active"); });
+    select.addEventListener("blur", function () { pill?.classList.remove("is-active"); });
   }
 
   function toggleFilterChip(chip, shouldRender = true) {
@@ -417,7 +452,9 @@
     document.querySelectorAll("[data-section-toggle]").forEach(function (button) {
       button.addEventListener("click", function () {
         const section = document.querySelector(`[data-library-section="${cssEscape(button.dataset.sectionToggle)}"]`);
-        if (section) section.classList.toggle("collapsed");
+        if (!section) return;
+        const collapsed = section.classList.toggle("collapsed");
+        button.setAttribute("aria-expanded", collapsed ? "false" : "true");
       });
     });
   }
@@ -595,26 +632,32 @@
     const novelId = card.dataset.novelId || "";
     const isFavorite = getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId);
     const state = card.dataset.cardState || "";
+    const hasHistory = readJson(STORAGE_KEYS.readingHistory, []).some(function (item) {
+      return String(item.novelId) === String(novelId);
+    });
+    const isReading = state === "reading" || state === "new" || state === "waiting_new";
+    const isCompleted = state === "completed" || getIdList(STORAGE_KEYS.completedNovels).includes(novelId);
 
     const items = [
       ["contents", "☷", "К оглавлению"],
       ["favorite", isFavorite ? "♥" : "♡", isFavorite ? "Убрать из избранного" : "Добавить в избранное"],
-      ["mark-read", "✓", "Отметить как прочитанное"],
-      ["remove-reading", "◌", "Убрать из читаю"],
-      ["reset-progress", "↻", "Сбросить прогресс"],
-      ["reread", "↺", "Перечитать сначала"],
-      ["hide", "◌", "Скрыть карточку"],
+      [isCompleted ? "unmark-read" : "mark-read", "✓", isCompleted ? "Убрать из прочитанного" : "Отметить как прочитанное"],
     ];
 
-    if (state === "completed") {
-      items[2] = ["unmark-read", "✓", "Убрать из прочитанного"];
+    if (isReading || hasHistory) {
+      items.push(["remove-reading", "◌", "Убрать из читаю"]);
+      items.push(["reset-progress", "↻", "Сбросить прогресс"]);
     }
+
+    items.push(["reread", "↺", "Перечитать сначала"]);
+    items.push(["hide", "⊘", "Скрыть карточку"]);
 
     const menu = document.createElement("div");
     menu.className = "library-card-menu-popover";
     menu.dataset.cardMenu = "true";
     menu.dataset.novelId = novelId;
     menu.setAttribute("role", "menu");
+    menu.setAttribute("aria-label", "Действия с книгой");
 
     menu.innerHTML = items.map(function (item) {
       return `
@@ -856,6 +899,7 @@
 
     const button = card.querySelector("[data-card-main-button]");
     const statePill = card.querySelector("[data-card-state-pill]");
+    const projectStatusPill = card.querySelector("[data-project-status-pill]");
     const progressRow = card.querySelector("[data-card-progress-row]");
     const progressFill = card.querySelector("[data-card-progress-fill]");
     const progressText = card.querySelector("[data-card-progress-text]");
@@ -958,9 +1002,20 @@
       }
     });
 
+    const isSoonState = state === "soon" || state === "locked";
+
+    if (projectStatusPill) {
+      const originalStatus = projectStatusPill.dataset.projectStatus || projectStatus || "in_progress";
+      const originalLabel = projectStatusPill.dataset.projectStatusLabel || "Переводится";
+      projectStatusPill.textContent = isSoonState ? "Скоро" : originalLabel;
+      projectStatusPill.className = `library-stat-status status-${isSoonState ? "soon" : originalStatus}`;
+    }
+
     if (statePill) {
+      statePill.hidden = isSoonState;
       statePill.textContent = config[2];
       statePill.className = `library-card-state-pill ${config[3]}`;
+      statePill.setAttribute("aria-hidden", isSoonState ? "true" : "false");
     }
 
     if (button) {
