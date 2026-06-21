@@ -29,8 +29,6 @@ SYNC_TOKEN = os.getenv("SYNC_TOKEN") or ""
 TELEGRAM_BOT_TOKEN = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
 TRAVELER_CHAT_ID = (os.getenv("TRAVELER_CHAT_ID") or "").strip()
 KEEPER_CHAT_ID = (os.getenv("KEEPER_CHAT_ID") or "").strip()
-TRAVELER_JOIN_URL = (os.getenv("TRAVELER_JOIN_URL") or "").strip()
-KEEPER_JOIN_URL = (os.getenv("KEEPER_JOIN_URL") or "").strip()
 SESSION_SECRET = (os.getenv("SESSION_SECRET") or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or "change-me").encode("utf-8")
 AUTH_COOKIE_NAME = "zefirki_access"
 AUTH_SESSION_TTL_SECONDS = int(os.getenv("AUTH_SESSION_TTL_SECONDS") or "900")
@@ -39,11 +37,6 @@ MEMBERSHIP_CACHE_SECONDS = int(os.getenv("MEMBERSHIP_CACHE_SECONDS") or "300")
 APP_ENV = (os.getenv("APP_ENV") or "production").lower()
 
 ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
-ROLE_LABELS = {
-    "guest": "Гость",
-    "traveler": "🌱 Странствующий читатель",
-    "keeper": "📜 Хранитель свитков",
-}
 _membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 NOVEL_TABLE_COLUMNS = {
@@ -125,10 +118,9 @@ def public_viewer(viewer: dict[str, Any]) -> dict[str, Any]:
         "user_id": viewer.get("user_id"),
         "first_name": viewer.get("first_name") or "",
         "username": viewer.get("username") or "",
+        # Роль остаётся только техническим признаком для проверки доступа.
+        # В интерфейсе она не выводится.
         "role": role,
-        "role_label": ROLE_LABELS.get(role, ROLE_LABELS["guest"]),
-        "traveler_join_url": TRAVELER_JOIN_URL,
-        "keeper_join_url": KEEPER_JOIN_URL,
     }
 
 
@@ -787,12 +779,9 @@ def prepare_chapter_for_template(chapter: dict, viewer_role: str = "guest") -> d
     prepared["viewer_role"] = viewer_role
 
     if prepared["is_available"]:
-        if required_role == "guest":
-            prepared["access_label"] = "🌱 Открыта"
-        elif viewer_role == "keeper":
-            prepared["access_label"] = "📜 Доступ Хранителя"
-        else:
-            prepared["access_label"] = "🌱 Доступ по подписке"
+        # Не показываем пользователю, через какой именно уровень доступа
+        # открылась глава. В интерфейсе достаточно нейтрального статуса.
+        prepared["access_label"] = "Открыта"
         prepared["access_class"] = "chapter-access-public"
     elif required_role == "traveler":
         prepared["access_label"] = "🌱 Странствующий читатель"
@@ -929,7 +918,11 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "progress_percent": progress_percent,
         "normalized_progress_percent": progress_percent,
         "translation_status": translation_status,
-        "translation_status_label": translation_status_label(translation_status, novel.get("translation_status_label")),
+        "translation_status_label": (
+            "Скоро"
+            if translation_status == "paused"
+            else translation_status_label(translation_status, novel.get("translation_status_label"))
+        ),
         "translation_status_color": translation_status_color(translation_status, novel.get("translation_status_color")),
         "access_badge": build_access_badge(novel.get("access_model"), novel.get("early_access_mode")),
         "relation_type": clean_value(novel.get("relation_type")),
@@ -943,6 +936,38 @@ def prepare_novel_for_template(novel: dict) -> dict:
     prepared["has_adult_badge"] = to_bool(novel.get("has_adult_badge"), False) or prepared["age_rating"] in ("18+", "21+", "NC-17", "R")
     prepared["display_chapters_count"] = to_int(novel.get("display_chapters_count"), prepared["total_chapters"])
     prepared["available_chapters_count"] = to_int(novel.get("available_chapters_count"), 0)
+    return prepared
+
+
+def finalize_novel_access_summary(prepared: dict) -> dict:
+    """
+    Подготавливает только значимые показатели доступа.
+
+    Счётчики уровней являются накопительными:
+    если 20 глав доступны бесплатно, то traveler/keeper тоже увидят 20.
+    Такие одинаковые значения не нужно повторять в интерфейсе.
+    """
+    total = max(0, to_int(prepared.get("display_chapters_count"), 0))
+    free_count = max(0, to_int(prepared.get("free_chapters_count"), 0))
+    traveler_count = max(0, to_int(prepared.get("traveler_chapters_count"), 0))
+    keeper_count = max(0, to_int(prepared.get("keeper_chapters_count"), 0))
+
+    all_free = total > 0 and free_count >= total
+    show_free = free_count > 0
+    show_traveler = traveler_count > free_count
+    show_keeper = keeper_count > max(free_count, traveler_count)
+
+    prepared["all_chapters_free"] = all_free
+    prepared["show_free_stat"] = show_free
+    prepared["show_traveler_stat"] = show_traveler
+    prepared["show_keeper_stat"] = show_keeper
+    prepared["show_access_badge"] = bool(prepared.get("access_badge")) and not all_free
+
+    # Для полностью бесплатной книги не показываем «Платно»,
+    # даже если в служебном поле AccessModel осталось старое значение.
+    if all_free:
+        prepared["access_badge"] = None
+
     return prepared
 
 
@@ -963,6 +988,7 @@ def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict], vi
         prepared["keeper_chapters_count"] = count_available_chapter_units(novel_chapters, "keeper")
         prepared["available_chapters_count"] = count_available_chapter_units(novel_chapters, viewer_role)
         prepared["viewer_has_book_access"] = viewer_can_access_required_role(viewer_role, prepared["required_role"])
+        finalize_novel_access_summary(prepared)
         result.append(prepared)
     return result
 
@@ -1505,6 +1531,7 @@ async def novel_page(request: Request, slug: str):
     prepared_novel["traveler_chapters_count"] = count_available_chapter_units(all_chapters, "traveler")
     prepared_novel["keeper_chapters_count"] = count_available_chapter_units(all_chapters, "keeper")
     prepared_novel["available_chapters_count"] = count_available_chapter_units(all_chapters, viewer_role)
+    finalize_novel_access_summary(prepared_novel)
     visible_chapters = all_chapters if viewer_role == "keeper" else [chapter for chapter in all_chapters if chapter.get("is_visible") is True]
     display_chapters, hidden_subscriber_count = build_chapter_display_list(visible_chapters, viewer_role)
     return templates.TemplateResponse(

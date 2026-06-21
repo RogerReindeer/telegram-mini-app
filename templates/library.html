@@ -13,6 +13,7 @@
 <body class="page-library library-redesign library-v4">
   {% set header_fox = fox.fox_peek_right or fox.fox_peek_left or fox.fox_peek or fox.fox_pic or fox.fox_sitting_front or fox.fox_heart or fox.fox_side %}
   {% set empty_fox = fox.fox_sleeping or fox.fox_laying_paws or fox.fox_sitting_front or fox.fox_pic or fox.fox_peek_right or fox.fox_side %}
+  {% set card_fox = fox.fox_peek_right or fox.fox_peek_left or fox.fox_heart or fox.fox_pic or fox.fox_side %}
 
   <main class="library-app-shell">
     <section class="library-screen">
@@ -25,9 +26,6 @@
 
           <h1>Библиотека</h1>
           <p>Выберите новеллу для чтения.</p>
-          <div class="viewer-role-badge viewer-role-{{ viewer.role }}" data-viewer-role>
-            {{ viewer.role_label }}
-          </div>
         </div>
 
         {% if header_fox %}
@@ -134,12 +132,12 @@
         <section class="library-section" data-library-section="waiting">
           <button class="library-section-header" type="button" data-section-toggle="waiting">
             <span>
-              Жду доступа
+              Скоро
               <span class="library-section-count" data-section-count="waiting">0</span>
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Книги, у которых пока нет открытых глав или доступ закрыт.</div>
+          <div class="library-section-helper">Новеллы, которые уже анонсированы, но ещё не открыты для чтения.</div>
           <div class="library-section-list" data-section-list="waiting"></div>
         </section>
 
@@ -180,10 +178,20 @@
                 data-progress="{{ novel.normalized_progress_percent or novel.progress_percent or 0 }}"
                 data-added="{{ novel.added_date or '' }}"
                 data-relation="{{ novel.relation_type or '' }}"
+                data-all-free="{{ 'true' if novel.all_chapters_free else 'false' }}"
+                data-card-href="/novel/{{ novel.slug }}"
+                role="link"
+                tabindex="0"
+                aria-label="Открыть оглавление: {{ novel.display_title }}"
               >
                 {% if novel.cover_url %}
                   <span class="library-card-cover-bg" style="background-image: url('{{ novel.cover_url }}')"></span>
                 {% endif %}
+
+                {% if card_fox %}
+                  <img class="library-card-fox" src="{{ card_fox }}" alt="" aria-hidden="true" data-fox>
+                {% endif %}
+
                 <a class="library-book-cover-link" href="/novel/{{ novel.slug }}">
                   <span class="library-cover-frame">
                     {% if novel.cover_url %}
@@ -218,13 +226,31 @@
                     >⋮</button>
                   </div>
 
+                  {% if novel.title_en %}
+                    <div class="library-book-subtitle">{{ novel.title_en }}</div>
+                  {% endif %}
+
                   <div class="library-book-state-line" data-card-state-line></div>
 
-                  <div class="library-card-stats">
-                    <span title="Бесплатно открыто">🌱 {{ novel.free_chapters_count or 0 }}</span>
-                    <span title="Доступно Странствующему читателю">📜 {{ novel.traveler_chapters_count or 0 }}</span>
-                    <span title="Доступно Хранителю свитков">🔑 {{ novel.keeper_chapters_count or 0 }}</span>
-                    <span title="Переведено из общего количества">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
+                  <div class="library-card-stats" aria-label="Сведения о публикации">
+                    <span class="library-stat-status status-{{ novel.translation_status }}">
+                      {{ novel.translation_status_label }}
+                    </span>
+
+                    {% if novel.show_free_stat %}
+                      <span title="Бесплатно открыто">🌱 {{ novel.free_chapters_count }} бесплатно</span>
+                    {% endif %}
+
+                    {% if novel.show_traveler_stat %}
+                      <span title="Открыто по подписке">📜 {{ novel.traveler_chapters_count }} по подписке</span>
+                    {% endif %}
+
+                    {% if novel.show_keeper_stat %}
+                      <span title="Доступно Хранителю свитков">🔑 {{ novel.keeper_chapters_count }} Хранителю</span>
+                    {% endif %}
+
+                    <span title="Переведено из общего количества">✒ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
+                    <span class="library-stat-percent">✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%</span>
                   </div>
 
                   <div class="library-progress-row" data-card-progress-row>
@@ -252,7 +278,6 @@
 
                   <div class="library-card-footer">
                     <span class="library-card-state-pill" data-card-state-pill></span>
-                    <a class="library-card-button" href="/novel/{{ novel.slug }}" data-card-main-button>Начать читать</a>
                   </div>
                 </div>
               </article>
@@ -295,7 +320,7 @@
             <button type="button" data-filter-chip="reading">Читаю</button>
             <button type="button" data-filter-chip="new">Новая глава</button>
             <button type="button" data-filter-chip="start">Можно начать</button>
-            <button type="button" data-filter-chip="waiting">Жду доступа</button>
+            <button type="button" data-filter-chip="waiting">Скоро</button>
             <button type="button" data-filter-chip="finished">Прочитано</button>
           </div>
         </div>
@@ -305,7 +330,6 @@
           <div class="library-filter-chips">
             <button type="button" data-filter-chip="in_progress">Переводится</button>
             <button type="button" data-filter-chip="completed">Завершено</button>
-            <button type="button" data-filter-chip="paused">На передержке</button>
           </div>
         </div>
 

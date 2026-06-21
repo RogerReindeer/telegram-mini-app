@@ -21,10 +21,17 @@
     data-novel-slug="{{ novel.slug }}"
     data-novel-title="{{ novel.display_title }}"
   >
-    <div class="page-top-row">
-      <a class="back-link novel-back-link" href="/library">← В библиотеку</a>
-      <span class="viewer-role-badge viewer-role-{{ viewer.role }}">{{ viewer.role_label }}</span>
-    </div>
+    <header class="novel-page-header">
+      <a class="novel-project-brand" href="/library" aria-label="Зефиркины баоцзы — библиотека">
+        <span class="novel-project-brand-mark">🥟</span>
+        <span>Зефиркины баоцзы</span>
+      </a>
+
+      <a class="novel-back-button" href="/library">
+        <span class="novel-back-button-icon" aria-hidden="true">←</span>
+        <span>Вернуться в библиотеку</span>
+      </a>
+    </header>
 
     <section class="novel-hero-card">
       {% if novel.cover_url %}
@@ -67,19 +74,31 @@
               {{ novel.translation_status_label }}
             </span>
 
-            {% if novel.access_badge %}
-              <span class="novel-access-pill">🔒 {{ novel.access_badge.label }}</span>
+            {% if novel.show_access_badge and novel.access_badge %}
+              <span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
             {% endif %}
           </div>
 
-          <div class="novel-stat-grid-v2">
-            <span class="novel-stat-pill-v2">🌱 {{ novel.free_chapters_count or 0 }} бесплатно</span>
-            <span class="novel-stat-pill-v2">📜 {{ novel.traveler_chapters_count or 0 }} по подписке</span>
-            <span class="novel-stat-pill-v2">🔑 {{ novel.keeper_chapters_count or 0 }} Хранителю</span>
-            <span class="novel-stat-pill-v2">⏰ {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}</span>
+          <div class="novel-stat-grid-v2" aria-label="Сведения о публикации">
+            {% if novel.show_free_stat %}
+              <span class="novel-stat-pill-v2 novel-stat-free">🌱 {{ novel.free_chapters_count }} бесплатно</span>
+            {% endif %}
+
+            {% if novel.show_traveler_stat %}
+              <span class="novel-stat-pill-v2 novel-stat-traveler">📜 {{ novel.traveler_chapters_count }} по подписке</span>
+            {% endif %}
+
+            {% if novel.show_keeper_stat %}
+              <span class="novel-stat-pill-v2 novel-stat-keeper">🔑 {{ novel.keeper_chapters_count }} Хранителю</span>
+            {% endif %}
+
+            <span class="novel-stat-pill-v2">
+              ✒ {{ novel.translated_chapters or 0 }} переведено
+            </span>
+
             <span class="novel-stat-pill-v2 novel-stat-progress-v2">
-              ✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%
-              <span class="progress-mini-v2">
+              <span>✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%</span>
+              <span class="progress-mini-v2" aria-hidden="true">
                 <span style="width: {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%"></span>
               </span>
             </span>
@@ -146,7 +165,7 @@
     {% if chapters and chapters|length > 0 %}
       <section class="novel-read-action novel-read-action-v2">
         <a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">
-          ▶ Продолжить с {{ chapters[0].display_title }}
+          Начать читать
         </a>
       </section>
     {% endif %}

@@ -2186,3 +2186,545 @@ img[data-fox] {
     font-size: 11px;
   }
 }
+
+/* ===== v10: meaningful access stats, elegant typography and photo-matched cards ===== */
+:root {
+  --ui-font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--ui-font);
+}
+
+/* Access is checked silently; the interface never labels the current user as guest/subscriber. */
+.viewer-role-badge,
+[data-viewer-role],
+.chapter-paywall-current {
+  display: none !important;
+}
+
+.novel-page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+.novel-project-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #2f241e;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.novel-project-brand-mark {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgba(102, 66, 42, 0.10);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 18px rgba(80, 50, 20, 0.06);
+}
+
+.novel-back-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 17px;
+  border: 1px solid rgba(102, 66, 42, 0.13);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #30231d;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(80, 50, 20, 0.07);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.novel-back-button:hover {
+  transform: translateY(-1px);
+  background: #fff;
+  box-shadow: 0 14px 28px rgba(80, 50, 20, 0.11);
+}
+
+.novel-back-button:focus-visible {
+  outline: 3px solid rgba(255, 106, 0, 0.24);
+  outline-offset: 2px;
+}
+
+.novel-back-button-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.chapter-top-row {
+  justify-content: flex-start;
+}
+
+.chapter-back-button {
+  min-width: 142px;
+}
+
+.novel-title-main-v2 h1 {
+  max-width: 850px;
+  font-size: clamp(32px, 3.65vw, 52px);
+  font-weight: 820;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.novel-title-en {
+  max-width: 760px;
+  color: rgba(48, 35, 29, 0.68);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.novel-status-row-v2 {
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.novel-status-pill,
+.novel-access-pill {
+  min-height: 32px;
+  padding: 0 13px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.novel-stat-grid-v2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 24px;
+}
+
+.novel-stat-pill-v2 {
+  min-height: 34px;
+  padding: 0 13px;
+  border-color: rgba(102, 66, 42, 0.09);
+  background: rgba(255, 255, 255, 0.76);
+  color: #34261f;
+  font-size: 13px;
+  font-weight: 760;
+  box-shadow: 0 7px 18px rgba(80, 50, 20, 0.05);
+}
+
+.novel-stat-free {
+  background: rgba(220, 252, 231, 0.80);
+  color: #176a37;
+}
+
+.novel-stat-traveler {
+  background: rgba(255, 244, 225, 0.88);
+  color: #8a4c09;
+}
+
+.novel-stat-keeper {
+  background: rgba(237, 233, 254, 0.86);
+  color: #6740ad;
+}
+
+.novel-stat-progress-v2 {
+  gap: 10px;
+}
+
+.novel-description-v2 {
+  max-width: 800px;
+  margin-bottom: 18px;
+}
+
+.novel-description-v2-content {
+  max-height: 10.4em;
+}
+
+.novel-description-v2-content p {
+  margin: 0 0 0.9em;
+  color: rgba(44, 31, 25, 0.78);
+  font-size: 16px;
+  line-height: 1.72;
+  text-wrap: pretty;
+}
+
+.novel-description-toggle-v2 {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.novel-read-action-v2 {
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.novel-continue-button {
+  width: min(100%, 360px);
+  min-height: 54px;
+  justify-content: center;
+  padding: 0 24px;
+  text-align: center;
+}
+
+/* Library cards follow the wide, calm composition from the approved reference. */
+.library-book-card-v4 {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 20px;
+  min-height: 232px;
+  padding: 16px 18px 16px 16px;
+  cursor: pointer;
+  outline: none;
+}
+
+.library-book-card-v4:focus-visible {
+  box-shadow:
+    0 18px 44px rgba(86, 54, 30, 0.10),
+    0 0 0 3px rgba(255, 106, 0, 0.24);
+}
+
+.library-book-card-v4 .library-book-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.library-card-fox {
+  position: absolute;
+  top: 9px;
+  right: 48px;
+  z-index: 3;
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  opacity: 0.96;
+  filter: drop-shadow(0 8px 14px rgba(80, 50, 20, 0.14));
+}
+
+.library-book-card-v4 .library-book-topline {
+  min-height: 42px;
+  margin: 0;
+  padding-right: 96px;
+}
+
+.library-book-card-v4 .library-book-title {
+  color: #201713;
+  font-size: clamp(19px, 2vw, 26px);
+  font-weight: 830;
+  line-height: 1.16;
+  letter-spacing: -0.028em;
+  text-wrap: balance;
+}
+
+.library-book-subtitle {
+  max-width: 760px;
+  margin-top: -2px;
+  padding-right: 78px;
+  color: rgba(66, 45, 35, 0.66);
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.library-book-card-v4 .library-book-state-line {
+  min-height: 20px;
+  margin: 0;
+  color: rgba(47, 34, 28, 0.78);
+  font-size: 13px;
+  font-weight: 720;
+  line-height: 1.4;
+}
+
+.library-book-card-v4 .library-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 2px 0 4px;
+  color: #392a23;
+  font-size: 12px;
+  font-weight: 740;
+}
+
+.library-book-card-v4 .library-card-stats span {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  border: 1px solid rgba(102, 66, 42, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  white-space: nowrap;
+  box-shadow: 0 5px 12px rgba(80, 50, 20, 0.04);
+}
+
+.library-book-card-v4 .library-stat-status {
+  color: #fff;
+  border-color: transparent;
+}
+
+.library-book-card-v4 .library-stat-status.status-completed {
+  background: #36b84a;
+}
+
+.library-book-card-v4 .library-stat-status.status-in_progress {
+  background: #f59e0b;
+}
+
+.library-book-card-v4 .library-stat-status.status-soon,
+.library-book-card-v4 .library-stat-status.status-paused {
+  background: #6f78a8;
+}
+
+.library-book-card-v4 .library-stat-percent {
+  gap: 8px;
+}
+
+.library-book-card-v4 .library-progress-row {
+  margin: 2px 0 2px;
+}
+
+.library-book-card-v4 .library-progress-track {
+  height: 6px;
+  background: rgba(92, 63, 43, 0.12);
+}
+
+.library-book-card-v4 .library-card-tags {
+  margin: 2px 0 0;
+}
+
+.library-book-card-v4 .library-card-footer {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  margin-top: auto;
+}
+
+.library-book-card-v4 .library-card-state-pill {
+  min-height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.library-book-card-v4 .library-book-menu {
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+}
+
+@media (max-width: 720px) {
+  .novel-redesign-layout {
+    padding-top: 14px;
+  }
+
+  .novel-page-header {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .novel-back-button {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .novel-title-main-v2 h1 {
+    font-size: clamp(28px, 8.5vw, 40px);
+  }
+
+  .novel-stat-grid-v2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .novel-stat-pill-v2 {
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .novel-stat-progress-v2 {
+    grid-column: 1 / -1;
+  }
+
+  .progress-mini-v2 {
+    flex: 1 1 80px;
+  }
+
+  .novel-description-v2-content p {
+    font-size: 15px;
+    line-height: 1.68;
+  }
+
+  .library-card-fox {
+    top: 8px;
+    right: 44px;
+    width: 40px;
+    height: 40px;
+  }
+
+  .library-book-card-v4 .library-book-topline {
+    padding-right: 82px;
+  }
+
+  .library-book-subtitle {
+    padding-right: 52px;
+  }
+}
+
+@media (max-width: 520px) {
+  .library-book-card-v4 {
+    grid-template-columns: 94px minmax(0, 1fr);
+    gap: 12px;
+    min-height: 154px;
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 94px;
+  }
+
+  .library-book-card-v4 .library-book-cover {
+    height: 132px;
+    border-radius: 14px;
+  }
+
+  .library-card-fox {
+    width: 34px;
+    height: 34px;
+    right: 42px;
+    top: 7px;
+  }
+
+  .library-book-card-v4 .library-book-topline {
+    min-height: 34px;
+    padding-right: 72px;
+  }
+
+  .library-book-card-v4 .library-book-title {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .library-book-subtitle {
+    display: -webkit-box;
+    padding-right: 0;
+    font-size: 11px;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .library-book-card-v4 .library-book-state-line {
+    font-size: 12px;
+  }
+
+  .library-book-card-v4 .library-card-stats {
+    gap: 5px;
+  }
+
+  .library-book-card-v4 .library-card-stats span {
+    min-height: 25px;
+    padding: 0 8px;
+    font-size: 10.5px;
+  }
+
+  .library-book-card-v4 .library-card-stats span:nth-child(n+5) {
+    display: none;
+  }
+
+  .library-book-card-v4 .library-card-tags {
+    display: none;
+  }
+
+  .library-book-card-v4 .library-card-footer {
+    min-height: 28px;
+  }
+
+  .library-book-card-v4 .library-card-state-pill {
+    width: auto;
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 10.5px;
+  }
+
+  .library-book-card-v4 .library-book-menu {
+    width: 38px;
+    height: 38px;
+    margin: 0;
+    font-size: 24px;
+  }
+
+  .novel-stat-grid-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .novel-stat-progress-v2 {
+    grid-column: auto;
+  }
+
+  .novel-continue-button {
+    width: 100%;
+  }
+}
+
+body[data-site-theme="dark"] .novel-project-brand,
+body[data-site-theme="dark"] .novel-back-button,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-title {
+  color: #f7eee8;
+}
+
+body[data-site-theme="dark"] .novel-project-brand-mark,
+body[data-site-theme="dark"] .novel-back-button,
+body[data-site-theme="dark"] .novel-stat-pill-v2,
+body[data-site-theme="dark"] .library-book-card-v4 .library-card-stats span {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(37, 31, 29, 0.76);
+}
+
+body[data-site-theme="dark"] .library-book-subtitle,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-state-line,
+body[data-site-theme="dark"] .novel-title-en,
+body[data-site-theme="dark"] .novel-description-v2-content p {
+  color: rgba(245, 235, 228, 0.74);
+}
+
+@media (min-width: 860px) {
+  .library-v4 .library-screen {
+    width: min(100%, 1120px);
+  }
+
+  .library-v4 .library-section-list,
+  .library-v4 .library-section-favorites .library-section-list,
+  .library-v4 .library-section[data-library-section="reading"] .library-section-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

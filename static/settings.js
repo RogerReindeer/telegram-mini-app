@@ -272,6 +272,7 @@
     initLibrarySortControl();
     initLibrarySectionToggles();
     initLibraryCardMenus();
+    initLibraryCardNavigation();
     renderLibraryCards();
   }
 
@@ -440,6 +441,42 @@
     });
 
     writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+  function initLibraryCardNavigation() {
+    document.addEventListener("click", function (event) {
+      const card = event.target.closest("[data-library-novel-card]");
+
+      if (!card) {
+        return;
+      }
+
+      if (event.target.closest("a, button, input, select, textarea, [data-card-menu]")) {
+        return;
+      }
+
+      const href = card.dataset.cardHref;
+
+      if (href) {
+        window.location.href = href;
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      const card = event.target.closest("[data-library-novel-card]");
+
+      if (!card || event.target !== card || (event.key !== "Enter" && event.key !== " ")) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const href = card.dataset.cardHref;
+
+      if (href) {
+        window.location.href = href;
+      }
+    });
   }
 
   function initLibraryCardMenus() {
@@ -777,6 +814,7 @@
     const projectProgress = clampNumber(Number(card.dataset.progress || 0), 0, 100);
     const projectStatus = String(card.dataset.status || "");
     const projectStatusLabel = card.dataset.statusLabel || "Переводится";
+    const allFree = card.dataset.allFree === "true";
 
     const button = card.querySelector("[data-card-main-button]");
     const stateLine = card.querySelector("[data-card-state-line]");
@@ -852,9 +890,16 @@
       reading: ["is-reading", `Вы на главе ${escapeHtml(safeHistoryIndex || "")}`, "📖 Читаю", "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
       waiting_new: ["is-reading is-waiting", "Всё доступное прочитано", "⏳ Жду новую главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "Прочитано полностью", "✅ Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
-      locked: ["is-locked", "Открытых глав пока нет", "🔒 Жду доступа", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      locked: ["is-locked", "Главы пока не открыты", "Скоро", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "Главы пока не открыты", "Скоро", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
-      start: ["is-start", projectStatusLabel, "🌱 Можно начать", "state-start", "Начать читать", `/novel/${card.dataset.novelSlug || ""}`],
+      start: [
+        "is-start",
+        projectStatus === "completed" && allFree ? "Завершено · все главы открыты" : projectStatusLabel,
+        "🌱 Можно начать",
+        "state-start",
+        "Начать читать",
+        `/novel/${card.dataset.novelSlug || ""}`,
+      ],
     };
 
     const config = configs[state] || configs.start;
@@ -1141,7 +1186,7 @@
     const item = readJson(STORAGE_KEYS.readingHistory, []).find((entry) => String(entry.novelId) === String(page.dataset.novelId));
     if (item && item.chapterId) {
       button.href = `/chapter/${item.chapterId}`;
-      button.textContent = item.chapterTitle ? `Продолжить с ${item.chapterTitle}` : "Продолжить чтение";
+      button.textContent = "Продолжить чтение";
     }
   }
 

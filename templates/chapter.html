@@ -25,8 +25,10 @@
     data-is-locked="{{ 'true' if is_locked else 'false' }}"
   >
     <div class="page-top-row chapter-top-row">
-      <a class="back-link" href="/novel/{{ novel.slug }}">← К оглавлению</a>
-      <span class="viewer-role-badge viewer-role-{{ viewer.role }}">{{ viewer.role_label }}</span>
+      <a class="novel-back-button chapter-back-button" href="/novel/{{ novel.slug }}">
+        <span class="novel-back-button-icon" aria-hidden="true">←</span>
+        <span>К оглавлению</span>
+      </a>
     </div>
 
     <header class="chapter-header">
@@ -69,15 +71,8 @@
             <div class="chapter-paywall-copy">
               <h2>{{ access_copy.title }}</h2>
               <p>{{ access_copy.description }}</p>
-              <p class="chapter-paywall-current">Сейчас: {{ viewer.role_label }}</p>
             </div>
             <div class="chapter-paywall-actions">
-              {% if required_role == 'traveler' and viewer.traveler_join_url %}
-                <a class="subscription-button subscription-button-traveler" href="{{ viewer.traveler_join_url }}" data-telegram-link>🌱 Странствующий читатель</a>
-              {% endif %}
-              {% if viewer.keeper_join_url %}
-                <a class="subscription-button subscription-button-keeper" href="{{ viewer.keeper_join_url }}" data-telegram-link>📜 Хранитель свитков</a>
-              {% endif %}
               <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ ещё раз</button>
             </div>
           </section>
