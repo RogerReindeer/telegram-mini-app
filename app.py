@@ -28,8 +28,28 @@ SYNC_TOKEN = os.getenv("SYNC_TOKEN") or ""
 
 # Telegram Mini App authentication and membership-based access.
 TELEGRAM_BOT_TOKEN = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
-TRAVELER_CHAT_ID = (os.getenv("TRAVELER_CHAT_ID") or "").strip()
-KEEPER_CHAT_ID = (os.getenv("KEEPER_CHAT_ID") or "").strip()
+def normalize_telegram_chat_id(value: Any) -> str:
+    """Normalize chat IDs copied from Telegram tools or spreadsheets.
+
+    Accepts full IDs such as -1003825580200 and positive values such as
+    3825580200 (the common representation without the -100 prefix).
+    Spaces, non-breaking spaces and separators are ignored.
+    """
+    text = str(value or "")
+    text = re.sub(r"[\s\u00a0_,]", "", text)
+    if not text:
+        return ""
+    if text.startswith("-100") and text[4:].isdigit():
+        return text
+    if text.startswith("-") and text[1:].isdigit():
+        return text
+    if text.isdigit():
+        return f"-100{text}"
+    return text
+
+
+TRAVELER_CHAT_ID = normalize_telegram_chat_id(os.getenv("TRAVELER_CHAT_ID"))
+KEEPER_CHAT_ID = normalize_telegram_chat_id(os.getenv("KEEPER_CHAT_ID"))
 SESSION_SECRET = (os.getenv("SESSION_SECRET") or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or "change-me").encode("utf-8")
 AUTH_COOKIE_NAME = "zefirki_access"
 AUTH_SESSION_TTL_SECONDS = int(os.getenv("AUTH_SESSION_TTL_SECONDS") or "900")
@@ -254,10 +274,10 @@ def check_telegram_membership(chat_id: str, user_id: int) -> bool:
     return telegram_member_is_active(data.get("result") or {})
 
 
-def resolve_telegram_role(user_id: int) -> str:
+def resolve_telegram_role(user_id: int, force_refresh: bool = False) -> str:
     cached = _membership_cache.get(user_id)
     now = time.time()
-    if cached and cached[0] > now:
+    if not force_refresh and cached and cached[0] > now:
         return str(cached[1].get("role") or "guest")
 
     # Keeper wins if the user belongs to both groups.
@@ -271,10 +291,10 @@ def resolve_telegram_role(user_id: int) -> str:
     return role
 
 
-def authenticate_telegram_viewer(init_data: str) -> dict[str, Any]:
+def authenticate_telegram_viewer(init_data: str, force_refresh: bool = True) -> dict[str, Any]:
     user = validate_telegram_init_data(init_data)
     user_id = int(user["id"])
-    role = resolve_telegram_role(user_id)
+    role = resolve_telegram_role(user_id, force_refresh=force_refresh)
     return {
         "authenticated": True,
         "user_id": user_id,
@@ -894,21 +914,25 @@ def build_chapter_display_list(chapters: list[dict], viewer_role: str = "guest")
         if viewer_role == "keeper" or chapter.get("is_visible") is True
     ]
 
+    # Показываем не более трёх закрытых глав как понятный предпросмотр.
+    # Все доступные текущему пользователю главы остаются видимыми.
+    locked_preview_limit = 3
+    locked_seen = 0
     hidden_locked_count = 0
-    has_reached_open_block = False
+
     for chapter in prepared:
-        is_locked = not chapter.get("is_available")
         chapter["is_paid_extra"] = False
         chapter["hidden"] = False
+
         if chapter.get("is_available"):
-            has_reached_open_block = True
             continue
-        # Locked chapters at the beginning remain visible. Locked chapters after
-        # the first readable block are collapsed under the reveal button.
-        if is_locked and has_reached_open_block:
+
+        locked_seen += 1
+        if locked_seen > locked_preview_limit:
             chapter["is_paid_extra"] = True
             chapter["hidden"] = True
             hidden_locked_count += 1
+
     return prepared, hidden_locked_count
 
 
@@ -1743,6 +1767,8 @@ async def health():
         "telegram_bot": "ok" if TELEGRAM_BOT_TOKEN else "not_configured",
         "traveler_chat": "ok" if TRAVELER_CHAT_ID else "not_configured",
         "keeper_chat": "ok" if KEEPER_CHAT_ID else "not_configured",
+        "traveler_chat_id_normalized": bool(TRAVELER_CHAT_ID),
+        "keeper_chat_id_normalized": bool(KEEPER_CHAT_ID),
     }
 
 
