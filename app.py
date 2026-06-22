@@ -6,6 +6,7 @@ import hmac
 import time
 import base64
 import hashlib
+import traceback
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote, urljoin, urlparse, parse_qsl
@@ -556,17 +557,43 @@ def db_select(
     return all_rows
 
 
-def db_upsert(table: str, rows: list[dict], conflict_key: str) -> list[dict]:
+def db_upsert(
+    table: str,
+    rows: list[dict],
+    conflict_key: str,
+    batch_size: int = 100,
+) -> int:
+    """Upsert rows to Supabase in bounded batches.
+
+    Returning full representations for hundreds of chapter rows made the sync
+    unnecessarily heavy and could time out on Render/Supabase. We ask PostgREST
+    for a minimal response and count successfully submitted rows ourselves.
+    """
     if not rows:
-        return []
-    result = supabase_request(
-        "POST",
-        table,
-        params={"on_conflict": conflict_key},
-        payload=rows,
-        prefer="resolution=merge-duplicates,return=representation",
-    )
-    return result if isinstance(result, list) else []
+        return 0
+
+    safe_batch_size = max(1, min(int(batch_size or 100), 250))
+    submitted = 0
+
+    for start in range(0, len(rows), safe_batch_size):
+        batch = rows[start:start + safe_batch_size]
+        batch_number = start // safe_batch_size + 1
+        try:
+            supabase_request(
+                "POST",
+                table,
+                params={"on_conflict": conflict_key},
+                payload=batch,
+                prefer="resolution=merge-duplicates,return=minimal",
+            )
+        except Exception as error:
+            raise RuntimeError(
+                f"Ошибка Supabase: таблица {table}, пакет {batch_number}, "
+                f"строки {start + 1}-{start + len(batch)}. {error}"
+            ) from error
+        submitted += len(batch)
+
+    return submitted
 
 
 def tag_class_name(tag: str) -> str:
@@ -1810,35 +1837,102 @@ def validate_sync_token(request: Request, token: str | None) -> None:
 @app.post("/sync")
 async def sync_from_sheets(request: Request, token: str | None = Query(default=None)):
     validate_sync_token(request, token)
+
     if not supabase_ready():
-        raise HTTPException(status_code=500, detail="Supabase env vars are not configured")
+        return JSONResponse(
+            {
+                "status": "error",
+                "stage": "configuration",
+                "detail": "На Render не настроены SUPABASE_URL и SUPABASE_KEY/SUPABASE_SERVICE_KEY.",
+            },
+            status_code=500,
+        )
+
+    stage = "json"
     try:
-        payload = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Ожидался JSON")
-    novels_raw = payload.get("novels") or payload.get("Novels") or []
-    chapters_raw = payload.get("chapters") or payload.get("Chapters") or []
-    fox_raw = payload.get("fox") or payload.get("Fox") or []
-    if isinstance(novels_raw, dict):
-        novels_raw = list(novels_raw.values())
-    if isinstance(chapters_raw, dict):
-        chapters_raw = list(chapters_raw.values())
-    if isinstance(fox_raw, dict):
-        fox_raw = list(fox_raw.values())
-    novels = [normalize_novel_row(row) for row in novels_raw if isinstance(row, dict)]
-    chapters = [normalize_chapter_row(row) for row in chapters_raw if isinstance(row, dict)]
-    fox_rows = [normalize_fox_row(row) for row in fox_raw if isinstance(row, dict)]
-    novels = [row for row in novels if clean_value(row.get("id")) and clean_value(row.get("title"))]
-    chapters = [row for row in chapters if clean_value(row.get("chapter_code")) and clean_value(row.get("novel_id"))]
-    fox_rows = [row for row in fox_rows if clean_value(row.get("name")) and clean_value(row.get("url"))]
-    result = {"status": "ok", "novels_received": len(novels), "chapters_received": len(chapters), "fox_received": len(fox_rows), "novels_upserted": 0, "chapters_upserted": 0, "fox_upserted": 0}
-    if novels:
-        result["novels_upserted"] = len(db_upsert("novels", novels, "id"))
-    if chapters:
-        result["chapters_upserted"] = len(db_upsert("chapters", chapters, "chapter_code"))
-    if fox_rows:
-        result["fox_upserted"] = len(db_upsert("fox", fox_rows, "name"))
-    return result
+        try:
+            payload = await request.json()
+        except Exception as error:
+            raise HTTPException(status_code=400, detail=f"Ожидался корректный JSON: {error}")
+
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=400, detail="Корень JSON должен быть объектом.")
+
+        stage = "normalization"
+        novels_raw = payload.get("novels") or payload.get("Novels") or []
+        chapters_raw = payload.get("chapters") or payload.get("Chapters") or []
+        fox_raw = payload.get("fox") or payload.get("Fox") or []
+
+        if isinstance(novels_raw, dict):
+            novels_raw = list(novels_raw.values())
+        if isinstance(chapters_raw, dict):
+            chapters_raw = list(chapters_raw.values())
+        if isinstance(fox_raw, dict):
+            fox_raw = list(fox_raw.values())
+
+        if not isinstance(novels_raw, list) or not isinstance(chapters_raw, list) or not isinstance(fox_raw, list):
+            raise HTTPException(
+                status_code=400,
+                detail="Поля novels, chapters и fox должны быть массивами или объектами.",
+            )
+
+        novels = [normalize_novel_row(row) for row in novels_raw if isinstance(row, dict)]
+        chapters = [normalize_chapter_row(row) for row in chapters_raw if isinstance(row, dict)]
+        fox_rows = [normalize_fox_row(row) for row in fox_raw if isinstance(row, dict)]
+
+        novels = [row for row in novels if clean_value(row.get("id")) and clean_value(row.get("title"))]
+        chapters = [
+            row for row in chapters
+            if clean_value(row.get("chapter_code")) and clean_value(row.get("novel_id"))
+        ]
+        fox_rows = [
+            row for row in fox_rows
+            if clean_value(row.get("name")) and clean_value(row.get("url"))
+        ]
+
+        result = {
+            "status": "ok",
+            "novels_received": len(novels),
+            "chapters_received": len(chapters),
+            "fox_received": len(fox_rows),
+            "novels_upserted": 0,
+            "chapters_upserted": 0,
+            "fox_upserted": 0,
+        }
+
+        stage = "novels"
+        if novels:
+            result["novels_upserted"] = db_upsert("novels", novels, "id", batch_size=50)
+
+        stage = "chapters"
+        if chapters:
+            result["chapters_upserted"] = db_upsert(
+                "chapters",
+                chapters,
+                "chapter_code",
+                batch_size=100,
+            )
+
+        stage = "fox"
+        if fox_rows:
+            result["fox_upserted"] = db_upsert("fox", fox_rows, "name", batch_size=50)
+
+        return JSONResponse(result)
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        # Render Logs получают полный traceback, а Apps Script — понятную причину.
+        print("MiniApp sync failed at stage:", stage)
+        traceback.print_exc()
+        return JSONResponse(
+            {
+                "status": "error",
+                "stage": stage,
+                "detail": str(error),
+            },
+            status_code=500,
+        )
 
 
 @app.post("/api/sync")
