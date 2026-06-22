@@ -60,6 +60,65 @@
     return window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   }
 
+  function getTelegramInitData() {
+    const telegram = getTelegramWebApp();
+
+    if (telegram && telegram.initData) {
+      try {
+        sessionStorage.setItem("zefirki_telegram_init_data", telegram.initData);
+      } catch (error) {
+        console.debug("Telegram initData cache unavailable", error);
+      }
+      return telegram.initData;
+    }
+
+    const candidates = [];
+    try {
+      candidates.push(new URLSearchParams(window.location.search).get("tgWebAppData"));
+    } catch (error) {
+      console.debug("Telegram query params unavailable", error);
+    }
+
+    try {
+      const hash = window.location.hash.replace(/^#/, "");
+      candidates.push(new URLSearchParams(hash).get("tgWebAppData"));
+    } catch (error) {
+      console.debug("Telegram hash params unavailable", error);
+    }
+
+    try {
+      candidates.push(
+        window.Telegram &&
+        window.Telegram.WebView &&
+        window.Telegram.WebView.initParams
+          ? window.Telegram.WebView.initParams.tgWebAppData
+          : ""
+      );
+    } catch (error) {
+      console.debug("Telegram WebView params unavailable", error);
+    }
+
+    try {
+      candidates.push(sessionStorage.getItem("zefirki_telegram_init_data"));
+    } catch (error) {
+      console.debug("Telegram initData cache unavailable", error);
+    }
+
+    const initData = candidates.find(function (value) {
+      return typeof value === "string" && value.trim().length > 0;
+    }) || "";
+
+    if (initData) {
+      try {
+        sessionStorage.setItem("zefirki_telegram_init_data", initData);
+      } catch (error) {
+        console.debug("Telegram initData cache unavailable", error);
+      }
+    }
+
+    return initData;
+  }
+
   function simpleHash(value) {
     let hash = 0;
     const text = String(value || "");
@@ -101,8 +160,7 @@
   }
 
   async function initTelegramAuth() {
-    const telegram = getTelegramWebApp();
-    const initData = telegram && telegram.initData ? telegram.initData : "";
+    const initData = getTelegramInitData();
     const viewer = window.ZEFIRKI_VIEWER || {};
 
     if (!initData || viewer.authenticated) return false;
@@ -137,16 +195,18 @@
 
     document.querySelectorAll("[data-refresh-access]").forEach(function (button) {
       button.addEventListener("click", async function () {
-        const telegram = getTelegramWebApp();
-        if (!telegram || !telegram.initData) {
-          alert("Откройте читалку внутри Telegram, чтобы проверить подписку.");
+        const initData = getTelegramInitData();
+        if (!initData) {
+          alert(
+            "Telegram не передал данные Mini App. Закройте это окно и откройте читалку через кнопку Mini App в боте, а не через обычную ссылку."
+          );
           return;
         }
         button.disabled = true;
         button.textContent = "Проверяем…";
         showAuthOverlay();
         try {
-          await postTelegramAuth(telegram.initData);
+          await postTelegramAuth(initData);
           window.location.reload();
         } catch (error) {
           console.error(error);
