@@ -41,52 +41,61 @@ ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
 _membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 NOVEL_TABLE_COLUMNS = {
-    "id", "slug", "title", "title_en", "post_icons", "cover_url", "description", "tags",
-    "top_description", "bottom_description", "original_language", "total_chapters",
-    "translated_chapters", "progress_percent", "status", "access_model", "schedule_mode",
-    "early_access_mode", "sort_order", "is_visible", "age_rating", "has_adult_badge",
-    "translation_status", "translation_status_label", "translation_status_color", "relation_type",
-    "relation_icon", "relation_color", "tags_short", "tags_tooltip", "added_date",
-    "translation_author",
+    "novel_id", "code", "novel_short", "title_ru", "title_en", "title_original",
+    "original_language", "post_icons", "status", "access_model", "schedule_mode",
+    "early_access_mode", "release_year", "author_original", "author_latin",
+    "author_cyrillic", "author_translated", "cover_url", "description",
+    "top_description", "bottom_description", "miniapp_tags", "tags_tg_catalog",
+    "tags_app_catalog", "miniapp_visible", "total_chapters", "translated_chapters",
+    "free_chapters", "subscriber_chapters", "keeper_chapters",
+    "early_access_chapters", "progress_percent", "source_url_novelupdates",
+    "source_url_official", "source_chapter_url", "telegram_post_url", "boosty_url",
+    "boosty_premium_url", "telegraph_catalog_url",
 }
 
-# ВАЖНО: в Supabase реальная колонка — chapter_code. В шаблоны мы отдаём chapter_id как алиас.
 CHAPTER_TABLE_COLUMNS = {
-    "chapter_code", "novel_id", "chapter_no", "title", "slug", "volume", "volume_no",
-    "volume_title", "translation_date", "release_date", "free_release_date",
-    "premium_release_date", "telegraph_url", "telegraph_free_url", "telegraph_premium_url",
-    "telegraph_free_code", "telegraph_premium_code", "source_type", "access_level",
-    "is_visible", "sort_order",
+    "chapter_id", "novel_id", "volume_no", "volume_title", "chapter_no",
+    "chapter_title", "planned_translation_date", "translation_date",
+    "free_release_date", "premium_release_date", "prepared_platforms",
+    "scheduled_platforms", "publishing_platforms", "telegraph_premium_url",
+    "telegraph_premium_code", "telegraph_free_url", "telegraph_free_code",
+    "qa_status",
 }
 
 FOX_TABLE_COLUMNS = {"name", "url"}
 
 KEY_MAP_NOVEL = {
-    "NovelID": "id", "Slug": "slug", "Title": "title", "TitleEN": "title_en",
-    "PostIcons": "post_icons", "CoverURL": "cover_url", "Description": "description",
-    "Tags": "tags", "TopDescription": "top_description", "BottomDescription": "bottom_description",
-    "OriginalLanguage": "original_language", "TotalChapters": "total_chapters",
-    "TranslatedChapters": "translated_chapters", "ProgressPercent": "progress_percent",
-    "Status": "status", "AccessModel": "access_model", "ScheduleMode": "schedule_mode",
-    "EarlyAccessMode": "early_access_mode", "SortOrder": "sort_order", "IsVisible": "is_visible",
-    "AgeRating": "age_rating", "HasAdultBadge": "has_adult_badge",
-    "TranslationStatus": "translation_status", "TranslationStatusLabel": "translation_status_label",
-    "TranslationStatusColor": "translation_status_color", "RelationType": "relation_type",
-    "RelationIcon": "relation_icon", "RelationColor": "relation_color",
-    "TagsShort": "tags_short", "TagsTooltip": "tags_tooltip", "AddedDate": "added_date",
-    "TranslationAuthor": "translation_author",
+    "NovelID": "novel_id", "Code": "code", "NovelShort": "novel_short",
+    "TitleRU": "title_ru", "TitleRu": "title_ru", "TitleEN": "title_en",
+    "TitleOriginal": "title_original", "OriginalLanguage": "original_language",
+    "PostIcons": "post_icons", "Status": "status", "AccessModel": "access_model",
+    "ScheduleMode": "schedule_mode", "EarlyAccessMode": "early_access_mode",
+    "ReleaseYear": "release_year", "AuthorOriginal": "author_original",
+    "AuthorLatin": "author_latin", "AuthorCyrillic": "author_cyrillic",
+    "AuthorTranslated": "author_translated", "CoverURL": "cover_url",
+    "Description": "description", "TopDescription": "top_description",
+    "BottomDescription": "bottom_description", "MiniAppTags": "miniapp_tags",
+    "TagsTGCatalog": "tags_tg_catalog", "TagsAppCatalog": "tags_app_catalog",
+    "MiniAppVisible": "miniapp_visible", "TotalChapters": "total_chapters",
+    "TranslatedChapters": "translated_chapters", "FreeChapters": "free_chapters",
+    "SubscriberChapters": "subscriber_chapters", "KeeperChapters": "keeper_chapters",
+    "EarlyAccessChapters": "early_access_chapters", "ProgressPercent": "progress_percent",
+    "SourceURLNovelupdates": "source_url_novelupdates", "SourceURLOfficial": "source_url_official",
+    "SourceChapterURL": "source_chapter_url", "TelegramPostURL": "telegram_post_url",
+    "BoostyURL": "boosty_url", "BoostyPremiumURL": "boosty_premium_url",
+    "TelegraphCatalogURL": "telegraph_catalog_url",
 }
 
 KEY_MAP_CHAPTER = {
-    "ChapterID": "chapter_code", "ChapterCode": "chapter_code", "chapter_id": "chapter_code",
-    "chapter_code": "chapter_code", "NovelID": "novel_id", "ChapterNo": "chapter_no",
-    "ChapterTitle": "title", "Slug": "slug", "Volume": "volume", "VolumeNo": "volume_no",
-    "VolumeTitle": "volume_title", "TranslationDate": "translation_date", "ReleaseDate": "release_date",
-    "FreeReleaseDate": "free_release_date", "PremiumReleaseDate": "premium_release_date",
-    "TelegraphURL": "telegraph_url", "TelegraphFreeURL": "telegraph_free_url",
-    "TelegraphPremiumURL": "telegraph_premium_url", "TelegraphFreeCode": "telegraph_free_code",
-    "TelegraphPremiumCode": "telegraph_premium_code", "SourceType": "source_type",
-    "AccessLevel": "access_level", "IsVisible": "is_visible", "SortOrder": "sort_order",
+    "ChapterID": "chapter_id", "NovelID": "novel_id", "VolumeNo": "volume_no",
+    "VolumeTitle": "volume_title", "ChapterNo": "chapter_no",
+    "ChapterTitle": "chapter_title", "PlannedTranslationDate": "planned_translation_date",
+    "TranslationDate": "translation_date", "FreeReleaseDate": "free_release_date",
+    "PremiumReleaseDate": "premium_release_date", "PreparedPlatforms": "prepared_platforms",
+    "ScheduledPlatforms": "scheduled_platforms", "PublishingPlatforms": "publishing_platforms",
+    "TelegraphPremiumURL": "telegraph_premium_url",
+    "TelegraphPremiumCode": "telegraph_premium_code", "TelegraphFreeURL": "telegraph_free_url",
+    "TelegraphFreeCode": "telegraph_free_code", "QAStatus": "qa_status",
 }
 
 KEY_MAP_FOX = {
@@ -1417,102 +1426,152 @@ def filter_columns(row: dict, allowed_columns: set[str]) -> dict:
     return {key: value for key, value in row.items() if key in allowed_columns}
 
 
+def _normalize_text_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        raw = value
+    else:
+        raw = re.split(r"[\n,;]+", clean_value(value))
+    result = []
+    seen = set()
+    for item in raw:
+        text = clean_value(item)
+        key = text.casefold()
+        if text and key not in seen:
+            seen.add(key)
+            result.append(text)
+    return result
+
+
 def normalize_novel_row(row: dict) -> dict:
-    # Legend хранит короткое и полное русское названия отдельно.
-    # Сохраняем их в уже существующие поля Supabase, чтобы обновление
-    # не требовало добавления новых колонок:
-    #   NovelShort   -> title
-    #   NovelTitleRu -> title_en
-    raw_short_title = clean_value(
-        row.get("NovelShort")
-        or row.get("novel_short")
-        or row.get("ShortName")
-        or row.get("short_name")
-        or row.get("TitleShort")
-        or row.get("title_short")
-    )
-    raw_full_title = clean_value(
-        row.get("NovelTitleRu")
-        or row.get("NovelTitleRU")
-        or row.get("novel_title_ru")
-        or row.get("TitleRu")
-        or row.get("TitleRU")
-        or row.get("title_ru")
-        or row.get("FullTitle")
-        or row.get("full_title")
-    )
-    raw_english_title = clean_value(
-        row.get("NovelTitleEn")
-        or row.get("NovelTitleEN")
-        or row.get("novel_title_en")
-        or row.get("EnglishTitle")
-        or row.get("english_title")
-        or row.get("TitleEN")
-    )
-
     row = normalize_dict_keys(row, KEY_MAP_NOVEL)
+    novel_id = to_int(row.get("novel_id"), 0)
+    code = clean_value(row.get("code")) or str(novel_id)
+    title_ru = clean_value(row.get("title_ru"))
+    novel_short = clean_value(row.get("novel_short"))
 
-    if raw_short_title:
-        row["title"] = raw_short_title
-
-    if raw_full_title:
-        titles_are_equal = (
-            normalize_title_for_compare(raw_short_title or row.get("title"))
-            == normalize_title_for_compare(raw_full_title)
-        )
-        row["title_en"] = raw_english_title if titles_are_equal and raw_english_title else raw_full_title
-    elif raw_english_title:
-        row["title_en"] = raw_english_title
-
-    title = clean_value(row.get("title"))
-    row["id"] = clean_value(row.get("id")) or clean_value(row.get("novel_id"))
-    row["slug"] = clean_value(row.get("slug")) or normalize_slug(title or row["id"])
-    row["title"] = title
-    for key in ("title_en", "post_icons", "cover_url", "description", "tags", "top_description", "bottom_description", "original_language", "status", "access_model", "schedule_mode", "early_access_mode", "relation_type", "relation_icon", "relation_color", "tags_short", "tags_tooltip", "translation_author"):
-        row[key] = clean_value(row.get(key))
-    row["total_chapters"] = to_int(row.get("total_chapters"), 0)
-    row["translated_chapters"] = to_int(row.get("translated_chapters"), 0)
-    row["progress_percent"] = normalize_progress_percent(row.get("progress_percent"))
-    row["translation_status"] = normalize_translation_status(row.get("translation_status") or row.get("status"), row.get("translation_status_label"))
-    row["translation_status_label"] = translation_status_label(row["translation_status"], row.get("translation_status_label"))
-    row["translation_status_color"] = translation_status_color(row["translation_status"], row.get("translation_status_color"))
-    row["sort_order"] = to_float(row.get("sort_order"), to_float(row.get("id"), 999999))
-    row["is_visible"] = to_bool(row.get("is_visible"), True)
-    row["age_rating"] = clean_value(row.get("age_rating")) or get_age_rating_from_tags(row["tags"])
-    row["has_adult_badge"] = to_bool(row.get("has_adult_badge"), False) or row["age_rating"] in ("18+", "21+", "NC-17", "R")
-    row["added_date"] = parse_date(row.get("added_date"))
-    return filter_columns(row, NOVEL_TABLE_COLUMNS)
+    normalized = {
+        "novel_id": novel_id,
+        "code": code,
+        "novel_short": novel_short or None,
+        "title_ru": title_ru or novel_short or code,
+        "title_en": clean_value(row.get("title_en")) or None,
+        "title_original": clean_value(row.get("title_original")) or None,
+        "original_language": clean_value(row.get("original_language")) or None,
+        "post_icons": clean_value(row.get("post_icons")) or None,
+        "status": clean_value(row.get("status")) or None,
+        "access_model": clean_value(row.get("access_model")) or None,
+        "schedule_mode": clean_value(row.get("schedule_mode")) or None,
+        "early_access_mode": clean_value(row.get("early_access_mode")) or None,
+        "release_year": to_int(row.get("release_year"), 0) or None,
+        "author_original": clean_value(row.get("author_original")) or None,
+        "author_latin": clean_value(row.get("author_latin")) or None,
+        "author_cyrillic": clean_value(row.get("author_cyrillic")) or None,
+        "author_translated": clean_value(row.get("author_translated")) or None,
+        "cover_url": clean_value(row.get("cover_url")) or None,
+        "description": clean_value(row.get("description")) or None,
+        "top_description": clean_value(row.get("top_description")) or None,
+        "bottom_description": clean_value(row.get("bottom_description")) or None,
+        "miniapp_tags": _normalize_text_list(row.get("miniapp_tags")),
+        "tags_tg_catalog": clean_value(row.get("tags_tg_catalog")) or None,
+        "tags_app_catalog": _normalize_text_list(row.get("tags_app_catalog")),
+        "miniapp_visible": to_bool(row.get("miniapp_visible"), True),
+        "total_chapters": max(0, to_int(row.get("total_chapters"), 0)),
+        "translated_chapters": max(0, to_int(row.get("translated_chapters"), 0)),
+        "free_chapters": max(0, to_int(row.get("free_chapters"), 0)),
+        "subscriber_chapters": max(0, to_int(row.get("subscriber_chapters"), 0)),
+        "keeper_chapters": max(0, to_int(row.get("keeper_chapters"), 0)),
+        "early_access_chapters": max(0, to_int(row.get("early_access_chapters"), 0)),
+        "progress_percent": max(0.0, min(1.0, to_float(row.get("progress_percent"), 0.0))),
+        "source_url_novelupdates": clean_value(row.get("source_url_novelupdates")) or None,
+        "source_url_official": clean_value(row.get("source_url_official")) or None,
+        "source_chapter_url": clean_value(row.get("source_chapter_url")) or None,
+        "telegram_post_url": clean_value(row.get("telegram_post_url")) or None,
+        "boosty_url": clean_value(row.get("boosty_url")) or None,
+        "boosty_premium_url": clean_value(row.get("boosty_premium_url")) or None,
+        "telegraph_catalog_url": clean_value(row.get("telegraph_catalog_url")) or None,
+    }
+    return filter_columns(normalized, NOVEL_TABLE_COLUMNS)
 
 
 def normalize_chapter_row(row: dict) -> dict:
     row = normalize_dict_keys(row, KEY_MAP_CHAPTER)
-    chapter_code = clean_value(row.get("chapter_code"))
-    novel_id = clean_value(row.get("novel_id"))
-    chapter_no = clean_value(row.get("chapter_no"))
-    row["chapter_code"] = chapter_code or f"{novel_id}-{chapter_no}"
-    row["novel_id"] = novel_id
-    row["chapter_no"] = chapter_no
-    row["title"] = clean_value(row.get("title")) or f"Глава {chapter_no}"
-    row["slug"] = clean_value(row.get("slug")) or normalize_slug(f"{novel_id}-{chapter_no}-{row['title']}")
-    for key in ("volume", "volume_no", "volume_title", "telegraph_url", "telegraph_free_url", "telegraph_premium_url", "telegraph_free_code", "telegraph_premium_code"):
-        row[key] = clean_value(row.get(key))
-    for key in ("translation_date", "release_date", "free_release_date", "premium_release_date"):
-        row[key] = parse_date(row.get(key))
-    row["source_type"] = clean_value(row.get("source_type")) or "telegraph"
-    access_level = clean_value(row.get("access_level")).lower()
-    if not access_level:
-        if row["telegraph_free_url"] and is_date_open(row["free_release_date"]):
-            access_level = "public"
-        elif row["telegraph_premium_url"] or row["telegraph_url"] or row["telegraph_free_url"]:
-            access_level = "subscriber"
-        else:
-            access_level = "hidden"
-    row["access_level"] = access_level
-    has_any_url = bool(row["telegraph_url"] or row["telegraph_free_url"] or row["telegraph_premium_url"])
-    row["is_visible"] = to_bool(row.get("is_visible"), has_any_url)
-    row["sort_order"] = to_float(row.get("sort_order"), parse_chapter_no_number(chapter_no))
-    return filter_columns(row, CHAPTER_TABLE_COLUMNS)
+    normalized = {
+        "chapter_id": clean_value(row.get("chapter_id")),
+        "novel_id": to_int(row.get("novel_id"), 0),
+        "volume_no": to_int(row.get("volume_no"), 0) if clean_value(row.get("volume_no")) else None,
+        "volume_title": clean_value(row.get("volume_title")) or None,
+        "chapter_no": clean_value(row.get("chapter_no")),
+        "chapter_title": clean_value(row.get("chapter_title")) or None,
+        "planned_translation_date": parse_date(row.get("planned_translation_date")),
+        "translation_date": parse_date(row.get("translation_date")),
+        "free_release_date": parse_date(row.get("free_release_date")),
+        "premium_release_date": parse_date(row.get("premium_release_date")),
+        "prepared_platforms": clean_value(row.get("prepared_platforms")) or None,
+        "scheduled_platforms": clean_value(row.get("scheduled_platforms")) or None,
+        "publishing_platforms": clean_value(row.get("publishing_platforms")) or None,
+        "telegraph_premium_url": clean_value(row.get("telegraph_premium_url")) or None,
+        "telegraph_premium_code": clean_value(row.get("telegraph_premium_code")) or None,
+        "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or None,
+        "telegraph_free_code": clean_value(row.get("telegraph_free_code")) or None,
+        "qa_status": to_bool(row.get("qa_status"), False),
+    }
+    return filter_columns(normalized, CHAPTER_TABLE_COLUMNS)
 
+
+def adapt_novel_from_db(row: dict) -> dict:
+    adapted = dict(row)
+    novel_id = clean_value(row.get("novel_id"))
+    short_title = clean_value(row.get("novel_short")) or clean_value(row.get("title_ru"))
+    title_ru = clean_value(row.get("title_ru")) or short_title
+    tags = row.get("miniapp_tags") or row.get("tags_app_catalog") or []
+    if isinstance(tags, list):
+        tags_text = "\n".join(clean_value(item) for item in tags if clean_value(item))
+    else:
+        tags_text = clean_value(tags)
+    adapted.update({
+        "id": novel_id,
+        "slug": clean_value(row.get("code")) or normalize_slug(short_title or novel_id),
+        "title": short_title,
+        "short_title": short_title,
+        "title_ru": title_ru,
+        "full_title": title_ru,
+        "title_en_original": clean_value(row.get("title_en")),
+        "title_en": clean_value(row.get("title_en")),
+        "tags": tags_text,
+        "is_visible": to_bool(row.get("miniapp_visible"), True),
+        "translation_status": clean_value(row.get("status")),
+        "sort_order": to_float(row.get("novel_id"), 999999),
+        "free_chapters_count": to_int(row.get("free_chapters"), 0),
+        "traveler_chapters_count": to_int(row.get("subscriber_chapters"), 0),
+        "keeper_chapters_count": to_int(row.get("keeper_chapters"), 0),
+        "available_chapters_count": 0,
+        "display_chapters_count": to_int(row.get("total_chapters"), 0),
+        "added_date": None,
+        "translation_author": clean_value(row.get("author_translated")),
+    })
+    return adapted
+
+
+def adapt_chapter_from_db(row: dict) -> dict:
+    adapted = dict(row)
+    chapter_id = clean_value(row.get("chapter_id"))
+    free_url = clean_value(row.get("telegraph_free_url"))
+    premium_url = clean_value(row.get("telegraph_premium_url"))
+    free_ready = bool(free_url and (not row.get("free_release_date") or is_date_open(row.get("free_release_date"))))
+    premium_ready = bool(premium_url and (not row.get("premium_release_date") or is_date_open(row.get("premium_release_date"))))
+    access_level = "guest" if free_ready else ("traveler" if premium_ready else "keeper")
+    adapted.update({
+        "chapter_code": chapter_id,
+        "chapter_id": chapter_id,
+        "title": clean_value(row.get("chapter_title")) or f"Глава {clean_value(row.get('chapter_no'))}",
+        "sort_order": parse_chapter_no_number(row.get("chapter_no")),
+        "is_visible": bool(free_url or premium_url),
+        "access_level": access_level,
+        "telegraph_url": premium_url or free_url,
+    })
+    return adapted
 
 def normalize_fox_name(value: Any) -> str:
     name = clean_value(value)
@@ -1625,9 +1684,10 @@ def get_fox() -> dict[str, str]:
 def get_all_novels(include_hidden: bool = False) -> list[dict]:
     if not supabase_ready():
         return []
-    filters = None if include_hidden else {"is_visible": "eq.true"}
+    filters = None if include_hidden else {"miniapp_visible": "eq.true"}
     try:
-        return db_select("novels", select="*", filters=filters, order="sort_order.asc,id.asc")
+        rows = db_select("novels", select="*", filters=filters, order="novel_id.asc")
+        return [adapt_novel_from_db(row) for row in rows]
     except Exception as error:
         print("get_all_novels error:", error)
         return []
@@ -1637,7 +1697,8 @@ def get_all_chapters() -> list[dict]:
     if not supabase_ready():
         return []
     try:
-        return db_select("chapters", select="*", order="novel_id.asc,sort_order.asc,chapter_no.asc")
+        rows = db_select("chapters", select="*", order="novel_id.asc,chapter_no.asc")
+        return [adapt_chapter_from_db(row) for row in rows]
     except Exception as error:
         print("get_all_chapters error:", error)
         return []
@@ -1646,31 +1707,32 @@ def get_all_chapters() -> list[dict]:
 def get_novel_by_slug(slug: str, include_hidden: bool = False) -> dict | None:
     if not supabase_ready():
         return None
-    filters = {"slug": f"eq.{slug}"}
+    filters = {"code": f"eq.{slug}"}
     if not include_hidden:
-        filters["is_visible"] = "eq.true"
+        filters["miniapp_visible"] = "eq.true"
     rows = db_select("novels", select="*", filters=filters, limit=1)
-    return rows[0] if rows else None
+    return adapt_novel_from_db(rows[0]) if rows else None
 
 
 def get_novel_chapters(novel_id: str) -> list[dict]:
     if not supabase_ready():
         return []
-    return db_select("chapters", select="*", filters={"novel_id": f"eq.{novel_id}"}, order="sort_order.asc,chapter_no.asc")
+    rows = db_select("chapters", select="*", filters={"novel_id": f"eq.{novel_id}"}, order="chapter_no.asc")
+    return [adapt_chapter_from_db(row) for row in rows]
 
 
 def get_chapter_by_id(chapter_id: str) -> dict | None:
     if not supabase_ready():
         return None
-    rows = db_select("chapters", select="*", filters={"chapter_code": f"eq.{chapter_id}"}, limit=1)
-    return rows[0] if rows else None
+    rows = db_select("chapters", select="*", filters={"chapter_id": f"eq.{chapter_id}"}, limit=1)
+    return adapt_chapter_from_db(rows[0]) if rows else None
 
 
 def get_novel_by_id(novel_id: str) -> dict | None:
     if not supabase_ready():
         return None
-    rows = db_select("novels", select="*", filters={"id": f"eq.{novel_id}"}, limit=1)
-    return rows[0] if rows else None
+    rows = db_select("novels", select="*", filters={"novel_id": f"eq.{novel_id}"}, limit=1)
+    return adapt_novel_from_db(rows[0]) if rows else None
 
 
 @app.get("/health")
@@ -1908,6 +1970,10 @@ async def sync_from_sheets(request: Request, token: str | None = Query(default=N
         if not isinstance(payload, dict):
             raise HTTPException(status_code=400, detail="Корень JSON должен быть объектом.")
 
+        schema_version = to_int(payload.get("schema_version"), 0)
+        if schema_version and schema_version != 17:
+            raise HTTPException(status_code=409, detail=f"Неподдерживаемая версия схемы: {schema_version}. Ожидается 17.")
+
         stage = "normalization"
         novels_raw = payload.get("novels") or payload.get("Novels") or []
         chapters_raw = payload.get("chapters") or payload.get("Chapters") or []
@@ -1930,10 +1996,10 @@ async def sync_from_sheets(request: Request, token: str | None = Query(default=N
         chapters = [normalize_chapter_row(row) for row in chapters_raw if isinstance(row, dict)]
         fox_rows = [normalize_fox_row(row) for row in fox_raw if isinstance(row, dict)]
 
-        novels = [row for row in novels if clean_value(row.get("id")) and clean_value(row.get("title"))]
+        novels = [row for row in novels if to_int(row.get("novel_id"), 0) > 0 and clean_value(row.get("title_ru"))]
         chapters = [
             row for row in chapters
-            if clean_value(row.get("chapter_code")) and clean_value(row.get("novel_id"))
+            if clean_value(row.get("chapter_id")) and to_int(row.get("novel_id"), 0) > 0
         ]
         fox_rows = [
             row for row in fox_rows
@@ -1952,14 +2018,14 @@ async def sync_from_sheets(request: Request, token: str | None = Query(default=N
 
         stage = "novels"
         if novels:
-            result["novels_upserted"] = db_upsert("novels", novels, "id", batch_size=50)
+            result["novels_upserted"] = db_upsert("novels", novels, "novel_id", batch_size=50)
 
         stage = "chapters"
         if chapters:
             result["chapters_upserted"] = db_upsert(
                 "chapters",
                 chapters,
-                "chapter_code",
+                "chapter_id",
                 batch_size=100,
             )
 
