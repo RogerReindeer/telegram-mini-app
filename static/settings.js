@@ -37,6 +37,7 @@
     initNovelPageMeta();
     initChapterProgress();
     initNovelReadButton();
+    initNovelReadingProgress();
     initReadChapterMarks();
     initCollapsibleDescription();
     initPaidChapterReveal();
@@ -1266,6 +1267,31 @@
       button.href = `/chapter/${item.chapterId}`;
       button.textContent = "Продолжить чтение";
     }
+  }
+
+  function initNovelReadingProgress() {
+    const page = document.querySelector("[data-novel-page]");
+    const block = document.querySelector("[data-novel-reading-progress]");
+    if (!page || !block) return;
+
+    const item = readJson(STORAGE_KEYS.readingHistory, []).find((entry) =>
+      String(entry.novelId) === String(page.dataset.novelId)
+    );
+
+    if (!item) {
+      block.hidden = true;
+      return;
+    }
+
+    const available = Math.max(0, Number(page.dataset.availableChapters || item.availableChapters || 0));
+    const current = Math.max(0, Math.min(available || Number.MAX_SAFE_INTEGER, Number(item.chapterIndex || 0) + 1));
+    const percent = available > 0 ? Math.min(100, Math.round((current / available) * 100)) : 0;
+    const bar = block.querySelector("[data-novel-reading-progress-bar]");
+    const text = block.querySelector("[data-novel-reading-progress-text]");
+
+    if (bar) bar.style.width = `${percent}%`;
+    if (text) text.textContent = available > 0 ? `${current} / ${available}` : `${current}`;
+    block.hidden = false;
   }
 
   function initReadChapterMarks() {

@@ -20,6 +20,7 @@
     data-novel-id="{{ novel.id }}"
     data-novel-slug="{{ novel.slug }}"
     data-novel-title="{{ novel.display_title }}"
+    data-available-chapters="{{ novel.keeper_chapters_count or novel.traveler_chapters_count or novel.free_chapters_count or novel.translated_chapters or 0 }}"
   >
     <header class="novel-page-header">
       <a class="novel-project-brand" href="/library" aria-label="Зефиркины баоцзы — библиотека">
@@ -33,13 +34,13 @@
       </a>
     </header>
 
-    <section class="novel-hero-card">
+    <section class="novel-hero-card novel-toc-hero">
       {% if novel.cover_url %}
         <div class="novel-hero-blur" style="background-image:url('{{ novel.cover_url }}')"></div>
       {% endif %}
 
-      <div class="novel-hero-content-v2">
-        <div class="novel-cover-panel">
+      <div class="novel-toc-summary">
+        <div class="novel-cover-panel novel-toc-cover-panel">
           {% if novel.cover_url %}
             <img class="novel-cover-large" src="{{ novel.cover_url }}" alt="{{ novel.display_title }}">
           {% else %}
@@ -51,13 +52,14 @@
           {% endif %}
         </div>
 
-        <div class="novel-info-panel">
-          <div class="novel-title-row-v2">
+        <div class="novel-toc-info">
+          <div class="novel-title-row-v2 novel-toc-title-row">
             <div class="novel-title-main-v2">
-              <h1>{{ novel.display_title }}</h1>
+              <p class="novel-toc-kicker">Новелла</p>
+              <h1>{{ novel.library_short_title or novel.display_title }}</h1>
 
-              {% if novel.title_en %}
-                <p class="novel-title-en">{{ novel.title_en }}</p>
+              {% if novel.library_secondary_title %}
+                <p class="novel-toc-full-title">{{ novel.library_secondary_title }}</p>
               {% endif %}
             </div>
 
@@ -66,83 +68,72 @@
             {% endif %}
           </div>
 
-          <div class="novel-status-row-v2">
-            <span
-              class="novel-status-pill status-{{ novel.translation_status }}"
-              style="--status-color: {{ novel.translation_status_color }}"
-            >
-              {{ novel.translation_status_label }}
-            </span>
-
-            {% if novel.show_access_badge and novel.access_badge %}
-              <span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
-            {% endif %}
-          </div>
-
-          <div class="novel-stat-grid-v2" aria-label="Сведения о публикации">
-            {% if novel.show_free_stat %}
-              <span class="novel-stat-pill-v2 novel-stat-free">🌱 {{ novel.free_chapters_count }} бесплатно</span>
-            {% endif %}
-
-            {% if novel.show_traveler_stat %}
-              <span class="novel-stat-pill-v2 novel-stat-traveler">📜 {{ novel.traveler_chapters_count }} по подписке</span>
-            {% endif %}
-
-            {% if novel.show_keeper_stat %}
-              <span class="novel-stat-pill-v2 novel-stat-keeper">🔑 {{ novel.keeper_chapters_count }} Хранителю</span>
-            {% endif %}
-
-            <span class="novel-stat-pill-v2">
-              ✒ {{ novel.translated_chapters or 0 }} переведено
-            </span>
-
-            <span class="novel-stat-pill-v2 novel-stat-progress-v2">
-              <span>✨ {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%</span>
-              <span class="progress-mini-v2" aria-hidden="true">
-                <span style="width: {{ novel.normalized_progress_percent or novel.progress_percent or 0 }}%"></span>
-              </span>
-            </span>
-          </div>
-
-          {% if novel.description_paragraphs %}
-            <section class="novel-description-v2" data-collapsible-description>
-              <div class="collapsible-description-content novel-description-v2-content">
-                {% for paragraph in novel.description_paragraphs %}
-                  <p>{{ paragraph }}</p>
-                {% endfor %}
-              </div>
-              <button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Ещё</button>
-            </section>
-          {% elif novel.description %}
-            <section class="novel-description-v2" data-collapsible-description>
-              <div class="collapsible-description-content novel-description-v2-content">
-                <p>{{ novel.description }}</p>
-              </div>
-              <button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Ещё</button>
-            </section>
-          {% endif %}
-
-          <div class="novel-tags-v2">
-            {% if novel.age_rating %}
-              <span class="tag tag-rating">{{ novel.age_rating }}</span>
-            {% endif %}
-
-            {% set visible_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
-            {% if visible_tags %}
-              {% for tag in visible_tags %}
-                {% if loop.index <= 7 %}
-                  {% if tag.is_spoiler %}
-                    <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}">спойлер</button>
-                  {% else %}
-                    <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
-                  {% endif %}
+          <div class="novel-toc-facts" aria-label="Информация о новелле">
+            <div class="novel-toc-fact">
+              <span class="novel-toc-fact-label">Статус</span>
+              <span class="novel-toc-fact-value">
+                <span class="novel-status-pill status-{{ novel.translation_status }}" style="--status-color: {{ novel.translation_status_color }}">
+                  {{ novel.translation_status_label }}
+                </span>
+                {% if novel.show_access_badge and novel.access_badge %}
+                  <span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
                 {% endif %}
-              {% endfor %}
-            {% endif %}
+              </span>
+            </div>
+
+            <div class="novel-toc-fact">
+              <span class="novel-toc-fact-label">Главы</span>
+              <span class="novel-toc-fact-value novel-toc-chapter-count">
+                {{ novel.translated_chapters or 0 }} из {{ novel.total_chapters or novel.translated_chapters or 0 }}
+              </span>
+            </div>
+
+            <div class="novel-toc-fact novel-toc-reading-progress" data-novel-reading-progress hidden>
+              <span class="novel-toc-fact-label">Прогресс чтения</span>
+              <span class="novel-toc-fact-value">
+                <span class="novel-reading-progress-track" aria-hidden="true"><span data-novel-reading-progress-bar></span></span>
+                <span class="novel-reading-progress-text" data-novel-reading-progress-text>0 / 0</span>
+              </span>
+            </div>
           </div>
         </div>
       </div>
+
+      {% set visible_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
+      {% if visible_tags or novel.age_rating %}
+        <div class="novel-tags-v2 novel-toc-tags" aria-label="Теги">
+          {% if novel.age_rating %}
+            <span class="tag tag-rating">{{ novel.age_rating }}</span>
+          {% endif %}
+
+          {% for tag in visible_tags %}
+            {% if tag.is_spoiler %}
+              <button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}">спойлер</button>
+            {% else %}
+              <span class="tag {{ tag.class_name }}">{{ tag.text }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
     </section>
+
+    {% if novel.description_paragraphs or novel.description %}
+      <section class="novel-description-card" data-collapsible-description>
+        <div class="novel-section-heading">
+          <h2>О книге</h2>
+        </div>
+        <div class="collapsible-description-content novel-description-v2-content">
+          {% if novel.description_paragraphs %}
+            {% for paragraph in novel.description_paragraphs %}
+              <p>{{ paragraph }}</p>
+            {% endfor %}
+          {% else %}
+            <p>{{ novel.description }}</p>
+          {% endif %}
+        </div>
+        <button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Ещё</button>
+      </section>
+    {% endif %}
 
     {% if novel.top_description or novel.bottom_description %}
       <section class="character-info novel-character-info-v2">

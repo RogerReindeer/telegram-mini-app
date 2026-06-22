@@ -3340,3 +3340,434 @@ body[data-site-theme="dark"] .library-v4 .library-sort-pill.is-active {
 .library-book-subtitle:empty {
   display: none;
 }
+
+/* =========================================================
+   V18 — адаптивное оглавление и современная типографика
+   ========================================================= */
+
+:root {
+  --ui-font: Inter, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ui-font-display: Inter, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --fluid-body: clamp(13px, 0.55vw + 11px, 16px);
+  --fluid-small: clamp(11px, 0.38vw + 9.5px, 13.5px);
+  --fluid-title: clamp(22px, 2.7vw, 46px);
+}
+
+html {
+  font-size: 100%;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+.page-library,
+.page-novel,
+.page-chapter {
+  font-family: var(--ui-font) !important;
+}
+
+body {
+  font-size: var(--fluid-body);
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3,
+.library-book-title,
+.section-title,
+.novel-title-main-v2 h1 {
+  font-family: var(--ui-font-display) !important;
+  letter-spacing: -0.025em;
+}
+
+.novel-redesign-layout {
+  width: min(100%, 1180px);
+  padding: clamp(10px, 2vw, 24px) clamp(10px, 2.6vw, 28px) 56px;
+}
+
+.novel-page-header {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.novel-project-brand,
+.novel-back-button {
+  min-height: 42px;
+  font-size: clamp(12px, 1.25vw, 14px);
+}
+
+.novel-toc-hero {
+  min-height: 0;
+  padding: 0;
+}
+
+.novel-toc-summary {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: clamp(118px, 19vw, 230px) minmax(0, 1fr);
+  gap: clamp(14px, 3vw, 34px);
+  align-items: start;
+  padding: clamp(14px, 2.6vw, 28px);
+}
+
+.novel-toc-cover-panel,
+.novel-toc-cover-panel .novel-cover-large {
+  width: 100%;
+}
+
+.novel-toc-cover-panel .novel-cover-large {
+  height: auto;
+  aspect-ratio: 3 / 4;
+  border-radius: clamp(14px, 2vw, 20px);
+}
+
+.novel-toc-info {
+  min-width: 0;
+}
+
+.novel-toc-title-row {
+  align-items: flex-start;
+}
+
+.novel-toc-kicker {
+  margin: 0 0 5px;
+  color: var(--muted);
+  font-size: var(--fluid-small);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.novel-toc-title-row .novel-title-main-v2 h1 {
+  margin: 0 0 8px;
+  font-size: var(--fluid-title);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.novel-toc-full-title {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(13px, 1vw + 9px, 17px);
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+
+.novel-toc-title-row .novel-title-fox {
+  width: clamp(48px, 7vw, 78px);
+  height: clamp(48px, 7vw, 78px);
+}
+
+.novel-toc-facts {
+  display: grid;
+  gap: 0;
+  margin-top: clamp(12px, 2vw, 22px);
+  border-top: 1px solid rgba(90, 57, 35, 0.10);
+}
+
+.novel-toc-fact {
+  display: grid;
+  grid-template-columns: minmax(76px, 0.32fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(90, 57, 35, 0.10);
+}
+
+.novel-toc-fact-label {
+  color: var(--muted);
+  font-size: var(--fluid-small);
+  font-weight: 750;
+}
+
+.novel-toc-fact-value {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--text);
+  font-size: clamp(12px, 0.55vw + 10px, 15px);
+  font-weight: 760;
+}
+
+.novel-toc-chapter-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.novel-reading-progress-track {
+  display: block;
+  width: min(240px, 100%);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(92, 56, 25, 0.12);
+}
+
+.novel-reading-progress-track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #ff9d4a);
+  transition: width 280ms ease;
+}
+
+.novel-reading-progress-text {
+  min-width: 54px;
+  color: var(--muted);
+  font-size: var(--fluid-small);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.novel-toc-tags {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  padding: 0 clamp(14px, 2.6vw, 28px) clamp(14px, 2.6vw, 24px);
+}
+
+.novel-description-card,
+.novel-character-info-v2 .character-card,
+.chapters-section-v2 {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+}
+
+.novel-description-card {
+  margin-bottom: 16px;
+  padding: clamp(16px, 2.4vw, 24px);
+  border-radius: 24px;
+}
+
+.novel-section-heading h2 {
+  margin: 0 0 12px;
+  font-size: clamp(18px, 1.7vw, 24px);
+}
+
+.novel-description-card .novel-description-v2-content {
+  max-height: 9.8em;
+  color: var(--text);
+  font-size: clamp(13px, 0.55vw + 11px, 16px);
+  line-height: 1.68;
+}
+
+.novel-description-card .novel-description-v2-content p {
+  margin: 0 0 0.9em;
+}
+
+.novel-description-card:not(.is-expanded) .novel-description-v2-content::after {
+  background: linear-gradient(to bottom, transparent, var(--card-bg-solid));
+}
+
+.novel-character-info-v2 {
+  gap: 12px;
+}
+
+.novel-character-info-v2 .character-card {
+  border-radius: 20px;
+}
+
+.novel-character-info-v2 .character-card h2 {
+  font-size: clamp(17px, 1.45vw, 21px);
+}
+
+.novel-character-info-v2 .character-card p {
+  font-size: clamp(12.5px, 0.45vw + 10.5px, 15px);
+  line-height: 1.6;
+}
+
+.novel-read-action-v2 {
+  position: sticky;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 90;
+  margin: 16px 0;
+  pointer-events: none;
+}
+
+.novel-continue-button {
+  width: min(100%, 520px);
+  min-height: 50px;
+  margin: 0 auto;
+  pointer-events: auto;
+  font-size: clamp(14px, 1.1vw, 17px);
+}
+
+.chapter-section-top-v2 {
+  gap: 10px;
+}
+
+.chapter-sort-button {
+  min-height: 42px;
+  font-size: clamp(11.5px, 0.6vw + 9.5px, 14px);
+}
+
+.chapter-row-v2 {
+  min-height: 54px;
+  padding: 11px 13px;
+}
+
+.chapter-title {
+  font-size: clamp(12px, 0.5vw + 10px, 15px);
+  line-height: 1.4;
+}
+
+.chapter-access {
+  font-size: clamp(10px, 0.32vw + 8.5px, 12px);
+}
+
+@media (max-width: 700px) {
+  .novel-page-header {
+    align-items: stretch;
+  }
+
+  .novel-project-brand {
+    min-width: 0;
+  }
+
+  .novel-back-button {
+    min-width: 0;
+    padding-inline: 12px;
+  }
+
+  .novel-toc-summary {
+    grid-template-columns: clamp(98px, 31vw, 132px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 13px;
+  }
+
+  .novel-toc-title-row .novel-title-fox {
+    display: none;
+  }
+
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    font-size: clamp(18px, 6vw, 25px);
+  }
+
+  .novel-toc-full-title {
+    display: -webkit-box;
+    font-size: clamp(11px, 3.2vw, 13px);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+  }
+
+  .novel-toc-facts {
+    margin-top: 9px;
+  }
+
+  .novel-toc-fact {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 8px;
+    min-height: 40px;
+    padding: 6px 0;
+  }
+
+  .novel-toc-fact-value {
+    gap: 5px;
+    font-size: 11.5px;
+  }
+
+  .novel-status-pill,
+  .novel-access-pill {
+    min-height: 25px;
+    padding: 4px 8px;
+    font-size: 10.5px;
+  }
+
+  .novel-reading-progress-track {
+    width: min(130px, 100%);
+    height: 6px;
+  }
+
+  .novel-toc-tags {
+    padding: 0 13px 13px;
+  }
+
+  .novel-description-card {
+    border-radius: 20px;
+    padding: 15px;
+  }
+
+  .novel-character-info-v2 {
+    grid-template-columns: 1fr;
+  }
+
+  .novel-read-action-v2 {
+    margin-inline: 8px;
+  }
+
+  .chapter-section-top-v2 {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chapter-sort-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 390px) {
+  .novel-redesign-layout {
+    padding-inline: 8px;
+  }
+
+  .novel-page-header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .novel-project-brand,
+  .novel-back-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .novel-toc-summary {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 10px;
+    padding: 11px;
+  }
+
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    font-size: clamp(16px, 5.8vw, 21px);
+  }
+
+  .novel-toc-full-title {
+    font-size: 10.5px;
+    -webkit-line-clamp: 2;
+  }
+
+  .novel-toc-fact {
+    grid-template-columns: 58px minmax(0, 1fr);
+  }
+
+  .novel-toc-fact-label {
+    font-size: 10px;
+  }
+
+  .novel-toc-fact-value {
+    font-size: 10.5px;
+  }
+
+  .novel-toc-tags .tag {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .novel-reading-progress-track > span {
+    transition: none;
+  }
+}
