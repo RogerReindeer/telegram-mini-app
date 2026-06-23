@@ -3946,3 +3946,105 @@ body[data-site-theme="dark"] .library-v4 .library-book-card-v4 .library-card-sta
     padding-inline: 13px;
   }
 }
+
+/* v22 — diagnostics for Telegram / Tribute / book purchases */
+.access-debug-box {
+  display: grid;
+  gap: 14px;
+}
+.access-debug-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.access-debug-toolbar h3,
+.access-debug-content h4 {
+  margin: 0;
+}
+.access-debug-toolbar p {
+  margin: 4px 0 0;
+  color: var(--muted, #71665f);
+}
+.settings-access-refresh {
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent, #ff6a00);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.access-debug-content {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.access-debug-summary {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: rgba(255,255,255,.58);
+  border: 1px solid rgba(80,60,45,.11);
+}
+.access-debug-summary > div {
+  display: grid;
+  grid-template-columns: minmax(105px, .7fr) minmax(0, 1.3fr);
+  gap: 10px;
+  align-items: baseline;
+}
+.access-debug-summary span,
+.access-debug-row span {
+  color: var(--muted, #71665f);
+}
+.access-debug-summary strong,
+.access-debug-row strong,
+.access-debug-row small {
+  overflow-wrap: anywhere;
+}
+.access-debug-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(80,60,45,.11);
+  border-radius: 14px;
+  background: rgba(255,255,255,.45);
+}
+.access-debug-row small {
+  grid-column: 1 / -1;
+  color: var(--muted, #71665f);
+  font-size: .82rem;
+}
+.access-debug-row .is-ok { color: #087a4b; }
+.access-debug-row .is-no { color: #7c5d44; }
+.access-debug-row .is-error,
+.access-debug-error { color: #b42318; }
+.access-debug-content ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.access-debug-content li + li { margin-top: 6px; }
+.access-debug-config pre {
+  max-height: 240px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(20,20,24,.06);
+  font-size: 12px;
+}
+.access-debug-time {
+  margin: 0;
+  color: var(--muted, #71665f);
+  font-size: .82rem;
+}
+@media (max-width: 420px) {
+  .access-debug-toolbar { align-items: stretch; flex-direction: column; }
+  .settings-access-refresh { width: 100%; }
+  .access-debug-summary > div { grid-template-columns: 1fr; gap: 2px; }
+}

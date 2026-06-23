@@ -57,6 +57,14 @@ TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = int(os.getenv("TELEGRAM_INIT_DATA_MAX_AGE_S
 MEMBERSHIP_CACHE_SECONDS = int(os.getenv("MEMBERSHIP_CACHE_SECONDS") or "300")
 APP_ENV = (os.getenv("APP_ENV") or "production").lower()
 
+# Tribute subscriptions and book-specific purchases.
+TRIBUTE_API_KEY = (os.getenv("TRIBUTE_API_KEY") or "").strip()
+TRIBUTE_TRAVELER_SUBSCRIPTION_ID = (os.getenv("TRIBUTE_TRAVELER_SUBSCRIPTION_ID") or "").strip()
+TRIBUTE_KEEPER_SUBSCRIPTION_ID = (os.getenv("TRIBUTE_KEEPER_SUBSCRIPTION_ID") or "").strip()
+TRIBUTE_TRAVELER_URL = (os.getenv("TRIBUTE_TRAVELER_URL") or "").strip()
+TRIBUTE_KEEPER_URL = (os.getenv("TRIBUTE_KEEPER_URL") or "").strip()
+ACCESS_DEBUG_ENABLED = (os.getenv("ACCESS_DEBUG_ENABLED") or "true").lower() in {"1", "true", "yes", "on"}
+
 ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
 _membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
@@ -1759,6 +1767,273 @@ def get_novel_by_id(novel_id: str) -> dict | None:
     return adapt_novel_from_db(rows[0]) if rows else None
 
 
+
+# ============================================================================
+# Unified access: Telegram groups + Tribute subscriptions + book entitlements
+# ============================================================================
+
+def parse_iso_datetime(value: Any) -> datetime | None:
+    text = clean_value(value)
+    if not text:
+        return None
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def telegram_membership_details(chat_id: str, user_id: int) -> dict[str, Any]:
+    result = {
+        "chat_id": chat_id or "",
+        "configured": bool(TELEGRAM_BOT_TOKEN and chat_id),
+        "ok": False,
+        "active": False,
+        "status": "not_configured",
+        "description": "",
+    }
+    if not result["configured"]:
+        return result
+    try:
+        response = requests.get(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getChatMember",
+            params={"chat_id": chat_id, "user_id": user_id},
+            timeout=12,
+        )
+        data = response.json()
+    except (requests.RequestException, ValueError) as error:
+        result.update(status="request_error", description=str(error))
+        return result
+    result["ok"] = bool(data.get("ok"))
+    if not data.get("ok"):
+        result.update(status="telegram_error", description=clean_value(data.get("description")))
+        return result
+    member = data.get("result") or {}
+    result["status"] = clean_value(member.get("status")) or "unknown"
+    result["active"] = telegram_member_is_active(member)
+    result["is_member"] = member.get("is_member")
+    return result
+
+
+def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
+    if not supabase_ready() or not user_id:
+        return []
+    try:
+        rows = db_select(
+            "user_subscriptions",
+            filters={"telegram_user_id": f"eq.{int(user_id)}"},
+            order="expires_at.desc",
+        )
+    except Exception as error:
+        print("Tribute subscription lookup failed:", error)
+        return []
+    now = utc_now()
+    active = []
+    for row in rows:
+        expires = parse_iso_datetime(row.get("expires_at"))
+        if row.get("status") not in {"active", "cancelling"}:
+            continue
+        if not expires or expires <= now:
+            continue
+        active.append(row)
+    return active
+
+
+def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> list[dict[str, Any]]:
+    if not supabase_ready() or not user_id:
+        return []
+    filters = {"telegram_user_id": f"eq.{int(user_id)}", "revoked_at": "is.null"}
+    if novel_id:
+        filters["novel_id"] = f"eq.{int(novel_id)}"
+    try:
+        rows = db_select("user_entitlements", filters=filters, order="granted_at.desc")
+    except Exception as error:
+        print("Book entitlement lookup failed:", error)
+        return []
+    now = utc_now()
+    return [
+        row for row in rows
+        if not row.get("expires_at") or (parse_iso_datetime(row.get("expires_at")) or now) > now
+    ]
+
+
+def tribute_role_from_rows(rows: list[dict[str, Any]]) -> str:
+    roles = {clean_value(row.get("access_role")) for row in rows}
+    if "keeper" in roles:
+        return "keeper"
+    if "traveler" in roles:
+        return "traveler"
+    return "guest"
+
+
+def resolve_access_profile(user_id: int, novel_id: int | None = None, force_group_refresh: bool = False) -> dict[str, Any]:
+    keeper_group = telegram_membership_details(KEEPER_CHAT_ID, user_id)
+    traveler_group = telegram_membership_details(TRAVELER_CHAT_ID, user_id)
+    tribute_rows = get_active_tribute_subscriptions(user_id)
+    tribute_role = tribute_role_from_rows(tribute_rows)
+    group_role = "keeper" if keeper_group["active"] else ("traveler" if traveler_group["active"] else "guest")
+    global_role = max((group_role, tribute_role), key=role_rank)
+    entitlements = get_active_book_entitlements(user_id, novel_id)
+    full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
+    return {
+        "user_id": int(user_id),
+        "role": global_role,
+        "group_role": group_role,
+        "tribute_role": tribute_role,
+        "groups": {"traveler": traveler_group, "keeper": keeper_group},
+        "tribute_subscriptions": tribute_rows,
+        "book_entitlements": entitlements,
+        "has_full_book_access": full_book,
+        "novel_id": novel_id,
+        "checked_at": utc_now().isoformat(),
+    }
+
+
+def resolve_telegram_role(user_id: int, force_refresh: bool = False) -> str:
+    # Kept under the old name because authentication calls this function.
+    profile = resolve_access_profile(user_id, force_group_refresh=force_refresh)
+    return clean_value(profile.get("role")) or "guest"
+
+
+def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None) -> dict[str, Any]:
+    if not viewer.get("authenticated") or not viewer.get("user_id"):
+        return {
+            "user_id": None, "role": "guest", "group_role": "guest", "tribute_role": "guest",
+            "groups": {}, "tribute_subscriptions": [], "book_entitlements": [],
+            "has_full_book_access": False, "novel_id": novel_id,
+        }
+    return resolve_access_profile(int(viewer["user_id"]), novel_id=novel_id)
+
+
+def novel_is_traveler_only(novel: dict) -> bool:
+    icons = clean_value(novel.get("post_icons"))
+    model = clean_value(novel.get("access_model")).lower()
+    return "🎁" in icons or "boostyonly" in model or "boosty only" in model
+
+
+def effective_role_for_novel(viewer: dict[str, Any], novel: dict) -> tuple[str, dict[str, Any]]:
+    novel_id = to_int(novel.get("novel_id") or novel.get("id"), 0) or None
+    profile = viewer_access_profile(viewer, novel_id)
+    role = clean_value(profile.get("role")) or "guest"
+    if profile.get("has_full_book_access"):
+        return "keeper", profile
+    return role, profile
+
+
+def chapter_content_url_for_access(chapter: dict, novel: dict, profile: dict[str, Any]) -> str:
+    role = clean_value(profile.get("role")) or "guest"
+    if profile.get("has_full_book_access"):
+        return chapter_premium_url(chapter)
+    # Gift books are closed to guests. Traveler gets their subscription release.
+    if novel_is_traveler_only(novel) and role == "guest":
+        return ""
+    if chapter_public_ready(chapter):
+        return chapter_public_url(chapter)
+    if role == "traveler" and novel_is_traveler_only(novel) and chapter_premium_ready(chapter):
+        return chapter_premium_url(chapter)
+    if role == "keeper" and chapter_premium_ready(chapter):
+        return chapter_premium_url(chapter)
+    return ""
+
+def build_chapter_display_list_for_access(chapters: list[dict], novel: dict, profile: dict[str, Any]) -> tuple[list[dict], int]:
+    role = clean_value(profile.get("role")) or "guest"
+    prepared = []
+    for chapter in sort_chapters(chapters):
+        if chapter.get("is_visible") is not True and role != "keeper" and not profile.get("has_full_book_access"):
+            continue
+        item = prepare_chapter_for_template(chapter, role)
+        item["is_available"] = bool(chapter_content_url_for_access(chapter, novel, profile))
+        if item["is_available"]:
+            item["access_label"] = "Доступно"
+            item["access_class"] = "chapter-access-open"
+        prepared.append(item)
+    locked_seen = 0
+    hidden_locked_count = 0
+    for item in prepared:
+        item["is_paid_extra"] = False
+        item["hidden"] = False
+        if item.get("is_available"):
+            continue
+        locked_seen += 1
+        if locked_seen > 3:
+            item["is_paid_extra"] = True
+            item["hidden"] = True
+            hidden_locked_count += 1
+    return prepared, hidden_locked_count
+
+
+def tribute_signature_valid(raw_body: bytes, signature: str) -> bool:
+    if not TRIBUTE_API_KEY or not signature:
+        return False
+    signature = signature.strip()
+    if signature.lower().startswith("sha256="):
+        signature = signature.split("=", 1)[1]
+    digest = hmac.new(TRIBUTE_API_KEY.encode("utf-8"), raw_body, hashlib.sha256).digest()
+    return hmac.compare_digest(signature.lower(), digest.hex().lower()) or hmac.compare_digest(signature, base64.b64encode(digest).decode("ascii"))
+
+
+def tribute_access_role(subscription_id: Any) -> str | None:
+    value = clean_value(subscription_id)
+    if value and value == TRIBUTE_KEEPER_SUBSCRIPTION_ID:
+        return "keeper"
+    if value and value == TRIBUTE_TRAVELER_SUBSCRIPTION_ID:
+        return "traveler"
+    return None
+
+
+def payment_event_hash(raw_body: bytes) -> str:
+    return hashlib.sha256(raw_body).hexdigest()
+
+
+def record_payment_event(provider: str, event_hash: str, event_name: str, payload: dict[str, Any], status: str, error: str | None = None) -> None:
+    row = {
+        "provider": provider,
+        "event_hash": event_hash,
+        "event_name": event_name,
+        "telegram_user_id": to_int((payload.get("payload") or {}).get("telegram_user_id"), 0) or None,
+        "external_plan_id": clean_value((payload.get("payload") or {}).get("subscription_id")) or None,
+        "payload": payload,
+        "status": status,
+        "error_message": error,
+        "processed_at": utc_now().isoformat() if status in {"processed", "ignored", "error"} else None,
+    }
+    try:
+        db_upsert("payment_events", [row], "provider,event_hash", batch_size=1)
+    except Exception as exc:
+        print("Unable to record payment event:", exc)
+
+
+def upsert_tribute_subscription(event_name: str, payload: dict[str, Any]) -> dict[str, Any]:
+    telegram_user_id = to_int(payload.get("telegram_user_id"), 0)
+    subscription_id = clean_value(payload.get("subscription_id"))
+    role = tribute_access_role(subscription_id)
+    if not telegram_user_id or not subscription_id:
+        raise ValueError("В webhook отсутствуют telegram_user_id или subscription_id")
+    if not role:
+        return {"status": "ignored", "reason": "unknown_subscription", "subscription_id": subscription_id}
+    cancelled = event_name == "cancelled_subscription"
+    row = {
+        "telegram_user_id": telegram_user_id,
+        "provider": "tribute",
+        "external_plan_id": subscription_id,
+        "access_role": role,
+        "status": "cancelling" if cancelled else "active",
+        "subscription_type": clean_value(payload.get("type")) or None,
+        "auto_renew": not cancelled,
+        "started_at": clean_value(payload.get("purchase_created_at") or payload.get("created_at")) or None,
+        "expires_at": clean_value(payload.get("expires_at")) or utc_now().isoformat(),
+        "cancelled_at": utc_now().isoformat() if cancelled else None,
+        "renewed_at": utc_now().isoformat() if event_name == "renewed_subscription" else None,
+        "telegram_username": clean_value(payload.get("telegram_username")) or None,
+        "provider_user_id": clean_value(payload.get("trb_user_id")) or None,
+    }
+    db_upsert("user_subscriptions", [row], "telegram_user_id,provider,external_plan_id", batch_size=1)
+    _membership_cache.pop(telegram_user_id, None)
+    return {"status": "processed", "role": role, "telegram_user_id": telegram_user_id}
+
 @app.get("/health")
 async def health():
     return {
@@ -1769,6 +2044,9 @@ async def health():
         "keeper_chat": "ok" if KEEPER_CHAT_ID else "not_configured",
         "traveler_chat_id_normalized": bool(TRAVELER_CHAT_ID),
         "keeper_chat_id_normalized": bool(KEEPER_CHAT_ID),
+        "tribute_webhook": "ok" if TRIBUTE_API_KEY else "not_configured",
+        "tribute_traveler_plan": "ok" if TRIBUTE_TRAVELER_SUBSCRIPTION_ID else "not_configured",
+        "tribute_keeper_plan": "ok" if TRIBUTE_KEEPER_SUBSCRIPTION_ID else "not_configured",
     }
 
 
@@ -1801,6 +2079,7 @@ async def novel_page(request: Request, slug: str):
         raise HTTPException(status_code=404, detail="Новелла не найдена")
     if not to_bool(novel.get("is_visible"), True) and viewer_role != "keeper":
         raise HTTPException(status_code=404, detail="Новелла не найдена")
+    viewer_role, access_profile = effective_role_for_novel(viewer, novel)
     fox = get_fox()
     all_chapters = get_novel_chapters(clean_value(novel.get("id")))
     prepared_novel = prepare_novel_for_template(novel)
@@ -1813,7 +2092,7 @@ async def novel_page(request: Request, slug: str):
     prepared_novel["available_chapters_count"] = count_available_chapter_units(all_chapters, viewer_role)
     finalize_novel_access_summary(prepared_novel)
     visible_chapters = all_chapters if viewer_role == "keeper" else [chapter for chapter in all_chapters if chapter.get("is_visible") is True]
-    display_chapters, hidden_subscriber_count = build_chapter_display_list(visible_chapters, viewer_role)
+    display_chapters, hidden_subscriber_count = build_chapter_display_list_for_access(visible_chapters, novel, access_profile)
     return templates.TemplateResponse(
         request,
         "novel.html",
@@ -1825,6 +2104,7 @@ async def novel_page(request: Request, slug: str):
             "hidden_subscriber_count": hidden_subscriber_count,
             "fox": fox,
             "viewer": public_viewer(viewer),
+            "access_profile": access_profile,
         },
     )
 
@@ -1839,6 +2119,7 @@ async def chapter_page(request: Request, chapter_id: str):
     novel = get_novel_by_id(clean_value(chapter.get("novel_id")))
     if not novel:
         raise HTTPException(status_code=404, detail="Книга главы не найдена")
+    viewer_role, access_profile = effective_role_for_novel(viewer, novel)
     if not to_bool(novel.get("is_visible"), True) and viewer_role != "keeper":
         raise HTTPException(status_code=404, detail="Глава не найдена")
 
@@ -1848,7 +2129,7 @@ async def chapter_page(request: Request, chapter_id: str):
     prepared_novel["required_role"] = novel_required_role(novel)
     previous_chapter, next_chapter = get_neighbor_chapters(all_chapters, clean_value(prepared_chapter.get("chapter_id")), viewer_role)
     index_info = get_chapter_index_info(all_chapters, clean_value(prepared_chapter.get("chapter_id")), viewer_role)
-    url = choose_chapter_url(chapter, viewer_role)
+    url = chapter_content_url_for_access(chapter, novel, access_profile)
     is_locked = not bool(url)
     telegraph_content = None
     telegraph_error = ""
@@ -1881,6 +2162,7 @@ async def chapter_page(request: Request, chapter_id: str):
             "access_copy": access_copy(required_role),
             "fox": fox,
             "viewer": public_viewer(viewer),
+            "access_profile": access_profile,
         },
     )
 
@@ -1958,6 +2240,115 @@ async def api_auth_logout():
     response = JSONResponse({"status": "ok"})
     response.delete_cookie(AUTH_COOKIE_NAME, path="/")
     return response
+
+
+
+@app.get("/api/auth/debug")
+async def api_auth_debug(request: Request, refresh: bool = Query(default=False)):
+    viewer = viewer_from_request(request)
+    if not viewer.get("authenticated") or not viewer.get("user_id"):
+        return {
+            "status": "ok",
+            "authenticated": False,
+            "message": "Telegram initData ещё не подтверждён.",
+            "telegram": {"user_id": None, "first_name": "", "username": ""},
+            "rights": {"role": "guest", "can_read_free": True, "can_read_traveler": False, "can_read_keeper": False},
+        }
+    profile = resolve_access_profile(int(viewer["user_id"]), force_group_refresh=refresh)
+    role = clean_value(profile.get("role")) or "guest"
+    return {
+        "status": "ok",
+        "authenticated": True,
+        "telegram": {
+            "user_id": viewer.get("user_id"),
+            "first_name": viewer.get("first_name") or "",
+            "username": viewer.get("username") or "",
+        },
+        "rights": {
+            "role": role,
+            "can_read_free": True,
+            "can_read_traveler": role_rank(role) >= role_rank("traveler"),
+            "can_read_keeper": role_rank(role) >= role_rank("keeper"),
+            "book_entitlements_count": len(profile.get("book_entitlements") or []),
+        },
+        "groups": profile.get("groups") or {},
+        "tribute_subscriptions": profile.get("tribute_subscriptions") or [],
+        "book_entitlements": profile.get("book_entitlements") or [],
+        "configuration": {
+            "traveler_chat_id": TRAVELER_CHAT_ID,
+            "keeper_chat_id": KEEPER_CHAT_ID,
+            "tribute_traveler_subscription_id": TRIBUTE_TRAVELER_SUBSCRIPTION_ID,
+            "tribute_keeper_subscription_id": TRIBUTE_KEEPER_SUBSCRIPTION_ID,
+            "tribute_webhook_configured": bool(TRIBUTE_API_KEY),
+        },
+        "checked_at": profile.get("checked_at"),
+    }
+
+
+@app.post("/api/webhooks/tribute")
+async def tribute_webhook(request: Request):
+    raw_body = await request.body()
+    signature = request.headers.get("trbt-signature", "")
+    if not tribute_signature_valid(raw_body, signature):
+        raise HTTPException(status_code=401, detail="Неверная подпись Tribute")
+    try:
+        event = json.loads(raw_body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=400, detail="Некорректный JSON Tribute") from exc
+    event_name = clean_value(event.get("name"))
+    payload = event.get("payload") or {}
+    event_hash = payment_event_hash(raw_body)
+    if event_name not in {"new_subscription", "renewed_subscription", "cancelled_subscription"}:
+        record_payment_event("tribute", event_hash, event_name, event, "ignored")
+        return {"status": "ok", "result": "ignored"}
+    try:
+        result = upsert_tribute_subscription(event_name, payload)
+        record_payment_event("tribute", event_hash, event_name, event, result.get("status", "processed"))
+        return {"status": "ok", "result": result}
+    except Exception as error:
+        record_payment_event("tribute", event_hash, event_name, event, "error", str(error))
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.post("/api/admin/boosty/order")
+async def import_boosty_order(request: Request, token: str | None = Query(default=None)):
+    validate_sync_token(request, token)
+    payload = await request.json()
+    order_key = clean_value(payload.get("boosty_order_id"))
+    product_key = clean_value(payload.get("boosty_bundle_key"))
+    telegram_user_id = to_int(payload.get("telegram_user_id"), 0)
+    if not order_key or not product_key or not telegram_user_id:
+        raise HTTPException(status_code=400, detail="Нужны boosty_order_id, boosty_bundle_key и telegram_user_id")
+    products = db_select("boosty_products", filters={"boosty_bundle_key": f"eq.{quote(product_key, safe='')}"}, limit=1)
+    if not products:
+        raise HTTPException(status_code=404, detail="Бандл не зарегистрирован в boosty_products")
+    product = products[0]
+    order_row = {
+        "boosty_order_id": order_key,
+        "boosty_bundle_key": product_key,
+        "buyer_email": clean_value(payload.get("buyer_email")) or None,
+        "buyer_name": clean_value(payload.get("buyer_name")) or None,
+        "amount": payload.get("amount"),
+        "currency": clean_value(payload.get("currency")) or None,
+        "payment_status": "paid",
+        "purchased_at": clean_value(payload.get("purchased_at")) or utc_now().isoformat(),
+        "telegram_user_id": telegram_user_id,
+        "claimed_at": utc_now().isoformat(),
+        "raw_email": payload,
+    }
+    db_upsert("boosty_orders", [order_row], "boosty_order_id", batch_size=1)
+    entitlement = {
+        "telegram_user_id": telegram_user_id,
+        "novel_id": product["novel_id"],
+        "source_type": "boosty_bundle",
+        "source_id": order_key,
+        "access_type": product.get("access_type") or "full_book",
+        "granted_at": utc_now().isoformat(),
+        "metadata": {"boosty_bundle_key": product_key, "product_name": product.get("product_name")},
+    }
+    db_upsert("user_entitlements", [entitlement], "telegram_user_id,novel_id,source_type,source_id", batch_size=1)
+    _membership_cache.pop(telegram_user_id, None)
+    return {"status": "ok", "telegram_user_id": telegram_user_id, "novel_id": product["novel_id"]}
 
 
 def validate_sync_token(request: Request, token: str | None) -> None:
