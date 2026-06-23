@@ -1908,48 +1908,120 @@ def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None) -
     return resolve_access_profile(int(viewer["user_id"]), novel_id=novel_id)
 
 
-def novel_is_traveler_only(novel: dict) -> bool:
+def novel_is_gift(novel: dict) -> bool:
+    """A gift novel is visible only to Traveler, Keeper or a book owner.
+
+    The source of truth is the 🎁 marker in Legend.PostIcons. AccessModel is
+    accepted only as a backward-compatible fallback.
+    """
     icons = clean_value(novel.get("post_icons"))
     model = clean_value(novel.get("access_model")).lower()
     return "🎁" in icons or "boostyonly" in model or "boosty only" in model
 
 
+def novel_is_traveler_only(novel: dict) -> bool:
+    # Backward-compatible alias used by older templates/helpers.
+    return novel_is_gift(novel)
+
+
+def chapter_is_translated(chapter: dict) -> bool:
+    return bool(clean_value(chapter.get("translation_date")))
+
+
+def can_view_novel_for_profile(novel: dict, profile: dict[str, Any]) -> bool:
+    if profile.get("has_full_book_access"):
+        return True
+    if not novel_is_gift(novel):
+        return True
+    return clean_value(profile.get("role")) in {"traveler", "keeper"}
+
+
 def effective_role_for_novel(viewer: dict[str, Any], novel: dict) -> tuple[str, dict[str, Any]]:
     novel_id = to_int(novel.get("novel_id") or novel.get("id"), 0) or None
     profile = viewer_access_profile(viewer, novel_id)
-    role = clean_value(profile.get("role")) or "guest"
-    if profile.get("has_full_book_access"):
-        return "keeper", profile
-    return role, profile
+    return clean_value(profile.get("role")) or "guest", profile
 
 
 def chapter_content_url_for_access(chapter: dict, novel: dict, profile: dict[str, Any]) -> str:
+    """Return the only URL the current user may receive.
+
+    Rules:
+    - Traveler only gains visibility of 🎁 novels; premium dates do not open chapters.
+    - Keeper reads chapters after PremiumReleaseDate.
+    - A full-book entitlement reads every translated chapter of that novel.
+    - Everyone may read chapters after FreeReleaseDate.
+    """
     role = clean_value(profile.get("role")) or "guest"
-    if profile.get("has_full_book_access"):
-        return chapter_premium_url(chapter)
-    # Gift books are closed to guests. Traveler gets their subscription release.
-    if novel_is_traveler_only(novel) and role == "guest":
+
+    # A planned row without TranslationDate is never readable.
+    if not chapter_is_translated(chapter):
         return ""
-    if chapter_public_ready(chapter):
-        return chapter_public_url(chapter)
-    if role == "traveler" and novel_is_traveler_only(novel) and chapter_premium_ready(chapter):
-        return chapter_premium_url(chapter)
+
+    if profile.get("has_full_book_access"):
+        return chapter_premium_url(chapter) or chapter_public_url(chapter)
+
+    # Guests must not enter gift-only novels.
+    if novel_is_gift(novel) and role == "guest":
+        return ""
+
+    # Keeper receives the scheduled premium release.
     if role == "keeper" and chapter_premium_ready(chapter):
         return chapter_premium_url(chapter)
+
+    # Guest, Traveler and Keeper receive the ordinary free release.
+    if chapter_public_ready(chapter):
+        return chapter_public_url(chapter)
+
     return ""
 
-def build_chapter_display_list_for_access(chapters: list[dict], novel: dict, profile: dict[str, Any]) -> tuple[list[dict], int]:
+
+def count_available_chapter_units_for_access(
+    chapters: list[dict], novel: dict, profile: dict[str, Any]
+) -> int:
+    return len({
+        chapter_unit_key(chapter)
+        for chapter in chapters
+        if chapter_content_url_for_access(chapter, novel, profile)
+    })
+
+
+def prepare_chapter_for_access_template(
+    chapter: dict, novel: dict, profile: dict[str, Any]
+) -> dict:
+    role = clean_value(profile.get("role")) or "guest"
+    item = prepare_chapter_for_template(chapter, role)
+    url = chapter_content_url_for_access(chapter, novel, profile)
+    item["url"] = url
+    item["is_available"] = bool(url)
+
+    if item["is_available"]:
+        item["access_label"] = "Открыта"
+        item["access_class"] = "chapter-access-public"
+    elif not chapter_is_translated(chapter):
+        item["access_label"] = "Ещё не переведена"
+        item["access_class"] = "chapter-access-hidden"
+    elif role == "keeper":
+        item["access_label"] = "Откроется по расписанию"
+        item["access_class"] = "chapter-access-keeper"
+    else:
+        item["access_label"] = "Откроется бесплатно позже"
+        item["access_class"] = "chapter-access-locked"
+    return item
+
+
+def build_chapter_display_list_for_access(
+    chapters: list[dict], novel: dict, profile: dict[str, Any]
+) -> tuple[list[dict], int]:
     role = clean_value(profile.get("role")) or "guest"
     prepared = []
     for chapter in sort_chapters(chapters):
+        # Rows without any Telegraph content are service/planning rows, not TOC items.
+        if not chapter_has_readable_url(chapter):
+            continue
         if chapter.get("is_visible") is not True and role != "keeper" and not profile.get("has_full_book_access"):
             continue
-        item = prepare_chapter_for_template(chapter, role)
-        item["is_available"] = bool(chapter_content_url_for_access(chapter, novel, profile))
-        if item["is_available"]:
-            item["access_label"] = "Доступно"
-            item["access_class"] = "chapter-access-open"
-        prepared.append(item)
+        prepared.append(prepare_chapter_for_access_template(chapter, novel, profile))
+
     locked_seen = 0
     hidden_locked_count = 0
     for item in prepared:
@@ -1963,6 +2035,82 @@ def build_chapter_display_list_for_access(chapters: list[dict], novel: dict, pro
             item["hidden"] = True
             hidden_locked_count += 1
     return prepared, hidden_locked_count
+
+
+def get_chapter_index_info_for_access(
+    chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
+) -> dict:
+    available = [
+        prepare_chapter_for_access_template(chapter, novel, profile)
+        for chapter in sort_chapters(chapters)
+        if chapter_content_url_for_access(chapter, novel, profile)
+    ]
+    units = []
+    seen_units = set()
+    for chapter in available:
+        key = chapter_unit_key(chapter)
+        if key not in seen_units:
+            seen_units.add(key)
+            units.append({
+                "unit_key": key,
+                "chapter_id": chapter.get("chapter_id"),
+                "chapter_title": chapter.get("title"),
+            })
+    current_index = next((i for i, unit in enumerate(units, 1)
+                          if clean_value(unit.get("chapter_id")) == clean_value(current_chapter_id)), 0)
+    return {"chapter_index": current_index, "available_chapters": len(units)}
+
+
+def get_neighbor_chapters_for_access(
+    chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
+) -> tuple[dict | None, dict | None]:
+    available = [
+        prepare_chapter_for_access_template(chapter, novel, profile)
+        for chapter in sort_chapters(chapters)
+        if chapter_content_url_for_access(chapter, novel, profile)
+    ]
+    index = next((i for i, chapter in enumerate(available)
+                  if clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id)), None)
+    if index is None:
+        return None, None
+    return (available[index - 1] if index > 0 else None,
+            available[index + 1] if index + 1 < len(available) else None)
+
+
+def prepare_library_novels_for_access(
+    novels: list[dict], chapters: list[dict], viewer: dict[str, Any]
+) -> list[dict]:
+    chapters_by_novel: dict[str, list[dict]] = {}
+    for chapter in chapters:
+        key = clean_value(chapter.get("novel_id"))
+        if key:
+            chapters_by_novel.setdefault(key, []).append(chapter)
+
+    result = []
+    for novel in novels:
+        novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
+        novel_id = to_int(novel_id_text, 0) or None
+        profile = viewer_access_profile(viewer, novel_id)
+        if not can_view_novel_for_profile(novel, profile):
+            continue
+
+        novel_chapters = chapters_by_novel.get(novel_id_text, [])
+        prepared = prepare_novel_for_template(novel)
+        prepared["required_role"] = "traveler" if novel_is_gift(novel) else "guest"
+        prepared["display_chapters_count"] = count_chapter_units_for_card(novel_chapters) or prepared["total_chapters"] or 0
+
+        guest_profile = {"role": "guest", "has_full_book_access": False}
+        keeper_profile = {"role": "keeper", "has_full_book_access": False}
+        prepared["free_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, guest_profile)
+        # Traveler chapter count intentionally equals free count. Its extra right is book visibility only.
+        prepared["traveler_chapters_count"] = prepared["free_chapters_count"]
+        prepared["keeper_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, keeper_profile)
+        prepared["available_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, profile)
+        prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
+        prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))
+        finalize_novel_access_summary(prepared)
+        result.append(prepared)
+    return result
 
 
 def tribute_signature_valid(raw_body: bytes, signature: str) -> bool:
@@ -2062,7 +2210,7 @@ async def library(request: Request):
     novels = get_all_novels(include_hidden=include_hidden)
     chapters = get_all_chapters()
     fox = get_fox()
-    prepared_novels = attach_chapter_counts_to_novels(novels, chapters, str(viewer.get("role") or "guest"))
+    prepared_novels = prepare_library_novels_for_access(novels, chapters, viewer)
     return templates.TemplateResponse(
         request,
         "library.html",
@@ -2080,16 +2228,24 @@ async def novel_page(request: Request, slug: str):
     if not to_bool(novel.get("is_visible"), True) and viewer_role != "keeper":
         raise HTTPException(status_code=404, detail="Новелла не найдена")
     viewer_role, access_profile = effective_role_for_novel(viewer, novel)
+    if not can_view_novel_for_profile(novel, access_profile):
+        raise HTTPException(status_code=403, detail="Эта новелла доступна подписчикам")
     fox = get_fox()
     all_chapters = get_novel_chapters(clean_value(novel.get("id")))
     prepared_novel = prepare_novel_for_template(novel)
     prepared_novel["required_role"] = novel_required_role(novel)
     prepared_novel["viewer_has_book_access"] = viewer_can_access_required_role(viewer_role, prepared_novel["required_role"])
     prepared_novel["display_chapters_count"] = count_chapter_units_for_card(all_chapters) or prepared_novel["total_chapters"] or 0
-    prepared_novel["free_chapters_count"] = count_available_chapter_units(all_chapters, "guest")
-    prepared_novel["traveler_chapters_count"] = count_available_chapter_units(all_chapters, "traveler")
-    prepared_novel["keeper_chapters_count"] = count_available_chapter_units(all_chapters, "keeper")
-    prepared_novel["available_chapters_count"] = count_available_chapter_units(all_chapters, viewer_role)
+    prepared_novel["free_chapters_count"] = count_available_chapter_units_for_access(
+        all_chapters, novel, {"role": "guest", "has_full_book_access": False}
+    )
+    prepared_novel["traveler_chapters_count"] = prepared_novel["free_chapters_count"]
+    prepared_novel["keeper_chapters_count"] = count_available_chapter_units_for_access(
+        all_chapters, novel, {"role": "keeper", "has_full_book_access": False}
+    )
+    prepared_novel["available_chapters_count"] = count_available_chapter_units_for_access(
+        all_chapters, novel, access_profile
+    )
     finalize_novel_access_summary(prepared_novel)
     visible_chapters = all_chapters if viewer_role == "keeper" else [chapter for chapter in all_chapters if chapter.get("is_visible") is True]
     display_chapters, hidden_subscriber_count = build_chapter_display_list_for_access(visible_chapters, novel, access_profile)
@@ -2120,6 +2276,8 @@ async def chapter_page(request: Request, chapter_id: str):
     if not novel:
         raise HTTPException(status_code=404, detail="Книга главы не найдена")
     viewer_role, access_profile = effective_role_for_novel(viewer, novel)
+    if not can_view_novel_for_profile(novel, access_profile):
+        raise HTTPException(status_code=403, detail="Эта новелла доступна подписчикам")
     if not to_bool(novel.get("is_visible"), True) and viewer_role != "keeper":
         raise HTTPException(status_code=404, detail="Глава не найдена")
 
@@ -2127,8 +2285,8 @@ async def chapter_page(request: Request, chapter_id: str):
     prepared_chapter = prepare_chapter_for_template(chapter, viewer_role)
     prepared_novel = prepare_novel_for_template(novel)
     prepared_novel["required_role"] = novel_required_role(novel)
-    previous_chapter, next_chapter = get_neighbor_chapters(all_chapters, clean_value(prepared_chapter.get("chapter_id")), viewer_role)
-    index_info = get_chapter_index_info(all_chapters, clean_value(prepared_chapter.get("chapter_id")), viewer_role)
+    previous_chapter, next_chapter = get_neighbor_chapters_for_access(all_chapters, clean_value(prepared_chapter.get("chapter_id")), novel, access_profile)
+    index_info = get_chapter_index_info_for_access(all_chapters, clean_value(prepared_chapter.get("chapter_id")), novel, access_profile)
     url = chapter_content_url_for_access(chapter, novel, access_profile)
     is_locked = not bool(url)
     telegraph_content = None
@@ -2179,7 +2337,7 @@ async def api_library(request: Request):
     viewer_role = str(viewer.get("role") or "guest")
     novels = get_all_novels(include_hidden=viewer_role == "keeper")
     chapters = get_all_chapters()
-    prepared_novels = attach_chapter_counts_to_novels(novels, chapters, viewer_role)
+    prepared_novels = prepare_library_novels_for_access(novels, chapters, viewer)
     return {
         "status": "ok",
         "viewer": public_viewer(viewer),
@@ -2197,11 +2355,14 @@ async def api_novel(request: Request, slug: str):
     if not novel:
         raise HTTPException(status_code=404, detail="Новелла не найдена")
     chapters = get_novel_chapters(clean_value(novel.get("id")))
+    viewer_role, access_profile = effective_role_for_novel(viewer, novel)
+    if not can_view_novel_for_profile(novel, access_profile):
+        raise HTTPException(status_code=403, detail="Эта новелла доступна подписчикам")
     return {
         "status": "ok",
         "viewer": public_viewer(viewer),
         "novel": prepare_novel_for_template(novel),
-        "chapters": [prepare_chapter_for_template(chapter, viewer_role) for chapter in chapters],
+        "chapters": [prepare_chapter_for_access_template(chapter, novel, access_profile) for chapter in chapters],
     }
 
 
@@ -2266,10 +2427,17 @@ async def api_auth_debug(request: Request, refresh: bool = Query(default=False))
         },
         "rights": {
             "role": role,
-            "can_read_free": True,
-            "can_read_traveler": role_rank(role) >= role_rank("traveler"),
-            "can_read_keeper": role_rank(role) >= role_rank("keeper"),
+            "can_view_regular_books": True,
+            "can_view_gift_books": role in {"traveler", "keeper"},
+            "can_read_free_releases": True,
+            "can_read_premium_releases": role == "keeper",
+            "traveler_reads_premium": False,
             "book_entitlements_count": len(profile.get("book_entitlements") or []),
+            "full_book_novel_ids": [
+                row.get("novel_id")
+                for row in (profile.get("book_entitlements") or [])
+                if clean_value(row.get("access_type")) == "full_book"
+            ],
         },
         "groups": profile.get("groups") or {},
         "tribute_subscriptions": profile.get("tribute_subscriptions") or [],

@@ -1537,6 +1537,11 @@
         <div><span>Пользователь</span><strong>${escapeHtml(telegram.first_name || "—")}${telegram.username ? ` · @${escapeHtml(telegram.username)}` : ""}</strong></div>
         <div><span>Итоговые права</span><strong>${escapeHtml(roleLabels[rights.role] || rights.role || "Гость")}</strong></div>
       </div>
+      <h4>Что разрешено</h4>
+      <div class="access-debug-row"><span>Обычные книги</span><strong class="is-ok">Видит</strong><small>Чтение только после FreeReleaseDate.</small></div>
+      <div class="access-debug-row"><span>Книги с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Видит" : "Не видит"}</strong><small>Странствующий получает только видимость книги, не премиальные главы.</small></div>
+      <div class="access-debug-row"><span>Премиальные релизы</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>Открываются только Хранителю по PremiumReleaseDate.</small></div>
+      <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>
       ${groupRow("🌱 Странствующий", groups.traveler)}
       ${groupRow("📜 Хранитель", groups.keeper)}
