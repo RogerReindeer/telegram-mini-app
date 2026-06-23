@@ -349,25 +349,51 @@ def chapter_public_url(chapter: dict) -> str:
 
 
 def chapter_premium_url(chapter: dict) -> str:
-    return (
-        clean_value(chapter.get("telegraph_premium_url"))
-        or clean_value(chapter.get("telegraph_url"))
-        or clean_value(chapter.get("telegraph_free_url"))
-    )
+    """Return only the dedicated premium chapter source.
+
+    A free/public URL must never be used as a premium fallback: otherwise a
+    PremiumReleaseDate could accidentally expose the public copy before its
+    FreeReleaseDate. Full-book access may still fall back to the free source in
+    chapter_content_url_for_access(), where that behaviour is explicit.
+    """
+    return clean_value(chapter.get("telegraph_premium_url"))
 
 
 def chapter_public_ready(chapter: dict) -> bool:
-    if not chapter_public_url(chapter):
+    """Fail-closed check for an ordinary free release.
+
+    A chapter is free only when all three conditions are true:
+    1. the chapter is translated;
+    2. FreeReleaseDate is explicitly present and has arrived;
+    3. a free Telegraph URL/code is available.
+
+    Missing FreeReleaseDate must never mean "already free".
+    """
+    if not chapter_is_translated(chapter):
         return False
+
     release = clean_value(chapter.get("free_release_date"))
-    return not release or is_date_open(release)
+    if not release or not is_date_open(release):
+        return False
+
+    return bool(chapter_public_url(chapter))
 
 
 def chapter_premium_ready(chapter: dict) -> bool:
-    if not chapter_premium_url(chapter):
+    """Fail-closed check for a Keeper scheduled release.
+
+    Missing PremiumReleaseDate must never grant access. A Keeper receives the
+    chapter only after the explicit premium date and only when premium content
+    exists.
+    """
+    if not chapter_is_translated(chapter):
         return False
+
     release = clean_value(chapter.get("premium_release_date"))
-    return not release or is_date_open(release)
+    if not release or not is_date_open(release):
+        return False
+
+    return bool(chapter_premium_url(chapter))
 
 
 def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
@@ -386,12 +412,25 @@ def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
 
 
 def chapter_preview_url(chapter: dict) -> str:
+    """Return a source only for a translated, scheduled locked chapter.
+
+    The route that uses this helper must still return only the short server-side
+    preview, never the source URL or the full chapter body.
+    """
     if chapter.get("is_visible") is not True:
         return ""
-    release = clean_value(chapter.get("premium_release_date"))
-    if release and not is_date_open(release):
+    if not chapter_is_translated(chapter):
         return ""
-    return chapter_premium_url(chapter)
+
+    premium_release = clean_value(chapter.get("premium_release_date"))
+    free_release = clean_value(chapter.get("free_release_date"))
+
+    # A chapter with no release dates is an unscheduled/internal row and must not
+    # be exposed in MiniApp, even as a paid-release preview.
+    if not premium_release and not free_release:
+        return ""
+
+    return chapter_premium_url(chapter) or chapter_public_url(chapter)
 
 
 def access_copy(required_role: str) -> dict[str, str]:
@@ -1127,24 +1166,27 @@ def finalize_novel_access_summary(prepared: dict) -> dict:
     """
     Подготавливает только значимые показатели доступа.
 
-    Счётчики уровней являются накопительными:
-    если 20 глав доступны бесплатно, то traveler/keeper тоже увидят 20.
-    Такие одинаковые значения не нужно повторять в интерфейсе.
+    В MiniApp нет отдельного уровня глав для Странствующего.
+    Он видит подарочные книги, но читает в них только бесплатные главы.
+    Платный/ранний диапазон карточки — это разница между доступом Хранителя
+    и бесплатным доступом.
     """
     total = max(0, to_int(prepared.get("display_chapters_count"), 0))
     free_count = max(0, to_int(prepared.get("free_chapters_count"), 0))
-    traveler_count = max(0, to_int(prepared.get("traveler_chapters_count"), 0))
     keeper_count = max(0, to_int(prepared.get("keeper_chapters_count"), 0))
+
+    # Backward-compatible field for old templates/data attributes. It must never
+    # represent a separate chapter entitlement.
+    prepared["traveler_chapters_count"] = free_count
 
     all_free = total > 0 and free_count >= total
     show_free = free_count > 0
-    show_traveler = traveler_count > free_count
-    show_keeper = keeper_count > max(free_count, traveler_count)
-    boosty_paid_count = max(0, traveler_count - free_count)
+    show_keeper = keeper_count > free_count
+    boosty_paid_count = max(0, keeper_count - free_count)
 
     prepared["all_chapters_free"] = all_free
     prepared["show_free_stat"] = show_free
-    prepared["show_traveler_stat"] = show_traveler
+    prepared["show_traveler_stat"] = False
     prepared["show_keeper_stat"] = show_keeper
     prepared["boosty_paid_chapters_count"] = boosty_paid_count
     prepared["show_boosty_paid_stat"] = boosty_paid_count > 0
@@ -1590,8 +1632,18 @@ def adapt_chapter_from_db(row: dict) -> dict:
     chapter_id = clean_value(row.get("chapter_id"))
     free_url = clean_value(row.get("telegraph_free_url"))
     premium_url = clean_value(row.get("telegraph_premium_url"))
-    free_ready = bool(free_url and (not row.get("free_release_date") or is_date_open(row.get("free_release_date"))))
-    premium_ready = bool(premium_url and (not row.get("premium_release_date") or is_date_open(row.get("premium_release_date"))))
+    free_release_date = clean_value(row.get("free_release_date"))
+    premium_release_date = clean_value(row.get("premium_release_date"))
+    free_ready = bool(
+        free_url
+        and free_release_date
+        and is_date_open(free_release_date)
+    )
+    premium_ready = bool(
+        premium_url
+        and premium_release_date
+        and is_date_open(premium_release_date)
+    )
     # There is no Traveler chapter tier. Premium-scheduled chapters belong to Keeper.
     access_level = "guest" if free_ready else "keeper"
     adapted.update({
@@ -1604,6 +1656,47 @@ def adapt_chapter_from_db(row: dict) -> dict:
         "telegraph_url": premium_url or free_url,
     })
     return adapted
+
+
+def chapter_release_integrity_issues(chapter: dict) -> list[str]:
+    """Return sync-time warnings for dangerous or inconsistent release rows.
+
+    These warnings do not reject the row: MiniApp stays fail-closed and stores the
+    data, while the sync result tells the editor what must be fixed in Excel.
+    """
+    issues: list[str] = []
+    chapter_id = clean_value(chapter.get("chapter_id")) or "?"
+    translated = bool(clean_value(chapter.get("translation_date")))
+    free_date = clean_value(chapter.get("free_release_date"))
+    premium_date = clean_value(chapter.get("premium_release_date"))
+    free_url = clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_free_code"))
+    premium_url = clean_value(chapter.get("telegraph_premium_url")) or clean_value(chapter.get("telegraph_premium_code"))
+
+    if translated and (free_url or premium_url) and not free_date and not premium_date:
+        issues.append(f"{chapter_id}: переведена и имеет ссылку, но нет ни FreeReleaseDate, ни PremiumReleaseDate; в MiniApp закрыта")
+
+    if free_url and not free_date:
+        issues.append(f"{chapter_id}: есть бесплатная ссылка, но нет FreeReleaseDate; бесплатный доступ закрыт")
+
+    if premium_url and not premium_date:
+        issues.append(f"{chapter_id}: есть премиальная ссылка, но нет PremiumReleaseDate; доступ Хранителя закрыт")
+
+    if free_date and not free_url:
+        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет бесплатной ссылки/кода")
+
+    if premium_date and not premium_url:
+        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет премиальной ссылки/кода")
+
+    if free_date and premium_date:
+        try:
+            premium_dt = parse_iso_datetime(premium_date)
+            free_dt = parse_iso_datetime(free_date)
+            if premium_dt and free_dt and premium_dt > free_dt:
+                issues.append(f"{chapter_id}: PremiumReleaseDate позже FreeReleaseDate")
+        except Exception:
+            issues.append(f"{chapter_id}: не удалось сравнить даты релизов")
+
+    return issues
 
 def normalize_fox_name(value: Any) -> str:
     name = clean_value(value)
@@ -2591,6 +2684,12 @@ async def sync_from_sheets(request: Request, token: str | None = Query(default=N
             if clean_value(row.get("name")) and clean_value(row.get("url"))
         ]
 
+        release_warnings = [
+            issue
+            for chapter in chapters
+            for issue in chapter_release_integrity_issues(chapter)
+        ]
+
         result = {
             "status": "ok",
             "novels_received": len(novels),
@@ -2599,6 +2698,8 @@ async def sync_from_sheets(request: Request, token: str | None = Query(default=N
             "novels_upserted": 0,
             "chapters_upserted": 0,
             "fox_upserted": 0,
+            "release_warnings_count": len(release_warnings),
+            "release_warnings": release_warnings[:100],
         }
 
         stage = "novels"

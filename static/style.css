@@ -4109,3 +4109,263 @@ html {
     padding: 34px 38px;
   }
 }
+
+
+/* =====================================================================
+   V26 — исправление мобильной библиотеки, кнопки «Ещё» и масштаба
+   ===================================================================== */
+
+/*
+ * На телефоне используем виртуальную ширину 740px (см. meta viewport).
+ * Это приблизительно на 16% крупнее прежних 860px, но всё ещё сохраняет
+ * спокойную «компьютерную» композицию и возможность pinch-zoom.
+ */
+
+@media (max-width: 900px) {
+  .library-app-shell {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 24px 26px 40px;
+  }
+
+  .library-screen {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .library-v4 .library-actions-v4 {
+    display: grid;
+    grid-template-columns: auto auto minmax(210px, 1fr);
+    align-items: center;
+    gap: 12px;
+  }
+
+  .library-v4 .library-sort-pill {
+    min-width: 0;
+  }
+
+  .library-v4 .library-section-list {
+    display: grid;
+    gap: 16px;
+  }
+
+  .library-v4 .library-book-card-v4 {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 132px minmax(0, 1fr);
+    gap: 20px;
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover {
+    width: 132px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover {
+    height: 184px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-info {
+    min-width: 0;
+    padding-right: 30px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-v4 .library-book-card-v4 .library-book-subtitle {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-stats {
+    gap: 8px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-footer {
+    min-width: 0;
+  }
+}
+
+/* Кнопка «Ещё» находится на .novel-description-card, поэтому именно этот
+ * контейнер должен снимать ограничение высоты после добавления is-expanded. */
+.novel-description-card.is-expanded .novel-description-v2-content {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.novel-description-card.is-expanded .novel-description-v2-content::after {
+  content: none !important;
+  display: none !important;
+}
+
+.novel-description-card .novel-description-toggle-v2 {
+  position: relative;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.novel-description-card .novel-description-toggle-v2[hidden] {
+  display: none !important;
+}
+
+/* v27 — описание книги: в свернутом состоянии показываем несколько строк,
+ * а не одну. Правило стоит в конце файла, чтобы перекрыть старые адаптивные
+ * ограничения и дублирующиеся селекторы. */
+.novel-description-card:not(.is-expanded) .novel-description-v2-content {
+  display: block !important;
+  max-height: 8.4em !important; /* примерно 5 строк при line-height 1.68 */
+  min-height: 5em;
+  overflow: hidden !important;
+  white-space: normal !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+}
+
+.novel-description-card:not(.is-expanded) .novel-description-v2-content p {
+  display: block !important;
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: clip !important;
+  -webkit-line-clamp: unset !important;
+  line-clamp: unset !important;
+}
+
+.novel-description-card.is-expanded .novel-description-v2-content {
+  min-height: 0;
+}
+
+
+/* =====================================================================
+   V28 — стабильная библиотека при масштабировании Telegram WebView
+   ===================================================================== */
+@media (max-width: 900px) {
+  .library-app-shell {
+    width: 100%;
+    min-width: 0;
+    padding: 24px 24px 44px;
+  }
+
+  .library-v4 .library-actions-v4 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 1.35fr);
+    gap: 12px;
+  }
+
+  .library-v4 .library-section-list {
+    gap: 18px;
+  }
+
+  .library-v4 .library-book-card-v4 {
+    display: grid;
+    grid-template-columns: 134px minmax(0, 1fr);
+    align-items: start;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+    padding: 18px;
+    overflow: hidden;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover {
+    width: 134px;
+    min-width: 134px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover {
+    height: 186px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    min-width: 0;
+    width: 100%;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-topline {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: start;
+    gap: 10px;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: clamp(18px, 2.65vw, 24px);
+    line-height: 1.16;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle {
+    display: -webkit-box;
+    min-width: 0;
+    max-width: 100%;
+    margin: 1px 0 8px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-stats {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    margin: 0 0 8px;
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-stats > span {
+    max-width: 100%;
+    min-height: 28px;
+    padding-inline: 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-tags {
+    min-width: 0;
+    margin: 0;
+  }
+
+  .library-v4 .library-book-card-v4 .library-mini-tag {
+    max-width: 100%;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-menu {
+    justify-self: end;
+    margin: -4px -4px 0 0;
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-fox {
+    right: 9px;
+    bottom: 7px;
+    width: 48px;
+    height: 48px;
+  }
+}

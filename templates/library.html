@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=860, minimum-scale=0.35, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover" />
+  <meta name="viewport" content="width=700, minimum-scale=0.45, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover" />
 
   <title>Библиотека — {{ app_title }}</title>
 
@@ -174,7 +174,6 @@
                 data-translated-chapters="{{ novel.translated_chapters or 0 }}"
                 data-available-chapters="{{ novel.available_chapters_count or 0 }}"
                 data-free-chapters="{{ novel.free_chapters_count or 0 }}"
-                data-traveler-chapters="{{ novel.traveler_chapters_count or 0 }}"
                 data-boosty-paid-chapters="{{ novel.boosty_paid_chapters_count or 0 }}"
                 data-keeper-chapters="{{ novel.keeper_chapters_count or 0 }}"
                 data-required-role="{{ novel.required_role or 'guest' }}"
@@ -249,8 +248,8 @@
                       📖 Доступно: {{ novel.available_chapters_count or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}
                     </span>
                     {% if novel.show_boosty_paid_stat %}
-                      <span class="library-stat-boosty" title="Дополнительные главы, которые открываются по подписке Boosty">
-                        🌱 Boosty: {{ novel.boosty_paid_chapters_count }}
+                      <span class="library-stat-boosty" title="Главы раннего доступа, доступные Хранителю по расписанию">
+                        📜 Ранний доступ: {{ novel.boosty_paid_chapters_count }}
                       </span>
                     {% endif %}
                   </div>

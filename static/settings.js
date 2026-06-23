@@ -1365,8 +1365,37 @@
       const content = block.querySelector(".collapsible-description-content");
       const button = block.querySelector("[data-description-toggle]");
       if (!content || !button) return;
-      if (content.scrollHeight <= 120) { button.hidden = true; block.classList.add("is-expanded"); return; }
-      button.addEventListener("click", function () { const expanded = block.classList.toggle("is-expanded"); button.textContent = expanded ? "Свернуть" : "Ещё"; });
+
+      const updateButtonState = function () {
+        const collapsedHeight = content.clientHeight;
+        const fullHeight = content.scrollHeight;
+        const hasOverflow = fullHeight > collapsedHeight + 2;
+
+        if (!hasOverflow && !block.classList.contains("is-expanded")) {
+          button.hidden = true;
+          block.classList.add("is-expanded");
+          button.setAttribute("aria-expanded", "true");
+          return;
+        }
+
+        button.hidden = false;
+        const expanded = block.classList.contains("is-expanded");
+        button.textContent = expanded ? "Свернуть" : "Ещё";
+        button.setAttribute("aria-expanded", expanded ? "true" : "false");
+      };
+
+      button.setAttribute("aria-controls", content.id || "novelDescriptionContent");
+      if (!content.id) content.id = "novelDescriptionContent";
+
+      button.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        block.classList.toggle("is-expanded");
+        updateButtonState();
+      });
+
+      requestAnimationFrame(updateButtonState);
+      window.addEventListener("load", updateButtonState, { once: true });
     });
   }
 
