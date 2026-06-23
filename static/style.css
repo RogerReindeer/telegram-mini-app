@@ -4048,3 +4048,64 @@ body[data-site-theme="dark"] .library-v4 .library-book-card-v4 .library-card-sta
   .settings-access-refresh { width: 100%; }
   .access-debug-summary > div { grid-template-columns: 1fr; gap: 2px; }
 }
+
+
+/* v25 — desktop-like composition on phones.
+   Mobile WebViews use a fixed 860px layout viewport and scale it to the screen.
+   The user may pinch-zoom when a closer view is needed. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (max-width: 900px) {
+  .page,
+  .library-app-shell {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .library-screen,
+  .novel-redesign-layout,
+  .reader-layout {
+    max-width: 1120px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .library-book-card {
+    grid-template-columns: 118px minmax(0, 1fr);
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .library-book-cover-link,
+  .library-cover-frame,
+  .library-book-cover {
+    width: 118px;
+  }
+
+  .library-book-cover {
+    height: 164px;
+  }
+
+  .novel-toc-summary,
+  .title-hero-content {
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .title-cover-wrap,
+  .novel-toc-cover-panel {
+    max-width: 190px;
+  }
+
+  .chapter-content-shell,
+  .chapter-navigation {
+    width: min(920px, 100%) !important;
+  }
+
+  .chapter-content {
+    padding: 34px 38px;
+  }
+}

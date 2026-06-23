@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=860, minimum-scale=0.35, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover" />
 
   <title>{{ novel.display_title }} — {{ app_title }}</title>
 
@@ -20,7 +20,7 @@
     data-novel-id="{{ novel.id }}"
     data-novel-slug="{{ novel.slug }}"
     data-novel-title="{{ novel.display_title }}"
-    data-available-chapters="{{ novel.keeper_chapters_count or novel.traveler_chapters_count or novel.free_chapters_count or novel.translated_chapters or 0 }}"
+    data-available-chapters="{{ novel.keeper_chapters_count or novel.free_chapters_count or novel.translated_chapters or 0 }}"
   >
     <header class="novel-page-header">
       <a class="novel-project-brand" href="/library" aria-label="Зефиркины баоцзы — библиотека">
@@ -213,10 +213,8 @@
               <span class="chapter-row-main">
                 <span class="chapter-title">{{ chapter.display_title }}</span>
 
-                {% if chapter.required_role == 'traveler' and not chapter.is_available %}
-                  <span class="chapter-access chapter-access-boosty">🌱 Странствующий читатель</span>
-                {% elif chapter.required_role == 'keeper' and not chapter.is_available %}
-                  <span class="chapter-access chapter-access-keeper">📜 Хранитель свитков</span>
+                {% if chapter.required_role == 'keeper' and not chapter.is_available %}
+                  <span class="chapter-access chapter-access-keeper">📜 Ранний релиз Хранителя</span>
                 {% else %}
                   <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
                 {% endif %}

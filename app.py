@@ -371,15 +371,17 @@ def chapter_premium_ready(chapter: dict) -> bool:
 
 
 def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
-    required = normalize_required_role(chapter.get("access_level"))
-    if viewer_role == "keeper":
-        return chapter_premium_url(chapter)
+    """Legacy helper kept for older code paths.
+
+    Traveler never has a chapter-level release. It can only see gift novels.
+    Keeper receives premium releases; every role receives free releases.
+    """
     if chapter.get("is_visible") is not True:
         return ""
+    if viewer_role == "keeper" and chapter_premium_ready(chapter):
+        return chapter_premium_url(chapter)
     if chapter_public_ready(chapter):
         return chapter_public_url(chapter)
-    if viewer_role == "traveler" and required == "traveler" and chapter_premium_ready(chapter):
-        return chapter_premium_url(chapter)
     return ""
 
 
@@ -399,8 +401,8 @@ def access_copy(required_role: str) -> dict[str, str]:
             "description": "Хранитель свитков открывает абсолютно все главы и все книги читалки.",
         }
     return {
-        "title": "Продолжение доступно по подписке",
-        "description": "🌱 Странствующий читатель открывает главы подписки Boosty. 📜 Хранитель свитков открывает абсолютно всё.",
+        "title": "Глава пока закрыта",
+        "description": "Она откроется бесплатно по расписанию. Ранний релиз доступен 📜 Хранителю свитков; полный доступ к этой книге также может быть выдан отдельной покупкой.",
     }
 
 def clean_value(value: Any) -> str:
@@ -897,9 +899,6 @@ def prepare_chapter_for_template(chapter: dict, viewer_role: str = "guest") -> d
         # открылась глава. В интерфейсе достаточно нейтрального статуса.
         prepared["access_label"] = "Открыта"
         prepared["access_class"] = "chapter-access-public"
-    elif required_role == "traveler":
-        prepared["access_label"] = "🌱 Странствующий читатель"
-        prepared["access_class"] = "chapter-access-locked"
     elif required_role == "keeper":
         prepared["access_label"] = "📜 Хранитель свитков"
         prepared["access_class"] = "chapter-access-keeper"
@@ -1593,7 +1592,8 @@ def adapt_chapter_from_db(row: dict) -> dict:
     premium_url = clean_value(row.get("telegraph_premium_url"))
     free_ready = bool(free_url and (not row.get("free_release_date") or is_date_open(row.get("free_release_date"))))
     premium_ready = bool(premium_url and (not row.get("premium_release_date") or is_date_open(row.get("premium_release_date"))))
-    access_level = "guest" if free_ready else ("traveler" if premium_ready else "keeper")
+    # There is no Traveler chapter tier. Premium-scheduled chapters belong to Keeper.
+    access_level = "guest" if free_ready else "keeper"
     adapted.update({
         "chapter_code": chapter_id,
         "chapter_id": chapter_id,
