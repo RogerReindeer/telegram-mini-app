@@ -204,6 +204,8 @@
               data-chapter-row
               data-chapter-id="{{ chapter.chapter_id }}"
               data-sort-value="{{ chapter.sort_value or loop.index }}"
+              data-source-chapter-no="{{ chapter.source_chapter_no }}"
+              data-part-no="{{ chapter.part_no or '' }}"
               {% if chapter.is_paid_extra %}data-paid-extra hidden{% endif %}
             >
               <span class="chapter-row-icon" aria-hidden="true">

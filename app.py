@@ -83,7 +83,7 @@ NOVEL_TABLE_COLUMNS = {
 
 CHAPTER_TABLE_COLUMNS = {
     "chapter_id", "novel_id", "volume_no", "volume_title", "chapter_no",
-    "chapter_title", "planned_translation_date", "translation_date",
+    "source_chapter_no", "part_no", "chapter_title", "planned_translation_date", "translation_date",
     "free_release_date", "premium_release_date", "prepared_platforms",
     "scheduled_platforms", "publishing_platforms", "telegraph_premium_url",
     "telegraph_premium_code", "telegraph_free_url", "telegraph_free_code",
@@ -117,6 +117,7 @@ KEY_MAP_NOVEL = {
 KEY_MAP_CHAPTER = {
     "ChapterID": "chapter_id", "NovelID": "novel_id", "VolumeNo": "volume_no",
     "VolumeTitle": "volume_title", "ChapterNo": "chapter_no",
+    "SourceChapterNo": "source_chapter_no", "PartNo": "part_no",
     "ChapterTitle": "chapter_title", "PlannedTranslationDate": "planned_translation_date",
     "TranslationDate": "translation_date", "FreeReleaseDate": "free_release_date",
     "PremiumReleaseDate": "premium_release_date", "PreparedPlatforms": "prepared_platforms",
@@ -888,14 +889,60 @@ def normalize_chapter_no_for_unit(value: Any) -> str:
     return match.group(0) if match else text.lower()
 
 
+def display_number(value: Any) -> str:
+    """Preserve an original chapter number as readable text without .0 noise."""
+    text = clean_value(value).replace(",", ".")
+    if re.fullmatch(r"\d+\.0+", text):
+        return text.split(".", 1)[0]
+    return text
+
+
+def chapter_source_label(chapter: dict) -> str:
+    source_no = display_number(chapter.get("source_chapter_no")) or display_number(chapter.get("chapter_no"))
+    part_no = display_number(chapter.get("part_no"))
+    label = f"Глава {source_no}" if source_no else "Глава"
+    if part_no:
+        label += f". Часть {part_no}"
+    return label
+
+
+def chapter_meaningful_title(chapter: dict) -> str:
+    """Remove an old generic chapter prefix so the new original numbering is not duplicated."""
+    title = clean_value(chapter.get("chapter_title") or chapter.get("title"))
+    if not title:
+        return ""
+    cleaned = re.sub(
+        r"^\s*глава\s*[\d.,-]+(?:\s*[.:-]\s*|\s+)",
+        "",
+        title,
+        flags=re.IGNORECASE,
+    ).strip()
+    cleaned = re.sub(
+        r"^\s*часть\s*\d+\s*[.:-]?\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    ).strip()
+    # Generic titles such as “Глава 12” contain no useful subtitle.
+    if re.fullmatch(r"глава\s*[\d.,-]+", title, flags=re.IGNORECASE):
+        return ""
+    return cleaned or ""
+
+
+def chapter_display_title(chapter: dict) -> str:
+    label = chapter_source_label(chapter)
+    subtitle = chapter_meaningful_title(chapter)
+    return f"{label} — {subtitle}" if subtitle else label
+
+
 def chapter_code_value(chapter: dict) -> str:
     return clean_value(chapter.get("chapter_code")) or clean_value(chapter.get("chapter_id"))
 
 
 def chapter_unit_key(chapter: dict) -> str:
-    novel_id = clean_value(chapter.get("novel_id"))
-    chapter_no = normalize_chapter_no_for_unit(chapter.get("chapter_no"))
-    return f"{novel_id}:{chapter_no or chapter_code_value(chapter)}"
+    # Every ChapterNo is a separate MiniApp reading unit, including parts.
+    return chapter_code_value(chapter) or f"{clean_value(chapter.get('novel_id'))}:{clean_value(chapter.get('chapter_no'))}"
+
 
 
 def chapter_has_readable_url(chapter: dict) -> bool:
@@ -926,7 +973,10 @@ def prepare_chapter_for_template(chapter: dict, viewer_role: str = "guest") -> d
     prepared["chapter_id"] = chapter_code
     prepared["chapter_code"] = chapter_code
     prepared["chapter_no"] = clean_value(chapter.get("chapter_no"))
-    prepared["title"] = clean_value(chapter.get("title")) or f"Глава {prepared['chapter_no']}"
+    prepared["source_chapter_no"] = clean_value(chapter.get("source_chapter_no")) or prepared["chapter_no"]
+    prepared["part_no"] = clean_value(chapter.get("part_no"))
+    prepared["source_label"] = chapter_source_label(chapter)
+    prepared["title"] = chapter_display_title(chapter)
     prepared["display_title"] = prepared["title"]
     prepared["required_role"] = required_role
     prepared["url"] = choose_chapter_url(chapter, viewer_role)
@@ -1576,6 +1626,8 @@ def normalize_chapter_row(row: dict) -> dict:
         "volume_no": to_int(row.get("volume_no"), 0) if clean_value(row.get("volume_no")) else None,
         "volume_title": clean_value(row.get("volume_title")) or None,
         "chapter_no": clean_value(row.get("chapter_no")),
+        "source_chapter_no": clean_value(row.get("source_chapter_no")) or clean_value(row.get("chapter_no")),
+        "part_no": to_int(row.get("part_no"), 0) if clean_value(row.get("part_no")) else None,
         "chapter_title": clean_value(row.get("chapter_title")) or None,
         "planned_translation_date": parse_date(row.get("planned_translation_date")),
         "translation_date": parse_date(row.get("translation_date")),
@@ -1649,7 +1701,9 @@ def adapt_chapter_from_db(row: dict) -> dict:
     adapted.update({
         "chapter_code": chapter_id,
         "chapter_id": chapter_id,
-        "title": clean_value(row.get("chapter_title")) or f"Глава {clean_value(row.get('chapter_no'))}",
+        "source_chapter_no": clean_value(row.get("source_chapter_no")) or clean_value(row.get("chapter_no")),
+        "part_no": clean_value(row.get("part_no")),
+        "title": chapter_display_title(row),
         "sort_order": parse_chapter_no_number(row.get("chapter_no")),
         "is_visible": bool(free_url or premium_url),
         "access_level": access_level,

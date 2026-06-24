@@ -4369,3 +4369,15 @@ html {
     height: 48px;
   }
 }
+
+
+/* v29: original chapter numbers and split-part readability */
+.chapter-part-note {
+  display: block;
+  margin-top: 0.22rem;
+  color: var(--muted, #7d746d);
+  font-size: 0.78em;
+  line-height: 1.25;
+}
+.chapter-row-main { min-width: 0; }
+.chapter-title { overflow-wrap: anywhere; }
