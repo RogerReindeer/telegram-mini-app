@@ -31,20 +31,32 @@
     const reloading = await initTelegramAuth();
     if (reloading) return;
 
-    initSettings();
-    initAppFullscreenButton();
-    initLibrary();
-    initNovelPageMeta();
-    initChapterProgress();
-    initNovelReadButton();
-    initNovelReadingProgress();
-    initReadChapterMarks();
-    initCollapsibleDescription();
-    initPaidChapterReveal();
-    initChapterSortToggle();
-    initChapterJumpButtons();
-    initSpoilerReveal();
-    initAccessActions();
+    // Каждый модуль запускается независимо: ошибка в библиотеке не должна
+    // скрывать оглавление, главы или настройки на других экранах.
+    const initializers = [
+      initSettings,
+      initAppFullscreenButton,
+      initLibrary,
+      initNovelPageMeta,
+      initChapterProgress,
+      initNovelReadButton,
+      initNovelReadingProgress,
+      initReadChapterMarks,
+      initCollapsibleDescription,
+      initPaidChapterReveal,
+      initChapterSortToggle,
+      initChapterJumpButtons,
+      initSpoilerReveal,
+      initAccessActions,
+    ];
+
+    initializers.forEach(function (initializer) {
+      try {
+        initializer();
+      } catch (error) {
+        console.error(`Не удалось запустить ${initializer.name}`, error);
+      }
+    });
   });
 
   function initTelegram() {
@@ -882,8 +894,10 @@
     }
 
     const filter = getLibraryFilter();
-    const history = readJson(STORAGE_KEYS.readingHistory, []);
-    const readIds = readJson(STORAGE_KEYS.readChapters, []);
+    const storedHistory = readJson(STORAGE_KEYS.readingHistory, []);
+    const storedReadIds = readJson(STORAGE_KEYS.readChapters, []);
+    const history = Array.isArray(storedHistory) ? storedHistory : [];
+    const readIds = Array.isArray(storedReadIds) ? storedReadIds : [];
     const hiddenNovels = getIdList(STORAGE_KEYS.hiddenNovels);
     const favoriteNovels = getIdList(STORAGE_KEYS.favoriteNovels);
     const completedNovels = getIdList(STORAGE_KEYS.completedNovels);
@@ -901,7 +915,9 @@
       finished: [],
     };
 
-    Array.from(document.querySelectorAll("[data-library-novel-card]")).forEach(function (card) {
+    const cards = Array.from(document.querySelectorAll("[data-library-novel-card]"));
+
+    cards.forEach(function (card) {
       const novelId = String(card.dataset.novelId || "");
 
       if (hiddenNovels.includes(novelId)) {

@@ -5038,3 +5038,58 @@ textarea,
     min-height: 24px;
   }
 }
+
+
+/* =====================================================================
+   V38 — восстановление отображения и финальная геометрия контролов
+   ===================================================================== */
+
+/* Сортировка должна быть такой же прямоугольной, как поиск и фильтры */
+.library-sort-pill,
+.library-sort-pill select,
+.library-actions-v4 .library-sort-pill,
+.library-actions-v4 .library-sort-pill select {
+  border-radius: 0 !important;
+}
+
+/* Счётчики остаются компактными и почти квадратными, но с лёгким скруглением */
+.library-v4 .library-section-count,
+.library-v4 .library-section-count-favorite,
+.library-section-count {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  border: 1px solid var(--gold-border, #c89a43) !important;
+}
+
+/* Скрытый контейнер используется только как исходное хранилище карточек */
+#libraryRawCards {
+  display: none !important;
+}
+
+/* Видимые списки не должны схлопываться из-за старых каскадных правил */
+.library-section:not([data-library-section="hidden"]) > .library-section-list {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  min-height: 0;
+}
+
+.library-section[hidden],
+[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .library-v4 .library-section-count,
+  .library-v4 .library-section-count-favorite,
+  .library-section-count {
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+  }
+}
