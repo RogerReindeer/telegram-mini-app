@@ -103,7 +103,7 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Книги, которые вы добавили в избранное.</div>
+          <div class="library-section-helper">Новеллы, которые вы добавили в избранное</div>
           <div class="library-section-list" data-section-list="favorite"></div>
         </section>
 
@@ -115,7 +115,7 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Книги, к которым вы уже приступили и можете продолжить чтение.</div>
+          <div class="library-section-helper">Новеллы, которые вы уже читаете</div>
           <div class="library-section-list" data-section-list="reading"></div>
         </section>
 
@@ -127,7 +127,7 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Книги, которые уже доступны и ждут первого открытия.</div>
+          <div class="library-section-helper">Новеллы, которые уже доступны для чтения</div>
           <div class="library-section-list" data-section-list="start"></div>
         </section>
 
@@ -139,7 +139,7 @@
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Книги, которые уже анонсированы и скоро появятся для чтения.</div>
+          <div class="library-section-helper">Новеллы, которые скоро появятся для чтения</div>
           <div class="library-section-list" data-section-list="waiting"></div>
         </section>
 
@@ -223,7 +223,7 @@
                     <button
                       class="library-book-menu"
                       type="button"
-                      aria-label="Открыть меню книги"
+                      aria-label="Открыть меню новеллы"
                       aria-haspopup="menu"
                       aria-expanded="false"
                       data-card-menu-button
@@ -234,7 +234,7 @@
                     <div class="library-book-subtitle">{{ novel.library_secondary_title }}</div>
                   {% endif %}
 
-                  <div class="library-card-status-row" aria-label="Статус книги и чтения">
+                  <div class="library-card-status-row" aria-label="Статус новеллы и чтения">
                     <span
                       class="library-stat-status status-{{ novel.translation_status }}"
                       data-project-status-pill
@@ -357,7 +357,7 @@
 
         <footer class="library-filter-footer">
           <button type="button" class="library-filter-reset" id="libraryFilterReset">Сбросить</button>
-          <button type="button" class="library-filter-apply" id="libraryFilterApply">Показать книги</button>
+          <button type="button" class="library-filter-apply" id="libraryFilterApply">Показать новеллы</button>
         </footer>
       </div>
     </section>

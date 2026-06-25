@@ -4691,3 +4691,321 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
     border-radius: 20px;
   }
 }
+
+/* =====================================================================
+   V35 — полноэкранный режим, навигация оглавления и получение доступа
+   ===================================================================== */
+
+/* Полноэкранная кнопка показывается только на настольных клиентах.
+   На мобильных она дополнительно скрывается JavaScript по platform/userAgent. */
+.app-fullscreen-fab[hidden] {
+  display: none !important;
+}
+
+@media (pointer: coarse), (max-width: 760px) {
+  .app-fullscreen-fab {
+    display: none !important;
+  }
+}
+
+/* В свёрнутом состоянии — ровно одна строка описания. */
+.novel-description-card:not(.is-expanded) .novel-description-v2-content {
+  display: -webkit-box !important;
+  min-height: 0 !important;
+  max-height: 1.65em !important;
+  overflow: hidden !important;
+  line-height: 1.65 !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 1 !important;
+  line-clamp: 1 !important;
+}
+
+.novel-description-card:not(.is-expanded) .novel-description-v2-content p {
+  display: inline !important;
+  margin: 0 !important;
+}
+
+.novel-description-card:not(.is-expanded) .novel-description-v2-content p:not(:first-child) {
+  display: none !important;
+}
+
+.chapter-section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.chapter-jump-button {
+  min-height: 38px;
+  padding: 8px 13px;
+  border: 1px solid rgba(108, 73, 43, 0.14);
+  border-radius: 999px;
+  background: rgba(255,255,255,.72);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.chapter-jump-button:hover,
+.chapter-jump-button:focus-visible {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  background: #fff;
+}
+
+.chapter-list-end {
+  display: flex;
+  justify-content: center;
+  padding: 14px 0 2px;
+}
+
+.chapter-jump-button-top {
+  min-width: 150px;
+}
+
+.chapter-paywall-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.chapter-access-purchase-button,
+.subscription-refresh-button {
+  min-height: 44px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 850;
+  text-decoration: none;
+  text-align: center;
+}
+
+.chapter-access-purchase-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+}
+
+.chapter-access-purchase-boosty {
+  background: var(--accent);
+  color: #fff;
+}
+
+.chapter-access-purchase-tribute {
+  border-color: rgba(67, 139, 237, .24);
+  background: rgba(67, 139, 237, .10);
+  color: #225da9;
+}
+
+@media (max-width: 760px) {
+  .chapter-section-top-v2 {
+    align-items: flex-start;
+  }
+
+  .chapter-section-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .chapter-section-actions > * {
+    flex: 1 1 auto;
+  }
+
+  .chapter-paywall-actions {
+    align-items: stretch;
+  }
+
+  .chapter-access-purchase-button,
+  .subscription-refresh-button {
+    width: 100%;
+  }
+}
+
+/* =====================================================================
+   V36 — строгая геометрия, золотые рамки и компактный ритм интерфейса
+   ===================================================================== */
+:root {
+  --gold-border: #c89a43;
+  --gold-border-soft: rgba(200, 154, 67, .62);
+  --gold-line: rgba(200, 154, 67, .38);
+}
+
+/* Без скруглений во всём интерфейсе */
+button,
+a,
+input,
+select,
+textarea,
+.library-book-card,
+.library-book-card-v4,
+.library-cover-frame,
+.library-book-cover,
+.library-age-badge,
+.library-update-banner,
+.library-control-button,
+.library-filter-panel,
+.library-filter-chip,
+.library-section-count,
+.library-stat-status,
+.library-card-state-pill,
+.library-access-count,
+.library-progress-track,
+.library-progress-fill,
+.library-card-tags .tag,
+.library-book-menu,
+.novel-toc-hero,
+.novel-cover,
+.novel-status-pill,
+.novel-access-pill,
+.novel-description-card,
+.novel-description-more,
+.novel-primary-action,
+.chapters-section-v2,
+.chapter-row,
+.chapter-row-v2,
+.chapter-access,
+.chapter-jump-button,
+.chapter-nav-button,
+.chapter-access-purchase-button,
+.subscription-refresh-button,
+.settings-fab,
+.app-size-fab,
+.app-fullscreen-fab,
+.settings-modal,
+.settings-close,
+.settings-tab,
+.settings-field select,
+.settings-field input,
+.settings-access-refresh,
+.access-debug-box,
+.about-box,
+.spoiler-warning-modal,
+.spoiler-warning-cancel,
+.spoiler-warning-confirm {
+  border-radius: 0 !important;
+}
+
+/* Золотые рамки у всех интерактивных и смысловых поверхностей */
+.library-book-card-v4,
+.library-update-banner,
+.library-control-button,
+.library-filter-panel,
+.library-filter-chip,
+.novel-toc-hero,
+.novel-description-card,
+.chapters-section-v2,
+.chapter-row-v2,
+.chapter-jump-button,
+.chapter-nav-button,
+.chapter-access-purchase-button,
+.subscription-refresh-button,
+.settings-modal,
+.settings-tab,
+.settings-field select,
+.settings-field input,
+.settings-access-refresh,
+.access-debug-box,
+.about-box,
+.spoiler-warning-modal {
+  border: 1px solid var(--gold-border-soft) !important;
+}
+
+/* Компактный вертикальный ритм библиотеки */
+.library-v4 { gap: 10px !important; }
+.library-toolbar { margin-bottom: 8px !important; gap: 8px !important; }
+.library-section { margin: 8px 0 12px !important; }
+.library-section-header { min-height: 34px !important; padding: 4px 2px !important; }
+.library-section-helper { margin: 0 0 6px !important; line-height: 1.25 !important; }
+.library-section-list { gap: 8px !important; }
+.library-book-card-v4 { padding: 10px !important; gap: 12px !important; }
+.library-book-body { gap: 4px !important; }
+.library-book-topline { margin: 0 !important; }
+.library-book-subtitle { margin: 0 0 2px !important; line-height: 1.25 !important; }
+.library-book-card-v4 .library-card-status-row { margin: 1px 0 4px !important; gap: 5px !important; }
+.library-book-card-v4 .library-card-access-row { margin: 0 0 5px !important; gap: 5px 12px !important; }
+.library-progress-row { margin: 1px 0 4px !important; }
+.library-card-tags { gap: 4px !important; margin-top: 2px !important; }
+.library-card-tags .tag { padding: 3px 7px !important; }
+
+/* Чёткие градиенты состояний */
+.library-section-favorites .library-book-card-v4 {
+  background: linear-gradient(105deg, rgba(255,247,225,.98), rgba(255,237,188,.78)) !important;
+}
+.library-section[data-library-section="reading"] .library-book-card-v4 {
+  background: linear-gradient(105deg, rgba(244,250,255,.98), rgba(216,237,255,.80)) !important;
+}
+.library-section[data-library-section="start"] .library-book-card-v4 {
+  background: linear-gradient(105deg, rgba(248,255,245,.98), rgba(224,246,216,.82)) !important;
+}
+.library-section[data-library-section="finished"] .library-book-card-v4,
+.library-book-card-v4[data-status="completed"] {
+  background: linear-gradient(105deg, rgba(250,247,240,.98), rgba(232,224,207,.82)) !important;
+}
+.library-section[data-library-section="waiting"] .library-book-card-v4 {
+  background: linear-gradient(105deg, rgba(240,249,255,.98), rgba(203,232,250,.84)) !important;
+}
+
+/* Оглавление и список глав — плотнее */
+.novel-toc-hero { padding: 14px !important; }
+.novel-toc-summary { gap: 14px !important; }
+.novel-toc-info { gap: 5px !important; }
+.novel-toc-title-row { margin-bottom: 2px !important; }
+.novel-toc-full-title { margin: 0 0 4px !important; }
+.novel-toc-facts { gap: 6px !important; padding-top: 8px !important; margin-top: 4px !important; border-color: var(--gold-line) !important; }
+.novel-toc-status-line,
+.novel-toc-access-summary { gap: 5px 10px !important; }
+.novel-toc-tags { padding-top: 6px !important; margin-top: 2px !important; border-color: var(--gold-line) !important; }
+.novel-description-card { margin-top: 8px !important; padding: 10px 12px !important; }
+.novel-description-card h2 { margin: 0 0 4px !important; }
+.novel-description-v2-content { margin: 0 !important; }
+.novel-description-more { margin-top: 5px !important; }
+.chapters-section-v2 { margin-top: 10px !important; padding: 10px !important; }
+.chapter-section-top-v2 { padding-bottom: 7px !important; margin-bottom: 7px !important; border-color: var(--gold-line) !important; }
+.chapter-list-v2 { gap: 3px !important; }
+.chapter-row-v2 { padding: 8px 10px !important; }
+.chapter-row-main { gap: 2px !important; }
+.chapter-title { line-height: 1.22 !important; }
+.chapter-list-end { padding: 7px 0 0 !important; }
+
+/* Нормальные настройки: прямоугольные, одинаковые и без плавающих кругов */
+.settings-fab,
+.app-size-fab,
+.app-fullscreen-fab {
+  width: 42px !important;
+  height: 36px !important;
+  border: 1px solid var(--gold-border) !important;
+  background: #2b211c !important;
+  box-shadow: 0 5px 14px rgba(55,36,17,.18) !important;
+}
+.settings-modal { padding: 12px !important; }
+.settings-header { margin-bottom: 8px !important; align-items: center !important; }
+.settings-tabs { gap: 4px !important; margin-bottom: 8px !important; }
+.settings-tab { min-height: 34px !important; padding: 6px 10px !important; }
+.settings-field { gap: 4px !important; margin-bottom: 8px !important; }
+.settings-field select { min-height: 38px !important; padding: 7px 9px !important; }
+.settings-close { border: 1px solid var(--gold-border-soft) !important; }
+
+/* Убираем визуально лишние точки у интерфейсных подсказок через скрытие завершающей точки,
+   а тексты в шаблонах уже приведены без точек */
+.library-section-helper,
+.library-page-subtitle,
+.settings-header p,
+.access-debug-toolbar p,
+.about-box p { text-wrap: pretty; }
+
+@media (max-width: 760px) {
+  .library-section { margin-block: 6px 9px !important; }
+  .library-book-card-v4 { padding: 8px !important; gap: 9px !important; }
+  .library-card-tags .tag:nth-child(n+7) { display: none !important; }
+  .novel-toc-hero { padding: 10px !important; }
+  .novel-toc-summary { gap: 10px !important; }
+  .chapters-section-v2 { padding: 8px !important; }
+  .chapter-row-v2 { padding: 7px 8px !important; }
+}

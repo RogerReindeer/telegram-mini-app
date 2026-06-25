@@ -32,7 +32,7 @@
     if (reloading) return;
 
     initSettings();
-    initAppSizeButton();
+    initAppFullscreenButton();
     initLibrary();
     initNovelPageMeta();
     initChapterProgress();
@@ -42,6 +42,7 @@
     initCollapsibleDescription();
     initPaidChapterReveal();
     initChapterSortToggle();
+    initChapterJumpButtons();
     initSpoilerReveal();
     initAccessActions();
   });
@@ -297,32 +298,63 @@
     document.documentElement.style.setProperty("--reader-link-color", values[3]);
   }
 
-  function initAppSizeButton() {
+  function isMobileTelegramClient() {
+    const telegram = getTelegramWebApp();
+    const platform = String(telegram && telegram.platform || "").toLowerCase();
+    if (["android", "android_x", "ios"].includes(platform)) return true;
+    return /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent || "");
+  }
+
+  function initAppFullscreenButton() {
     let button = document.querySelector("[data-app-size-toggle]");
     if (!button) {
       button = document.createElement("button");
-      button.className = "app-size-fab";
+      button.className = "app-size-fab app-fullscreen-fab";
       button.type = "button";
       button.dataset.appSizeToggle = "true";
-      button.addEventListener("click", function () {
-        const settings = getSettings();
-        settings.appSize = settings.appSize === "large" ? "normal" : "large";
-        if (settings.appSize === "large") requestSoftExpand();
-        saveSettings(settings);
-        applySettings();
-      });
       document.body.appendChild(button);
     }
-    updateAppSizeButton();
-  }
 
-  function updateAppSizeButton() {
-    const button = document.querySelector("[data-app-size-toggle]");
-    if (!button) return;
-    const isLarge = getSettings().appSize === "large";
-    button.textContent = isLarge ? "↙" : "↗";
-    button.title = isLarge ? "Вернуть обычный размер" : "Расширить окно";
-    button.setAttribute("aria-label", button.title);
+    if (isMobileTelegramClient()) {
+      button.hidden = true;
+      return;
+    }
+
+    const telegram = getTelegramWebApp();
+    if (!telegram) {
+      button.hidden = true;
+      return;
+    }
+
+    const update = function () {
+      const isFullscreen = Boolean(telegram.isFullscreen);
+      button.textContent = isFullscreen ? "↙" : "↗";
+      button.title = isFullscreen ? "Вернуть обычный размер" : "Открыть на весь экран";
+      button.setAttribute("aria-label", button.title);
+      button.setAttribute("aria-pressed", isFullscreen ? "true" : "false");
+    };
+
+    button.hidden = false;
+    button.addEventListener("click", function () {
+      try {
+        if (telegram.isFullscreen && typeof telegram.exitFullscreen === "function") {
+          telegram.exitFullscreen();
+        } else if (typeof telegram.requestFullscreen === "function") {
+          telegram.requestFullscreen();
+        } else if (typeof telegram.expand === "function") {
+          telegram.expand();
+        }
+      } catch (error) {
+        console.error("Не удалось изменить полноэкранный режим", error);
+      }
+      window.setTimeout(update, 120);
+    });
+
+    if (typeof telegram.onEvent === "function") {
+      telegram.onEvent("fullscreenChanged", update);
+      telegram.onEvent("fullscreenFailed", update);
+    }
+    update();
   }
 
   function initLibrary() {
@@ -697,7 +729,7 @@
     menu.dataset.cardMenu = "true";
     menu.dataset.novelId = novelId;
     menu.setAttribute("role", "menu");
-    menu.setAttribute("aria-label", "Действия с книгой");
+    menu.setAttribute("aria-label", "Действия с новеллой");
 
     menu.innerHTML = items.map(function (item) {
       return `
@@ -1226,7 +1258,7 @@
     }
 
     if (typeof knownCount === "number") {
-      button.textContent = `Показать ${knownCount} книг`;
+      button.textContent = `Показать ${knownCount} новелл`;
       return;
     }
 
@@ -1238,7 +1270,7 @@
       '[data-section-list="finished"] [data-library-novel-card]'
     );
 
-    button.textContent = `Показать ${visibleCards.length} книг`;
+    button.textContent = `Показать ${visibleCards.length} новелл`;
   }
 
   function renderLibraryUpdateBanner(readingCards) {
@@ -1414,6 +1446,18 @@
     });
   }
 
+
+  function initChapterJumpButtons() {
+    document.querySelectorAll("[data-chapter-jump]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const targetId = button.dataset.chapterJump === "end" ? "chapterListEnd" : "chapterListStart";
+        const target = document.getElementById(targetId);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: button.dataset.chapterJump === "end" ? "end" : "start" });
+      });
+    });
+  }
+
   function initChapterSortToggle() {
     const button = document.querySelector("[data-chapter-sort-toggle]");
     const list = document.querySelector("[data-chapter-list]");
@@ -1504,7 +1548,7 @@
     overlay.className = "settings-overlay";
     overlay.hidden = true;
     overlay.dataset.settingsOverlay = "true";
-    overlay.innerHTML = `<div class="settings-modal" role="dialog" aria-modal="true"><div class="settings-header"><div><h2>Настройки</h2><p>Оформление сайта и читалки.</p></div><button class="settings-close" type="button" data-settings-close>×</button></div><div class="settings-tabs"><button class="settings-tab active" type="button" data-settings-tab="reader">Читалка</button><button class="settings-tab" type="button" data-settings-tab="site">Сайт</button><button class="settings-tab" type="button" data-settings-tab="access">Доступ</button><button class="settings-tab" type="button" data-settings-tab="about">О проекте</button></div><section class="settings-section active" data-settings-section="reader"><label class="settings-field"><span>Тема текста</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Ширина текста</span><select data-setting="readerWidth"><option value="comfort">Комфортная</option><option value="full">Широкая</option><option value="wide">Почти вся страница</option></select></label><label class="settings-field"><span>Размер шрифта</span><select data-setting="fontSize"><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option></select></label><label class="settings-field"><span>Межстрочный интервал</span><select data-setting="lineHeight"><option value="1.45">1.45</option><option value="1.6">1.6</option><option value="1.75">1.75</option><option value="1.9">1.9</option></select></label><label class="settings-field"><span>Отступ абзацев</span><select data-setting="paragraphSpacing"><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label><label class="settings-field"><span>Выравнивание</span><select data-setting="textAlign"><option value="left">По левому краю</option><option value="justify">По ширине</option></select></label></section><section class="settings-section" data-settings-section="site"><label class="settings-field"><span>Тема сайта</span><select data-setting="siteTheme"><option value="light">Светлая</option><option value="system">Как в системе</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Акцентный цвет</span><span class="settings-color-row"><select data-setting="accentColor"><option value="#ff6a00">Апельсин</option><option value="#ec4899">Малина</option><option value="#8b5cf6">Фиолетовый</option><option value="#0ea5e9">Голубой</option><option value="#10b981">Зелёный</option></select><input type="color" data-setting-color value="#ff6a00"></span></label></section><section class="settings-section" data-settings-section="access"><div class="access-debug-box"><div class="access-debug-toolbar"><div><h3>Проверка доступа</h3><p>Telegram, группы, подписки Tribute и купленные книги.</p></div><button class="settings-access-refresh" type="button" data-access-debug-refresh>Обновить</button></div><div class="access-debug-content" data-access-debug-content><p>Откройте вкладку, чтобы проверить права.</p></div></div></section><section class="settings-section" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе.</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section><div class="settings-footer"><button class="settings-reset" type="button" data-settings-reset>Сбросить настройки</button></div></div>`;
+    overlay.innerHTML = `<div class="settings-modal" role="dialog" aria-modal="true"><div class="settings-header"><div><h2>Настройки</h2><p>Оформление сайта и читалки</p></div><button class="settings-close" type="button" data-settings-close>×</button></div><div class="settings-tabs"><button class="settings-tab active" type="button" data-settings-tab="reader">Читалка</button><button class="settings-tab" type="button" data-settings-tab="site">Сайт</button><button class="settings-tab" type="button" data-settings-tab="access">Доступ</button><button class="settings-tab" type="button" data-settings-tab="about">О проекте</button></div><section class="settings-section active" data-settings-section="reader"><label class="settings-field"><span>Тема текста</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Ширина текста</span><select data-setting="readerWidth"><option value="comfort">Комфортная</option><option value="full">Широкая</option><option value="wide">Почти вся страница</option></select></label><label class="settings-field"><span>Размер шрифта</span><select data-setting="fontSize"><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option></select></label><label class="settings-field"><span>Межстрочный интервал</span><select data-setting="lineHeight"><option value="1.45">1.45</option><option value="1.6">1.6</option><option value="1.75">1.75</option><option value="1.9">1.9</option></select></label><label class="settings-field"><span>Отступ абзацев</span><select data-setting="paragraphSpacing"><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label><label class="settings-field"><span>Выравнивание</span><select data-setting="textAlign"><option value="left">По левому краю</option><option value="justify">По ширине</option></select></label></section><section class="settings-section" data-settings-section="site"><label class="settings-field"><span>Тема сайта</span><select data-setting="siteTheme"><option value="light">Светлая</option><option value="system">Как в системе</option><option value="dark">Тёмная</option></select></label><label class="settings-field"><span>Акцентный цвет</span><span class="settings-color-row"><select data-setting="accentColor"><option value="#ff6a00">Апельсин</option><option value="#ec4899">Малина</option><option value="#8b5cf6">Фиолетовый</option><option value="#0ea5e9">Голубой</option><option value="#10b981">Зелёный</option></select><input type="color" data-setting-color value="#ff6a00"></span></label></section><section class="settings-section" data-settings-section="access"><div class="access-debug-box"><div class="access-debug-toolbar"><div><h3>Проверка доступа</h3><p>Telegram, группы, подписки Tribute и купленные новеллы</p></div><button class="settings-access-refresh" type="button" data-access-debug-refresh>Обновить</button></div><div class="access-debug-content" data-access-debug-content><p>Откройте вкладку, чтобы проверить права</p></div></div></section><section class="settings-section" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section><div class="settings-footer"><button class="settings-reset" type="button" data-settings-reset>Сбросить настройки</button></div></div>`;
     document.body.appendChild(fab);
     document.body.appendChild(overlay);
   }

@@ -116,9 +116,9 @@
     {% if novel.description_paragraphs or novel.description %}
       <section class="novel-description-card" data-collapsible-description>
         <div class="novel-section-heading">
-          <h2>О книге</h2>
+          <h2>О новелле</h2>
         </div>
-        <div class="collapsible-description-content novel-description-v2-content">
+        <div class="collapsible-description-content novel-description-v2-content" data-description-content>
           {% if novel.description_paragraphs %}
             {% for paragraph in novel.description_paragraphs %}
               <p>{{ paragraph }}</p>
@@ -158,7 +158,7 @@
     {% endif %}
 
     <section class="chapters-section chapters-section-v2">
-      <div class="chapter-section-top-v2">
+      <div class="chapter-section-top-v2" id="chapterListStart">
         <div class="chapter-section-title-wrap">
           <h2 class="section-title">Оглавление</h2>
 
@@ -167,11 +167,14 @@
           {% endif %}
         </div>
 
-        <button class="chapter-sort-button" type="button" data-chapter-sort-toggle data-sort-order="asc">
-          <span class="chapter-sort-icon">☷</span>
-          <span data-chapter-sort-label>Сортировка: по порядку</span>
-          <span class="chapter-sort-arrow">⌄</span>
-        </button>
+        <div class="chapter-section-actions">
+          <button class="chapter-jump-button" type="button" data-chapter-jump="end" aria-label="Перейти в конец списка глав">↓ В конец</button>
+          <button class="chapter-sort-button" type="button" data-chapter-sort-toggle data-sort-order="asc">
+            <span class="chapter-sort-icon">☷</span>
+            <span data-chapter-sort-label>Сортировка: по порядку</span>
+            <span class="chapter-sort-arrow">⌄</span>
+          </button>
+        </div>
       </div>
 
       {% if chapters %}
@@ -229,6 +232,9 @@
               </button>
             </div>
           {% endif %}
+          <div class="chapter-list-end" id="chapterListEnd">
+            <button class="chapter-jump-button chapter-jump-button-top" type="button" data-chapter-jump="start" aria-label="Вернуться к началу списка глав">↑ К началу</button>
+          </div>
         </div>
       {% else %}
         <div class="empty">

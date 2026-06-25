@@ -438,11 +438,11 @@ def access_copy(required_role: str) -> dict[str, str]:
     if required_role == "keeper":
         return {
             "title": "Продолжение доступно Хранителю свитков",
-            "description": "Хранитель свитков открывает абсолютно все главы и все книги читалки.",
+            "description": "Хранитель свитков открывает все главы и все новеллы читалки",
         }
     return {
         "title": "Глава пока закрыта",
-        "description": "Она откроется бесплатно по расписанию. Ранний релиз доступен 📜 Хранителю свитков; полный доступ к этой книге также может быть выдан отдельной покупкой.",
+        "description": "Она откроется бесплатно по расписанию. Ранний релиз доступен 📜 Хранителю свитков; полный доступ к этой новелле также может быть выдан отдельной покупкой",
     }
 
 def clean_value(value: Any) -> str:
@@ -1182,8 +1182,8 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "bottom_description": clean_value(novel.get("bottom_description")),
         "tags": tags,
         "tag_items": tag_items,
-        "catalog_tag_items": card_tag_items[:4],
-        "card_tag_items": card_tag_items[:4],
+        "catalog_tag_items": card_tag_items[:6],
+        "card_tag_items": card_tag_items[:6],
         "catalog_hidden_tags": max(0, len(card_tag_items) - 4),
         "age_rating": clean_value(novel.get("age_rating")) or get_age_rating_from_tags(tags),
         "total_chapters": to_int(novel.get("total_chapters"), 0),
@@ -1217,7 +1217,7 @@ def finalize_novel_access_summary(prepared: dict) -> dict:
     Подготавливает только значимые показатели доступа.
 
     В MiniApp нет отдельного уровня глав для Странствующего.
-    Он видит подарочные книги, но читает в них только бесплатные главы.
+    Он видит подарочные новеллы, но читает в них только бесплатные главы.
     Платный/ранний диапазон карточки — это разница между доступом Хранителя
     и бесплатным доступом.
     """
@@ -1242,7 +1242,7 @@ def finalize_novel_access_summary(prepared: dict) -> dict:
     prepared["show_boosty_paid_stat"] = boosty_paid_count > 0
     prepared["show_access_badge"] = bool(prepared.get("access_badge")) and not all_free
 
-    # Для полностью бесплатной книги не показываем «Платно»,
+    # Для полностью бесплатной новеллы не показываем «Платно»,
     # даже если в служебном поле AccessModel осталось старое значение.
     if all_free:
         prepared["access_badge"] = None
@@ -2421,7 +2421,7 @@ async def chapter_page(request: Request, chapter_id: str):
         raise HTTPException(status_code=404, detail="Глава не найдена")
     novel = get_novel_by_id(clean_value(chapter.get("novel_id")))
     if not novel:
-        raise HTTPException(status_code=404, detail="Книга главы не найдена")
+        raise HTTPException(status_code=404, detail="Новелла главы не найдена")
     viewer_role, access_profile = effective_role_for_novel(viewer, novel)
     if not can_view_novel_for_profile(novel, access_profile):
         raise HTTPException(status_code=403, detail="Эта новелла доступна подписчикам")
@@ -2465,6 +2465,8 @@ async def chapter_page(request: Request, chapter_id: str):
             "preview_text": preview_text,
             "required_role": required_role,
             "access_copy": access_copy(required_role),
+            "boosty_access_url": clean_value(novel.get("boosty_premium_url")) or clean_value(novel.get("boosty_url")),
+            "tribute_access_url": TRIBUTE_KEEPER_URL,
             "fox": fox,
             "viewer": public_viewer(viewer),
             "access_profile": access_profile,

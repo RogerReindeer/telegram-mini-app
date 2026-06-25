@@ -73,6 +73,12 @@
               <p>{{ access_copy.description }}</p>
             </div>
             <div class="chapter-paywall-actions">
+              {% if boosty_access_url %}
+                <a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Получить доступ на Boosty</a>
+              {% endif %}
+              {% if tribute_access_url %}
+                <a class="chapter-access-purchase-button chapter-access-purchase-tribute" href="{{ tribute_access_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>Оформить через Tribute</a>
+              {% endif %}
               <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ ещё раз</button>
             </div>
           </section>
