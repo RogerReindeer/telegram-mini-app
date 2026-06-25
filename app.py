@@ -840,7 +840,7 @@ def translation_status_label(status: str, fallback: Any = "") -> str:
     fallback_text = clean_value(fallback)
     if fallback_text:
         return fallback_text
-    return {"completed": "Завершено", "paused": "На передержке", "soon": "Скоро", "in_progress": "В процессе перевода"}.get(status, "В процессе перевода")
+    return {"completed": "Завершено", "paused": "На паузе", "soon": "Скоро", "in_progress": "Переводится"}.get(status, "Переводится")
 
 
 def translation_status_color(status: str, fallback: Any = "") -> str:

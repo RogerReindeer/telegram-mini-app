@@ -1017,17 +1017,21 @@
       progressText.textContent = progressLabel;
     }
 
+    const currentChapterLabel = safeHistoryIndex > 0
+      ? `На главе ${safeHistoryIndex}`
+      : "";
+
     const configs = {
       new: ["is-new is-reading", "", "✨ Новая глава", "state-new", "Читать новую", `/novel/${card.dataset.novelSlug || ""}`],
-      reading: ["is-reading", "", "📖 Читаю", "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
-      waiting_new: ["is-reading is-waiting", "", "⏳ Всё прочитано", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      completed: ["is-finished", "", "✅ Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
-      locked: ["is-locked", "", "Скоро", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      soon: ["is-soon", "", "Скоро", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
+      reading: ["is-reading", "", currentChapterLabel, "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
+      waiting_new: ["is-reading is-waiting", "", currentChapterLabel || "Всё прочитано", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
+      locked: ["is-locked", "", "", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      soon: ["is-soon", "", "", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
       start: [
         "is-start",
         "",
-        "Можно начать",
+        "",
         "state-start",
         "Начать читать",
         `/novel/${card.dataset.novelSlug || ""}`,
@@ -1052,10 +1056,12 @@
     }
 
     if (statePill) {
-      statePill.hidden = isSoonState;
-      statePill.textContent = config[2];
+      const stateLabel = String(config[2] || "").trim();
+      const shouldShowState = !isSoonState && Boolean(stateLabel);
+      statePill.hidden = !shouldShowState;
+      statePill.textContent = stateLabel;
       statePill.className = `library-card-state-pill ${config[3]}`;
-      statePill.setAttribute("aria-hidden", isSoonState ? "true" : "false");
+      statePill.setAttribute("aria-hidden", shouldShowState ? "false" : "true");
     }
 
     if (button) {

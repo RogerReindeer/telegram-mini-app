@@ -4453,3 +4453,58 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
     font-size: 12px;
   }
 }
+
+/* v32: иерархия карточки — крупное название, компактные статусы */
+.library-v4 .library-book-card-v4 .library-book-title {
+  font-size: clamp(22px, 2.25vw, 30px);
+  line-height: 1.08;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.library-v4 .library-book-card-v4 .library-card-status-row {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.library-v4 .library-book-card-v4 .library-card-status-row .library-stat-status,
+.library-v4 .library-book-card-v4 .library-card-status-row .library-card-state-pill {
+  min-height: 22px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.library-v4 .library-book-card-v4 .library-card-state-pill[hidden] {
+  display: none !important;
+}
+
+@media (max-width: 760px) {
+  .library-v4 .library-book-card-v4 .library-book-title {
+    font-size: clamp(20px, 3.8vw, 26px);
+  }
+
+  .library-v4 .library-book-card-v4 .library-card-status-row .library-stat-status,
+  .library-v4 .library-book-card-v4 .library-card-status-row .library-card-state-pill {
+    min-height: 21px;
+    padding-inline: 8px;
+    font-size: 10.5px;
+  }
+}
+
+/* v33: возвращаем компактный размер названия и выводим его прописными буквами */
+.library-v4 .library-book-card-v4 .library-book-title {
+  font-size: clamp(19px, 2.25vw, 27px);
+  line-height: 1.13;
+  font-weight: 900;
+  letter-spacing: -0.018em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 760px) {
+  .library-v4 .library-book-card-v4 .library-book-title {
+    font-size: clamp(16px, 4.8vw, 19px);
+  }
+}
