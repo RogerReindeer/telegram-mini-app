@@ -4508,3 +4508,186 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
     font-size: clamp(16px, 4.8vw, 19px);
   }
 }
+
+/* =====================================================================
+   V34 — спокойная типографика библиотеки и улучшенная карточка оглавления
+   ===================================================================== */
+
+/* Название остаётся заметным и прописным, но больше не подавляет карточку. */
+.library-v4 .library-book-card-v4 .library-book-title {
+  font-size: clamp(17px, 1.55vw, 22px);
+  line-height: 1.18;
+  font-weight: 850;
+  letter-spacing: -0.012em;
+  text-transform: uppercase;
+}
+
+/* Оглавление: цельная информационная карточка без табличной дробности. */
+.novel-toc-hero {
+  overflow: hidden;
+  border: 1px solid rgba(119, 83, 54, 0.13);
+  border-radius: 28px;
+  background: rgba(255, 252, 247, 0.92);
+  box-shadow: 0 18px 46px rgba(96, 61, 30, 0.11);
+}
+
+.novel-toc-summary {
+  align-items: stretch;
+}
+
+.novel-toc-info {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.novel-toc-title-row .novel-title-main-v2 h1 {
+  max-width: 880px;
+  font-size: clamp(24px, 2.45vw, 38px);
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.028em;
+}
+
+.novel-toc-full-title {
+  max-width: 820px;
+  font-size: clamp(13px, .65vw + 10px, 17px);
+  line-height: 1.5;
+}
+
+.novel-toc-facts {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 18px;
+  border-top: 1px solid rgba(90, 57, 35, 0.10);
+}
+
+.novel-toc-status-line,
+.novel-toc-access-summary {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.novel-toc-status-line .novel-status-pill,
+.novel-toc-status-line .novel-access-pill {
+  min-height: 26px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.novel-toc-access-summary {
+  gap: 8px 18px;
+  color: var(--text);
+  font-size: clamp(13px, .45vw + 11px, 16px);
+  font-variant-numeric: tabular-nums;
+}
+
+.novel-toc-access-summary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.novel-toc-access-summary b {
+  font-weight: 850;
+}
+
+.novel-toc-reading-progress {
+  display: grid;
+  gap: 7px;
+  padding-top: 4px;
+}
+
+.novel-toc-reading-progress[hidden] {
+  display: none !important;
+}
+
+.novel-toc-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.novel-toc-reading-progress .novel-reading-progress-track {
+  width: 100%;
+  height: 7px;
+}
+
+.novel-toc-tags {
+  padding-top: 2px;
+  border-top: 1px solid rgba(90, 57, 35, 0.07);
+}
+
+.chapters-section-v2 {
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+.chapter-section-top-v2 {
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(90, 57, 35, 0.09);
+}
+
+.chapter-list-v2 {
+  gap: 8px;
+}
+
+.chapter-row-v2 {
+  border: 1px solid rgba(93, 65, 43, 0.09);
+  border-radius: 14px;
+  background: rgba(255,255,255,.55);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chapter-row-v2:hover,
+.chapter-row-v2:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 133, 37, 0.28);
+  background: rgba(255,255,255,.9);
+}
+
+@media (max-width: 760px) {
+  .library-v4 .library-book-card-v4 .library-book-title {
+    font-size: clamp(14px, 3.9vw, 17px);
+    line-height: 1.2;
+  }
+
+  .novel-toc-hero {
+    border-radius: 22px;
+  }
+
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    font-size: clamp(19px, 5.3vw, 26px);
+    line-height: 1.12;
+  }
+
+  .novel-toc-facts {
+    gap: 9px;
+    padding-top: 12px;
+  }
+
+  .novel-toc-access-summary {
+    gap: 6px 12px;
+    font-size: 11.5px;
+  }
+
+  .novel-toc-status-line .novel-status-pill,
+  .novel-toc-status-line .novel-access-pill {
+    min-height: 23px;
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  .chapters-section-v2 {
+    border-radius: 20px;
+  }
+}

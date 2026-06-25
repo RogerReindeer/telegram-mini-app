@@ -69,31 +69,27 @@
           </div>
 
           <div class="novel-toc-facts" aria-label="Информация о новелле">
-            <div class="novel-toc-fact">
-              <span class="novel-toc-fact-label">Статус</span>
-              <span class="novel-toc-fact-value">
-                <span class="novel-status-pill status-{{ novel.translation_status }}" style="--status-color: {{ novel.translation_status_color }}">
-                  {{ novel.translation_status_label }}
-                </span>
-                {% if novel.show_access_badge and novel.access_badge %}
-                  <span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
-                {% endif %}
+            <div class="novel-toc-status-line">
+              <span class="novel-status-pill status-{{ novel.translation_status }}" style="--status-color: {{ novel.translation_status_color }}">
+                {{ novel.translation_status_label }}
               </span>
+              {% if novel.show_access_badge and novel.access_badge %}
+                <span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
+              {% endif %}
             </div>
 
-            <div class="novel-toc-fact">
-              <span class="novel-toc-fact-label">Главы</span>
-              <span class="novel-toc-fact-value novel-toc-chapter-count">
-                {{ novel.translated_chapters or 0 }} из {{ novel.total_chapters or novel.translated_chapters or 0 }}
-              </span>
+            <div class="novel-toc-access-summary" aria-label="Доступность глав">
+              <span title="Открыто бесплатно">🌱 <b>{{ novel.free_chapters_count or 0 }}</b></span>
+              <span title="Доступно Хранителю">📜 <b>{{ novel.keeper_chapters_count or novel.free_chapters_count or 0 }}</b></span>
+              <span title="Переведено всего">🕘 <b>{{ novel.translated_chapters or 0 }}</b> из <b>{{ novel.total_chapters or novel.translated_chapters or 0 }}</b></span>
             </div>
 
-            <div class="novel-toc-fact novel-toc-reading-progress" data-novel-reading-progress hidden>
-              <span class="novel-toc-fact-label">Прогресс чтения</span>
-              <span class="novel-toc-fact-value">
-                <span class="novel-reading-progress-track" aria-hidden="true"><span data-novel-reading-progress-bar></span></span>
+            <div class="novel-toc-reading-progress" data-novel-reading-progress hidden>
+              <div class="novel-toc-progress-head">
+                <span>Прогресс чтения</span>
                 <span class="novel-reading-progress-text" data-novel-reading-progress-text>0 / 0</span>
-              </span>
+              </div>
+              <span class="novel-reading-progress-track" aria-hidden="true"><span data-novel-reading-progress-bar></span></span>
             </div>
           </div>
         </div>
