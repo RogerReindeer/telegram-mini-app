@@ -234,7 +234,7 @@
                     <div class="library-book-subtitle">{{ novel.library_secondary_title }}</div>
                   {% endif %}
 
-                  <div class="library-card-stats" aria-label="Сведения о книге">
+                  <div class="library-card-status-row" aria-label="Статус книги и чтения">
                     <span
                       class="library-stat-status status-{{ novel.translation_status }}"
                       data-project-status-pill
@@ -244,14 +244,18 @@
                       {{ novel.translation_status_label }}
                     </span>
                     <span class="library-card-state-pill" data-card-state-pill hidden></span>
-                    <span class="library-stat-available" title="Главы, доступные вам сейчас">
-                      📖 Доступно: {{ novel.available_chapters_count or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}
+                  </div>
+
+                  <div class="library-card-access-row" aria-label="Количество глав по уровням доступа">
+                    <span class="library-access-count library-access-free" title="Главы, открытые бесплатно">
+                      🌱 {{ novel.free_chapters_count or 0 }}
                     </span>
-                    {% if novel.show_boosty_paid_stat %}
-                      <span class="library-stat-boosty" title="Главы раннего доступа, доступные Хранителю по расписанию">
-                        📜 Ранний доступ: {{ novel.boosty_paid_chapters_count }}
-                      </span>
-                    {% endif %}
+                    <span class="library-access-count library-access-keeper" title="Главы, доступные Хранителю по расписанию">
+                      📜 {{ novel.keeper_chapters_count or 0 }}
+                    </span>
+                    <span class="library-access-count library-access-translated" title="Переведённые главы из общего количества">
+                      🕘 {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}
+                    </span>
                   </div>
 
                   <div class="library-progress-row" data-card-progress-row hidden>

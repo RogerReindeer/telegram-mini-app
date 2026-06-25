@@ -4381,3 +4381,75 @@ html {
 }
 .chapter-row-main { min-width: 0; }
 .chapter-title { overflow-wrap: anywhere; }
+
+/* v31: отдельная строка статусов и компактные счётчики доступа */
+.library-book-card-v4 .library-card-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 0 9px;
+}
+
+.library-book-card-v4 .library-card-status-row .library-stat-status,
+.library-book-card-v4 .library-card-status-row .library-card-state-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.library-book-card-v4 .library-card-access-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  min-width: 0;
+  margin: 0 0 10px;
+  color: #2d211b;
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.library-book-card-v4 .library-access-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
+  color: #e5d8ce;
+}
+
+@media (max-width: 760px) {
+  .library-book-card-v4 .library-card-status-row {
+    gap: 6px;
+    margin-bottom: 7px;
+  }
+
+  .library-book-card-v4 .library-card-status-row .library-stat-status,
+  .library-book-card-v4 .library-card-status-row .library-card-state-pill {
+    min-height: 25px;
+    padding-inline: 9px;
+    font-size: 11px;
+  }
+
+  .library-book-card-v4 .library-card-access-row {
+    gap: 6px 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+}
