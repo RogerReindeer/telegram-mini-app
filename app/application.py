@@ -7,6 +7,7 @@ import time
 import base64
 import hashlib
 import traceback
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote, urljoin, urlparse, parse_qsl
@@ -19,7 +20,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from bs4 import BeautifulSoup
 
-load_dotenv()
+SITE_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(SITE_ROOT / ".env")
 
 APP_TITLE = "Зефиркины баоцзы"
 SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
@@ -142,8 +144,8 @@ KEY_MAP_FOX = {
 }
 
 app = FastAPI(title="Zefirki Reader Mini App")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=str(SITE_ROOT / "static")), name="static")
+templates = Jinja2Templates(directory=str(SITE_ROOT / "templates"))
 
 
 def role_rank(role: Any) -> int:
