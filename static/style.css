@@ -5010,285 +5010,36 @@ textarea,
   .chapter-row-v2 { padding: 7px 8px !important; }
 }
 
-/* v37: квадратные счётчики количества новелл в разделах библиотеки */
-.library-v4 .library-section-count,
-.library-v4 .library-section-count-favorite,
-.library-section-count {
-  width: 26px;
-  min-width: 26px;
-  height: 26px;
-  min-height: 26px;
-  padding: 0;
-  border-radius: 0 !important;
-  border: 1px solid var(--gold-border, #c89a43);
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-@media (max-width: 760px) {
-  .library-v4 .library-section-count,
-  .library-v4 .library-section-count-favorite,
-  .library-section-count {
-    width: 24px;
-    min-width: 24px;
-    height: 24px;
-    min-height: 24px;
-  }
-}
-
-
 /* =====================================================================
-   V38 — восстановление отображения и финальная геометрия контролов
+   V42 — единый финальный слой после v36
+   Исправляет геометрию без вмешательства в JS и загрузку данных
    ===================================================================== */
 
-/* Сортировка должна быть такой же прямоугольной, как поиск и фильтры */
-.library-sort-pill,
-.library-sort-pill select,
-.library-actions-v4 .library-sort-pill,
-.library-actions-v4 .library-sort-pill select {
-  border-radius: 0 !important;
-}
-
-/* Счётчики остаются компактными и почти квадратными, но с лёгким скруглением */
-.library-v4 .library-section-count,
-.library-v4 .library-section-count-favorite,
-.library-section-count {
-  width: 26px !important;
-  min-width: 26px !important;
-  height: 26px !important;
-  min-height: 26px !important;
-  padding: 0 !important;
-  border-radius: 4px !important;
-  border: 1px solid var(--gold-border, #c89a43) !important;
-}
-
-/* Скрытый контейнер используется только как исходное хранилище карточек */
-#libraryRawCards {
-  display: none !important;
-}
-
-/* Видимые списки не должны схлопываться из-за старых каскадных правил */
-.library-section:not([data-library-section="hidden"]) > .library-section-list {
-  display: grid !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  min-height: 0;
-}
-
-.library-section[hidden],
-[hidden] {
-  display: none !important;
-}
-
-@media (max-width: 760px) {
-  .library-v4 .library-section-count,
-  .library-v4 .library-section-count-favorite,
-  .library-section-count {
-    width: 24px !important;
-    min-width: 24px !important;
-    height: 24px !important;
-    min-height: 24px !important;
-  }
-}
-
-/* =========================================================
-   v39 — compact library sections and rounded cover images
-   ========================================================= */
-.library-v4 .library-section {
-  margin: 4px 0 8px !important;
-}
-
-.library-v4 .library-section-header {
-  min-height: 28px !important;
-  margin: 0 !important;
-  padding: 2px 2px !important;
-  line-height: 1.1 !important;
-}
-
-.library-v4 .library-section-header + .library-section-helper {
-  margin-top: 0 !important;
-}
-
-.library-v4 .library-section-helper {
-  margin: 1px 2px 4px !important;
-  padding: 0 !important;
-  font-size: 12px !important;
-  line-height: 1.2 !important;
-}
-
-.library-v4 .library-section-list {
-  margin-top: 0 !important;
-  gap: 7px !important;
-}
-
-.library-v4 .library-section.collapsed .library-section-helper {
-  margin: 1px 2px 2px !important;
-}
-
-.library-v4 .library-section + .library-section {
-  margin-top: 6px !important;
-}
-
-.library-v4 .library-book-cover-link,
-.library-v4 .library-cover-frame {
-  border-radius: 10px !important;
-  overflow: hidden !important;
-}
-
-.library-v4 .library-book-cover {
-  border-radius: 10px !important;
-  overflow: hidden !important;
-  display: block;
-}
-
-.novel-toc-cover-panel,
-.novel-toc-cover-panel .novel-cover-large,
-.title-cover-wrap,
-.title-cover-wrap .novel-cover {
-  border-radius: 10px !important;
-  overflow: hidden !important;
-}
-
-@media (max-width: 760px) {
-  .library-v4 .library-section {
-    margin: 3px 0 7px !important;
-  }
-
-  .library-v4 .library-section-header {
-    min-height: 26px !important;
-    padding: 1px 2px !important;
-  }
-
-  .library-v4 .library-section-helper {
-    margin: 0 2px 3px !important;
-    font-size: 11.5px !important;
-    line-height: 1.15 !important;
-  }
-
-  .library-v4 .library-section-list {
-    gap: 6px !important;
-  }
-
-  .library-v4 .library-section + .library-section {
-    margin-top: 4px !important;
-  }
-
-  .library-v4 .library-book-cover-link,
-  .library-v4 .library-cover-frame,
-  .library-v4 .library-book-cover,
-  .novel-toc-cover-panel,
-  .novel-toc-cover-panel .novel-cover-large,
-  .title-cover-wrap,
-  .title-cover-wrap .novel-cover {
-    border-radius: 8px !important;
-  }
-}
-
-
-/* =========================================================
-   v40 — responsive number of tags in library cards
-   More tags appear when the card gets wider or the page is zoomed out
-   ========================================================= */
-.library-v4 .library-book-body {
-  container-type: inline-size;
-  container-name: library-card-body;
-}
-
-/* Base: keep the narrowest layout compact */
-.library-v4 .library-card-tags .library-mini-tag {
-  display: none !important;
-}
-
-.library-v4 .library-card-tags .library-mini-tag:nth-child(-n+3) {
-  display: inline-flex !important;
-}
-
-/* As the text area grows, progressively reveal more tags */
-@container library-card-body (min-width: 300px) {
-  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+4) {
-    display: inline-flex !important;
-  }
-}
-
-@container library-card-body (min-width: 420px) {
-  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+5) {
-    display: inline-flex !important;
-  }
-}
-
-@container library-card-body (min-width: 540px) {
-  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+6) {
-    display: inline-flex !important;
-  }
-}
-
-@container library-card-body (min-width: 680px) {
-  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+8) {
-    display: inline-flex !important;
-  }
-}
-
-@container library-card-body (min-width: 840px) {
-  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+10) {
-    display: inline-flex !important;
-  }
-}
-
-/* Fallback for browsers without container queries */
-@supports not (container-type: inline-size) {
-  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+5) {
-    display: inline-flex !important;
-  }
-
-  @media (min-width: 900px) {
-    .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+6) {
-      display: inline-flex !important;
-    }
-  }
-
-  @media (min-width: 1200px) {
-    .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+8) {
-      display: inline-flex !important;
-    }
-  }
-
-  @media (min-width: 1500px) {
-    .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+10) {
-      display: inline-flex !important;
-    }
-  }
-}
-
-/* =====================================================================
-   v41 — stable library controls and square tags
-   ===================================================================== */
-
-/* Search, filters and sorting always keep a stable full-width shape. */
+/* 1. Панель Поиск / Фильтры / Сортировка */
 .library-v4 .library-actions-v4 {
   display: grid !important;
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) minmax(260px, 1.35fr) !important;
   width: 100% !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 1.35fr) !important;
-  align-items: stretch !important;
   gap: 10px !important;
+  align-items: stretch !important;
   box-sizing: border-box !important;
 }
 
-.library-v4 .library-action-button,
-.library-v4 .library-sort-pill {
+.library-v4 .library-actions-v4 > .library-action-button,
+.library-v4 .library-actions-v4 > .library-sort-pill {
   width: 100% !important;
   min-width: 0 !important;
+  height: 48px !important;
   min-height: 48px !important;
+  margin: 0 !important;
   box-sizing: border-box !important;
-  align-self: stretch !important;
-  justify-self: stretch !important;
+  border: 1px solid var(--gold-border, #c89a43) !important;
   border-radius: 0 !important;
+  background: rgba(255, 253, 248, .94) !important;
 }
 
-.library-v4 .library-action-button {
-  display: inline-flex !important;
+.library-v4 .library-actions-v4 > .library-action-button {
+  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
@@ -5296,7 +5047,7 @@ textarea,
   white-space: nowrap !important;
 }
 
-.library-v4 .library-sort-pill {
+.library-v4 .library-actions-v4 > .library-sort-pill {
   display: grid !important;
   grid-template-columns: auto minmax(0, 1fr) !important;
   align-items: center !important;
@@ -5310,17 +5061,102 @@ textarea,
 }
 
 .library-v4 .library-sort-pill select {
+  display: block !important;
   width: 100% !important;
   min-width: 0 !important;
-  height: 100% !important;
-  padding: 0 26px 0 0 !important;
+  height: 46px !important;
+  margin: 0 !important;
+  padding: 0 30px 0 4px !important;
+  border: 0 !important;
   border-radius: 0 !important;
+  background-color: transparent !important;
   box-sizing: border-box !important;
 }
 
-/* Tags are rectangular with straight corners in the library and TOC. */
+/* 2. Компактные разделы библиотеки */
+.library-v4 .library-section {
+  margin: 4px 0 7px !important;
+  padding: 0 !important;
+}
+
+.library-v4 .library-section + .library-section {
+  margin-top: 5px !important;
+}
+
+.library-v4 .library-section-header {
+  min-height: 27px !important;
+  margin: 0 !important;
+  padding: 1px 2px !important;
+  line-height: 1.1 !important;
+}
+
+.library-v4 .library-section-helper {
+  margin: 0 2px 3px !important;
+  padding: 0 !important;
+  font-size: 12px !important;
+  line-height: 1.15 !important;
+}
+
+.library-v4 .library-section-list {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  margin: 0 !important;
+  gap: 6px !important;
+  min-height: 0 !important;
+}
+
+.library-v4 .library-section.collapsed .library-section-list,
+.library-v4 .library-section.collapsed .library-section-helper {
+  display: none !important;
+}
+
+.library-v4 .library-section[hidden],
+.library-v4 [hidden] {
+  display: none !important;
+}
+
+/* Внутреннее хранилище карточек остаётся скрытым */
+#libraryRawCards {
+  display: none !important;
+}
+
+/* 3. Счётчики новелл — компактные со скруглением */
+.library-v4 .library-section-count,
+.library-v4 .library-section-count-favorite,
+.library-section-count {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 25px !important;
+  min-width: 25px !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  margin-left: 6px !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  border: 1px solid var(--gold-border, #c89a43) !important;
+  border-radius: 5px !important;
+}
+
+/* 4. Скругление остаётся только у обложек */
+.library-v4 .library-book-cover-link,
+.library-v4 .library-cover-frame,
+.library-v4 .library-book-cover,
+.novel-toc-cover-panel,
+.novel-toc-cover-panel .novel-cover-large,
+.title-cover-wrap,
+.title-cover-wrap .novel-cover {
+  border-radius: 9px !important;
+  overflow: hidden !important;
+}
+
+/* 5. Все теги — прямоугольные, включая Актив / Пассив и оглавление */
 .library-v4 .library-mini-tag,
 .library-v4 .library-card-tags .tag,
+.library-v4 .library-filter-chip,
+.library-v4 .library-filter-chips button,
 .library-v4 .library-quick-tags button,
 .library-v4 .library-active-filters > *,
 .novel-tags-v2 .tag,
@@ -5329,11 +5165,7 @@ textarea,
 .tag-rating,
 .tag-spoiler,
 .tag-spoiler-reveal,
-.tag-spoiler-opened {
-  border-radius: 0 !important;
-}
-
-/* Active/passive character blocks also follow the same straight geometry. */
+.tag-spoiler-opened,
 .novel-character-info-v2 .character-card,
 .novel-character-info-v2 .character-card h2 {
   border-radius: 0 !important;
@@ -5343,13 +5175,36 @@ textarea,
   border: 1px solid var(--gold-border-soft, #d2aa61) !important;
 }
 
-/* Filter tags and active filter chips use the same square style. */
-.library-filter-chips button,
-.library-filter-chip,
-.library-quick-tags button,
-.library-active-filters button,
-.library-active-filters .active-filter-chip {
-  border-radius: 0 !important;
+/* 6. Адаптивное количество тегов в карточках */
+.library-v4 .library-book-body {
+  container-type: inline-size;
+  container-name: library-card-body;
+}
+
+.library-v4 .library-card-tags .library-mini-tag {
+  display: none !important;
+}
+.library-v4 .library-card-tags .library-mini-tag:nth-child(-n+3) {
+  display: inline-flex !important;
+}
+@container library-card-body (min-width: 300px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+4) { display: inline-flex !important; }
+}
+@container library-card-body (min-width: 420px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+5) { display: inline-flex !important; }
+}
+@container library-card-body (min-width: 540px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+6) { display: inline-flex !important; }
+}
+@container library-card-body (min-width: 680px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+8) { display: inline-flex !important; }
+}
+@container library-card-body (min-width: 840px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+10) { display: inline-flex !important; }
+}
+
+@supports not (container-type: inline-size) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+5) { display: inline-flex !important; }
 }
 
 @media (max-width: 760px) {
@@ -5358,13 +5213,52 @@ textarea,
     gap: 8px !important;
   }
 
-  .library-v4 .library-action-button,
-  .library-v4 .library-sort-pill {
+  .library-v4 .library-actions-v4 > .library-action-button,
+  .library-v4 .library-actions-v4 > .library-sort-pill {
+    height: 46px !important;
     min-height: 46px !important;
   }
 
   .library-v4 .library-sort-pill {
     grid-column: 1 / -1 !important;
+  }
+
+  .library-v4 .library-section {
+    margin: 3px 0 6px !important;
+  }
+
+  .library-v4 .library-section + .library-section {
+    margin-top: 4px !important;
+  }
+
+  .library-v4 .library-section-header {
+    min-height: 25px !important;
+    padding: 0 2px !important;
+  }
+
+  .library-v4 .library-section-helper {
+    margin: 0 2px 2px !important;
+    font-size: 11.5px !important;
+  }
+
+  .library-v4 .library-section-count,
+  .library-v4 .library-section-count-favorite,
+  .library-section-count {
+    width: 23px !important;
+    min-width: 23px !important;
+    height: 23px !important;
+    min-height: 23px !important;
+    border-radius: 4px !important;
+  }
+
+  .library-v4 .library-book-cover-link,
+  .library-v4 .library-cover-frame,
+  .library-v4 .library-book-cover,
+  .novel-toc-cover-panel,
+  .novel-toc-cover-panel .novel-cover-large,
+  .title-cover-wrap,
+  .title-cover-wrap .novel-cover {
+    border-radius: 8px !important;
   }
 }
 
@@ -5372,14 +5266,11 @@ textarea,
   .library-v4 .library-actions-v4 {
     gap: 6px !important;
   }
-
-  .library-v4 .library-action-button {
-    padding: 0 10px !important;
+  .library-v4 .library-action-button,
+  .library-v4 .library-sort-pill {
     font-size: 13px !important;
   }
-
-  .library-v4 .library-sort-pill {
-    padding: 0 10px !important;
-    font-size: 13px !important;
+  .library-v4 .library-action-button {
+    padding-inline: 10px !important;
   }
 }
