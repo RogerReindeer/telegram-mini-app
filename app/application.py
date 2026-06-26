@@ -20,12 +20,12 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from bs4 import BeautifulSoup
 
+from .database import db_select, db_upsert, supabase_ready, supabase_request
+
 SITE_ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(SITE_ROOT / ".env")
 
 APP_TITLE = "Зефиркины баоцзы"
-SUPABASE_URL = (os.getenv("SUPABASE_URL") or "").rstrip("/")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY") or ""
 SYNC_TOKEN = os.getenv("SYNC_TOKEN") or ""
 
 # Telegram Mini App authentication and membership-based access.
@@ -609,122 +609,6 @@ def compact_title_with_icons(post_icons: Any, title: Any) -> str:
     clean_title = strip_leading_service_icons_from_title(title_text) or title_text
     return f"{icons} {clean_title}".strip() if icons else clean_title
 
-
-def supabase_ready() -> bool:
-    return bool(SUPABASE_URL and SUPABASE_KEY)
-
-
-def supabase_headers(prefer: str | None = None, range_header: str | None = None) -> dict[str, str]:
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/json",
-    }
-    if prefer:
-        headers["Prefer"] = prefer
-    if range_header:
-        headers["Range-Unit"] = "items"
-        headers["Range"] = range_header
-    return headers
-
-
-def supabase_request(
-    method: str,
-    table: str,
-    params: dict[str, Any] | None = None,
-    payload: Any | None = None,
-    prefer: str | None = None,
-    range_header: str | None = None,
-) -> Any:
-    if not supabase_ready():
-        raise RuntimeError("Supabase env vars are not configured")
-    response = requests.request(
-        method=method,
-        url=f"{SUPABASE_URL}/rest/v1/{table}",
-        headers=supabase_headers(prefer=prefer, range_header=range_header),
-        params=params or {},
-        json=payload,
-        timeout=30,
-    )
-    if response.status_code >= 400:
-        raise RuntimeError(f"Supabase error {response.status_code}: {response.text}")
-    if not response.text:
-        return None
-    try:
-        return response.json()
-    except ValueError:
-        return response.text
-
-
-def db_select(
-    table: str,
-    select: str = "*",
-    filters: dict[str, str] | None = None,
-    order: str | None = None,
-    limit: int | None = None,
-) -> list[dict]:
-    params: dict[str, Any] = {"select": select}
-    if filters:
-        params.update(filters)
-    if order:
-        params["order"] = order
-    if limit:
-        params["limit"] = limit
-        result = supabase_request("GET", table, params=params)
-        return result if isinstance(result, list) else []
-
-    # Supabase часто отдаёт 1000 строк по умолчанию. Поэтому читаем постранично.
-    all_rows: list[dict] = []
-    offset = 0
-    page_size = 1000
-    while True:
-        result = supabase_request("GET", table, params=params, range_header=f"{offset}-{offset + page_size - 1}")
-        if not isinstance(result, list) or not result:
-            break
-        all_rows.extend(result)
-        if len(result) < page_size:
-            break
-        offset += page_size
-    return all_rows
-
-
-def db_upsert(
-    table: str,
-    rows: list[dict],
-    conflict_key: str,
-    batch_size: int = 100,
-) -> int:
-    """Upsert rows to Supabase in bounded batches.
-
-    Returning full representations for hundreds of chapter rows made the sync
-    unnecessarily heavy and could time out on Render/Supabase. We ask PostgREST
-    for a minimal response and count successfully submitted rows ourselves.
-    """
-    if not rows:
-        return 0
-
-    safe_batch_size = max(1, min(int(batch_size or 100), 250))
-    submitted = 0
-
-    for start in range(0, len(rows), safe_batch_size):
-        batch = rows[start:start + safe_batch_size]
-        batch_number = start // safe_batch_size + 1
-        try:
-            supabase_request(
-                "POST",
-                table,
-                params={"on_conflict": conflict_key},
-                payload=batch,
-                prefer="resolution=merge-duplicates,return=minimal",
-            )
-        except Exception as error:
-            raise RuntimeError(
-                f"Ошибка Supabase: таблица {table}, пакет {batch_number}, "
-                f"строки {start + 1}-{start + len(batch)}. {error}"
-            ) from error
-        submitted += len(batch)
-
-    return submitted
 
 
 def tag_class_name(tag: str) -> str:

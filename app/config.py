@@ -8,7 +8,10 @@ from dataclasses import dataclass
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 SITE_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(SITE_ROOT / ".env")
 
 
 def _env(name: str, default: str = "") -> str:
