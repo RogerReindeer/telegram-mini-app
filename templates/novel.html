@@ -113,14 +113,6 @@
       {% endif %}
     </section>
 
-    {% if chapters and chapters|length > 0 %}
-      <section class="novel-read-action novel-read-action-v2" aria-label="Продолжить чтение">
-        <a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">
-          Начать читать
-        </a>
-      </section>
-    {% endif %}
-
     {% if novel.description_paragraphs or novel.description %}
       <section class="novel-description-card" data-collapsible-description>
         <div class="novel-section-heading">
@@ -157,6 +149,14 @@
       </section>
     {% endif %}
 
+    {% if chapters and chapters|length > 0 %}
+      <section class="novel-read-action novel-read-action-v2">
+        <a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">
+          Начать читать
+        </a>
+      </section>
+    {% endif %}
+
     <section class="chapters-section chapters-section-v2">
       <div class="chapter-section-top-v2" id="chapterListStart">
         <div class="chapter-section-title-wrap">
@@ -167,16 +167,14 @@
           {% endif %}
         </div>
 
-        {% if chapters and chapters|length > 40 %}
-          <div class="chapter-section-actions">
-            <button class="chapter-jump-button" type="button" data-chapter-jump="end" aria-label="Перейти в конец списка глав">↓ В конец</button>
-            <button class="chapter-sort-button" type="button" data-chapter-sort-toggle data-sort-order="asc">
-              <span class="chapter-sort-icon">☷</span>
-              <span data-chapter-sort-label>По порядку</span>
-              <span class="chapter-sort-arrow">⌄</span>
-            </button>
-          </div>
-        {% endif %}
+        <div class="chapter-section-actions">
+          <button class="chapter-jump-button" type="button" data-chapter-jump="end" aria-label="Перейти в конец списка глав">↓ В конец</button>
+          <button class="chapter-sort-button" type="button" data-chapter-sort-toggle data-sort-order="asc">
+            <span class="chapter-sort-icon">☷</span>
+            <span data-chapter-sort-label>Сортировка: по порядку</span>
+            <span class="chapter-sort-arrow">⌄</span>
+          </button>
+        </div>
       </div>
 
       {% if chapters %}
@@ -216,14 +214,10 @@
               <span class="chapter-row-main">
                 <span class="chapter-title">{{ chapter.display_title }}</span>
 
-                {% if not chapter.is_available %}
-                  {% if chapter.required_role == 'keeper' %}
-                    <span class="chapter-access chapter-access-keeper">📜 Хранитель</span>
-                  {% else %}
-                    <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
-                  {% endif %}
-                {% elif chapter.required_role == 'keeper' %}
-                  <span class="chapter-access chapter-access-keeper">📜 Хранитель</span>
+                {% if chapter.required_role == 'keeper' and not chapter.is_available %}
+                  <span class="chapter-access chapter-access-keeper">📜 Ранний релиз Хранителя</span>
+                {% else %}
+                  <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
                 {% endif %}
               </span>
 
@@ -239,9 +233,7 @@
             </div>
           {% endif %}
           <div class="chapter-list-end" id="chapterListEnd">
-            {% if chapters and chapters|length > 40 %}
-              <button class="chapter-jump-button chapter-jump-button-top" type="button" data-chapter-jump="start" aria-label="Вернуться к началу списка глав">↑ К началу</button>
-            {% endif %}
+            <button class="chapter-jump-button chapter-jump-button-top" type="button" data-chapter-jump="start" aria-label="Вернуться к началу списка глав">↑ К началу</button>
           </div>
         </div>
       {% else %}

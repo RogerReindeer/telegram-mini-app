@@ -30,6 +30,7 @@
     initTelegram();
     const reloading = await initTelegramAuth();
     if (reloading) return;
+    await loadServerUserState();
 
     // Каждый модуль запускается независимо: ошибка в библиотеке не должна
     // скрывать оглавление, главы или настройки на других экранах.
@@ -61,61 +62,12 @@
 
   function initTelegram() {
     try {
-      const telegram = getTelegramWebApp();
-      if (!telegram) return;
-
-      telegram.ready();
-      applyTelegramThemeDefaults(telegram);
-      applyTelegramViewportInsets(telegram);
-
-      if (typeof telegram.onEvent === "function") {
-        telegram.onEvent("themeChanged", function () {
-          applyTelegramThemeDefaults(telegram);
-        });
-        telegram.onEvent("viewportChanged", function () {
-          applyTelegramViewportInsets(telegram);
-        });
-        telegram.onEvent("safeAreaChanged", function () {
-          applyTelegramViewportInsets(telegram);
-        });
-        telegram.onEvent("contentSafeAreaChanged", function () {
-          applyTelegramViewportInsets(telegram);
-        });
+      if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
       }
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
     }
-  }
-
-  function applyTelegramThemeDefaults(telegram) {
-    let hasSavedSettings = false;
-
-    try {
-      hasSavedSettings = Boolean(localStorage.getItem(STORAGE_KEYS.settings));
-    } catch (error) {
-      console.debug("Settings storage unavailable", error);
-    }
-
-    // Telegram задаёт стартовую тему только до первого ручного выбора читателя.
-    if (!hasSavedSettings) {
-      const settings = getSettings();
-      settings.siteTheme = telegram.colorScheme === "dark" ? "dark" : "light";
-      settings.readerTheme = telegram.colorScheme === "dark" ? "dark" : "cream";
-      saveSettings(settings);
-    }
-  }
-
-  function applyTelegramViewportInsets(telegram) {
-    const safe = telegram.safeAreaInset || {};
-    const contentSafe = telegram.contentSafeAreaInset || {};
-    const root = document.documentElement;
-
-    root.style.setProperty("--tg-safe-top", `${Number(safe.top || 0)}px`);
-    root.style.setProperty("--tg-safe-right", `${Number(safe.right || 0)}px`);
-    root.style.setProperty("--tg-safe-bottom", `${Number(safe.bottom || 0)}px`);
-    root.style.setProperty("--tg-safe-left", `${Number(safe.left || 0)}px`);
-    root.style.setProperty("--tg-content-safe-top", `${Number(contentSafe.top || 0)}px`);
-    root.style.setProperty("--tg-content-safe-bottom", `${Number(contentSafe.bottom || 0)}px`);
   }
 
   function getTelegramWebApp() {
@@ -304,6 +256,127 @@
 
   function writeJson(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
+  }
+
+
+  function isAuthenticatedViewer() {
+    return Boolean(window.ZEFIRKI_VIEWER && window.ZEFIRKI_VIEWER.authenticated && window.ZEFIRKI_VIEWER.user_id);
+  }
+
+  async function apiRequest(url, options) {
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...((options && options.headers) || {}) },
+      ...(options || {}),
+    });
+    const data = await response.json().catch(function () { return {}; });
+    if (!response.ok) throw new Error(data.detail || "Ошибка сохранения данных");
+    return data;
+  }
+
+  async function loadServerUserState() {
+    if (!isAuthenticatedViewer()) return;
+    try {
+      const data = await apiRequest("/api/user/state");
+      const progress = Array.isArray(data.progress) ? data.progress : [];
+      const library = Array.isArray(data.library) ? data.library : [];
+
+      if (progress.length === 0) {
+        await migrateLocalProgressToServer();
+      } else {
+        const history = progress.map(function (row) {
+          return {
+            novelId: String(row.novel_id),
+            novelSlug: row.novel_slug || "",
+            novelTitle: row.novel_title || "",
+            coverUrl: row.cover_url || "",
+            chapterId: row.chapter_id || "",
+            chapterTitle: row.chapter_title || "",
+            chapterIndex: Number(row.chapter_index || 0),
+            availableChapters: Number(row.available_chapters || 0),
+            scrollPosition: Number(row.scroll_position || 0),
+            updatedAt: Date.parse(row.updated_at || "") || Date.now(),
+          };
+        });
+        writeJson(STORAGE_KEYS.readingHistory, history);
+        const readIds = progress.flatMap(function (row) {
+          return Array.isArray(row.read_chapter_ids) ? row.read_chapter_ids.map(String) : [];
+        });
+        writeJson(STORAGE_KEYS.readChapters, Array.from(new Set(readIds)).slice(-3000));
+      }
+
+      if (library.length === 0) {
+        await migrateLocalLibraryToServer();
+      } else {
+        writeJson(STORAGE_KEYS.favoriteNovels, library.filter((row) => row.is_favorite).map((row) => String(row.novel_id)));
+        writeJson(STORAGE_KEYS.completedNovels, library.filter((row) => row.is_completed).map((row) => String(row.novel_id)));
+        writeJson(STORAGE_KEYS.hiddenNovels, library.filter((row) => row.is_hidden).map((row) => String(row.novel_id)));
+      }
+    } catch (error) {
+      console.warn("Серверный прогресс временно недоступен; используется локальный кеш.", error);
+    }
+  }
+
+  async function migrateLocalProgressToServer() {
+    const history = readJson(STORAGE_KEYS.readingHistory, []);
+    if (!Array.isArray(history) || history.length === 0) return;
+    const readIds = readJson(STORAGE_KEYS.readChapters, []);
+    await Promise.all(history.slice(-50).map(function (item) {
+      return saveProgressToServer(item, readIds).catch(function () {});
+    }));
+  }
+
+  async function migrateLocalLibraryToServer() {
+    const ids = new Set([].concat(
+      getIdList(STORAGE_KEYS.favoriteNovels),
+      getIdList(STORAGE_KEYS.completedNovels),
+      getIdList(STORAGE_KEYS.hiddenNovels)
+    ));
+    await Promise.all(Array.from(ids).map(function (novelId) {
+      return syncLibraryState(novelId).catch(function () {});
+    }));
+  }
+
+  function saveProgressToServer(item, readIds) {
+    if (!isAuthenticatedViewer() || !item || !item.novelId || !item.chapterId) return Promise.resolve();
+    return apiRequest("/api/user/progress", {
+      method: "PUT",
+      body: JSON.stringify({
+        novel_id: Number(item.novelId),
+        novel_slug: item.novelSlug || "",
+        novel_title: item.novelTitle || "",
+        cover_url: item.coverUrl || "",
+        chapter_id: item.chapterId,
+        chapter_title: item.chapterTitle || "",
+        chapter_index: Number(item.chapterIndex || 0),
+        available_chapters: Number(item.availableChapters || 0),
+        scroll_position: Number(item.scrollPosition || 0),
+        scroll_position_px: Math.max(0, Math.round(Number(item.scrollPositionPx || 0))),
+        completed: true,
+        read_chapter_ids: Array.isArray(readIds) ? readIds.slice(-3000) : [],
+      }),
+    });
+  }
+
+  function syncLibraryState(novelId) {
+    if (!isAuthenticatedViewer() || !novelId) return Promise.resolve();
+    return apiRequest("/api/user/library", {
+      method: "PUT",
+      body: JSON.stringify({
+        novel_id: Number(novelId),
+        is_favorite: getIdList(STORAGE_KEYS.favoriteNovels).includes(String(novelId)),
+        is_completed: getIdList(STORAGE_KEYS.completedNovels).includes(String(novelId)),
+        is_hidden: getIdList(STORAGE_KEYS.hiddenNovels).includes(String(novelId)),
+      }),
+    });
+  }
+
+  function resetProgressOnServer(novelId) {
+    if (!isAuthenticatedViewer() || !novelId) return Promise.resolve();
+    return apiRequest("/api/user/progress/reset", {
+      method: "POST",
+      body: JSON.stringify({ novel_id: Number(novelId) }),
+    });
   }
 
   function getSettings() {
@@ -823,6 +896,7 @@
 
     if (action === "favorite") {
       toggleIdInList(STORAGE_KEYS.favoriteNovels, novelId);
+      syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
       return;
@@ -830,6 +904,7 @@
 
     if (action === "mark-read") {
       addIdToList(STORAGE_KEYS.completedNovels, novelId);
+      syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
       return;
@@ -837,6 +912,7 @@
 
     if (action === "unmark-read") {
       removeIdFromList(STORAGE_KEYS.completedNovels, novelId);
+      syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
       return;
@@ -845,6 +921,8 @@
     if (action === "remove-reading" || action === "reset-progress") {
       removeReadingHistoryForNovel(novelId);
       removeIdFromList(STORAGE_KEYS.completedNovels, novelId);
+      resetProgressOnServer(novelId).catch(console.warn);
+      syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
       return;
@@ -853,6 +931,8 @@
     if (action === "reread") {
       removeReadingHistoryForNovel(novelId);
       removeIdFromList(STORAGE_KEYS.completedNovels, novelId);
+      resetProgressOnServer(novelId).catch(console.warn);
+      syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       window.location.href = `/novel/${novelSlug}`;
       return;
@@ -860,6 +940,7 @@
 
     if (action === "hide") {
       addIdToList(STORAGE_KEYS.hiddenNovels, novelId);
+      syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
     }
@@ -1170,19 +1251,6 @@
       }
     }
 
-    // Карточка выполняет главное действие: продолжает чтение либо открывает оглавление.
-    // Меню ⋮ всегда оставляет отдельный явный переход к оглавлению.
-    card.dataset.cardHref = config[5];
-    const actionLabel = state === "reading" || state === "new"
-      ? `Продолжить чтение: ${card.dataset.novelTitle || "новелла"}`
-      : `Открыть оглавление: ${card.dataset.novelTitle || "новелла"}`;
-    card.setAttribute("aria-label", actionLabel);
-
-    card.querySelectorAll(".library-book-cover-link, .library-book-title").forEach(function (link) {
-      link.setAttribute("href", config[5]);
-      link.setAttribute("aria-label", actionLabel);
-    });
-
     return state;
   }
 
@@ -1400,29 +1468,58 @@
     if (!novelId || !chapterId) return;
     const meta = readJson(STORAGE_KEYS.novelMeta, {});
     const novelMeta = meta[novelId] || {};
-    saveReadingHistoryItem({
-      novelId,
-      novelSlug: page.dataset.novelSlug || novelMeta.novelSlug || "",
-      novelTitle: page.dataset.novelTitle || novelMeta.novelTitle || "",
-      coverUrl: novelMeta.coverUrl || "",
-      chapterId,
-      chapterTitle: page.dataset.chapterTitle || "",
-      chapterIndex: Number(page.dataset.chapterIndex || 0),
-      availableChapters: Number(page.dataset.availableChapters || 0),
-      updatedAt: Date.now(),
+    const existing = readJson(STORAGE_KEYS.readingHistory, []).find(function (entry) {
+      return String(entry.novelId) === String(novelId) && String(entry.chapterId) === String(chapterId);
     });
+
+    const makeItem = function () {
+      const doc = document.documentElement;
+      const maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+      return {
+        novelId,
+        novelSlug: page.dataset.novelSlug || novelMeta.novelSlug || "",
+        novelTitle: page.dataset.novelTitle || novelMeta.novelTitle || "",
+        coverUrl: novelMeta.coverUrl || "",
+        chapterId,
+        chapterTitle: page.dataset.chapterTitle || "",
+        chapterIndex: Number(page.dataset.chapterIndex || 0),
+        availableChapters: Number(page.dataset.availableChapters || 0),
+        scrollPosition: Math.max(0, Math.min(1, window.scrollY / maxScroll)),
+        scrollPositionPx: Math.max(0, Math.round(window.scrollY)),
+        updatedAt: Date.now(),
+      };
+    };
+
     saveReadChapter(chapterId);
+    saveReadingHistoryItem(makeItem());
+
+    if (existing && Number(existing.scrollPosition) > 0) {
+      requestAnimationFrame(function () {
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+        window.scrollTo({ top: maxScroll * Number(existing.scrollPosition), behavior: "auto" });
+      });
+    }
+
+    let scrollTimer = null;
+    const persist = function () {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(function () { saveReadingHistoryItem(makeItem()); }, 700);
+    };
+    window.addEventListener("scroll", persist, { passive: true });
+    window.addEventListener("pagehide", function () { saveReadingHistoryItem(makeItem()); });
   }
 
   function saveReadingHistoryItem(item) {
     const history = readJson(STORAGE_KEYS.readingHistory, []);
-    writeJson(STORAGE_KEYS.readingHistory, history.filter((entry) => String(entry.novelId) !== String(item.novelId)).concat(item).slice(-50));
+    const nextHistory = history.filter((entry) => String(entry.novelId) !== String(item.novelId)).concat(item).slice(-50);
+    writeJson(STORAGE_KEYS.readingHistory, nextHistory);
+    saveProgressToServer(item, readJson(STORAGE_KEYS.readChapters, [])).catch(console.warn);
   }
 
   function saveReadChapter(chapterId) {
     const ids = readJson(STORAGE_KEYS.readChapters, []);
     if (!ids.includes(String(chapterId))) ids.push(String(chapterId));
-    writeJson(STORAGE_KEYS.readChapters, ids.slice(-2000));
+    writeJson(STORAGE_KEYS.readChapters, ids.slice(-3000));
   }
 
   function getNewChapterCount(novelId, lastKnownAvailableChapters) {
@@ -1441,10 +1538,7 @@
     const item = readJson(STORAGE_KEYS.readingHistory, []).find((entry) => String(entry.novelId) === String(page.dataset.novelId));
     if (item && item.chapterId) {
       button.href = `/chapter/${item.chapterId}`;
-      const chapterNumber = Math.max(1, Number(item.chapterIndex || 0) + 1);
-      button.textContent = item.chapterTitle
-        ? `Продолжить — ${item.chapterTitle}`
-        : `Продолжить — глава ${chapterNumber}`;
+      button.textContent = "Продолжить чтение";
     }
   }
 

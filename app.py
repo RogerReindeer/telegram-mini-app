@@ -1620,13 +1620,21 @@ def normalize_novel_row(row: dict) -> dict:
 
 def normalize_chapter_row(row: dict) -> dict:
     row = normalize_dict_keys(row, KEY_MAP_CHAPTER)
+    chapter_id = clean_value(row.get("chapter_id"))
+    novel_id = to_int(row.get("novel_id"), 0)
+    chapter_no = to_int(row.get("chapter_no"), 0)
+    if novel_id <= 0 or chapter_no <= 0:
+        raise ValueError("novel_id и chapter_no должны быть положительными целыми числами")
+    expected_chapter_id = f"{novel_id}-{chapter_no}"
+    if chapter_id != expected_chapter_id:
+        raise ValueError(f"chapter_id {chapter_id!r} должен быть равен {expected_chapter_id!r}")
     normalized = {
-        "chapter_id": clean_value(row.get("chapter_id")),
-        "novel_id": to_int(row.get("novel_id"), 0),
+        "chapter_id": chapter_id,
+        "novel_id": novel_id,
         "volume_no": to_int(row.get("volume_no"), 0) if clean_value(row.get("volume_no")) else None,
         "volume_title": clean_value(row.get("volume_title")) or None,
-        "chapter_no": clean_value(row.get("chapter_no")),
-        "source_chapter_no": clean_value(row.get("source_chapter_no")) or clean_value(row.get("chapter_no")),
+        "chapter_no": chapter_no,
+        "source_chapter_no": clean_value(row.get("source_chapter_no")) or str(chapter_no),
         "part_no": to_int(row.get("part_no"), 0) if clean_value(row.get("part_no")) else None,
         "chapter_title": clean_value(row.get("chapter_title")) or None,
         "planned_translation_date": parse_date(row.get("planned_translation_date")),
@@ -2329,6 +2337,357 @@ def upsert_tribute_subscription(event_name: str, payload: dict[str, Any]) -> dic
     _membership_cache.pop(telegram_user_id, None)
     return {"status": "processed", "role": role, "telegram_user_id": telegram_user_id}
 
+
+
+# ---------------------------------------------------------------------------
+# User reading state (Supabase v30 is the source of truth; localStorage is a cache)
+# ---------------------------------------------------------------------------
+
+def require_authenticated_viewer(request: Request) -> dict[str, Any]:
+    viewer = viewer_from_request(request)
+    if not viewer.get("authenticated") or not viewer.get("user_id"):
+        raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
+    return viewer
+
+
+def normalize_string_list(value: Any, limit: int = 3000) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        text = clean_value(item)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        result.append(text)
+        if len(result) >= limit:
+            break
+    return result
+
+
+def postgrest_in_filter(values: list[Any]) -> str:
+    """Build a conservative PostgREST `in.(...)` filter for numeric/text IDs."""
+    encoded: list[str] = []
+    for value in values:
+        text = clean_value(value)
+        if not text:
+            continue
+        # IDs used by this project contain only digits, letters, `_` and `-`.
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", text):
+            raise ValueError(f"Недопустимый идентификатор: {text}")
+        encoded.append(text)
+    return "in.(" + ",".join(encoded) + ")"
+
+
+def rows_by_key(rows: list[dict], key: str) -> dict[str, dict]:
+    return {
+        clean_value(row.get(key)): row
+        for row in rows
+        if clean_value(row.get(key))
+    }
+
+
+def get_user_state_rows(telegram_user_id: int) -> dict[str, Any]:
+    state_rows = db_select(
+        "user_novel_state",
+        filters={"telegram_user_id": f"eq.{telegram_user_id}"},
+        order="updated_at.desc",
+    )
+    chapter_progress_rows = db_select(
+        "user_chapter_progress",
+        filters={"telegram_user_id": f"eq.{telegram_user_id}"},
+        order="last_read_at.desc",
+    )
+
+    novel_ids = sorted({
+        to_int(row.get("novel_id"), 0)
+        for row in state_rows
+        if to_int(row.get("novel_id"), 0) > 0
+    })
+
+    # Progress may exist even if an old user_novel_state row was removed.
+    progress_chapter_ids = [
+        clean_value(row.get("chapter_id"))
+        for row in chapter_progress_rows
+        if clean_value(row.get("chapter_id"))
+    ]
+    progress_chapters: list[dict] = []
+    for offset in range(0, len(progress_chapter_ids), 100):
+        batch = progress_chapter_ids[offset:offset + 100]
+        progress_chapters.extend(db_select(
+            "chapters",
+            filters={"chapter_id": postgrest_in_filter(batch)},
+        ))
+    for chapter in progress_chapters:
+        novel_id = to_int(chapter.get("novel_id"), 0)
+        if novel_id > 0 and novel_id not in novel_ids:
+            novel_ids.append(novel_id)
+    novel_ids.sort()
+
+    novels: list[dict] = []
+    chapters: list[dict] = []
+    for offset in range(0, len(novel_ids), 100):
+        batch = novel_ids[offset:offset + 100]
+        numeric_filter = "in.(" + ",".join(str(value) for value in batch) + ")"
+        novels.extend(db_select("novels", filters={"novel_id": numeric_filter}))
+        chapters.extend(db_select(
+            "chapters",
+            filters={"novel_id": numeric_filter},
+            order="novel_id.asc,chapter_no.asc",
+        ))
+
+    novel_by_id = {to_int(row.get("novel_id"), 0): row for row in novels}
+    chapter_by_id = rows_by_key(chapters, "chapter_id")
+    chapters_by_novel: dict[int, list[dict]] = {}
+    for chapter in chapters:
+        novel_id = to_int(chapter.get("novel_id"), 0)
+        if novel_id > 0:
+            chapters_by_novel.setdefault(novel_id, []).append(chapter)
+
+    progress_by_chapter = rows_by_key(chapter_progress_rows, "chapter_id")
+    progress_by_novel: dict[int, list[dict]] = {}
+    for progress in chapter_progress_rows:
+        chapter = chapter_by_id.get(clean_value(progress.get("chapter_id")))
+        if not chapter:
+            continue
+        novel_id = to_int(chapter.get("novel_id"), 0)
+        if novel_id > 0:
+            progress_by_novel.setdefault(novel_id, []).append(progress)
+
+    state_by_novel = {
+        to_int(row.get("novel_id"), 0): row
+        for row in state_rows
+        if to_int(row.get("novel_id"), 0) > 0
+    }
+    all_novel_ids = sorted(set(state_by_novel) | set(progress_by_novel))
+
+    progress_payload: list[dict[str, Any]] = []
+    library_payload: list[dict[str, Any]] = []
+
+    for novel_id in all_novel_ids:
+        state = state_by_novel.get(novel_id, {})
+        novel = novel_by_id.get(novel_id, {})
+        novel_progress = progress_by_novel.get(novel_id, [])
+        latest_progress = novel_progress[0] if novel_progress else {}
+        last_chapter_id = (
+            clean_value(state.get("last_chapter_id"))
+            or clean_value(latest_progress.get("chapter_id"))
+        )
+        chapter = chapter_by_id.get(last_chapter_id, {})
+        ordered_chapters = chapters_by_novel.get(novel_id, [])
+        chapter_index = 0
+        for index, item in enumerate(ordered_chapters):
+            if clean_value(item.get("chapter_id")) == last_chapter_id:
+                chapter_index = index
+                break
+
+        read_ids = [
+            clean_value(row.get("chapter_id"))
+            for row in novel_progress
+            if clean_value(row.get("chapter_id"))
+        ]
+        if last_chapter_id:
+            progress_payload.append({
+                "telegram_user_id": telegram_user_id,
+                "novel_id": novel_id,
+                "novel_slug": clean_value(novel.get("code")),
+                "novel_title": clean_value(novel.get("novel_short")) or clean_value(novel.get("title_ru")),
+                "cover_url": clean_value(novel.get("cover_url")),
+                "chapter_id": last_chapter_id,
+                "chapter_title": clean_value(chapter.get("chapter_title")),
+                "chapter_index": chapter_index,
+                "available_chapters": len(ordered_chapters),
+                # Client stores a normalized ratio. Pixel position remains in Supabase too.
+                "scroll_position": to_float(latest_progress.get("progress_percent"), 0.0),
+                "scroll_position_px": max(0, to_int(latest_progress.get("scroll_position"), 0)),
+                "read_chapter_ids": read_ids,
+                "updated_at": clean_value(state.get("last_read_at"))
+                    or clean_value(latest_progress.get("last_read_at"))
+                    or clean_value(state.get("updated_at")),
+            })
+
+        library_payload.append({
+            **state,
+            "novel_id": novel_id,
+            # Compatibility aliases used by the current client.
+            "is_completed": bool(state.get("is_finished")),
+            "is_hidden": bool(state.get("is_hidden")),
+        })
+
+    return {
+        "progress": progress_payload,
+        "library": library_payload,
+        "chapter_progress": chapter_progress_rows,
+    }
+
+
+@app.get("/api/user/state")
+async def api_user_state(request: Request):
+    viewer = require_authenticated_viewer(request)
+    try:
+        state = get_user_state_rows(int(viewer["user_id"]))
+    except Exception as error:
+        print("Unable to load user state:", error)
+        raise HTTPException(
+            status_code=503,
+            detail="Не удалось загрузить прогресс из user_novel_state и user_chapter_progress.",
+        ) from error
+    return {"status": "ok", "viewer": public_viewer(viewer), **state}
+
+
+@app.put("/api/user/progress")
+async def api_save_user_progress(request: Request):
+    viewer = require_authenticated_viewer(request)
+    payload = await request.json()
+    novel_id = to_int(payload.get("novel_id"), 0)
+    chapter_id = clean_value(payload.get("chapter_id"))
+    if novel_id <= 0 or not chapter_id:
+        raise HTTPException(status_code=400, detail="Нужны novel_id и chapter_id")
+
+    chapter_rows = db_select(
+        "chapters",
+        filters={
+            "chapter_id": f"eq.{chapter_id}",
+            "novel_id": f"eq.{novel_id}",
+        },
+        limit=1,
+    )
+    if not chapter_rows:
+        raise HTTPException(status_code=404, detail="Глава не найдена или относится к другой новелле")
+
+    progress_percent = max(0.0, min(1.0, to_float(payload.get("scroll_position"), 0.0)))
+    scroll_position_px = max(0, to_int(payload.get("scroll_position_px"), 0))
+    now_iso = utc_now().isoformat()
+    user_id = int(viewer["user_id"])
+
+    progress_row = {
+        "telegram_user_id": user_id,
+        "chapter_id": chapter_id,
+        "progress_percent": progress_percent,
+        "scroll_position": scroll_position_px,
+        # Existing UX treats an opened chapter as read.
+        "completed": bool(payload.get("completed", True)),
+        "last_read_at": now_iso,
+    }
+    novel_state_row = {
+        "telegram_user_id": user_id,
+        "novel_id": novel_id,
+        "is_reading": True,
+        "is_finished": False,
+        "last_chapter_id": chapter_id,
+        "last_read_at": now_iso,
+    }
+    try:
+        db_upsert(
+            "user_chapter_progress",
+            [progress_row],
+            "telegram_user_id,chapter_id",
+            batch_size=1,
+        )
+        db_upsert(
+            "user_novel_state",
+            [novel_state_row],
+            "telegram_user_id,novel_id",
+            batch_size=1,
+        )
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=400, detail="Некорректные данные прогресса") from error
+
+    return {
+        "status": "ok",
+        "progress": {
+            **progress_row,
+            "novel_id": novel_id,
+            "scroll_position": progress_percent,
+            "scroll_position_px": scroll_position_px,
+        },
+    }
+
+
+@app.post("/api/user/progress/reset")
+async def api_reset_user_progress(request: Request):
+    viewer = require_authenticated_viewer(request)
+    payload = await request.json()
+    novel_id = to_int(payload.get("novel_id"), 0)
+    if novel_id <= 0:
+        raise HTTPException(status_code=400, detail="Нужен novel_id")
+
+    user_id = int(viewer["user_id"])
+    chapter_rows = db_select(
+        "chapters",
+        select="chapter_id",
+        filters={"novel_id": f"eq.{novel_id}"},
+    )
+    chapter_ids = [clean_value(row.get("chapter_id")) for row in chapter_rows if clean_value(row.get("chapter_id"))]
+    for offset in range(0, len(chapter_ids), 100):
+        batch = chapter_ids[offset:offset + 100]
+        supabase_request(
+            "DELETE",
+            "user_chapter_progress",
+            params={
+                "telegram_user_id": f"eq.{user_id}",
+                "chapter_id": postgrest_in_filter(batch),
+            },
+            prefer="return=minimal",
+        )
+
+    supabase_request(
+        "PATCH",
+        "user_novel_state",
+        params={
+            "telegram_user_id": f"eq.{user_id}",
+            "novel_id": f"eq.{novel_id}",
+        },
+        payload={
+            "is_reading": False,
+            "is_finished": False,
+            "last_chapter_id": None,
+            "last_read_at": None,
+        },
+        prefer="return=minimal",
+    )
+    return {"status": "ok", "deleted_chapter_progress": len(chapter_ids)}
+
+
+@app.put("/api/user/library")
+async def api_save_user_library(request: Request):
+    viewer = require_authenticated_viewer(request)
+    payload = await request.json()
+    novel_id = to_int(payload.get("novel_id"), 0)
+    if novel_id <= 0:
+        raise HTTPException(status_code=400, detail="Нужен novel_id")
+
+    user_id = int(viewer["user_id"])
+    existing_rows = db_select(
+        "user_novel_state",
+        filters={
+            "telegram_user_id": f"eq.{user_id}",
+            "novel_id": f"eq.{novel_id}",
+        },
+        limit=1,
+    )
+    existing = existing_rows[0] if existing_rows else {}
+    is_finished = bool(payload.get("is_completed", payload.get("is_finished", False)))
+    row = {
+        "telegram_user_id": user_id,
+        "novel_id": novel_id,
+        "is_favorite": bool(payload.get("is_favorite")),
+        "is_finished": is_finished,
+        "is_hidden": bool(payload.get("is_hidden")),
+        "is_reading": False if is_finished else bool(existing.get("is_reading")),
+        "last_chapter_id": existing.get("last_chapter_id"),
+        "last_read_at": existing.get("last_read_at"),
+    }
+    db_upsert("user_novel_state", [row], "telegram_user_id,novel_id", batch_size=1)
+    return {
+        "status": "ok",
+        "library": {
+            **row,
+            "is_completed": row["is_finished"],
+        },
+    }
+
 @app.get("/health")
 async def health():
     return {
@@ -2670,7 +3029,7 @@ async def import_boosty_order(request: Request, token: str | None = Query(defaul
 
 def validate_sync_token(request: Request, token: str | None) -> None:
     if not SYNC_TOKEN:
-        return
+        raise HTTPException(status_code=503, detail="SYNC_TOKEN не настроен")
     header_token = request.headers.get("x-sync-token") or request.headers.get("X-Sync-Token")
     bearer = request.headers.get("authorization") or request.headers.get("Authorization") or ""
     if bearer.lower().startswith("bearer "):
