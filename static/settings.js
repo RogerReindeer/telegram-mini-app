@@ -61,12 +61,61 @@
 
   function initTelegram() {
     try {
-      if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
+      const telegram = getTelegramWebApp();
+      if (!telegram) return;
+
+      telegram.ready();
+      applyTelegramThemeDefaults(telegram);
+      applyTelegramViewportInsets(telegram);
+
+      if (typeof telegram.onEvent === "function") {
+        telegram.onEvent("themeChanged", function () {
+          applyTelegramThemeDefaults(telegram);
+        });
+        telegram.onEvent("viewportChanged", function () {
+          applyTelegramViewportInsets(telegram);
+        });
+        telegram.onEvent("safeAreaChanged", function () {
+          applyTelegramViewportInsets(telegram);
+        });
+        telegram.onEvent("contentSafeAreaChanged", function () {
+          applyTelegramViewportInsets(telegram);
+        });
       }
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
     }
+  }
+
+  function applyTelegramThemeDefaults(telegram) {
+    let hasSavedSettings = false;
+
+    try {
+      hasSavedSettings = Boolean(localStorage.getItem(STORAGE_KEYS.settings));
+    } catch (error) {
+      console.debug("Settings storage unavailable", error);
+    }
+
+    // Telegram задаёт стартовую тему только до первого ручного выбора читателя.
+    if (!hasSavedSettings) {
+      const settings = getSettings();
+      settings.siteTheme = telegram.colorScheme === "dark" ? "dark" : "light";
+      settings.readerTheme = telegram.colorScheme === "dark" ? "dark" : "cream";
+      saveSettings(settings);
+    }
+  }
+
+  function applyTelegramViewportInsets(telegram) {
+    const safe = telegram.safeAreaInset || {};
+    const contentSafe = telegram.contentSafeAreaInset || {};
+    const root = document.documentElement;
+
+    root.style.setProperty("--tg-safe-top", `${Number(safe.top || 0)}px`);
+    root.style.setProperty("--tg-safe-right", `${Number(safe.right || 0)}px`);
+    root.style.setProperty("--tg-safe-bottom", `${Number(safe.bottom || 0)}px`);
+    root.style.setProperty("--tg-safe-left", `${Number(safe.left || 0)}px`);
+    root.style.setProperty("--tg-content-safe-top", `${Number(contentSafe.top || 0)}px`);
+    root.style.setProperty("--tg-content-safe-bottom", `${Number(contentSafe.bottom || 0)}px`);
   }
 
   function getTelegramWebApp() {
@@ -1121,6 +1170,19 @@
       }
     }
 
+    // Карточка выполняет главное действие: продолжает чтение либо открывает оглавление.
+    // Меню ⋮ всегда оставляет отдельный явный переход к оглавлению.
+    card.dataset.cardHref = config[5];
+    const actionLabel = state === "reading" || state === "new"
+      ? `Продолжить чтение: ${card.dataset.novelTitle || "новелла"}`
+      : `Открыть оглавление: ${card.dataset.novelTitle || "новелла"}`;
+    card.setAttribute("aria-label", actionLabel);
+
+    card.querySelectorAll(".library-book-cover-link, .library-book-title").forEach(function (link) {
+      link.setAttribute("href", config[5]);
+      link.setAttribute("aria-label", actionLabel);
+    });
+
     return state;
   }
 
@@ -1379,7 +1441,10 @@
     const item = readJson(STORAGE_KEYS.readingHistory, []).find((entry) => String(entry.novelId) === String(page.dataset.novelId));
     if (item && item.chapterId) {
       button.href = `/chapter/${item.chapterId}`;
-      button.textContent = "Продолжить чтение";
+      const chapterNumber = Math.max(1, Number(item.chapterIndex || 0) + 1);
+      button.textContent = item.chapterTitle
+        ? `Продолжить — ${item.chapterTitle}`
+        : `Продолжить — глава ${chapterNumber}`;
     }
   }
 

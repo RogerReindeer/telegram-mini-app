@@ -5274,3 +5274,360 @@ textarea,
     padding-inline: 10px !important;
   }
 }
+
+/* =========================================================
+   V12 — mobile-first UI polish for Telegram Mini App
+   ========================================================= */
+
+:root {
+  --ui-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --reading-font: Georgia, "Times New Roman", serif;
+  --tg-safe-top: 0px;
+  --tg-safe-right: 0px;
+  --tg-safe-bottom: 0px;
+  --tg-safe-left: 0px;
+  --tg-content-safe-top: 0px;
+  --tg-content-safe-bottom: 0px;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+.page-library,
+.page-novel,
+.page-chapter {
+  font-family: var(--ui-font);
+}
+
+.chapter-content {
+  font-family: var(--reading-font);
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.page,
+.library-app-shell {
+  padding-left: max(12px, env(safe-area-inset-left), var(--tg-safe-left));
+  padding-right: max(12px, env(safe-area-inset-right), var(--tg-safe-right));
+  padding-bottom: max(72px, calc(env(safe-area-inset-bottom) + 56px), calc(var(--tg-safe-bottom) + 56px));
+}
+
+.settings-fab {
+  right: max(12px, env(safe-area-inset-right), var(--tg-safe-right));
+  bottom: max(12px, env(safe-area-inset-bottom), var(--tg-safe-bottom));
+}
+
+.app-size-fab {
+  top: max(12px, env(safe-area-inset-top), var(--tg-safe-top));
+  right: max(12px, env(safe-area-inset-right), var(--tg-safe-right));
+}
+
+/* Controls are flatter and visually secondary to the books themselves. */
+.library-v4 .library-actions-v4 {
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+}
+
+.library-v4 .library-action-button,
+.library-v4 .library-sort-pill {
+  min-height: 44px;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.library-v4 .library-sort-pill {
+  width: auto;
+  min-width: 48px;
+  padding: 0 10px;
+}
+
+.library-v4 .library-sort-pill > span {
+  display: none;
+}
+
+.library-v4 .library-sort-pill select {
+  max-width: 132px;
+}
+
+/* Completed books stay attractive; grayscale is reserved for unavailable books. */
+.library-book-card.is-finished,
+.library-book-card-v4.is-finished {
+  opacity: 1;
+}
+
+.library-book-card.is-finished .library-book-cover,
+.library-book-card-v4.is-finished .library-book-cover {
+  filter: none;
+}
+
+.library-book-card.is-locked .library-book-cover,
+.library-book-card.is-soon .library-book-cover,
+.library-book-card-v4.is-locked .library-book-cover,
+.library-book-card-v4.is-soon .library-book-cover {
+  filter: grayscale(.48);
+}
+
+/* Cards carry only essential catalogue information. */
+.library-book-card-v4 {
+  box-shadow: 0 8px 22px rgba(80, 50, 20, 0.07);
+}
+
+.library-book-card-v4:hover {
+  box-shadow: 0 12px 28px rgba(80, 50, 20, 0.10);
+}
+
+.library-book-card-v4 .library-book-title {
+  font-weight: 760;
+}
+
+.library-book-card-v4 .library-book-subtitle {
+  font-style: normal;
+}
+
+.library-card-access-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.library-access-count {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0 9px;
+  border: 1px solid rgba(102, 66, 42, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.70);
+  color: #514039;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.library-card-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.library-card-tags .library-mini-tag:nth-child(n+4) {
+  display: none;
+}
+
+/* Primary reading action belongs immediately below the title hero. */
+.novel-read-action-v2 {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top), var(--tg-content-safe-top));
+  z-index: 20;
+  margin: -2px 0 16px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--page-bg) 86%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.novel-read-action-v2 .novel-continue-button {
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  text-align: center;
+}
+
+/* Open chapters no longer need a repeated “Открыта” badge. */
+.chapter-row-v2 {
+  min-height: 54px;
+}
+
+.chapter-row-v2 .chapter-row-arrow {
+  opacity: .58;
+}
+
+.chapter-row-v2:not(.chapter-row-locked) .chapter-row-icon {
+  opacity: .55;
+}
+
+/* Visible keyboard focus across all interactive controls. */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+[role="link"]:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 3px;
+}
+
+body[data-site-theme="dark"] .library-access-count {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0e7e0;
+}
+
+body[data-site-theme="dark"] .novel-read-action-v2 {
+  background: color-mix(in srgb, var(--page-bg) 88%, transparent);
+}
+
+@media (max-width: 640px) {
+  .library-app-shell {
+    padding-top: max(10px, env(safe-area-inset-top), var(--tg-content-safe-top));
+  }
+
+  .library-hero {
+    min-height: 118px;
+    padding-top: 12px;
+  }
+
+  .library-hero h1 {
+    font-size: clamp(34px, 10vw, 44px);
+  }
+
+  .library-hero p {
+    font-size: 15px;
+  }
+
+  .library-v4 .library-actions-v4 {
+    grid-template-columns: 1fr 1fr 48px;
+  }
+
+  .library-v4 .library-sort-pill {
+    grid-column: auto;
+    width: 48px;
+    overflow: hidden;
+  }
+
+  .library-v4 .library-sort-pill::before {
+    content: "↕";
+    flex: 0 0 auto;
+    font-size: 18px;
+  }
+
+  .library-v4 .library-sort-pill select {
+    position: absolute;
+    width: 48px;
+    height: 44px;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .library-book-card-v4 {
+    grid-template-columns: 98px minmax(0, 1fr);
+    gap: 12px;
+    min-height: 158px;
+    padding: 11px;
+    border-radius: 18px;
+  }
+
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 98px;
+  }
+
+  .library-book-card-v4 .library-book-cover {
+    height: 138px;
+  }
+
+  .library-card-fox {
+    display: none;
+  }
+
+  .library-book-card-v4 .library-book-topline {
+    min-height: 32px;
+    padding-right: 42px;
+  }
+
+  .library-book-card-v4 .library-book-title {
+    font-size: 16px;
+    line-height: 1.22;
+  }
+
+  .library-book-subtitle {
+    display: -webkit-box;
+    padding-right: 0;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.35;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .library-access-count {
+    min-height: 25px;
+    padding: 0 7px;
+    font-size: 10.5px;
+  }
+
+  .library-card-access-row .library-access-translated {
+    flex-basis: auto;
+  }
+
+  .library-card-tags {
+    display: none;
+  }
+
+  .library-section-header {
+    font-size: 18px;
+  }
+
+  .novel-read-action-v2 {
+    top: max(6px, env(safe-area-inset-top), var(--tg-content-safe-top));
+    border-radius: 18px;
+  }
+
+  .chapter-content {
+    padding: 24px 18px;
+  }
+}
+
+@media (max-width: 380px) {
+  .library-app-shell {
+    padding-left: max(8px, env(safe-area-inset-left), var(--tg-safe-left));
+    padding-right: max(8px, env(safe-area-inset-right), var(--tg-safe-right));
+  }
+
+  .library-book-card-v4 {
+    grid-template-columns: 86px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 142px;
+    padding: 10px;
+  }
+
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 86px;
+  }
+
+  .library-book-card-v4 .library-book-cover {
+    height: 122px;
+  }
+
+  .library-access-count {
+    font-size: 10px;
+  }
+
+  .library-card-status-row .library-card-state-pill {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
