@@ -5186,3 +5186,200 @@ textarea,
     border-radius: 8px !important;
   }
 }
+
+
+/* =========================================================
+   v40 — responsive number of tags in library cards
+   More tags appear when the card gets wider or the page is zoomed out
+   ========================================================= */
+.library-v4 .library-book-body {
+  container-type: inline-size;
+  container-name: library-card-body;
+}
+
+/* Base: keep the narrowest layout compact */
+.library-v4 .library-card-tags .library-mini-tag {
+  display: none !important;
+}
+
+.library-v4 .library-card-tags .library-mini-tag:nth-child(-n+3) {
+  display: inline-flex !important;
+}
+
+/* As the text area grows, progressively reveal more tags */
+@container library-card-body (min-width: 300px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+4) {
+    display: inline-flex !important;
+  }
+}
+
+@container library-card-body (min-width: 420px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+5) {
+    display: inline-flex !important;
+  }
+}
+
+@container library-card-body (min-width: 540px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+6) {
+    display: inline-flex !important;
+  }
+}
+
+@container library-card-body (min-width: 680px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+8) {
+    display: inline-flex !important;
+  }
+}
+
+@container library-card-body (min-width: 840px) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+10) {
+    display: inline-flex !important;
+  }
+}
+
+/* Fallback for browsers without container queries */
+@supports not (container-type: inline-size) {
+  .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+5) {
+    display: inline-flex !important;
+  }
+
+  @media (min-width: 900px) {
+    .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+6) {
+      display: inline-flex !important;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+8) {
+      display: inline-flex !important;
+    }
+  }
+
+  @media (min-width: 1500px) {
+    .library-v4 .library-card-tags .library-mini-tag:nth-child(-n+10) {
+      display: inline-flex !important;
+    }
+  }
+}
+
+/* =====================================================================
+   v41 — stable library controls and square tags
+   ===================================================================== */
+
+/* Search, filters and sorting always keep a stable full-width shape. */
+.library-v4 .library-actions-v4 {
+  display: grid !important;
+  width: 100% !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 1.35fr) !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.library-v4 .library-action-button,
+.library-v4 .library-sort-pill {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  align-self: stretch !important;
+  justify-self: stretch !important;
+  border-radius: 0 !important;
+}
+
+.library-v4 .library-action-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 0 16px !important;
+  white-space: nowrap !important;
+}
+
+.library-v4 .library-sort-pill {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 0 12px !important;
+  overflow: hidden !important;
+}
+
+.library-v4 .library-sort-pill > span {
+  white-space: nowrap !important;
+}
+
+.library-v4 .library-sort-pill select {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  padding: 0 26px 0 0 !important;
+  border-radius: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Tags are rectangular with straight corners in the library and TOC. */
+.library-v4 .library-mini-tag,
+.library-v4 .library-card-tags .tag,
+.library-v4 .library-quick-tags button,
+.library-v4 .library-active-filters > *,
+.novel-tags-v2 .tag,
+.novel-toc-tags .tag,
+.novel-toc-tags .tag-spoiler-reveal,
+.tag-rating,
+.tag-spoiler,
+.tag-spoiler-reveal,
+.tag-spoiler-opened {
+  border-radius: 0 !important;
+}
+
+/* Active/passive character blocks also follow the same straight geometry. */
+.novel-character-info-v2 .character-card,
+.novel-character-info-v2 .character-card h2 {
+  border-radius: 0 !important;
+}
+
+.novel-character-info-v2 .character-card {
+  border: 1px solid var(--gold-border-soft, #d2aa61) !important;
+}
+
+/* Filter tags and active filter chips use the same square style. */
+.library-filter-chips button,
+.library-filter-chip,
+.library-quick-tags button,
+.library-active-filters button,
+.library-active-filters .active-filter-chip {
+  border-radius: 0 !important;
+}
+
+@media (max-width: 760px) {
+  .library-v4 .library-actions-v4 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .library-v4 .library-action-button,
+  .library-v4 .library-sort-pill {
+    min-height: 46px !important;
+  }
+
+  .library-v4 .library-sort-pill {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .library-v4 .library-actions-v4 {
+    gap: 6px !important;
+  }
+
+  .library-v4 .library-action-button {
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+
+  .library-v4 .library-sort-pill {
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+}
