@@ -149,3 +149,40 @@ def normalize_slug(value: Any) -> str:
     text = re.sub(r"[^\wа-яА-Я-]+", "-", text, flags=re.UNICODE)
     text = re.sub(r"-+", "-", text).strip("-")
     return text or "item"
+
+
+def parse_chapter_id(value: Any) -> dict[str, int] | None:
+    """Parse MiniApp ChapterID.
+
+    Valid forms:
+      - NovelID-ChapterNo, for example 2-50;
+      - NovelID-ChapterNo-PartNo, for example 2-52-1 and 2-52-2.
+    """
+    text = clean_value(value)
+    match = re.fullmatch(r"(\d+)-(\d+)(?:-(\d+))?", text)
+    if not match:
+        return None
+    novel_id = int(match.group(1))
+    chapter_no = int(match.group(2))
+    part_no = int(match.group(3)) if match.group(3) else None
+    if novel_id <= 0 or chapter_no <= 0 or (part_no is not None and part_no <= 0):
+        return None
+    return {"novel_id": novel_id, "chapter_no": chapter_no, "part_no": part_no}
+
+
+def expected_chapter_id(novel_id: Any, chapter_no: Any, part_no: Any = None) -> str:
+    base_novel_id = to_int(novel_id, 0)
+    base_chapter_no = to_int(chapter_no, 0)
+    base_part_no = to_int(part_no, 0) if clean_value(part_no) else 0
+    if base_novel_id <= 0 or base_chapter_no <= 0:
+        return ""
+    base = f"{base_novel_id}-{base_chapter_no}"
+    return f"{base}-{base_part_no}" if base_part_no > 0 else base
+
+
+def chapter_id_matches_parts(chapter_id: Any, novel_id: Any, chapter_no: Any, part_no: Any = None) -> bool:
+    parsed = parse_chapter_id(chapter_id)
+    if not parsed:
+        return False
+    effective_part_no = part_no if clean_value(part_no) else parsed.get("part_no")
+    return clean_value(chapter_id) == expected_chapter_id(novel_id, chapter_no, effective_part_no)

@@ -5,6 +5,7 @@ from typing import Any
 
 from ..database import db_select, supabase_ready
 from ..cache import cache_get_or_set, catalog_cache_ttl
+from ..utils import expected_chapter_id, parse_chapter_id
 from .reader import (
     clean_value,
     to_int,
@@ -174,11 +175,17 @@ def normalize_chapter_row(row: dict) -> dict:
     chapter_id = clean_value(row.get("chapter_id"))
     novel_id = to_int(row.get("novel_id"), 0)
     chapter_no = to_int(row.get("chapter_no"), 0)
+    parsed_id = parse_chapter_id(chapter_id)
+    explicit_part_no = to_int(row.get("part_no"), 0) if clean_value(row.get("part_no")) else None
+    part_no = explicit_part_no if explicit_part_no else (parsed_id or {}).get("part_no")
     if novel_id <= 0 or chapter_no <= 0:
         raise ValueError("novel_id и chapter_no должны быть положительными целыми числами")
-    expected_chapter_id = f"{novel_id}-{chapter_no}"
-    if chapter_id != expected_chapter_id:
-        raise ValueError(f"chapter_id {chapter_id!r} должен быть равен {expected_chapter_id!r}")
+    expected_id = expected_chapter_id(novel_id, chapter_no, part_no)
+    if not parsed_id or chapter_id != expected_id:
+        raise ValueError(
+            f"chapter_id {chapter_id!r} должен быть равен {expected_id!r}. "
+            "Поддерживаются формы NovelID-ChapterNo и NovelID-ChapterNo-PartNo, например 2-50, 2-52-1, 2-52-2."
+        )
     normalized = {
         "chapter_id": chapter_id,
         "novel_id": novel_id,
@@ -186,7 +193,7 @@ def normalize_chapter_row(row: dict) -> dict:
         "volume_title": clean_value(row.get("volume_title")) or None,
         "chapter_no": chapter_no,
         "source_chapter_no": clean_value(row.get("source_chapter_no")) or str(chapter_no),
-        "part_no": to_int(row.get("part_no"), 0) if clean_value(row.get("part_no")) else None,
+        "part_no": part_no,
         "chapter_title": clean_value(row.get("chapter_title")) or None,
         "planned_translation_date": parse_date(row.get("planned_translation_date")),
         "translation_date": parse_date(row.get("translation_date")),

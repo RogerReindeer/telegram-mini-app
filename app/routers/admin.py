@@ -70,6 +70,18 @@ async def metrics_summary(request: Request, token: str | None = Query(default=No
     return metrics_snapshot()
 
 
+@router.get("/events/recent")
+async def recent_events(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    snapshot = metrics_snapshot()
+    return {
+        "status": "ok",
+        "checked_at": snapshot.get("checked_at"),
+        "recent_events": snapshot.get("recent_events", []),
+        "note": "Events are in-memory and reset after redeploy/restart; secrets and raw payloads are not stored.",
+    }
+
+
 @router.post("/metrics/reset")
 async def metrics_reset(request: Request, token: str | None = Query(default=None)):
     _require_admin(request, token)

@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from .utils import parse_chapter_id
+
 
 class StrictInputModel(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -30,8 +32,13 @@ class SaveProgressPayload(StrictInputModel):
     @field_validator("chapter_id")
     @classmethod
     def chapter_id_is_safe(cls, value: str) -> str:
-        if not value.replace("-", "").replace("_", "").isalnum():
-            raise ValueError("chapter_id содержит недопустимые символы")
+        # Разрешаем реальные ChapterID из CRM:
+        #   2-50     обычная глава;
+        #   2-52-1   глава 52, часть 1;
+        #   2-52-2   глава 52, часть 2.
+        # Другие символы не допускаем, чтобы ID нельзя было использовать как путь/SQL-фрагмент.
+        if not parse_chapter_id(value):
+            raise ValueError("chapter_id должен быть в формате NovelID-ChapterNo или NovelID-ChapterNo-PartNo")
         return value
 
 

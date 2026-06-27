@@ -17,6 +17,7 @@ from ..cache import cache_stats
 from ..database import db_select, supabase_ready
 from .catalog import adapt_chapter_from_db, adapt_novel_from_db, get_all_chapters, get_all_novels, get_fox
 from .sync import parse_date
+from ..utils import expected_chapter_id
 
 ALLOWED_CONTENT_HOSTS = {
     "telegra.ph",
@@ -154,7 +155,8 @@ def build_content_audit() -> dict[str, Any]:
         chapter_id = _clean(chapter.get("chapter_id"))
         novel_id = int(chapter.get("novel_id") or 0)
         chapter_no = int(chapter.get("chapter_no") or 0)
-        expected_id = f"{novel_id}-{chapter_no}" if novel_id and chapter_no else ""
+        part_no = chapter.get("part_no")
+        expected_id = expected_chapter_id(novel_id, chapter_no, part_no) if novel_id and chapter_no else ""
         translation_date = parse_date(chapter.get("translation_date"))
         free_date = parse_date(chapter.get("free_release_date"))
         premium_date = parse_date(chapter.get("premium_release_date"))
@@ -168,7 +170,7 @@ def build_content_audit() -> dict[str, Any]:
         if chapter_ids[chapter_id] > 1:
             _add_problem(problems, severity="error", code="duplicate_chapter_id", message=f"Повторяется ChapterID: {chapter_id}.", novel_id=novel_id, chapter_id=chapter_id, field="chapter_id")
         if expected_id and chapter_id != expected_id:
-            _add_problem(problems, severity="error", code="chapter_id_mismatch", message=f"ChapterID должен быть {expected_id}.", novel_id=novel_id, chapter_id=chapter_id, field="chapter_id")
+            _add_problem(problems, severity="error", code="chapter_id_mismatch", message=f"ChapterID должен быть {expected_id}. Для частей используйте NovelID-ChapterNo-PartNo, например 2-52-1.", novel_id=novel_id, chapter_id=chapter_id, field="chapter_id")
         if novel_id not in visible_novel_ids and novel_id not in chapters_by_novel:
             _add_problem(problems, severity="warning", code="chapter_without_known_novel", message="Глава ссылается на неизвестную новеллу.", novel_id=novel_id, chapter_id=chapter_id)
         if has_any_url and not translation_date:
@@ -195,8 +197,14 @@ def build_content_audit() -> dict[str, Any]:
 
     severity_counts = Counter(problem["severity"] for problem in problems)
     problem_counts = Counter(problem["code"] for problem in problems)
+    problems_by_severity = {
+        "critical": [problem for problem in problems if problem.get("severity") == "error"],
+        "warning": [problem for problem in problems if problem.get("severity") == "warning"],
+        "info": [problem for problem in problems if problem.get("severity") == "info"],
+    }
+    launch_blockers = problems_by_severity["critical"]
     return {
-        "status": "attention" if severity_counts.get("error") else "ok",
+        "status": "blocked" if launch_blockers else "attention" if severity_counts.get("warning") else "ok",
         "checked_at": datetime.now(timezone.utc).isoformat(),
         "counts": {
             "novels": len(novels),
@@ -206,8 +214,14 @@ def build_content_audit() -> dict[str, Any]:
             "errors": severity_counts.get("error", 0),
             "warnings": severity_counts.get("warning", 0),
             "info": severity_counts.get("info", 0),
+            "launch_blockers": len(launch_blockers),
         },
         "problem_codes": dict(sorted(problem_counts.items())),
+        "problems_by_severity": {
+            "critical": problems_by_severity["critical"][:100],
+            "warning": problems_by_severity["warning"][:200],
+            "info": problems_by_severity["info"][:200],
+        },
         "problems": problems[:500],
         "truncated": len(problems) > 500,
         "latest_sync_runs": _latest_sync_runs(5),
