@@ -13,6 +13,7 @@ from ..security import require_sync_token
 from ..services.diagnostics import build_catalog_export, build_content_audit
 from ..services.production import build_production_report
 from ..services.metrics import metrics_snapshot, reset_metrics
+from ..services.render_smoke import render_smoke_plan
 
 router = APIRouter(prefix="/api/admin")
 
@@ -88,6 +89,16 @@ async def export_manifest(request: Request, token: str | None = Query(default=No
         "not_included": ["user progress", "payments", "subscriptions", "tokens", "sync_runs"],
         "warning": "This catalog export is not a full Supabase backup.",
     }
+
+
+@router.get("/render/smoke-plan")
+async def render_smoke_plan_endpoint(
+    request: Request,
+    token: str | None = Query(default=None),
+    base_url: str | None = Query(default=None),
+):
+    _require_admin(request, token)
+    return render_smoke_plan(base_url=base_url or "")
 
 
 @router.get("/release/check")
