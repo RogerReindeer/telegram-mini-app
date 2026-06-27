@@ -45,6 +45,7 @@
       initChapterContentCache,
       initChapterProgress,
       initChapterScrollProgress,
+      initReaderFloatingControls,
       initChapterRetry,
       initNovelReadButton,
       initNovelReadingProgress,
@@ -1939,6 +1940,55 @@
     window.addEventListener("resize", requestUpdate, { passive: true });
   }
 
+  function initReaderFloatingControls() {
+    const page = document.querySelector("[data-chapter-page]");
+    const controls = document.querySelector("[data-reader-floating-controls]");
+    if (!page || !controls || page.dataset.isLocked === "true") return;
+
+    const upButton = controls.querySelector("[data-scroll-up]");
+    const downButton = controls.querySelector("[data-scroll-down]");
+
+    const scrollByPage = function (direction) {
+      const distance = Math.max(260, Math.round(window.innerHeight * 0.82));
+      window.scrollBy({ top: direction * distance, behavior: "smooth" });
+    };
+
+    if (upButton) {
+      upButton.addEventListener("click", function () {
+        if (window.scrollY <= Math.max(80, window.innerHeight * 0.18)) {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
+        scrollByPage(-1);
+      });
+    }
+
+    if (downButton) {
+      downButton.addEventListener("click", function () {
+        scrollByPage(1);
+      });
+    }
+
+    let ticking = false;
+    const update = function () {
+      ticking = false;
+      const doc = document.documentElement;
+      const maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const progress = clampNumber(window.scrollY / maxScroll, 0, 1);
+      controls.classList.toggle("reader-floating-controls-at-top", progress < 0.02);
+      controls.classList.toggle("reader-floating-controls-at-bottom", progress > 0.98);
+    };
+    const requestUpdate = function () {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener("scroll", requestUpdate, { passive: true });
+    window.addEventListener("resize", requestUpdate, { passive: true });
+  }
+
   function initChapterRetry() {
     document.querySelectorAll("[data-chapter-retry]").forEach(function (button) {
       button.addEventListener("click", function () {
@@ -2277,20 +2327,3 @@
   function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 })();
 
-// v66 reader polish: lightweight scroll-to-top helper.
-(function initReaderTopButton() {
-  const button = document.querySelector('[data-scroll-top]');
-  if (!button) return;
-  let ticking = false;
-  const update = () => {
-    ticking = false;
-    button.hidden = window.scrollY < Math.max(420, window.innerHeight * 0.7);
-  };
-  window.addEventListener('scroll', () => {
-    if (ticking) return;
-    ticking = true;
-    window.requestAnimationFrame(update);
-  }, { passive: true });
-  button.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-  update();
-})();

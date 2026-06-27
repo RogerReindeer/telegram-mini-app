@@ -10,6 +10,13 @@
 
 <body class="reader-audit-v66 page-chapter">
   <div class="chapter-scroll-progress" aria-hidden="true"><span data-chapter-scroll-progress-bar></span></div>
+  {% if not is_locked %}
+    <aside class="reader-floating-controls" data-reader-floating-controls aria-label="Быстрая навигация по главе">
+      <a class="reader-floating-button" href="/novel/{{ novel.slug }}" aria-label="Вернуться к оглавлению" title="К оглавлению">←</a>
+      <button class="reader-floating-button" type="button" data-scroll-up aria-label="Прокрутить выше" title="Выше">↑</button>
+      <button class="reader-floating-button" type="button" data-scroll-down aria-label="Прокрутить ниже" title="Ниже">↓</button>
+    </aside>
+  {% endif %}
   {% set reader_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_peek_left or fox.fox_pic %}
   {% set footer_fox = fox.fox_sitting_front or fox.fox_sleeping or fox.fox_heart or fox.fox_pic %}
 
@@ -30,10 +37,6 @@
         <span class="novel-back-button-icon" aria-hidden="true">←</span>
         <span>К оглавлению</span>
       </a>
-    </div>
-
-    <div class="chapter-top-actions" aria-label="Быстрые действия чтения">
-      <button type="button" class="chapter-top-action" data-scroll-top hidden>Наверх</button>
     </div>
 
     <header class="chapter-header">
