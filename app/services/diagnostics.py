@@ -17,7 +17,7 @@ from ..cache import cache_stats
 from ..database import db_select, supabase_ready
 from .catalog import adapt_chapter_from_db, adapt_novel_from_db, get_all_chapters, get_all_novels, get_fox
 from .sync import parse_date
-from ..utils import effective_part_no_for_chapter_id, expected_chapter_id
+from ..utils import chapter_id_matches_parts, normalize_part_no_for_storage
 
 ALLOWED_CONTENT_HOSTS = {
     "telegra.ph",
@@ -156,8 +156,7 @@ def build_content_audit() -> dict[str, Any]:
         novel_id = int(chapter.get("novel_id") or 0)
         chapter_no = int(chapter.get("chapter_no") or 0)
         source_chapter_no = _clean(chapter.get("source_chapter_no")) or str(chapter_no or "")
-        part_no = effective_part_no_for_chapter_id(chapter_id, chapter.get("part_no"))
-        expected_id = expected_chapter_id(novel_id, source_chapter_no, part_no) if novel_id and chapter_no >= 0 else ""
+        part_no = normalize_part_no_for_storage(chapter_id, chapter.get("part_no"))
         translation_date = parse_date(chapter.get("translation_date"))
         free_date = parse_date(chapter.get("free_release_date"))
         premium_date = parse_date(chapter.get("premium_release_date"))
@@ -170,8 +169,8 @@ def build_content_audit() -> dict[str, Any]:
             continue
         if chapter_ids[chapter_id] > 1:
             _add_problem(problems, severity="error", code="duplicate_chapter_id", message=f"Повторяется ChapterID: {chapter_id}.", novel_id=novel_id, chapter_id=chapter_id, field="chapter_id")
-        if expected_id and chapter_id != expected_id:
-            _add_problem(problems, severity="error", code="chapter_id_mismatch", message=f"ChapterID должен быть {expected_id}. Для частей используйте NovelID-SourceChapterNo-PartNo, например 2-52-1.", novel_id=novel_id, chapter_id=chapter_id, field="chapter_id")
+        if not chapter_id_matches_parts(chapter_id, novel_id, chapter_no, part_no, source_chapter_no):
+            _add_problem(problems, severity="error", code="chapter_id_mismatch", message="ChapterID не соответствует NovelID/ChapterNo/SourceChapterNo/PartNo. Двухсоставный ID может использовать технический ChapterNo; трёхсоставный ID использует SourceChapterNo-PartNo.", novel_id=novel_id, chapter_id=chapter_id, field="chapter_id")
         if novel_id not in visible_novel_ids and novel_id not in chapters_by_novel:
             _add_problem(problems, severity="warning", code="chapter_without_known_novel", message="Глава ссылается на неизвестную новеллу.", novel_id=novel_id, chapter_id=chapter_id)
         if has_any_url and not translation_date:

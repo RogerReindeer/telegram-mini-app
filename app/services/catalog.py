@@ -5,7 +5,7 @@ from typing import Any
 
 from ..database import db_select, supabase_ready
 from ..cache import cache_get_or_set, catalog_cache_ttl
-from ..utils import effective_part_no_for_chapter_id, expected_chapter_id, parse_chapter_id
+from ..utils import chapter_id_matches_parts, normalize_part_no_for_storage, parse_chapter_id
 from .reader import (
     clean_value,
     to_int,
@@ -179,16 +179,14 @@ def normalize_chapter_row(row: dict) -> dict:
     if not source_chapter_no and clean_value(row.get("chapter_no")):
         source_chapter_no = str(chapter_no)
     parsed_id = parse_chapter_id(chapter_id)
-    part_no = effective_part_no_for_chapter_id(chapter_id, row.get("part_no"))
-    id_chapter_no = source_chapter_no or chapter_no
+    part_no = normalize_part_no_for_storage(chapter_id, row.get("part_no"))
     if novel_id <= 0 or chapter_no < 0:
         raise ValueError("novel_id должен быть положительным, а chapter_no должен быть неотрицательным целым числом")
-    expected_id = expected_chapter_id(novel_id, id_chapter_no, part_no)
-    if not parsed_id or chapter_id != expected_id:
+    if not parsed_id or not chapter_id_matches_parts(chapter_id, novel_id, chapter_no, part_no, source_chapter_no):
         raise ValueError(
-            f"chapter_id {chapter_id!r} должен быть равен {expected_id!r}. "
-            "ChapterID строится по видимому номеру главы: NovelID-SourceChapterNo-PartNo. "
-            "Например: 13-0, 2-50, 2-52-1, 2-52-2. Технический ChapterNo может отличаться у частей."
+            f"chapter_id {chapter_id!r} не соответствует NovelID/ChapterNo/SourceChapterNo/PartNo. "
+            "ChapterID — это стабильный уникальный ключ строки; он может быть NovelID-ChapterNo "
+            "или NovelID-SourceChapterNo-PartNo. Например: 13-0, 31-2, 2-52-1, 2-52-2."
         )
     normalized = {
         "chapter_id": chapter_id,

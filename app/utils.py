@@ -174,6 +174,15 @@ def parse_chapter_id(value: Any) -> dict[str, int] | None:
 
 
 def expected_chapter_id(novel_id: Any, chapter_no: Any, part_no: Any = None) -> str:
+    """Build a suggested ChapterID, not a strict validation rule.
+
+    The spreadsheet already has three separate fields for semantics:
+    ChapterNo is the technical reading/order number, SourceChapterNo is the
+    original book chapter number, and PartNo is the part inside that source
+    chapter. ChapterID is only a stable unique route key. It may be either
+    NovelID-ChapterNo or NovelID-SourceChapterNo-PartNo depending on how the
+    row was created. Do not use this helper as the only accepted shape.
+    """
     base_novel_id = to_int(novel_id, 0)
     base_chapter_no = to_int(chapter_no, 0)
     base_part_no = to_int(part_no, 0) if clean_value(part_no) else 0
@@ -183,24 +192,68 @@ def expected_chapter_id(novel_id: Any, chapter_no: Any, part_no: Any = None) -> 
     return f"{base}-{base_part_no}" if base_part_no > 0 else base
 
 
-def effective_part_no_for_chapter_id(chapter_id: Any, part_no: Any = None) -> int | None:
-    """Return the PartNo that should participate in ChapterID validation.
+def normalize_part_no_for_storage(chapter_id: Any, part_no: Any = None) -> int | None:
+    """Return the semantic PartNo stored for the chapter row.
 
-    ChapterID is the source-facing identifier. A two-part ID such as ``31-1``
-    remains valid even when the spreadsheet has ``PartNo=1`` as a default or
-    helper value. A suffix is required only when the ChapterID itself already
-    contains a part segment, or when PartNo is greater than 1.
+    Prefer the explicit spreadsheet PartNo. If it is empty, fall back to the
+    suffix inside a three-part ChapterID. This keeps rows such as ``31-2`` with
+    ``SourceChapterNo=1`` and ``PartNo=2`` as chapter 1, part 2, while still
+    accepting old rows such as ``2-52-2``.
     """
+    if clean_value(part_no):
+        explicit = to_int(part_no, 0)
+        return explicit if explicit > 0 else None
     parsed = parse_chapter_id(chapter_id)
-    if parsed and parsed.get("part_no") is not None:
-        return parsed.get("part_no")
-    explicit_part_no = to_int(part_no, 0) if clean_value(part_no) else 0
-    return explicit_part_no if explicit_part_no > 1 else None
+    parsed_part = parsed.get("part_no") if parsed else None
+    return parsed_part if parsed_part and parsed_part > 0 else None
 
 
-def chapter_id_matches_parts(chapter_id: Any, novel_id: Any, chapter_no: Any, part_no: Any = None) -> bool:
+def effective_part_no_for_chapter_id(chapter_id: Any, part_no: Any = None) -> int | None:
+    """Backward-compatible alias for older imports."""
+    return normalize_part_no_for_storage(chapter_id, part_no)
+
+
+def chapter_id_matches_parts(
+    chapter_id: Any,
+    novel_id: Any,
+    chapter_no: Any,
+    part_no: Any = None,
+    source_chapter_no: Any = None,
+) -> bool:
+    """Validate ChapterID against the spreadsheet row without inventing a formula.
+
+    Accepted examples from the real CRM:
+      - 13-0: intro/prologue row;
+      - 2-50: normal row where the id uses ChapterNo/SourceChapterNo;
+      - 2-52-2: split row where the id uses SourceChapterNo-PartNo;
+      - 31-2: split row where the id uses the technical ChapterNo and the
+        semantic part is stored only in PartNo.
+
+    Strict requirements are only: safe numeric format, matching NovelID, and
+    when ChapterID explicitly has a part suffix, that suffix must match
+    SourceChapterNo/PartNo. Two-segment IDs are allowed to use either
+    ChapterNo or SourceChapterNo.
+    """
     parsed = parse_chapter_id(chapter_id)
     if not parsed:
         return False
-    effective_part_no = effective_part_no_for_chapter_id(chapter_id, part_no)
-    return clean_value(chapter_id) == expected_chapter_id(novel_id, chapter_no, effective_part_no)
+
+    expected_novel_id = to_int(novel_id, 0)
+    if expected_novel_id <= 0 or parsed["novel_id"] != expected_novel_id:
+        return False
+
+    technical_no = to_int(chapter_no, -1)
+    source_text = clean_value(source_chapter_no)
+    source_no = to_int(source_text, technical_no) if source_text else technical_no
+    explicit_part_no = normalize_part_no_for_storage(chapter_id, part_no)
+
+    if technical_no < 0 or source_no < 0:
+        return False
+
+    id_no = parsed["chapter_no"]
+    id_part = parsed.get("part_no")
+
+    if id_part is not None:
+        return id_no == source_no and (explicit_part_no is None or id_part == explicit_part_no)
+
+    return id_no in {technical_no, source_no}
