@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Query, Request
+from fastapi.responses import JSONResponse
 
 from ..security import SYNC_JSON_BODY_LIMIT_BYTES, read_json_payload, require_sync_token
 from ..services.sync import build_validation_response, run_sync
@@ -16,14 +19,38 @@ def validate_sync_token(request: Request, token: str | None) -> None:
     require_sync_token(request, token)
 
 
+def _json_response_payload(response: object) -> dict:
+    """Best-effort JSONResponse body reader for operational logging only.
+
+    run_sync() intentionally returns JSONResponse for both success and handled
+    errors. The router must not call dict methods on that response object,
+    otherwise a handled sync problem turns into an opaque HTTP 500.
+    """
+    if isinstance(response, JSONResponse):
+        try:
+            raw = getattr(response, "body", b"") or b""
+            parsed = json.loads(raw.decode("utf-8")) if raw else {}
+            return parsed if isinstance(parsed, dict) else {}
+        except Exception:
+            return {}
+    return response if isinstance(response, dict) else {}
+
+
 @router.post("/sync")
 async def sync_from_sheets(request: Request, token: str | None = Query(default=None)):
     validate_sync_token(request, token)
     payload = await read_json_payload(request, max_bytes=SYNC_JSON_BODY_LIMIT_BYTES)
     record_event("sync_started", novels=len(payload.get("novels") or []), chapters=len(payload.get("chapters") or []))
-    result = await run_sync(payload)
-    record_event("sync_finished", status=str(result.get("status") or "ok"), sync_id=result.get("sync_id"), warnings_count=result.get("warnings_count"))
-    return result
+    response = await run_sync(payload)
+    result = _json_response_payload(response)
+    record_event(
+        "sync_finished",
+        status=str(result.get("status") or ("error" if isinstance(response, JSONResponse) and response.status_code >= 400 else "ok")),
+        sync_id=result.get("sync_id"),
+        warnings_count=result.get("warnings_count"),
+        stage=result.get("stage"),
+    )
+    return response
 
 
 @router.post("/api/sync")
