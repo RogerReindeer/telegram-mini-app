@@ -7,6 +7,7 @@ from ..utils import (
     clean_value,
     is_date_open,
     normalize_slug,
+    normalize_progress_percent,
     parse_date,
     to_bool,
     to_float,
@@ -668,8 +669,9 @@ def get_neighbor_chapters_for_access(
             available[index + 1] if index + 1 < len(available) else None)
 
 def prepare_library_novels_for_access(
-    novels: list[dict], chapters: list[dict], viewer: dict[str, Any]
+    novels: list[dict], chapters: list[dict], viewer: dict[str, Any] | None
 ) -> list[dict]:
+    viewer = viewer or {}
     chapters_by_novel: dict[str, list[dict]] = {}
     for chapter in chapters:
         key = clean_value(chapter.get("novel_id"))

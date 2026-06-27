@@ -131,6 +131,19 @@ def is_date_open(value: Any) -> bool:
     return date_text <= today_iso()
 
 
+
+def normalize_progress_percent(value: Any) -> float | int:
+    """Normalize a progress percentage from Sheets/Supabase into 0..100.
+
+    Some sources store percent as 43, 43.0, "43%" or accidentally as 4300.
+    Values above 100 are repeatedly divided by 100, then clamped.
+    """
+    progress = to_float(value, 0.0)
+    while progress > 100:
+        progress = progress / 100
+    progress = max(0.0, min(100.0, progress))
+    return int(progress) if float(progress).is_integer() else round(progress, 1)
+
 def normalize_slug(value: Any) -> str:
     text = clean_value(value).lower().replace("ё", "е")
     text = re.sub(r"[^\wа-яА-Я-]+", "-", text, flags=re.UNICODE)
