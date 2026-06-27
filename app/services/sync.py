@@ -113,7 +113,20 @@ def normalize_dict_keys(row: dict, key_map: dict[str, str]) -> dict:
 
 
 def filter_columns(row: dict, allowed_columns: set[str]) -> dict:
-    return {key: value for key, value in row.items() if key in allowed_columns}
+    """Keep DB columns plus private sync metadata used only for diagnostics.
+
+    Keys starting with ``__`` are never written to Supabase; database.upsert()
+    strips them before HTTP requests. They let production sync errors point back
+    to a Google Sheets row, e.g. ``Chapters!722``.
+    """
+    return {key: value for key, value in row.items() if key in allowed_columns or str(key).startswith("__")}
+
+
+def attach_private_sync_metadata(target: dict, source: dict) -> dict:
+    for key, value in (source or {}).items():
+        if str(key).startswith("__"):
+            target[str(key)] = value
+    return target
 
 
 def _normalize_text_list(value: Any) -> list[str]:
@@ -182,6 +195,7 @@ def normalize_novel_row(row: dict) -> dict:
         "boosty_premium_url": clean_value(row.get("boosty_premium_url")) or None,
         "telegraph_catalog_url": clean_value(row.get("telegraph_catalog_url")) or None,
     }
+    attach_private_sync_metadata(normalized, row)
     return filter_columns(normalized, NOVEL_TABLE_COLUMNS)
 
 
@@ -226,6 +240,7 @@ def normalize_chapter_row(row: dict) -> dict:
         "telegraph_free_code": clean_value(row.get("telegraph_free_code")) or None,
         "qa_status": to_bool(row.get("qa_status"), False),
     }
+    attach_private_sync_metadata(normalized, row)
     return filter_columns(normalized, CHAPTER_TABLE_COLUMNS)
 
 
@@ -271,10 +286,9 @@ def resolve_external_image_url(value: Any) -> str:
 
 def normalize_fox_row(row: dict) -> dict:
     row = normalize_dict_keys(row, KEY_MAP_FOX)
-    return filter_columns(
-        {"name": normalize_fox_name(row.get("name")), "url": resolve_external_image_url(row.get("url"))},
-        FOX_TABLE_COLUMNS,
-    )
+    normalized = {"name": normalize_fox_name(row.get("name")), "url": resolve_external_image_url(row.get("url"))}
+    attach_private_sync_metadata(normalized, row)
+    return filter_columns(normalized, FOX_TABLE_COLUMNS)
 
 
 def chapter_release_integrity_issues(chapter: dict) -> list[str]:
@@ -316,9 +330,52 @@ def _coerce_payload_collection(value: Any) -> list[Any]:
     return []
 
 
+def source_row_label(row: dict | None, fallback: str) -> str:
+    """Return a human spreadsheet label such as Chapters!722 when available."""
+    if not isinstance(row, dict):
+        return fallback
+    sheet_name = clean_value(row.get("__sheet_name"))
+    row_number = clean_value(row.get("__row_number"))
+    if sheet_name and row_number:
+        return f"{sheet_name}!{row_number}"
+    if sheet_name:
+        return sheet_name
+    return fallback
+
+
+def _append_issue(target: list[dict[str, Any]], *, severity: str, label: str, message: str, code: str = "validation", row: dict | None = None, field: str | None = None) -> None:
+    issue = {
+        "severity": severity,
+        "code": code,
+        "label": label,
+        "message": message,
+        "field": field,
+    }
+    if isinstance(row, dict):
+        for key in ("chapter_id", "ChapterID", "novel_id", "NovelID", "name", "Name"):
+            value = clean_value(row.get(key))
+            if value:
+                issue[key.lower()] = value
+    target.append(issue)
+
+
+def _issue_text(issue: dict[str, Any]) -> str:
+    label = clean_value(issue.get("label"))
+    message = clean_value(issue.get("message"))
+    return f"{label}: {message}" if label else message
+
+
+def _group_issues(issues: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    return {
+        "errors": [item for item in issues if item.get("severity") == "error"],
+        "warnings": [item for item in issues if item.get("severity") == "warning"],
+        "info": [item for item in issues if item.get("severity") == "info"],
+    }
+
+
 def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate and normalize a MiniApp sync payload without writing to Supabase."""
-    errors: list[str] = []
+    issue_rows: list[dict[str, Any]] = []
     warnings: list[str] = []
 
     if not isinstance(payload, dict):
@@ -331,15 +388,20 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "fox": [],
             "errors": ["Корень JSON должен быть объектом."],
             "warnings": [],
+            "issues": [{"severity": "error", "code": "payload_not_object", "label": "payload", "message": "Корень JSON должен быть объектом."}],
         }
 
     source = clean_value(payload.get("source")) or "Translation CRM"
     schema_version = to_int(payload.get("schema_version"), 0) or EXPECTED_SCHEMA_VERSION
 
     if schema_version != EXPECTED_SCHEMA_VERSION:
-        errors.append(
-            f"Неподдерживаемая версия схемы: {schema_version}. "
-            f"Ожидается {EXPECTED_SCHEMA_VERSION}."
+        _append_issue(
+            issue_rows,
+            severity="error",
+            code="schema_version_mismatch",
+            label="payload.schema_version",
+            message=f"Неподдерживаемая версия схемы: {schema_version}. Ожидается {EXPECTED_SCHEMA_VERSION}.",
+            field="schema_version",
         )
 
     novels_raw = _coerce_payload_collection(payload.get("novels") or payload.get("Novels") or [])
@@ -355,25 +417,25 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
     seen_fox_names: set[str] = set()
 
     for index, raw in enumerate(novels_raw):
-        label = f"novels[{index}]"
+        label = source_row_label(raw, f"Novels[{index}]")
         if not isinstance(raw, dict):
-            errors.append(f"{label}: строка должна быть объектом.")
+            _append_issue(issue_rows, severity="error", code="row_not_object", label=label, message="строка должна быть объектом.")
             continue
         try:
             row = normalize_novel_row(raw)
         except Exception as error:
-            errors.append(f"{label}: {error}")
+            _append_issue(issue_rows, severity="error", code="normalization_failed", label=label, message=str(error))
             continue
 
         novel_id = to_int(row.get("novel_id"), 0)
         if novel_id <= 0:
-            errors.append(f"{label}: отсутствует или некорректен novel_id.")
+            _append_issue(issue_rows, severity="error", code="novel_missing_id", label=label, message="отсутствует или некорректен novel_id.", row=row, field="novel_id")
             continue
         if novel_id in seen_novel_ids:
-            errors.append(f"{label}: повторяется novel_id={novel_id}.")
+            _append_issue(issue_rows, severity="error", code="duplicate_novel_id", label=label, message=f"повторяется novel_id={novel_id}.", row=row, field="novel_id")
             continue
         if not clean_value(row.get("title_ru")):
-            errors.append(f"{label}: отсутствует title_ru.")
+            _append_issue(issue_rows, severity="error", code="novel_missing_title", label=label, message="отсутствует title_ru.", row=row, field="title_ru")
             continue
         if not clean_value(row.get("cover_url")):
             warnings.append(f"NovelID {novel_id}: отсутствует обложка.")
@@ -383,50 +445,50 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
         novels.append(row)
 
     for index, raw in enumerate(chapters_raw):
-        label = f"chapters[{index}]"
+        label = source_row_label(raw, f"Chapters[{index}]")
         if not isinstance(raw, dict):
-            errors.append(f"{label}: строка должна быть объектом.")
+            _append_issue(issue_rows, severity="error", code="row_not_object", label=label, message="строка должна быть объектом.")
             continue
         try:
             row = normalize_chapter_row(raw)
         except Exception as error:
-            errors.append(f"{label}: {error}")
+            _append_issue(issue_rows, severity="error", code="normalization_failed", label=label, message=str(error))
             continue
 
         chapter_id = clean_value(row.get("chapter_id"))
         novel_id = to_int(row.get("novel_id"), 0)
 
         if not chapter_id:
-            errors.append(f"{label}: отсутствует chapter_id.")
+            _append_issue(issue_rows, severity="error", code="chapter_missing_id", label=label, message="отсутствует chapter_id.", row=row, field="chapter_id")
             continue
         if chapter_id in seen_chapter_ids:
-            errors.append(f"{label}: повторяется chapter_id={chapter_id}.")
+            _append_issue(issue_rows, severity="error", code="duplicate_chapter_id", label=label, message=f"повторяется chapter_id={chapter_id}.", row=row, field="chapter_id")
             continue
         if novel_id not in seen_novel_ids:
-            errors.append(f"{label}: NovelID {novel_id} отсутствует среди отправляемых новелл.")
+            _append_issue(issue_rows, severity="error", code="chapter_unknown_novel", label=label, message=f"NovelID {novel_id} отсутствует среди отправляемых новелл.", row=row, field="novel_id")
             continue
 
         seen_chapter_ids.add(chapter_id)
         chapters.append(row)
 
     for index, raw in enumerate(fox_raw):
-        label = f"fox[{index}]"
+        label = source_row_label(raw, f"fox[{index}]")
         if not isinstance(raw, dict):
-            errors.append(f"{label}: строка должна быть объектом.")
+            _append_issue(issue_rows, severity="error", code="row_not_object", label=label, message="строка должна быть объектом.")
             continue
         try:
             row = normalize_fox_row(raw)
         except Exception as error:
-            errors.append(f"{label}: {error}")
+            _append_issue(issue_rows, severity="error", code="normalization_failed", label=label, message=str(error))
             continue
 
         name = clean_value(row.get("name"))
         url = clean_value(row.get("url"))
         if not name or not url:
-            errors.append(f"{label}: отсутствует name или url.")
+            _append_issue(issue_rows, severity="error", code="fox_missing_name_or_url", label=label, message="отсутствует name или url.", row=row)
             continue
         if name in seen_fox_names:
-            errors.append(f"{label}: повторяется name={name}.")
+            _append_issue(issue_rows, severity="error", code="duplicate_fox_name", label=label, message=f"повторяется name={name}.", row=row, field="name")
             continue
         seen_fox_names.add(name)
         fox_rows.append(row)
@@ -444,6 +506,7 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
         seen_warnings.add(key)
         unique_warnings.append(warning)
 
+    errors = [_issue_text(item) for item in issue_rows if item.get("severity") == "error"]
     return {
         "ok": len(errors) == 0,
         "source": source,
@@ -453,6 +516,10 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "fox": fox_rows,
         "errors": errors,
         "warnings": unique_warnings,
+        "issues": issue_rows + [
+            {"severity": "warning", "code": "release_integrity", "label": "release", "message": warning}
+            for warning in unique_warnings
+        ],
     }
 
 
@@ -465,6 +532,7 @@ def normalize_payload(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], li
 
 def build_validation_response(payload: dict[str, Any]) -> dict[str, Any]:
     validation = validate_sync_payload(payload)
+    grouped = _group_issues(validation.get("issues", []))
     return {
         "status": "ok" if validation["ok"] else "error",
         "mode": "validate",
@@ -478,6 +546,16 @@ def build_validation_response(payload: dict[str, Any]) -> dict[str, Any]:
         "errors": validation["errors"][:100],
         "warnings_count": len(validation["warnings"]),
         "warnings": validation["warnings"][:100],
+        "issues_by_severity": {
+            "errors": grouped["errors"][:100],
+            "warnings": grouped["warnings"][:100],
+            "info": grouped["info"][:100],
+        },
+        "summary": {
+            "status": "blocked" if grouped["errors"] else "attention" if grouped["warnings"] else "ok",
+            "first_error": _issue_text(grouped["errors"][0]) if grouped["errors"] else "",
+            "first_warning": _issue_text(grouped["warnings"][0]) if grouped["warnings"] else "",
+        },
         "would_write": False,
     }
 
@@ -559,6 +637,7 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
                     "errors": validation["errors"][:100],
                     "warnings_count": len(validation["warnings"]),
                     "warnings": validation["warnings"][:100],
+                    "issues_by_severity": _group_issues(validation.get("issues", [])),
                 },
                 status_code=400,
             )
@@ -586,14 +665,17 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
         stage = "novels"
         if novels:
             result["novels_upserted"] = db_upsert("novels", novels, "novel_id", batch_size=50)
+            _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "warnings": warnings[:100]})
 
         stage = "chapters"
         if chapters:
             result["chapters_upserted"] = db_upsert("chapters", chapters, "chapter_id", batch_size=100)
+            _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "warnings": warnings[:100]})
 
         stage = "fox"
         if fox_rows:
             result["fox_upserted"] = db_upsert("fox", fox_rows, "name", batch_size=50)
+            _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "fox_count": result["fox_upserted"], "warnings": warnings[:100]})
 
         result["cache_cleared"] = {
             "catalog": clear_catalog_cache(),

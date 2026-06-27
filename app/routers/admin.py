@@ -14,6 +14,9 @@ from ..services.diagnostics import build_catalog_export, build_content_audit
 from ..services.production import build_production_report
 from ..services.metrics import metrics_snapshot, reset_metrics
 from ..services.render_smoke import render_smoke_plan
+from ..services.admin_state import build_admin_state
+from ..services.auth import telegram_membership_details, TRAVELER_CHAT_ID, KEEPER_CHAT_ID
+from ..utils import to_int
 
 router = APIRouter(prefix="/api/admin")
 
@@ -21,6 +24,42 @@ router = APIRouter(prefix="/api/admin")
 def _require_admin(request: Request, token: str | None) -> None:
     require_sync_token(request, token)
 
+
+
+
+@router.get("/state")
+async def admin_state(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    return build_admin_state()
+
+
+@router.get("/access/check")
+async def access_check(
+    request: Request,
+    token: str | None = Query(default=None),
+    user_id: int | None = Query(default=None),
+):
+    _require_admin(request, token)
+    if not user_id:
+        return {
+            "status": "needs_user_id",
+            "message": "Передайте user_id Telegram-пользователя, чтобы проверить membership через bot.getChatMember.",
+            "configuration": {
+                "traveler_chat_id_configured": bool(TRAVELER_CHAT_ID),
+                "keeper_chat_id_configured": bool(KEEPER_CHAT_ID),
+            },
+        }
+    traveler = telegram_membership_details(TRAVELER_CHAT_ID, to_int(user_id, 0))
+    keeper = telegram_membership_details(KEEPER_CHAT_ID, to_int(user_id, 0))
+    role = "keeper" if keeper.get("active") else "traveler" if traveler.get("active") else "guest"
+    return {
+        "status": "ok",
+        "user_id": user_id,
+        "resolved_role": role,
+        "keeper": keeper,
+        "traveler": traveler,
+        "note": "Keeper wins if user belongs to both groups. Failed Telegram checks do not grant access.",
+    }
 
 @router.get("/content/audit")
 async def content_audit(request: Request, token: str | None = Query(default=None)):
