@@ -5,7 +5,7 @@ from typing import Any
 
 from ..database import db_select, supabase_ready
 from ..cache import cache_get_or_set, catalog_cache_ttl
-from ..utils import expected_chapter_id, parse_chapter_id
+from ..utils import effective_part_no_for_chapter_id, expected_chapter_id, parse_chapter_id
 from .reader import (
     clean_value,
     to_int,
@@ -179,8 +179,7 @@ def normalize_chapter_row(row: dict) -> dict:
     if not source_chapter_no and clean_value(row.get("chapter_no")):
         source_chapter_no = str(chapter_no)
     parsed_id = parse_chapter_id(chapter_id)
-    explicit_part_no = to_int(row.get("part_no"), 0) if clean_value(row.get("part_no")) else None
-    part_no = explicit_part_no if explicit_part_no else (parsed_id or {}).get("part_no")
+    part_no = effective_part_no_for_chapter_id(chapter_id, row.get("part_no"))
     id_chapter_no = source_chapter_no or chapter_no
     if novel_id <= 0 or chapter_no < 0:
         raise ValueError("novel_id должен быть положительным, а chapter_no должен быть неотрицательным целым числом")

@@ -183,9 +183,24 @@ def expected_chapter_id(novel_id: Any, chapter_no: Any, part_no: Any = None) -> 
     return f"{base}-{base_part_no}" if base_part_no > 0 else base
 
 
+def effective_part_no_for_chapter_id(chapter_id: Any, part_no: Any = None) -> int | None:
+    """Return the PartNo that should participate in ChapterID validation.
+
+    ChapterID is the source-facing identifier. A two-part ID such as ``31-1``
+    remains valid even when the spreadsheet has ``PartNo=1`` as a default or
+    helper value. A suffix is required only when the ChapterID itself already
+    contains a part segment, or when PartNo is greater than 1.
+    """
+    parsed = parse_chapter_id(chapter_id)
+    if parsed and parsed.get("part_no") is not None:
+        return parsed.get("part_no")
+    explicit_part_no = to_int(part_no, 0) if clean_value(part_no) else 0
+    return explicit_part_no if explicit_part_no > 1 else None
+
+
 def chapter_id_matches_parts(chapter_id: Any, novel_id: Any, chapter_no: Any, part_no: Any = None) -> bool:
     parsed = parse_chapter_id(chapter_id)
     if not parsed:
         return False
-    effective_part_no = part_no if clean_value(part_no) else parsed.get("part_no")
+    effective_part_no = effective_part_no_for_chapter_id(chapter_id, part_no)
     return clean_value(chapter_id) == expected_chapter_id(novel_id, chapter_no, effective_part_no)
