@@ -8,7 +8,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body class="page-chapter">
+<body class="reader-audit-v66 page-chapter">
   <div class="chapter-scroll-progress" aria-hidden="true"><span data-chapter-scroll-progress-bar></span></div>
   {% set reader_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_peek_left or fox.fox_pic %}
   {% set footer_fox = fox.fox_sitting_front or fox.fox_sleeping or fox.fox_heart or fox.fox_pic %}
@@ -30,6 +30,10 @@
         <span class="novel-back-button-icon" aria-hidden="true">←</span>
         <span>К оглавлению</span>
       </a>
+    </div>
+
+    <div class="chapter-top-actions" aria-label="Быстрые действия чтения">
+      <button type="button" class="chapter-top-action" data-scroll-top hidden>Наверх</button>
     </div>
 
     <header class="chapter-header">

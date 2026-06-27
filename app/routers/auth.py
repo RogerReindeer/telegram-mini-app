@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 
+from ..services.events import record_event
 from ..services.auth import (
     ACCESS_DEBUG_ENABLED,
     APP_ENV,
@@ -44,6 +45,7 @@ def create_auth_router() -> APIRouter:
             raise HTTPException(status_code=400, detail="initData отсутствует")
 
         viewer = authenticate_telegram_viewer(init_data)
+        record_event("auth_success", role=viewer.get("role"), authenticated=viewer.get("authenticated"))
         response = JSONResponse({"status": "ok", "viewer": public_viewer(viewer)})
         response.set_cookie(
             AUTH_COOKIE_NAME,
@@ -58,6 +60,7 @@ def create_auth_router() -> APIRouter:
 
     @router.post("/logout")
     async def api_auth_logout():
+        record_event("auth_logout")
         response = JSONResponse({"status": "ok"})
         response.delete_cookie(AUTH_COOKIE_NAME, path="/")
         return response

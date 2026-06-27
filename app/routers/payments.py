@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from .sync import validate_sync_token
 from ..security import WEBHOOK_BODY_LIMIT_BYTES, read_json_payload, read_limited_body
 from ..services.payments import import_boosty_order, process_tribute_webhook
+from ..services.events import record_event
 
 router = APIRouter()
 
@@ -17,7 +18,9 @@ async def tribute_webhook(request: Request):
     signature = request.headers.get("trbt-signature", "")
 
     try:
-        return process_tribute_webhook(raw_body, signature)
+        result = process_tribute_webhook(raw_body, signature)
+        record_event("payment_event_received", provider="tribute", status=str(result.get("status") or "ok"))
+        return result
     except PermissionError as error:
         raise HTTPException(status_code=401, detail=str(error)) from error
     except ValueError as error:
@@ -32,7 +35,9 @@ async def boosty_order_import(request: Request, token: str | None = Query(defaul
     payload = await read_json_payload(request, max_bytes=WEBHOOK_BODY_LIMIT_BYTES)
 
     try:
-        return import_boosty_order(payload)
+        result = import_boosty_order(payload)
+        record_event("boosty_order_imported", status=str(result.get("status") or "ok"), novel_id=result.get("novel_id"))
+        return result
     except LookupError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     except ValueError as error:

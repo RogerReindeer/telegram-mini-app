@@ -199,7 +199,20 @@
         <div><dt>JS</dt><dd>{{ version.assets.get('settings.js', '—') }}</dd></div>
       </dl>
     </section>
-  </main>
+  
+
+      <section class="admin-card admin-release-card">
+        <h2>Release candidate</h2>
+        <p>Быстрые ссылки для финальной проверки перед запуском.</p>
+        <div class="admin-link-grid">
+          <a href="/api/admin/metrics/summary?token={{ token }}" target="_blank" rel="noopener noreferrer">Метрики</a>
+          <a href="/api/admin/release/check?token={{ token }}" target="_blank" rel="noopener noreferrer">Release check</a>
+          <a href="/api/admin/export/manifest?token={{ token }}" target="_blank" rel="noopener noreferrer">Backup manifest</a>
+          <a href="/api/admin/export/catalog?token={{ token }}" target="_blank" rel="noopener noreferrer">Export catalog</a>
+        </div>
+      </section>
+
+    </main>
   <script src="{{ static_url('settings.js') }}"></script>
 </body>
 </html>

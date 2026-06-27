@@ -43,6 +43,7 @@ from ..services.reader import (
     chapter_content_url_for_access,
 )
 from ..services.telegraph import fetch_locked_preview, fetch_telegraph_content
+from ..services.events import record_event
 
 
 def create_catalog_router(*, templates: Any, app_title: str) -> APIRouter:
@@ -56,6 +57,7 @@ def create_catalog_router(*, templates: Any, app_title: str) -> APIRouter:
 
     @router.get("/library")
     async def library(request: Request):
+        record_event("library_opened")
         viewer = viewer_from_request(request)
         include_hidden = viewer.get("role") == "keeper"
         novels = get_all_novels(include_hidden=include_hidden)
@@ -70,6 +72,7 @@ def create_catalog_router(*, templates: Any, app_title: str) -> APIRouter:
 
     @router.get("/novel/{slug}")
     async def novel_page(request: Request, slug: str):
+        record_event("novel_opened", slug=slug)
         viewer = viewer_from_request(request)
         viewer_role = str(viewer.get("role") or "guest")
         novel = get_novel_by_slug(slug, include_hidden=viewer_role == "keeper")
@@ -124,6 +127,7 @@ def create_catalog_router(*, templates: Any, app_title: str) -> APIRouter:
 
     @router.get("/chapter/{chapter_id}")
     async def chapter_page(request: Request, chapter_id: str):
+        record_event("chapter_opened", chapter_id=chapter_id)
         viewer = viewer_from_request(request)
         viewer_role = str(viewer.get("role") or "guest")
         chapter = get_chapter_by_id(chapter_id)
@@ -151,6 +155,7 @@ def create_catalog_router(*, templates: Any, app_title: str) -> APIRouter:
         access_decision = decide_chapter_access(chapter, novel, access_profile)
         url = access_decision.url
         is_locked = not access_decision.allowed
+        record_event("chapter_access_decision", status="allowed" if access_decision.allowed else "denied", chapter_id=chapter_id, reason=access_decision.reason)
         telegraph_content = None
         telegraph_error = ""
         preview_text = ""

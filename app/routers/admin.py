@@ -12,6 +12,7 @@ from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_im
 from ..security import require_sync_token
 from ..services.diagnostics import build_catalog_export, build_content_audit
 from ..services.production import build_production_report
+from ..services.metrics import metrics_snapshot, reset_metrics
 
 router = APIRouter(prefix="/api/admin")
 
@@ -60,3 +61,53 @@ async def production_check(request: Request, token: str | None = Query(default=N
     _require_admin(request, token)
     return build_production_report()
 
+
+
+@router.get("/metrics/summary")
+async def metrics_summary(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    return metrics_snapshot()
+
+
+@router.post("/metrics/reset")
+async def metrics_reset(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    return reset_metrics()
+
+
+@router.get("/export/manifest")
+async def export_manifest(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    catalog = build_catalog_export()
+    return {
+        "status": "ok",
+        "kind": "catalog_export_manifest",
+        "counts": catalog.get("counts", {}),
+        "exported_at": catalog.get("exported_at"),
+        "restore_scope": ["novels", "chapters", "fox"],
+        "not_included": ["user progress", "payments", "subscriptions", "tokens", "sync_runs"],
+        "warning": "This catalog export is not a full Supabase backup.",
+    }
+
+
+@router.get("/release/check")
+async def release_check(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    production = build_production_report()
+    audit = build_content_audit()
+    blockers = int(production.get("summary", {}).get("fail", 0) or 0) + int(audit.get("counts", {}).get("errors", 0) or 0)
+    warnings = int(production.get("summary", {}).get("warn", 0) or 0) + int(audit.get("counts", {}).get("warnings", 0) or 0)
+    return {
+        "status": "blocked" if blockers else "ready_with_warnings" if warnings else "ready",
+        "blockers": blockers,
+        "warnings": warnings,
+        "production_summary": production.get("summary", {}),
+        "content_counts": audit.get("counts", {}),
+        "required_manual_checks": [
+            "Open Mini App inside Telegram on a real phone",
+            "Run sync validate from Google Sheets",
+            "Open one free chapter and one locked chapter",
+            "Check Telegram group membership access",
+            "Check Boosty/Tribute payment path manually before launch",
+        ],
+    }

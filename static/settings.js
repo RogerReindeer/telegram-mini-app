@@ -2276,3 +2276,21 @@
   function cssEscape(value) { return window.CSS && typeof window.CSS.escape === "function" ? window.CSS.escape(value) : String(value).replace(/"/g, '\\"'); }
   function escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 })();
+
+// v66 reader polish: lightweight scroll-to-top helper.
+(function initReaderTopButton() {
+  const button = document.querySelector('[data-scroll-top]');
+  if (!button) return;
+  let ticking = false;
+  const update = () => {
+    ticking = false;
+    button.hidden = window.scrollY < Math.max(420, window.innerHeight * 0.7);
+  };
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(update);
+  }, { passive: true });
+  button.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  update();
+})();
