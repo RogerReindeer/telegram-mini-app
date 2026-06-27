@@ -155,8 +155,9 @@ def build_content_audit() -> dict[str, Any]:
         chapter_id = _clean(chapter.get("chapter_id"))
         novel_id = int(chapter.get("novel_id") or 0)
         chapter_no = int(chapter.get("chapter_no") or 0)
+        source_chapter_no = _clean(chapter.get("source_chapter_no")) or str(chapter_no or "")
         part_no = chapter.get("part_no")
-        expected_id = expected_chapter_id(novel_id, chapter_no, part_no) if novel_id and chapter_no else ""
+        expected_id = expected_chapter_id(novel_id, source_chapter_no, part_no) if novel_id and chapter_no else ""
         translation_date = parse_date(chapter.get("translation_date"))
         free_date = parse_date(chapter.get("free_release_date"))
         premium_date = parse_date(chapter.get("premium_release_date"))

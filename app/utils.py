@@ -155,8 +155,11 @@ def parse_chapter_id(value: Any) -> dict[str, int] | None:
     """Parse MiniApp ChapterID.
 
     Valid forms:
-      - NovelID-ChapterNo, for example 2-50;
-      - NovelID-ChapterNo-PartNo, for example 2-52-1 and 2-52-2.
+      - NovelID-SourceChapterNo, for example 2-50 or 13-0;
+      - NovelID-SourceChapterNo-PartNo, for example 2-52-1 and 2-52-2.
+
+    SourceChapterNo may be 0 for prologues, covers, notes or other intro rows.
+    PartNo, when present, must stay positive.
     """
     text = clean_value(value)
     match = re.fullmatch(r"(\d+)-(\d+)(?:-(\d+))?", text)
@@ -165,7 +168,7 @@ def parse_chapter_id(value: Any) -> dict[str, int] | None:
     novel_id = int(match.group(1))
     chapter_no = int(match.group(2))
     part_no = int(match.group(3)) if match.group(3) else None
-    if novel_id <= 0 or chapter_no <= 0 or (part_no is not None and part_no <= 0):
+    if novel_id <= 0 or chapter_no < 0 or (part_no is not None and part_no <= 0):
         return None
     return {"novel_id": novel_id, "chapter_no": chapter_no, "part_no": part_no}
 
@@ -174,7 +177,7 @@ def expected_chapter_id(novel_id: Any, chapter_no: Any, part_no: Any = None) -> 
     base_novel_id = to_int(novel_id, 0)
     base_chapter_no = to_int(chapter_no, 0)
     base_part_no = to_int(part_no, 0) if clean_value(part_no) else 0
-    if base_novel_id <= 0 or base_chapter_no <= 0:
+    if base_novel_id <= 0 or base_chapter_no < 0:
         return ""
     base = f"{base_novel_id}-{base_chapter_no}"
     return f"{base}-{base_part_no}" if base_part_no > 0 else base
