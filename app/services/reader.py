@@ -6,7 +6,9 @@ from typing import Any
 
 from .access import (
     access_copy,
+    access_paywall_copy,
     can_view_novel_for_profile,
+    chapter_toc_notice,
     chapter_content_url_for_access,
     chapter_content_url_for_role,
     chapter_is_translated,
@@ -720,7 +722,14 @@ def prepare_chapter_for_access_template(
     item["access_release_date"] = decision.release_date
     item["access_label"] = decision.label
     item["access_class"] = decision.class_name
+    item["access_title"] = decision.title
+    item["access_description"] = decision.description
+    item["access_severity"] = decision.severity
     item["required_role"] = decision.required_role
+    toc_notice = chapter_toc_notice(decision)
+    item["toc_access_label"] = toc_notice.get("label", "")
+    item["toc_access_hint"] = toc_notice.get("hint", "")
+    item["toc_access_class"] = toc_notice.get("class_name", decision.class_name)
     return item
 
 def build_chapter_display_list_for_access(

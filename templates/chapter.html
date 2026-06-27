@@ -65,22 +65,44 @@
             <span></span><span></span><span></span><span></span><span></span><span></span>
           </div>
 
-          <section class="chapter-paywall">
+          <section class="chapter-paywall chapter-paywall-v54 chapter-paywall-{{ access_paywall.severity }}">
             {% if footer_fox %}
               <img class="chapter-paywall-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>
             {% endif %}
             <div class="chapter-paywall-copy">
-              <h2>{{ access_copy.title }}</h2>
-              <p>{{ access_copy.description }}</p>
+              <div class="chapter-paywall-meta">
+                <span class="chapter-paywall-status">{{ chapter.access_label }}</span>
+                {% if access_paywall.release_label %}
+                  <span class="chapter-paywall-date">{{ access_paywall.release_label }}</span>
+                {% endif %}
+              </div>
+              <h2>{{ access_paywall.title or access_copy.title }}</h2>
+              <p>{{ access_paywall.description or access_copy.description }}</p>
+              {% if access_paywall.action_hint %}
+                <p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>
+              {% endif %}
+              <dl class="chapter-access-state">
+                <div>
+                  <dt>Ваш доступ</dt>
+                  <dd>{{ access_paywall.viewer_role_label }}</dd>
+                </div>
+                <div>
+                  <dt>Нужно</dt>
+                  <dd>{{ access_paywall.required_role_label }}</dd>
+                </div>
+              </dl>
             </div>
             <div class="chapter-paywall-actions">
-              {% if boosty_access_url %}
-                <a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Получить доступ на Boosty</a>
+              {% if access_paywall.show_boosty and boosty_access_url %}
+                <a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Открыть доступ на Boosty</a>
               {% endif %}
-              {% if tribute_access_url %}
-                <a class="chapter-access-purchase-button chapter-access-purchase-tribute" href="{{ tribute_access_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>Оформить через Tribute</a>
+              {% if access_paywall.show_tribute and tribute_access_url %}
+                <a class="chapter-access-purchase-button chapter-access-purchase-tribute" href="{{ tribute_access_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>Оформить 📜 через Tribute</a>
               {% endif %}
-              <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ ещё раз</button>
+              {% if access_paywall.show_refresh %}
+                <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ ещё раз</button>
+              {% endif %}
+              <a class="chapter-access-secondary-button" href="/novel/{{ novel.slug }}">К оглавлению</a>
             </div>
           </section>
         </article>

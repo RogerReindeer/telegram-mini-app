@@ -1392,6 +1392,7 @@
       : 0;
 
     const newCount = historyItem ? getNewChapterCount(novelId, historyItem.availableChapters) : 0;
+    card.dataset.newChaptersCount = String(newCount);
 
     let state = "start";
     let visualProgress = 0;
@@ -1444,7 +1445,7 @@
       : "";
 
     const configs = {
-      new: ["is-new is-reading", "", "✨ Новая глава", "state-new", "Читать новую", `/novel/${card.dataset.novelSlug || ""}`],
+      new: ["is-new is-reading", "", `✨ ${newCount === 1 ? "Новая глава" : `${newCount} новые главы`}`, "state-new", "Читать новое", `/novel/${card.dataset.novelSlug || ""}`],
       reading: ["is-reading", "", currentChapterLabel, "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
       waiting_new: ["is-reading is-waiting", "", currentChapterLabel || "Всё прочитано", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
@@ -1733,6 +1734,7 @@
   function renderLibraryUpdateBanner(readingCards) {
     const banner = document.getElementById("libraryUpdateBanner");
     const text = document.getElementById("libraryUpdateText");
+    const title = banner ? banner.querySelector(".library-update-title") : null;
     const button = document.getElementById("libraryUpdateButton");
     const close = document.getElementById("libraryUpdateClose");
 
@@ -1740,17 +1742,29 @@
       return;
     }
 
-    const newCard = readingCards.find(function (card) {
-      return card.dataset.cardState === "new";
-    });
+    const newCards = readingCards
+      .filter(function (card) { return card.dataset.cardState === "new"; })
+      .sort(function (a, b) { return Number(b.dataset.newChaptersCount || 0) - Number(a.dataset.newChaptersCount || 0); });
 
-    if (!newCard) {
+    if (!newCards.length) {
       banner.hidden = true;
       return;
     }
 
-    text.textContent = `${newCard.dataset.novelTitle || "Новелла"} — доступна глава ${Number(newCard.dataset.availableChapters || 0)}`;
-    button.href = `/novel/${newCard.dataset.novelSlug || ""}`;
+    const totalNewChapters = newCards.reduce(function (sum, card) {
+      return sum + Math.max(1, Number(card.dataset.newChaptersCount || 1));
+    }, 0);
+    const firstCard = newCards[0];
+    const novelCountText = newCards.length === 1 ? "1 новелле" : `${newCards.length} новеллах`;
+
+    if (title) {
+      title.textContent = totalNewChapters === 1 ? "Новая глава" : `${totalNewChapters} новые главы`;
+    }
+    text.textContent = newCards.length === 1
+      ? `${firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение.`
+      : `Новые главы доступны в ${novelCountText}.`;
+    button.href = firstCard.dataset.cardActionHref || `/novel/${firstCard.dataset.novelSlug || ""}`;
+    button.textContent = newCards.length === 1 ? "Читать" : "К новинкам";
     banner.hidden = false;
 
     if (close) {

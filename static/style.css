@@ -5855,3 +5855,198 @@ body[data-reader-theme="dark"] .sync-status-pill {
   outline: 3px solid rgba(255, 106, 0, .28);
   outline-offset: 3px;
 }
+
+/* v53: новые главы для пользователя */
+.library-book-card.is-new {
+  border-color: rgba(255, 106, 0, .28);
+  box-shadow: 0 16px 32px rgba(255, 106, 0, .10);
+}
+.library-book-card.is-new .library-card-state-pill {
+  background: rgba(255, 106, 0, .13);
+  color: #9b4200;
+}
+.library-update-banner:not([hidden]) {
+  border-color: rgba(255, 106, 0, .18);
+  background: linear-gradient(135deg, rgba(255, 250, 244, .96), rgba(255, 237, 218, .82));
+}
+
+/* =========================================================
+   V54 — понятные закрытые главы и monetization UX
+   ========================================================= */
+.chapter-paywall-v54 {
+  overflow: hidden;
+  border: 1px solid rgba(255, 106, 0, 0.18);
+  background:
+    radial-gradient(circle at 92% 6%, rgba(255, 196, 120, 0.30), transparent 34%),
+    linear-gradient(135deg, rgba(255, 250, 245, 0.98), rgba(255, 245, 236, 0.94));
+}
+
+.chapter-paywall-v54 .chapter-paywall-copy {
+  gap: 10px;
+}
+
+.chapter-paywall-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.chapter-paywall-status,
+.chapter-paywall-date {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.chapter-paywall-status {
+  background: rgba(255, 106, 0, 0.14);
+  color: #9a4d00;
+}
+
+.chapter-paywall-date {
+  background: rgba(124, 92, 255, 0.12);
+  color: #6044d8;
+}
+
+.chapter-paywall-hint {
+  margin-top: -2px !important;
+  color: rgba(61, 43, 34, 0.72) !important;
+  font-size: 14px;
+}
+
+.chapter-access-state {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.chapter-access-state > div {
+  min-width: 0;
+  border: 1px solid rgba(92, 56, 25, 0.10);
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.chapter-access-state dt {
+  margin: 0 0 3px;
+  color: rgba(84, 63, 54, 0.66);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.chapter-access-state dd {
+  margin: 0;
+  color: #2b1e18;
+  font-size: 13px;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.chapter-access-secondary-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(92, 56, 25, 0.14);
+  border-radius: 999px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.66);
+  color: #493227;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.chapter-paywall-draft,
+.chapter-paywall-hidden {
+  border-color: rgba(121, 109, 101, 0.18);
+  background:
+    radial-gradient(circle at 92% 6%, rgba(160, 150, 140, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(250, 248, 245, 0.98), rgba(244, 239, 235, 0.94));
+}
+
+.chapter-paywall-draft .chapter-paywall-status,
+.chapter-paywall-hidden .chapter-paywall-status {
+  background: rgba(121, 109, 101, 0.13);
+  color: #6d625b;
+}
+
+.chapter-paywall-subscription {
+  border-color: rgba(87, 117, 255, 0.20);
+  background:
+    radial-gradient(circle at 92% 6%, rgba(122, 145, 255, 0.20), transparent 34%),
+    linear-gradient(135deg, rgba(247, 249, 255, 0.98), rgba(255, 247, 241, 0.94));
+}
+
+.chapter-paywall-scheduled {
+  border-color: rgba(245, 158, 11, 0.24);
+}
+
+.chapter-access-keeper {
+  background: rgba(124, 92, 255, 0.13);
+  color: #6044d8;
+}
+
+.chapter-access-open {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .chapter-access-state {
+    grid-template-columns: 1fr;
+  }
+
+  .chapter-paywall-meta {
+    align-items: stretch;
+  }
+
+  .chapter-paywall-status,
+  .chapter-paywall-date {
+    flex: 1 1 auto;
+  }
+}
+
+body[data-site-theme="dark"] .chapter-paywall-v54 {
+  border-color: rgba(255, 168, 96, 0.18);
+  background:
+    radial-gradient(circle at 92% 6%, rgba(255, 168, 96, 0.12), transparent 34%),
+    linear-gradient(135deg, rgba(39, 31, 29, 0.98), rgba(32, 27, 25, 0.96));
+}
+
+body[data-site-theme="dark"] .chapter-paywall-status {
+  background: rgba(255, 168, 96, 0.16);
+  color: #ffbd83;
+}
+
+body[data-site-theme="dark"] .chapter-paywall-date {
+  background: rgba(152, 132, 255, 0.16);
+  color: #c4b7ff;
+}
+
+body[data-site-theme="dark"] .chapter-access-state > div,
+body[data-site-theme="dark"] .chapter-access-secondary-button {
+  border-color: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+body[data-site-theme="dark"] .chapter-access-state dt,
+body[data-site-theme="dark"] .chapter-paywall-hint {
+  color: rgba(238, 229, 220, 0.66) !important;
+}
+
+body[data-site-theme="dark"] .chapter-access-state dd,
+body[data-site-theme="dark"] .chapter-access-secondary-button {
+  color: #f6eee7;
+}

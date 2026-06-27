@@ -61,7 +61,7 @@ class Settings:
     rate_limit_public_max_requests: int = int(_env("RATE_LIMIT_PUBLIC_MAX_REQUESTS", "240") or "240")
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
-    app_version: str = _env("APP_VERSION", "v52")
+    app_version: str = _env("APP_VERSION", "v53")
 
     @property
     def normalized_traveler_chat_id(self) -> str:

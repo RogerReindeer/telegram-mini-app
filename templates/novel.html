@@ -217,10 +217,10 @@
 
                 {% if chapter.is_available and chapter.access_status in ['public_open', 'premium_open', 'full_book_entitlement'] %}
                   <span class="chapter-access chapter-access-open" aria-label="Глава доступна"></span>
-                {% elif chapter.access_release_date %}
-                  <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }} · {{ chapter.access_release_date }}</span>
+                {% elif chapter.toc_access_label %}
+                  <span class="chapter-access {{ chapter.toc_access_class }}" {% if chapter.toc_access_hint %}title="{{ chapter.toc_access_hint }}"{% endif %}>{{ chapter.toc_access_label }}</span>
                 {% elif chapter.required_role == 'keeper' and not chapter.is_available %}
-                  <span class="chapter-access chapter-access-keeper">📜 Ранний релиз Хранителя</span>
+                  <span class="chapter-access chapter-access-keeper">📜 Ранний релиз</span>
                 {% else %}
                   <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
                 {% endif %}

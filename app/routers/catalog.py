@@ -21,6 +21,7 @@ from ..services.catalog import (
 )
 from ..services.reader import (
     access_copy,
+    access_paywall_copy,
     can_view_novel_for_profile,
     clean_value,
     count_available_chapter_units_for_access,
@@ -179,6 +180,7 @@ def create_catalog_router(*, templates: Any, app_title: str) -> APIRouter:
                 "preview_text": preview_text,
                 "required_role": required_role,
                 "access_copy": access_copy(required_role),
+                "access_paywall": access_paywall_copy(access_decision, novel, access_profile),
                 "boosty_access_url": clean_value(novel.get("boosty_premium_url")) or clean_value(novel.get("boosty_url")),
                 "tribute_access_url": TRIBUTE_KEEPER_URL,
                 "fox": fox,
