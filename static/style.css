@@ -5592,3 +5592,266 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+/* v42: компактная история чтения в библиотеке */
+.library-continue-panel {
+  margin: 16px 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(120, 72, 42, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 252, 246, 0.95), rgba(255, 242, 229, 0.72));
+  box-shadow: 0 14px 34px rgba(87, 52, 31, 0.08);
+}
+.library-continue-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.library-section-kicker {
+  margin: 0 0 2px;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(96, 64, 45, .58);
+}
+.library-continue-header h2 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.2;
+}
+.library-continue-clear {
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .72);
+  color: rgba(82, 51, 34, .72);
+}
+.library-continue-list {
+  display: grid;
+  gap: 10px;
+}
+.library-continue-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 10px 8px 8px;
+  border-radius: 18px;
+  text-decoration: none;
+  color: inherit;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(120, 72, 42, .10);
+}
+.library-continue-card img,
+.library-continue-cover-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  object-fit: cover;
+  display: grid;
+  place-items: center;
+  background: rgba(120, 72, 42, .08);
+}
+.library-continue-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.library-continue-copy strong,
+.library-continue-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.library-continue-copy strong { font-size: 14px; }
+.library-continue-copy span,
+.library-continue-copy small { color: rgba(73, 48, 34, .64); }
+.library-continue-action {
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: var(--accent-color, #ff6a00);
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.library-mini-tag-more {
+  background: rgba(120, 72, 42, .08);
+  color: rgba(73, 48, 34, .62);
+}
+@media (max-width: 430px) {
+  .library-continue-card { grid-template-columns: 44px minmax(0, 1fr); }
+  .library-continue-action { grid-column: 2; justify-self: start; }
+}
+
+
+/* v43: оглавление как читательская страница */
+.novel-read-action-priority {
+  margin: 14px 0 18px;
+  padding: 14px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .72);
+  border: 1px solid rgba(120, 72, 42, .12);
+  box-shadow: 0 12px 26px rgba(87, 52, 31, .07);
+}
+.novel-read-action-hint {
+  margin: 9px 0 0;
+  text-align: center;
+  color: rgba(73, 48, 34, .62);
+  font-size: 13px;
+}
+.chapter-access-open {
+  display: none !important;
+}
+.chapter-row-current {
+  outline: 2px solid color-mix(in srgb, var(--accent-color, #ff6a00) 42%, transparent);
+  background: color-mix(in srgb, var(--accent-color, #ff6a00) 8%, rgba(255,255,255,.88));
+}
+.chapter-row-current .chapter-title::after {
+  content: " · вы здесь";
+  font-weight: 500;
+  color: var(--accent-color, #ff6a00);
+  white-space: nowrap;
+}
+.chapter-row-read:not(.chapter-row-current) .chapter-title {
+  color: rgba(73, 48, 34, .62);
+}
+.chapter-row-read:not(.chapter-row-current) .chapter-row-icon {
+  opacity: .62;
+}
+
+
+/* v44: полировка читалки */
+.chapter-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  height: max(3px, env(safe-area-inset-top));
+  pointer-events: none;
+  background: transparent;
+}
+.chapter-scroll-progress span {
+  display: block;
+  width: 0;
+  height: 3px;
+  background: var(--accent-color, #ff6a00);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent-color, #ff6a00) 52%, transparent);
+  transition: width .12s linear;
+}
+.chapter-layout {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+}
+.chapter-navigation {
+  position: sticky;
+  bottom: max(10px, env(safe-area-inset-bottom));
+  z-index: 20;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.chapter-retry-button {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent-color, #ff6a00);
+  color: #fff;
+  font-weight: 700;
+}
+.chapter-load-error {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+/* v51: мягкий индикатор синхронизации прогресса */
+.sync-status-pill {
+  position: fixed;
+  left: max(14px, env(safe-area-inset-left));
+  bottom: max(14px, env(safe-area-inset-bottom));
+  z-index: 80;
+  min-height: 36px;
+  max-width: min(280px, calc(100vw - 28px));
+  padding: 8px 12px;
+  border: 1px solid rgba(126, 79, 38, .18);
+  border-radius: 999px;
+  background: rgba(255, 250, 243, .94);
+  color: rgba(67, 42, 28, .86);
+  box-shadow: 0 10px 28px rgba(61, 37, 20, .16);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.sync-status-pill[data-sync-status="syncing"]::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: .55;
+  animation: syncPulse 1.1s ease-in-out infinite;
+}
+
+.sync-status-pill[data-sync-status="error"],
+.sync-status-pill[data-pending]:not([data-pending="0"]) {
+  border-color: rgba(245, 158, 11, .32);
+  background: rgba(255, 247, 237, .96);
+}
+
+body[data-site-theme="dark"] .sync-status-pill,
+body[data-reader-theme="dark"] .sync-status-pill {
+  border-color: rgba(255, 255, 255, .16);
+  background: rgba(29, 24, 21, .92);
+  color: rgba(255, 245, 235, .9);
+}
+
+@keyframes syncPulse {
+  0%, 100% { transform: scale(.72); opacity: .35; }
+  50% { transform: scale(1); opacity: .8; }
+}
+
+@media (max-width: 640px) {
+  .sync-status-pill {
+    bottom: max(78px, calc(env(safe-area-inset-bottom) + 64px));
+  }
+}
+
+/* v52: полноценная история чтения и умный блок Продолжить */
+.library-continue-card-primary {
+  min-height: 76px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .92), rgba(255, 242, 229, .78));
+  border-color: rgba(255, 106, 0, .22);
+  box-shadow: 0 12px 26px rgba(143, 76, 32, .10);
+}
+.library-continue-progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(120, 72, 42, .10);
+}
+.library-continue-progress > span {
+  display: block;
+  min-width: 4px;
+  max-width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-color, #ff6a00);
+}
+.library-continue-card:focus-visible {
+  outline: 3px solid rgba(255, 106, 0, .28);
+  outline-offset: 3px;
+}

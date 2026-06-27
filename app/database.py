@@ -182,3 +182,12 @@ def db_select(
 
 def db_upsert(table: str, rows: list[dict], conflict_key: str, batch_size: int = 100) -> int:
     return supabase.upsert(table, rows, conflict_key, batch_size=batch_size)
+
+
+def db_insert(table: str, row: dict[str, Any], prefer: str = "return=representation") -> list[dict]:
+    result = supabase.request("POST", table, payload=row, prefer=prefer)
+    return result if isinstance(result, list) else []
+
+
+def db_update(table: str, filters: dict[str, str], patch: dict[str, Any], prefer: str = "return=minimal") -> Any:
+    return supabase.request("PATCH", table, params=filters, payload=patch, prefer=prefer)

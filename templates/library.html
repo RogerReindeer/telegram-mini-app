@@ -6,7 +6,7 @@
 
   <title>Библиотека — {{ app_title }}</title>
 
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="{{ static_url('style.css') }}" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
@@ -92,6 +92,17 @@
 
         <a class="library-update-button" id="libraryUpdateButton" href="#">Читать</a>
         <button class="library-update-close" type="button" id="libraryUpdateClose" aria-label="Скрыть">×</button>
+      </section>
+
+      <section class="library-continue-panel" id="libraryContinuePanel" hidden aria-label="Продолжить чтение">
+        <div class="library-continue-header">
+          <div>
+            <p class="library-section-kicker">История чтения</p>
+            <h2>Продолжить чтение</h2>
+          </div>
+          <button class="library-continue-clear" type="button" id="libraryContinueClear" hidden>Скрыть историю</button>
+        </div>
+        <div class="library-continue-list" id="libraryContinueList"></div>
       </section>
 
       {% if novels %}
@@ -270,7 +281,7 @@
 
                     {% if card_tags %}
                       {% for tag in card_tags %}
-                        {% if loop.index <= 10 %}
+                        {% if loop.index <= 3 %}
                           {% if tag.is_spoiler %}
                             <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
                           {% else %}
@@ -278,6 +289,9 @@
                           {% endif %}
                         {% endif %}
                       {% endfor %}
+                      {% if card_tags|length > 3 %}
+                        <span class="library-mini-tag library-mini-tag-more">+{{ card_tags|length - 3 }}</span>
+                      {% endif %}
                     {% endif %}
                   </div>
 
@@ -367,6 +381,6 @@
     window.ZEFIRKI_FOX = {{ fox | tojson }};
     window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
-  <script src="/static/settings.js"></script>
+  <script src="{{ static_url('settings.js') }}"></script>
 </body>
 </html>
