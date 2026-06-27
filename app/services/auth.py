@@ -14,7 +14,7 @@ import json
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 from urllib.parse import parse_qsl
 
@@ -23,6 +23,7 @@ from fastapi import HTTPException, Request
 
 from ..config import settings
 from ..database import db_select, db_upsert, supabase_ready
+from ..utils import clean_value, to_int, utc_now
 
 ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
 AUTH_COOKIE_NAME = "zefirki_access"
@@ -47,22 +48,6 @@ TRIBUTE_KEEPER_URL = settings.tribute_keeper_url
 ACCESS_DEBUG_ENABLED = settings.access_debug_enabled
 
 _membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
-
-
-def clean_value(value: Any) -> str:
-    if value is None:
-        return ""
-    text = str(value).strip()
-    if text.lower() in {"nan", "none", "null", "undefined"}:
-        return ""
-    return text
-
-
-def to_int(value: Any, default: int = 0) -> int:
-    try:
-        return int(float(str(value).strip()))
-    except (TypeError, ValueError):
-        return default
 
 
 def normalize_telegram_chat_id(value: Any) -> str:
@@ -243,10 +228,6 @@ def parse_iso_datetime(value: Any) -> datetime | None:
         return datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
         return None
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:

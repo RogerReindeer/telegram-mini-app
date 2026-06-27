@@ -11,6 +11,7 @@
     completedNovels: "zefirki_completed_novels",
     syncQueue: "zefirki_sync_queue",
     syncStatus: "zefirki_sync_status",
+    chapterCache: "zefirki_chapter_cache",
   };
 
   const DEFAULT_SETTINGS = {
@@ -41,6 +42,7 @@
       initAppFullscreenButton,
       initLibrary,
       initNovelPageMeta,
+      initChapterContentCache,
       initChapterProgress,
       initChapterScrollProgress,
       initChapterRetry,
@@ -1783,6 +1785,75 @@
     const meta = readJson(STORAGE_KEYS.novelMeta, {});
     meta[novelId] = { novelId, novelSlug: page.dataset.novelSlug || "", novelTitle: page.dataset.novelTitle || "", coverUrl: cover && cover.tagName === "IMG" ? cover.getAttribute("src") || "" : "" };
     writeJson(STORAGE_KEYS.novelMeta, meta);
+  }
+
+
+  function trimChapterCache(cache) {
+    const entries = Object.entries(cache || {})
+      .filter(function ([, value]) { return value && value.chapterId && value.html; })
+      .sort(function (a, b) { return Number(b[1].savedAt || 0) - Number(a[1].savedAt || 0); })
+      .slice(0, 12);
+    return Object.fromEntries(entries);
+  }
+
+  function safeCachedChapterHtml(html) {
+    const template = document.createElement("template");
+    template.innerHTML = String(html || "");
+    template.content.querySelectorAll("script, iframe, object, embed, form, input, button").forEach(function (node) {
+      node.remove();
+    });
+    template.content.querySelectorAll("*").forEach(function (node) {
+      Array.from(node.attributes).forEach(function (attribute) {
+        const name = attribute.name.toLowerCase();
+        const value = String(attribute.value || "").trim().toLowerCase();
+        if (name.startsWith("on") || value.startsWith("javascript:")) {
+          node.removeAttribute(attribute.name);
+        }
+      });
+    });
+    return template.innerHTML;
+  }
+
+  function initChapterContentCache() {
+    const page = document.querySelector("[data-chapter-page]");
+    if (!page || page.dataset.isLocked === "true") return;
+
+    const chapterId = page.dataset.chapterId || "";
+    const article = document.querySelector("[data-cache-chapter-content]");
+    const offlineShell = document.querySelector("[data-chapter-offline-copy]");
+    const offlineContent = document.querySelector("[data-chapter-offline-copy-content]");
+    const offlineTime = document.querySelector("[data-chapter-offline-copy-time]");
+    const cachedNote = document.querySelector("[data-chapter-cached-note]");
+    if (!chapterId) return;
+
+    const cache = readJson(STORAGE_KEYS.chapterCache, {});
+    const cached = cache[chapterId];
+    const hasServerContent = Boolean(article && article.textContent && article.textContent.trim().length > 20 && !article.querySelector(".chapter-empty-text"));
+
+    if (hasServerContent && article) {
+      const html = safeCachedChapterHtml(article.innerHTML).trim();
+      if (html.length > 20 && html.length < 650000) {
+        cache[chapterId] = {
+          chapterId,
+          novelId: page.dataset.novelId || "",
+          novelSlug: page.dataset.novelSlug || "",
+          novelTitle: page.dataset.novelTitle || "",
+          chapterTitle: page.dataset.chapterTitle || "",
+          html,
+          savedAt: Date.now(),
+        };
+        writeJson(STORAGE_KEYS.chapterCache, trimChapterCache(cache));
+      }
+      return;
+    }
+
+    if (cached && cached.html && offlineShell && offlineContent) {
+      offlineContent.innerHTML = safeCachedChapterHtml(cached.html);
+      if (offlineTime) offlineTime.textContent = cached.savedAt ? formatRelativeTime(cached.savedAt) : "";
+      offlineShell.hidden = false;
+      if (cachedNote) cachedNote.hidden = false;
+      if (article) article.hidden = true;
+    }
   }
 
   function initChapterProgress() {

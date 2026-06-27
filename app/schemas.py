@@ -8,12 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class StrictInputModel(BaseModel):
-    class Config:
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
     def to_service_dict(self) -> dict[str, Any]:
         if hasattr(self, "model_dump"):
@@ -28,7 +27,8 @@ class SaveProgressPayload(StrictInputModel):
     scroll_position_px: int = Field(0, ge=0, le=10_000_000)
     completed: bool = True
 
-    @validator("chapter_id")
+    @field_validator("chapter_id")
+    @classmethod
     def chapter_id_is_safe(cls, value: str) -> str:
         if not value.replace("-", "").replace("_", "").isalnum():
             raise ValueError("chapter_id содержит недопустимые символы")

@@ -8,10 +8,10 @@ consume these decisions instead of reimplementing access checks.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
-import re
+from datetime import datetime
 from typing import Any
 
+from ..utils import clean_value, is_date_open, parse_date, to_int, today_iso
 from .auth import role_rank, viewer_access_profile
 
 
@@ -45,56 +45,6 @@ class AccessDecision:
         return asdict(self)
 
 
-def clean_value(value: Any) -> str:
-    if value is None:
-        return ""
-    text = str(value).strip()
-    if text.lower() in {"nan", "none", "null", "undefined"}:
-        return ""
-    return text
-
-
-def to_int(value: Any, default: int = 0) -> int:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return int(value)
-    text = clean_value(value).replace("%", "").replace(",", ".")
-    if not text:
-        return default
-    try:
-        return int(float(text))
-    except ValueError:
-        return default
-
-
-def today_iso() -> str:
-    return datetime.now(timezone.utc).date().isoformat()
-
-
-def parse_date(value: Any) -> str | None:
-    text = clean_value(value)
-    if not text:
-        return None
-    while len(text) >= 2 and ((text[0] == text[-1] == '"') or (text[0] == text[-1] == "'")):
-        text = text[1:-1].strip()
-    if not text or text.lower() in {"null", "none", "undefined", "nan", "nat", "n/a", "na", "-", "—", '""', "''"}:
-        return None
-    iso_match = re.match(r"^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$", text)
-    if iso_match:
-        candidate = iso_match.group(1)
-        try:
-            return datetime.strptime(candidate, "%Y-%m-%d").date().isoformat()
-        except ValueError:
-            return None
-    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%Y.%m.%d", "%Y/%m/%d", "%d-%m-%Y"):
-        try:
-            return datetime.strptime(text, fmt).date().isoformat()
-        except ValueError:
-            pass
-    return None
-
-
 def format_release_date(value: Any) -> str:
     date_text = parse_date(value)
     if not date_text:
@@ -113,15 +63,6 @@ def role_display_name(role: Any) -> str:
     if normalized == "traveler":
         return "🌱 Странствующий читатель"
     return "читатель"
-
-
-def is_date_open(value: Any) -> bool:
-    date_text = parse_date(value)
-    if not date_text:
-        return False
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_text):
-        return True
-    return date_text <= today_iso()
 
 
 def novel_required_role(novel: dict) -> str:

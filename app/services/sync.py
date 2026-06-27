@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 
 from ..cache import clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..database import db_insert, db_update, db_upsert, supabase_ready
+from ..utils import clean_value, is_date_open, parse_date, to_bool, to_float, to_int, today_iso
 
 EXPECTED_SCHEMA_VERSION = 17
 
@@ -94,102 +95,6 @@ KEY_MAP_FOX = {
 }
 
 
-def clean_value(value: Any) -> str:
-    if value is None:
-        return ""
-    text = str(value).strip()
-    if text.lower() in ("nan", "none", "null", "undefined"):
-        return ""
-    return text
-
-
-def to_int(value: Any, default: int = 0) -> int:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return int(value)
-    text = clean_value(value).replace("%", "").replace(",", ".")
-    if not text:
-        return default
-    try:
-        return int(float(text))
-    except ValueError:
-        return default
-
-
-def to_float(value: Any, default: float = 0.0) -> float:
-    if value is None:
-        return default
-    text = clean_value(value).replace("%", "").replace(",", ".")
-    if not text:
-        return default
-    try:
-        return float(text)
-    except ValueError:
-        return default
-
-
-def to_bool(value: Any, default: bool = False) -> bool:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    text = clean_value(value).lower()
-    if not text:
-        return default
-    if text in ("true", "1", "yes", "y", "да", "истина", "visible", "show", "✓", "✅"):
-        return True
-    if text in ("false", "0", "no", "n", "нет", "ложь", "hidden", "hide", "✕", "❌"):
-        return False
-    return default
-
-
-def parse_date(value: Any) -> str | None:
-    """Normalize a spreadsheet date for PostgreSQL/Supabase DATE columns."""
-    if value is None:
-        return None
-
-    if isinstance(value, datetime):
-        return value.date().isoformat()
-
-    text = str(value).strip()
-    if not text:
-        return None
-
-    text = text.replace('\\"', '"').replace("\\'", "'").strip()
-    for _ in range(5):
-        if len(text) >= 2 and text[0] == text[-1] and text[0] in ('"', "'"):
-            text = text[1:-1].strip()
-        else:
-            break
-
-    if not text:
-        return None
-
-    if text.lower() in {'null', 'none', 'undefined', 'nan', 'nat', 'n/a', 'na', '-', '—', '""', "''"}:
-        return None
-
-    iso_match = re.match(r"^(\d{4}-\d{2}-\d{2})(?:[T\s].*)?$", text)
-    if iso_match:
-        candidate = iso_match.group(1)
-        try:
-            return datetime.strptime(candidate, "%Y-%m-%d").date().isoformat()
-        except ValueError:
-            return None
-
-    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%Y.%m.%d", "%Y/%m/%d", "%d-%m-%Y"):
-        try:
-            return datetime.strptime(text, fmt).date().isoformat()
-        except ValueError:
-            pass
-
-    return None
-
-
-def today_iso() -> str:
-    return datetime.now(timezone.utc).date().isoformat()
-
-
 def parse_iso_datetime(value: Any) -> datetime | None:
     text = clean_value(value)
     if not text:
@@ -201,15 +106,6 @@ def parse_iso_datetime(value: Any) -> datetime | None:
         return datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
         return None
-
-
-def is_date_open(value: Any) -> bool:
-    date_text = parse_date(value)
-    if not date_text:
-        return False
-    if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_text):
-        return True
-    return date_text <= today_iso()
 
 
 def normalize_dict_keys(row: dict, key_map: dict[str, str]) -> dict:

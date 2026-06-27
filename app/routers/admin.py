@@ -11,6 +11,7 @@ from fastapi import APIRouter, Query, Request
 from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..security import require_sync_token
 from ..services.diagnostics import build_catalog_export, build_content_audit
+from ..services.production import build_production_report
 
 router = APIRouter(prefix="/api/admin")
 
@@ -53,3 +54,9 @@ async def admin_cache_clear(
     else:
         cleared = clear_all_caches()
     return {"status": "ok", "namespace": namespace, "cleared": cleared, "cache": cache_stats()}
+
+@router.get("/production/check")
+async def production_check(request: Request, token: str | None = Query(default=None)):
+    _require_admin(request, token)
+    return build_production_report()
+

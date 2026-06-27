@@ -9,10 +9,10 @@ while the database layer stores data in:
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
 from typing import Any
 
 from ..database import db_select, db_upsert, supabase_request
+from ..utils import clean_value, to_float, to_int, utc_now
 
 
 class UserStateError(ValueError):
@@ -21,45 +21,6 @@ class UserStateError(ValueError):
 
 class ChapterNotFoundError(UserStateError):
     """Raised when a requested chapter does not belong to the requested novel."""
-
-
-def clean_value(value: Any) -> str:
-    if value is None:
-        return ""
-    text = str(value).strip()
-    if text.lower() in {"nan", "none", "null", "undefined"}:
-        return ""
-    return text
-
-
-def to_int(value: Any, default: int = 0) -> int:
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return int(value)
-    text = clean_value(value).replace("%", "").replace(",", ".")
-    if not text:
-        return default
-    try:
-        return int(float(text))
-    except ValueError:
-        return default
-
-
-def to_float(value: Any, default: float = 0.0) -> float:
-    if value is None:
-        return default
-    text = clean_value(value).replace("%", "").replace(",", ".")
-    if not text:
-        return default
-    try:
-        return float(text)
-    except ValueError:
-        return default
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 def postgrest_in_filter(values: list[Any]) -> str:

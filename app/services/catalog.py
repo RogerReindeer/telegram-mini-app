@@ -14,6 +14,7 @@ from .reader import (
     normalize_slug,
     is_date_open,
     chapter_display_title,
+    parse_chapter_no_number,
 )
 from .sync import parse_iso_datetime
 from .telegraph import resolve_external_image_url
