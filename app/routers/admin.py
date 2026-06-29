@@ -157,14 +157,17 @@ async def release_check(request: Request, token: str | None = Query(default=None
     _require_admin(request, token)
     production = build_production_report()
     audit = build_content_audit()
-    blockers = int(production.get("summary", {}).get("fail", 0) or 0) + int(audit.get("counts", {}).get("errors", 0) or 0)
-    warnings = int(production.get("summary", {}).get("warn", 0) or 0) + int(audit.get("counts", {}).get("warnings", 0) or 0)
+    production_summary = production.get("summary", {}) or {}
+    content_counts = audit.get("counts", {}) or {}
+    blockers = int(production_summary.get("failed", 0) or 0) + int(content_counts.get("errors", 0) or 0)
+    warnings = int(production_summary.get("warnings", 0) or 0) + int(content_counts.get("warnings", 0) or 0)
     return {
         "status": "blocked" if blockers else "ready_with_warnings" if warnings else "ready",
         "blockers": blockers,
         "warnings": warnings,
-        "production_summary": production.get("summary", {}),
-        "content_counts": audit.get("counts", {}),
+        "production_summary": production_summary,
+        "content_counts": content_counts,
+        "app": production.get("app", {}),
         "required_manual_checks": [
             "Open Mini App inside Telegram on a real phone",
             "Run sync validate from Google Sheets",
