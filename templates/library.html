@@ -91,6 +91,7 @@
         <span>Карточка открывает книгу. Если вы уже читали новеллу, Mini App предложит продолжить с места.</span>
       </section>
 
+
       <section class="library-update-banner" id="libraryUpdateBanner" hidden>
         <div class="library-update-icon">🔔</div>
 
@@ -151,6 +152,14 @@
           <div class="library-section-list" data-section-list="start"></div>
         </section>
 
+        <section class="library-support-banner library-support-banner-after-start" aria-label="Поддержать проект и открыть больше глав">
+          <div>
+            <span class="library-support-kicker">Хочется больше глав?</span>
+            <p>Перейдите в ТГК, найдите ссылку на Boosty и оформите подписку. Подписка открывает главы для тех, кто поддержал проект.</p>
+          </div>
+          <a class="library-support-link" href="https://t.me/c/2608069201" target="_blank" rel="noopener noreferrer" data-telegram-link>Открыть ТГК</a>
+        </section>
+
         <section class="library-section" data-library-section="waiting">
           <button class="library-section-header" type="button" data-section-toggle="waiting" aria-expanded="true">
             <span>
@@ -161,18 +170,6 @@
           </button>
           <div class="library-section-helper">Новеллы, которые скоро появятся для чтения</div>
           <div class="library-section-list" data-section-list="waiting"></div>
-        </section>
-
-        <section class="library-section library-section-subscriber" data-library-section="subscriber">
-          <button class="library-section-header" type="button" data-section-toggle="subscriber" aria-expanded="true">
-            <span>
-              🎁 Для подписчиков
-              <span class="library-section-count library-section-count-subscriber" data-section-count="subscriber">0</span>
-            </span>
-            <span class="library-section-arrow">⌃</span>
-          </button>
-          <div class="library-section-helper">Бонусные новеллы видны всем, а главы открываются читателям с уровнем не ниже 🌱 «Странствующий читатель».</div>
-          <div class="library-section-list" data-section-list="subscriber"></div>
         </section>
 
         <section class="library-section" data-library-section="finished">
@@ -374,7 +371,6 @@
             <button type="button" data-filter-chip="new">Новая глава</button>
             <button type="button" data-filter-chip="start">Можно начать</button>
             <button type="button" data-filter-chip="waiting">Скоро</button>
-            <button type="button" data-filter-chip="subscriber">Для подписчиков</button>
             <button type="button" data-filter-chip="finished">Прочитано</button>
           </div>
         </div>
