@@ -46,6 +46,7 @@
       initChapterProgress,
       initChapterScrollProgress,
       initReaderFloatingControls,
+      initReaderQuickSettings,
       initChapterRetry,
       initNovelReadButton,
       initNovelReadingProgress,
@@ -1987,6 +1988,211 @@
     update();
     window.addEventListener("scroll", requestUpdate, { passive: true });
     window.addEventListener("resize", requestUpdate, { passive: true });
+  }
+
+
+  function setReaderSetting(name, value) {
+    const current = getSettings();
+    current[name] = String(value);
+    saveSettings(current);
+    applySettings();
+    fillSettingsInputs(getSettings());
+    updateReaderQuickSettingsState();
+  }
+
+  function readerSettingLabel(name, value) {
+    const labels = {
+      readerTheme: { cream: "Кремовая", white: "Белая", sepia: "Сепия", dark: "Тёмная" },
+      readerWidth: { comfort: "Комфорт", full: "Шире", wide: "Макс." },
+      textAlign: { left: "Слева", justify: "По ширине" },
+      lineHeight: { "1.45": "Плотно", "1.6": "Норма", "1.75": "Свободно", "1.9": "Воздух" },
+      paragraphSpacing: { "12": "12", "16": "16", "20": "20", "24": "24" },
+    };
+    return (labels[name] && labels[name][String(value)]) || String(value);
+  }
+
+  function createReaderSegment(name, values) {
+    return values.map(function (value) {
+      return `<button class="reader-quick-option" type="button" data-reader-setting="${escapeHtml(name)}" data-reader-value="${escapeHtml(value)}">${escapeHtml(readerSettingLabel(name, value))}</button>`;
+    }).join("");
+  }
+
+  function ensureReaderQuickSettingsPanel() {
+    let panel = document.querySelector("[data-reader-quick-settings]");
+    if (panel) return panel;
+
+    panel = document.createElement("aside");
+    panel.className = "reader-quick-settings";
+    panel.dataset.readerQuickSettings = "true";
+    panel.hidden = true;
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "false");
+    panel.setAttribute("aria-label", "Настройка текста читалки");
+    panel.innerHTML = `
+      <div class="reader-quick-settings-card">
+        <div class="reader-quick-settings-head">
+          <div>
+            <div class="reader-quick-title">Текст</div>
+            <div class="reader-quick-subtitle">Настройка чтения</div>
+          </div>
+          <button class="reader-quick-close" type="button" data-reader-quick-close aria-label="Закрыть настройки">×</button>
+        </div>
+
+        <section class="reader-quick-row reader-quick-font-row" aria-label="Размер шрифта">
+          <span class="reader-quick-label">Размер</span>
+          <div class="reader-quick-stepper">
+            <button type="button" data-reader-font-step="-1" aria-label="Уменьшить шрифт">A−</button>
+            <strong data-reader-font-value>16</strong>
+            <button type="button" data-reader-font-step="1" aria-label="Увеличить шрифт">A+</button>
+          </div>
+        </section>
+
+        <section class="reader-quick-row">
+          <span class="reader-quick-label">Тема</span>
+          <div class="reader-quick-segment reader-quick-theme-segment">
+            ${createReaderSegment("readerTheme", ["cream", "white", "sepia", "dark"])}
+          </div>
+        </section>
+
+        <section class="reader-quick-row">
+          <span class="reader-quick-label">Ширина</span>
+          <div class="reader-quick-segment">
+            ${createReaderSegment("readerWidth", ["comfort", "full", "wide"])}
+          </div>
+        </section>
+
+        <section class="reader-quick-row">
+          <span class="reader-quick-label">Интервал</span>
+          <div class="reader-quick-segment">
+            ${createReaderSegment("lineHeight", ["1.45", "1.6", "1.75", "1.9"])}
+          </div>
+        </section>
+
+        <section class="reader-quick-row">
+          <span class="reader-quick-label">Абзацы</span>
+          <div class="reader-quick-segment reader-quick-small-segment">
+            ${createReaderSegment("paragraphSpacing", ["12", "16", "20", "24"])}
+          </div>
+        </section>
+
+        <section class="reader-quick-row">
+          <span class="reader-quick-label">Край</span>
+          <div class="reader-quick-segment">
+            ${createReaderSegment("textAlign", ["left", "justify"])}
+          </div>
+        </section>
+
+        <div class="reader-quick-footer">
+          <button type="button" class="reader-quick-reset" data-reader-quick-reset>Сбросить текст</button>
+        </div>
+      </div>`;
+    document.body.appendChild(panel);
+    return panel;
+  }
+
+  function updateReaderQuickSettingsState() {
+    const panel = document.querySelector("[data-reader-quick-settings]");
+    if (!panel) return;
+    const settings = getSettings();
+    const font = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize), 14, 22);
+    const fontValue = panel.querySelector("[data-reader-font-value]");
+    if (fontValue) fontValue.textContent = String(font);
+
+    panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
+      const name = button.dataset.readerSetting;
+      const currentValue = String(settings[name] || DEFAULT_SETTINGS[name] || "");
+      const active = currentValue === String(button.dataset.readerValue || "");
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
+  function openReaderQuickSettings(panel, toggle) {
+    panel.hidden = false;
+    document.body.classList.add("reader-quick-settings-open");
+    if (toggle) toggle.setAttribute("aria-expanded", "true");
+    updateReaderQuickSettingsState();
+    const first = panel.querySelector("button");
+    if (first) window.setTimeout(function () { first.focus({ preventScroll: true }); }, 30);
+  }
+
+  function closeReaderQuickSettings(panel, toggle) {
+    panel.hidden = true;
+    document.body.classList.remove("reader-quick-settings-open");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+  }
+
+  function initReaderQuickSettings() {
+    const page = document.querySelector("[data-chapter-page]");
+    const controls = document.querySelector("[data-reader-floating-controls]");
+    if (!page || !controls || page.dataset.isLocked === "true") return;
+
+    let toggle = controls.querySelector("[data-reader-settings-toggle]");
+    if (!toggle) {
+      toggle = document.createElement("button");
+      toggle.className = "reader-floating-button reader-settings-toggle";
+      toggle.type = "button";
+      toggle.dataset.readerSettingsToggle = "true";
+      toggle.setAttribute("aria-label", "Настроить текст");
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.title = "Настроить текст";
+      toggle.textContent = "Aa";
+      controls.appendChild(toggle);
+    }
+
+    const panel = ensureReaderQuickSettingsPanel();
+    updateReaderQuickSettingsState();
+
+    toggle.addEventListener("click", function () {
+      if (panel.hidden) {
+        openReaderQuickSettings(panel, toggle);
+      } else {
+        closeReaderQuickSettings(panel, toggle);
+      }
+    });
+
+    panel.querySelector("[data-reader-quick-close]")?.addEventListener("click", function () {
+      closeReaderQuickSettings(panel, toggle);
+      toggle.focus({ preventScroll: true });
+    });
+
+    panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        setReaderSetting(button.dataset.readerSetting, button.dataset.readerValue);
+      });
+    });
+
+    panel.querySelectorAll("[data-reader-font-step]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const settings = getSettings();
+        const next = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize) + Number(button.dataset.readerFontStep || 0), 14, 22);
+        setReaderSetting("fontSize", next);
+      });
+    });
+
+    panel.querySelector("[data-reader-quick-reset]")?.addEventListener("click", function () {
+      const current = getSettings();
+      ["readerTheme", "readerWidth", "fontSize", "lineHeight", "paragraphSpacing", "textAlign"].forEach(function (key) {
+        current[key] = DEFAULT_SETTINGS[key];
+      });
+      saveSettings(current);
+      applySettings();
+      fillSettingsInputs(getSettings());
+      updateReaderQuickSettingsState();
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !panel.hidden) {
+        closeReaderQuickSettings(panel, toggle);
+        toggle.focus({ preventScroll: true });
+      }
+    });
+
+    document.addEventListener("click", function (event) {
+      if (panel.hidden) return;
+      if (panel.contains(event.target) || toggle.contains(event.target)) return;
+      closeReaderQuickSettings(panel, toggle);
+    }, true);
   }
 
   function initChapterRetry() {
