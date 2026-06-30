@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 220" role="img" aria-label="Лисичка">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f0a35d"/><stop offset="1" stop-color="#d76f3d"/></linearGradient></defs>
+  <path d="M54 83 30 23l63 34c18-9 40-9 58 0l61-34-23 61c14 17 21 38 18 61-5 40-39 69-87 69s-82-29-87-69c-3-23 5-45 21-62Z" fill="url(#g)"/>
+  <path d="m48 45 38 36-49 2 11-38Zm144 0-38 36 49 2-11-38Z" fill="#a94c2c" opacity=".45"/>
+  <path d="M75 132c17 28 71 28 90 0 3 35-14 58-45 58s-48-23-45-58Z" fill="#fff7ee"/>
+  <circle cx="85" cy="113" r="9" fill="#2d211c"/><circle cx="155" cy="113" r="9" fill="#2d211c"/>
+  <path d="M112 135c5 5 11 5 16 0" fill="none" stroke="#2d211c" stroke-width="7" stroke-linecap="round"/>
+  <path d="M121 122c7 0 12 5 9 10-2 4-15 4-18 0-3-5 2-10 9-10Z" fill="#2d211c"/>
+</svg>

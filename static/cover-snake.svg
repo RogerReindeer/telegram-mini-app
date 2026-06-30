@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" role="img" aria-label="Обложка">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff2df"/><stop offset=".55" stop-color="#d9965e"/><stop offset="1" stop-color="#533429"/></linearGradient>
+    <filter id="s"><feDropShadow dx="0" dy="16" stdDeviation="18" flood-opacity=".25"/></filter>
+  </defs>
+  <rect width="600" height="900" rx="42" fill="url(#bg)"/>
+  <circle cx="116" cy="120" r="72" fill="#fff7ec" opacity=".32"/>
+  <circle cx="498" cy="742" r="118" fill="#fff7ec" opacity=".18"/>
+  <path d="M152 620c65-175 230-176 296 0-96 58-200 58-296 0Z" fill="#fff7ec" opacity=".9" filter="url(#s)"/>
+  <path d="M300 210c93 105 110 219 0 334-110-115-93-229 0-334Z" fill="#fff7ec" opacity=".78"/>
+  <text x="300" y="762" text-anchor="middle" font-family="system-ui, sans-serif" font-size="54" font-weight="800" fill="#fff7ec">ZBZ</text>
+</svg>
