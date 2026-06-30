@@ -2,11 +2,12 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover" />
 
   <title>{{ app_title }}</title>
 
-  <link rel="stylesheet" href="{{ static_url('style.css') }}" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/design-polish.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
@@ -34,6 +35,6 @@
   <script>
     window.ZEFIRKI_FOX = {{ fox | default({}) | tojson }};
   </script>
-  <script src="{{ static_url('settings.js') }}"></script>
+  <script src="/static/settings.js"></script>
 </body>
 </html>
