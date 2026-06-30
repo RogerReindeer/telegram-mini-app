@@ -1,6 +1,7 @@
 fastapi
 uvicorn
-jinja2
 python-dotenv
+jinja2
 requests
 beautifulsoup4
+pydantic

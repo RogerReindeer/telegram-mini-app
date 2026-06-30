@@ -2,222 +2,24 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Админка · {{ app_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Админка — {{ app_title }}</title>
   <link rel="stylesheet" href="{{ static_url('style.css') }}" />
+  <link rel="stylesheet" href="{{ static_url('design-polish.css') }}" />
 </head>
-<body class="page-admin">
-  {% set counts = audit.counts %}
-  {% set problems = audit.problems or [] %}
-  {% set latest_sync_runs = audit.latest_sync_runs or [] %}
-  {% set production_summary = production.summary %}
-
-  <main class="admin-page-shell">
-    <header class="admin-hero">
-      <div>
-        <p class="admin-kicker">Диагностика Mini App</p>
-        <h1>{{ app_title }}</h1>
-        <p class="admin-muted">Безопасная HTML-панель для проверки контента, синхронизации и кеша перед публикацией.</p>
-      </div>
-      <div class="admin-status admin-status-{{ audit.status }}">
-        {% if audit.status == 'ok' %}OK{% else %}Проверить{% endif %}
-      </div>
-    </header>
-
-    <section class="admin-grid admin-grid-stats" aria-label="Сводка">
-      <article class="admin-card">
-        <span class="admin-card-label">Новеллы</span>
-        <strong>{{ counts.novels }}</strong>
-        <small>видимых: {{ counts.visible_novels }}</small>
-      </article>
-      <article class="admin-card">
-        <span class="admin-card-label">Главы</span>
-        <strong>{{ counts.chapters }}</strong>
-        <small>в Mini App</small>
-      </article>
-      <article class="admin-card admin-card-error">
-        <span class="admin-card-label">Ошибки</span>
-        <strong>{{ counts.errors }}</strong>
-        <small>нужно исправить</small>
-      </article>
-      <article class="admin-card admin-card-warning">
-        <span class="admin-card-label">Предупреждения</span>
-        <strong>{{ counts.warnings }}</strong>
-        <small>лучше проверить</small>
-      </article>
+<body class="page-index">
+  <main class="page index-page">
+    <section class="empty empty-with-fox">
+      {% if fox.fox_sitting_front %}<img class="library-empty-fox-img" src="{{ fox.fox_sitting_front }}" alt="Лисичка" data-fox>{% endif %}
+      <h1>Админка MiniApp</h1>
+      <p>Версия: {{ state.app_version }}</p>
+      <p>Каталог: {{ state.novels_count }} книг, {{ state.chapters_count }} глав.</p>
+      <p>Supabase: {{ 'настроен' if state.supabase_configured else 'не настроен' }}</p>
+      <p>Telegram bot: {{ 'настроен' if state.telegram_bot_configured else 'не настроен' }}</p>
+      <a class="primary-read-button" href="/api/admin/production/check?token={{ token }}">Production check</a>
+      <a class="primary-read-button" href="/api/admin/content/audit?token={{ token }}">Content audit</a>
+      <a class="primary-read-button" href="/library">В библиотеку</a>
     </section>
-
-    <section class="admin-actions" aria-label="Действия">
-      <a href="/api/admin/content/audit?token={{ token | urlencode }}">Открыть JSON-аудит</a>
-      <a href="/api/admin/export/catalog?token={{ token | urlencode }}">Скачать JSON-каталог</a>
-      <a href="/api/admin/production/check?token={{ token | urlencode }}">Production check</a>
-      <a href="/api/admin/state?token={{ token | urlencode }}">Состояние проекта</a>
-      <a href="/api/admin/access/check?token={{ token | urlencode }}">Проверка доступов</a>
-      <a href="/api/admin/render/smoke-plan?token={{ token | urlencode }}">Render smoke plan</a>
-      <a href="/version">Версия</a>
-      <a href="/ready">Ready</a>
-    </section>
-
-
-
-    <section class="admin-panel">
-      <div class="admin-panel-header">
-        <div>
-          <h2>Production readiness</h2>
-          <p>Короткая проверка перед деплоем: env vars, Supabase, контент, assets и cache.</p>
-        </div>
-        <span>{{ production.status }}</span>
-      </div>
-      <div class="admin-grid admin-grid-stats">
-        <article class="admin-card"><span class="admin-card-label">Проверки</span><strong>{{ production_summary.checks }}</strong><small>всего</small></article>
-        <article class="admin-card admin-card-error"><span class="admin-card-label">Блокеры</span><strong>{{ production_summary.failed }}</strong><small>исправить до запуска</small></article>
-        <article class="admin-card admin-card-warning"><span class="admin-card-label">Warnings</span><strong>{{ production_summary.warnings }}</strong><small>проверить руками</small></article>
-        <article class="admin-card"><span class="admin-card-label">Passed</span><strong>{{ production_summary.passed }}</strong><small>готово</small></article>
-      </div>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr><th>Статус</th><th>Проверка</th><th>Сообщение</th></tr>
-          </thead>
-          <tbody>
-            {% for check in production.checks[:12] %}
-              <tr class="admin-problem-{{ 'error' if check.status == 'fail' else ('warning' if check.status == 'warn' else 'info') }}">
-                <td>{{ check.status }}</td>
-                <td><code>{{ check.name }}</code></td>
-                <td>{{ check.message }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="3">Проверок пока нет.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="admin-panel">
-      <div class="admin-panel-header">
-        <div>
-          <h2>Кеш</h2>
-          <p>Сброс нужен после ручных правок или если Telegram WebView показывает старые данные.</p>
-        </div>
-        <span>{{ cache.items }} items</span>
-      </div>
-      <div class="admin-cache-grid">
-        {% for namespace, count in cache.namespaces.items() %}
-          <div><span>{{ namespace }}</span><strong>{{ count }}</strong></div>
-        {% else %}
-          <div><span>cache</span><strong>пусто</strong></div>
-        {% endfor %}
-      </div>
-      <div class="admin-form-row">
-        {% for namespace, label in [('all', 'Сбросить всё'), ('catalog', 'Каталог'), ('telegraph', 'Telegraph'), ('images', 'Картинки')] %}
-          <form method="post" action="/api/admin/cache/clear?token={{ token | urlencode }}&namespace={{ namespace }}">
-            <button type="submit">{{ label }}</button>
-          </form>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="admin-panel">
-      <div class="admin-panel-header">
-        <div>
-          <h2>Последние синхронизации</h2>
-          <p>Краткая история запусков из sync_runs без секретов.</p>
-        </div>
-      </div>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Статус</th>
-              <th>Источник</th>
-              <th>Новеллы</th>
-              <th>Главы</th>
-              <th>Warnings</th>
-              <th>Время</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for run in latest_sync_runs %}
-              <tr>
-                <td>{{ run.status or '—' }}</td>
-                <td>{{ run.source or '—' }}</td>
-                <td>{{ run.novels_received or 0 }}</td>
-                <td>{{ run.chapters_received or 0 }}</td>
-                <td>{{ run.warnings_count or 0 }}</td>
-                <td>{{ run.started_at or '—' }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="6">Запусков sync_runs пока нет или Supabase недоступен.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="admin-panel">
-      <div class="admin-panel-header">
-        <div>
-          <h2>Проблемы контента</h2>
-          <p>Показаны первые 500 проблем. Ошибки лучше исправлять до публикации.</p>
-        </div>
-        <span>{{ problems | length }}</span>
-      </div>
-      <div class="admin-table-wrap">
-        <table class="admin-table admin-problems-table">
-          <thead>
-            <tr>
-              <th>Тип</th>
-              <th>Код</th>
-              <th>NovelID</th>
-              <th>ChapterID</th>
-              <th>Поле</th>
-              <th>Сообщение</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for problem in problems %}
-              <tr class="admin-problem-{{ problem.severity }}">
-                <td>{{ problem.severity }}</td>
-                <td><code>{{ problem.code }}</code></td>
-                <td>{{ problem.novel_id or '—' }}</td>
-                <td>{{ problem.chapter_id or '—' }}</td>
-                <td>{{ problem.field or '—' }}</td>
-                <td>{{ problem.message }}</td>
-              </tr>
-            {% else %}
-              <tr><td colspan="6">Проблем не найдено.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="admin-panel admin-version-panel">
-      <h2>Версия</h2>
-      <dl>
-        <div><dt>App</dt><dd>{{ version.version }}</dd></div>
-        <div><dt>Env</dt><dd>{{ version.environment }}</dd></div>
-        <div><dt>CSS</dt><dd>{{ version.assets.get('style.css', '—') }}</dd></div>
-        <div><dt>JS</dt><dd>{{ version.assets.get('settings.js', '—') }}</dd></div>
-      </dl>
-    </section>
-  
-
-      <section class="admin-card admin-release-card">
-        <h2>Release candidate</h2>
-        <p>Быстрые ссылки для финальной проверки перед запуском.</p>
-        <div class="admin-link-grid">
-          <a href="/api/admin/metrics/summary?token={{ token }}" target="_blank" rel="noopener noreferrer">Метрики</a>
-          <a href="/api/admin/release/check?token={{ token }}" target="_blank" rel="noopener noreferrer">Release check</a>
-          <a href="/api/admin/state?token={{ token }}" target="_blank" rel="noopener noreferrer">Project state</a>
-          <a href="/api/admin/render/smoke-plan?token={{ token }}" target="_blank" rel="noopener noreferrer">Render smoke</a>
-          <a href="/api/admin/export/manifest?token={{ token }}" target="_blank" rel="noopener noreferrer">Backup manifest</a>
-          <a href="/api/admin/export/catalog?token={{ token }}" target="_blank" rel="noopener noreferrer">Export catalog</a>
-        </div>
-      </section>
-
-    </main>
-  <script src="{{ static_url('settings.js') }}"></script>
+  </main>
 </body>
 </html>
