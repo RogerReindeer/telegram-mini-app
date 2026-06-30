@@ -58,6 +58,7 @@
       initSpoilerReveal,
       initAccessActions,
       initBackgroundAccessRefresh,
+      initLibrarySettingsEntrypoints,
       initSyncQueue,
     ];
 
@@ -205,27 +206,6 @@
     }
   }
 
-  function initBackgroundAccessRefresh() {
-    const initData = getTelegramInitData();
-    const viewer = window.ZEFIRKI_VIEWER || {};
-    if (!initData || !viewer.authenticated) return;
-
-    const key = `zefirki_access_refresh_${simpleHash(initData)}`;
-    const last = Number(sessionStorage.getItem(key) || 0);
-    if (Date.now() - last < 10 * 60 * 1000) return;
-    sessionStorage.setItem(key, String(Date.now()));
-
-    window.setTimeout(function () {
-      postTelegramAuth(initData)
-        .then(function () {
-          document.body.dataset.accessRefreshed = "true";
-        })
-        .catch(function (error) {
-          console.debug("Фоновая проверка доступа пропущена", error);
-        });
-    }, 900);
-  }
-
   function initAccessActions() {
     document.querySelectorAll("[data-telegram-link]").forEach(function (link) {
       link.addEventListener("click", function (event) {
@@ -260,6 +240,55 @@
           button.textContent = "Проверить доступ ещё раз";
           alert(error.message || "Не удалось проверить доступ");
         }
+      });
+    });
+  }
+
+
+  function shouldReloadAfterBackgroundAccess(previousRole, nextRole) {
+    if (!nextRole || previousRole === nextRole) return false;
+    const lockedChapter = document.querySelector("[data-chapter-page][data-is-locked='true']");
+    const novelPage = document.querySelector("[data-novel-page]");
+    return Boolean(lockedChapter || novelPage);
+  }
+
+  let backgroundAccessRefreshRunning = false;
+
+  async function refreshAccessInBackground() {
+    const initData = getTelegramInitData();
+    if (!initData || backgroundAccessRefreshRunning) return;
+    backgroundAccessRefreshRunning = true;
+    const previousRole = String((window.ZEFIRKI_VIEWER && window.ZEFIRKI_VIEWER.role) || "guest");
+    try {
+      const data = await postTelegramAuth(initData);
+      const nextRole = String((data && data.rights && data.rights.role) || (data && data.role) || previousRole);
+      sessionStorage.setItem("zefirki_access_refreshed_at", String(Date.now()));
+      if (shouldReloadAfterBackgroundAccess(previousRole, nextRole)) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.debug("Фоновая проверка доступа отложена", error);
+    } finally {
+      backgroundAccessRefreshRunning = false;
+    }
+  }
+
+  function initBackgroundAccessRefresh() {
+    if (!getTelegramInitData()) return;
+    const last = Number(sessionStorage.getItem("zefirki_access_refreshed_at") || 0);
+    if (Date.now() - last > 10 * 60 * 1000) {
+      window.setTimeout(refreshAccessInBackground, 1800);
+    }
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) refreshAccessInBackground();
+    });
+  }
+
+  function initLibrarySettingsEntrypoints() {
+    document.querySelectorAll("[data-open-settings]").forEach(function (button) {
+      button.addEventListener("click", function () {
+        const overlay = document.querySelector("[data-settings-overlay]");
+        if (overlay) overlay.hidden = false;
       });
     });
   }
@@ -426,8 +455,8 @@
 
   function syncStatusLabel(status, pending) {
     if (!navigator.onLine) return "Нет сети";
-    if (status === "syncing") return "Сохраняем…";
-    if (status === "error") return "Не сохранилось — нажмите";
+    if (status === "syncing") return pending > 0 ? `Сохраняю… ${pending}` : "Сохраняю…";
+    if (status === "error") return "Сохраню позже";
     return "";
   }
 
@@ -729,7 +758,7 @@
 
     const update = function () {
       const isFullscreen = Boolean(telegram.isFullscreen);
-      button.textContent = isFullscreen ? "Обычный" : "Во весь экран";
+      button.textContent = isFullscreen ? "↙" : "↗";
       button.title = isFullscreen ? "Вернуть обычный размер" : "Открыть на весь экран";
       button.setAttribute("aria-label", button.title);
       button.setAttribute("aria-pressed", isFullscreen ? "true" : "false");
@@ -1104,18 +1133,15 @@
   function buildCardMenu(card) {
     const novelId = card.dataset.novelId || "";
     const isFavorite = getIdList(STORAGE_KEYS.favoriteNovels).includes(novelId);
+    const isHidden = getIdList(STORAGE_KEYS.hiddenNovels).includes(novelId);
     const state = card.dataset.cardState || "";
     const hasHistory = readJson(STORAGE_KEYS.readingHistory, []).some(function (item) {
       return String(item.novelId) === String(novelId);
     });
     const isReading = state === "reading" || state === "new" || state === "waiting_new";
     const isCompleted = state === "completed" || getIdList(STORAGE_KEYS.completedNovels).includes(novelId);
-    const isHidden = getIdList(STORAGE_KEYS.hiddenNovels).includes(novelId);
 
-    const items = isHidden ? [
-      ["unhide", "↩", "Вернуть в библиотеку"],
-      ["contents", "☷", "К оглавлению"],
-    ] : [
+    const items = [
       ["contents", "☷", "К оглавлению"],
       ["favorite", isFavorite ? "♥" : "♡", isFavorite ? "Убрать из избранного" : "Добавить в избранное"],
       [isCompleted ? "unmark-read" : "mark-read", "✓", isCompleted ? "Убрать из прочитанного" : "Отметить как прочитанное"],
@@ -1126,10 +1152,8 @@
       items.push(["reset-progress", "↻", "Сбросить прогресс"]);
     }
 
-    if (!isHidden) {
-      items.push(["reread", "↺", "Перечитать сначала"]);
-      items.push(["hide", "⊘", "Скрыть карточку"]);
-    }
+    items.push(["reread", "↺", "Перечитать сначала"]);
+    items.push(isHidden ? ["unhide", "↥", "Вернуть в библиотеку"] : ["hide", "⊘", "Скрыть карточку"]);
 
     const menu = document.createElement("div");
     menu.className = "library-card-menu-popover";
@@ -1164,14 +1188,6 @@
 
     if (action === "contents") {
       window.location.href = `/novel/${novelSlug}`;
-      return;
-    }
-
-    if (action === "unhide") {
-      removeIdFromList(STORAGE_KEYS.hiddenNovels, novelId);
-      syncLibraryState(novelId).catch(console.warn);
-      closeAllCardMenus();
-      renderLibraryCards();
       return;
     }
 
@@ -1221,6 +1237,14 @@
 
     if (action === "hide") {
       addIdToList(STORAGE_KEYS.hiddenNovels, novelId);
+      syncLibraryState(novelId).catch(console.warn);
+      closeAllCardMenus();
+      renderLibraryCards();
+      return;
+    }
+
+    if (action === "unhide") {
+      removeIdFromList(STORAGE_KEYS.hiddenNovels, novelId);
       syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
@@ -1298,10 +1322,9 @@
       start: document.querySelector('[data-section-list="start"]'),
       waiting: document.querySelector('[data-section-list="waiting"]'),
       finished: document.querySelector('[data-section-list="finished"]'),
-      hidden_novels: document.querySelector('[data-section-list="hidden_novels"]'),
     };
 
-    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished || !lists.hidden_novels) {
+    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished || !lists.hidden) {
       return;
     }
 
@@ -1325,7 +1348,7 @@
       start: [],
       waiting: [],
       finished: [],
-      hidden_novels: [],
+      hidden: [],
     };
 
     const cards = Array.from(document.querySelectorAll("[data-library-novel-card]"));
@@ -1333,16 +1356,18 @@
     cards.forEach(function (card) {
       const novelId = String(card.dataset.novelId || "");
 
-      const state = prepareLibraryCard(card, historyByNovel, readIds, completedNovels);
-      card.dataset.cardState = state;
-      card.dataset.isFavorite = favoriteNovels.includes(novelId) ? "true" : "false";
-      card.dataset.isHidden = hiddenNovels.includes(novelId) ? "true" : "false";
-
       if (hiddenNovels.includes(novelId)) {
-        buckets.hidden_novels.push(card);
+        const hiddenState = prepareLibraryCard(card, historyByNovel, readIds, completedNovels);
+        card.dataset.cardState = hiddenState;
+        card.dataset.isHidden = "true";
+        buckets.hidden.push(card);
         return;
       }
 
+      card.dataset.isHidden = "false";
+      const state = prepareLibraryCard(card, historyByNovel, readIds, completedNovels);
+      card.dataset.cardState = state;
+      card.dataset.isFavorite = favoriteNovels.includes(novelId) ? "true" : "false";
 
       if (!cardMatchesFilter(card, filter)) {
         raw.appendChild(card);
@@ -1417,7 +1442,7 @@
       "is-locked",
       "is-soon",
       "is-favorite",
-      "is-subscriber-only"
+      "is-subscriber-book"
     );
 
     if (button) {
@@ -1429,8 +1454,9 @@
     if (isFavorite) {
       card.classList.add("is-favorite");
     }
-    if (card.dataset.isSubscriberOnly === "true" || card.dataset.requiredRole === "traveler") {
-      card.classList.add("is-subscriber-only");
+
+    if (card.dataset.subscriberBook === "true" || (card.dataset.requiredRole && card.dataset.requiredRole !== "guest")) {
+      card.classList.add("is-subscriber-book");
     }
 
     const safeHistoryIndex = historyItem && historyItem.chapterIndex
@@ -1707,8 +1733,7 @@
       '[data-section-list="reading"] [data-library-novel-card], ' +
       '[data-section-list="start"] [data-library-novel-card], ' +
       '[data-section-list="waiting"] [data-library-novel-card], ' +
-      '[data-section-list="finished"] [data-library-novel-card], ' +
-      '[data-section-list="hidden_novels"] [data-library-novel-card]'
+      '[data-section-list="finished"] [data-library-novel-card]'
     );
 
     button.textContent = `Показать ${visibleCards.length} новелл`;
@@ -2041,15 +2066,6 @@
     applySettings();
     fillSettingsInputs(getSettings());
     updateReaderQuickSettingsState();
-    const panel = document.querySelector("[data-reader-quick-settings]");
-    if (panel) {
-      panel.dataset.lastChanged = name;
-      window.clearTimeout(panel._readerQuickPulseTimer);
-      panel.classList.add("is-live-updated");
-      panel._readerQuickPulseTimer = window.setTimeout(function () {
-        panel.classList.remove("is-live-updated");
-      }, 180);
-    }
   }
 
   function readerSettingLabel(name, value) {
@@ -2149,11 +2165,6 @@
     const font = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize), 14, 22);
     const fontValue = panel.querySelector("[data-reader-font-value]");
     if (fontValue) fontValue.textContent = String(font);
-    panel.dataset.currentFontSize = String(font);
-    panel.querySelectorAll("[data-reader-font-step]").forEach(function (button) {
-      const step = Number(button.dataset.readerFontStep || 0);
-      button.disabled = step < 0 ? font <= 14 : font >= 22;
-    });
 
     panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
       const name = button.dataset.readerSetting;
@@ -2215,6 +2226,13 @@
 
     panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
       button.addEventListener("click", function () {
+        const group = button.closest(".reader-quick-segment");
+        if (group) {
+          group.querySelectorAll("[data-reader-setting]").forEach(function (item) {
+            item.classList.toggle("is-active", item === button);
+            item.setAttribute("aria-pressed", item === button ? "true" : "false");
+          });
+        }
         setReaderSetting(button.dataset.readerSetting, button.dataset.readerValue);
       });
     });
@@ -2505,21 +2523,24 @@
     const overlay = document.querySelector("[data-settings-overlay]");
     if (!fab || !overlay) return;
     fillSettingsInputs(settings);
-    const openSettings = function () { overlay.hidden = false; fillSettingsInputs(getSettings()); };
-    fab.addEventListener("click", openSettings);
-    document.querySelectorAll("[data-open-settings]").forEach(function (button) {
-      button.addEventListener("click", function (event) {
-        event.preventDefault();
-        openSettings();
-      });
-    });
+    fab.addEventListener("click", function () { overlay.hidden = false; });
     overlay.addEventListener("click", function (event) { if (event.target === overlay) overlay.hidden = true; });
     overlay.querySelector("[data-settings-close]")?.addEventListener("click", function () { overlay.hidden = true; });
     overlay.querySelectorAll("[data-settings-tab]").forEach(function (tab) { tab.addEventListener("click", function () { const name = tab.dataset.settingsTab; overlay.querySelectorAll("[data-settings-tab]").forEach((item) => item.classList.toggle("active", item === tab)); overlay.querySelectorAll("[data-settings-section]").forEach((section) => section.classList.toggle("active", section.dataset.settingsSection === name)); if (name === "access") loadAccessDebug(false); }); });
-    overlay.querySelectorAll("[data-setting]").forEach(function (input) { input.addEventListener("change", function () { const current = getSettings(); current[input.dataset.setting] = input.value; saveSettings(current); applySettings(); }); });
-    overlay.querySelectorAll("[data-setting-checkbox]").forEach(function (input) { input.addEventListener("change", function () { const current = getSettings(); current[input.dataset.settingCheckbox] = input.checked; saveSettings(current); applySettings(); }); });
+    overlay.querySelectorAll("[data-setting]").forEach(function (input) {
+      const applyInput = function () {
+        const current = getSettings();
+        current[input.dataset.setting] = input.value;
+        saveSettings(current);
+        applySettings();
+        updateReaderQuickSettingsState();
+      };
+      input.addEventListener("change", applyInput);
+      input.addEventListener("input", applyInput);
+    });
+    overlay.querySelectorAll("[data-setting-checkbox]").forEach(function (input) { input.addEventListener("change", function () { const current = getSettings(); current[input.dataset.settingCheckbox] = input.checked; saveSettings(current); applySettings(); updateReaderQuickSettingsState(); }); });
     const colorInput = overlay.querySelector("[data-setting-color]");
-    if (colorInput) colorInput.addEventListener("input", function () { const current = getSettings(); current.accentColor = colorInput.value; saveSettings(current); applySettings(); });
+    if (colorInput) colorInput.addEventListener("input", function () { const current = getSettings(); current.accentColor = colorInput.value; saveSettings(current); applySettings(); updateReaderQuickSettingsState(); });
     overlay.querySelector("[data-settings-reset]")?.addEventListener("click", function () { saveSettings({ ...DEFAULT_SETTINGS }); fillSettingsInputs(getSettings()); applySettings(); });
     overlay.querySelector("[data-access-debug-refresh]")?.addEventListener("click", function () { loadAccessDebug(true); });
     const aboutFoxWrap = overlay.querySelector("[data-about-fox-wrap]");
@@ -2571,7 +2592,7 @@
       </div>
       <h4>Что разрешено</h4>
       <div class="access-debug-row"><span>Обычные книги</span><strong class="is-ok">Видит</strong><small>Чтение только после FreeReleaseDate.</small></div>
-      <div class="access-debug-row"><span>Книги с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Видит" : "Не видит"}</strong><small>Странствующий получает только видимость книги, не премиальные главы.</small></div>
+      <div class="access-debug-row"><span>Книги с 🎁</span><strong class="is-ok">Видит карточку</strong><small>Читать бесплатные главы подарочных новелл могут 🌱 и 📜. Гость видит карточку и объяснение доступа.</small></div>
       <div class="access-debug-row"><span>Премиальные релизы</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>Открываются только Хранителю по PremiumReleaseDate.</small></div>
       <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>

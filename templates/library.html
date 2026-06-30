@@ -10,7 +10,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body class="ui-audit-v64 page-library library-redesign library-v4">
+<body class="ui-audit-v64 page-library library-redesign library-v4 v110-mobile-reader-stable">
   {% set header_fox = fox.fox_peek_right or fox.fox_peek_left or fox.fox_peek or fox.fox_pic or fox.fox_sitting_front or fox.fox_heart or fox.fox_side %}
   {% set empty_fox = fox.fox_sleeping or fox.fox_laying_paws or fox.fox_sitting_front or fox.fox_pic or fox.fox_peek_right or fox.fox_side %}
   {% set card_fox = fox.fox_peek_right or fox.fox_peek_left or fox.fox_heart or fox.fox_pic or fox.fox_side %}
@@ -44,13 +44,13 @@
           <span>Фильтры</span>
         </button>
 
-        <button class="library-action-button library-settings-inline-button" type="button" data-open-settings>
+        <button class="library-action-button library-settings-action" type="button" data-open-settings>
           <span class="library-action-icon">⚙</span>
           <span>Настройки</span>
         </button>
 
         <label class="library-sort-pill">
-          <span>Сортировка:</span>
+          <span class="library-sort-label">Сортировка:</span>
           <select id="librarySort">
             <option value="smart">Умная</option>
             <option value="sort-order">По умолчанию</option>
@@ -87,10 +87,18 @@
 
       <section class="library-active-filters" id="libraryActiveFilters" hidden></section>
 
+      <section class="library-support-card" aria-label="Подписка и новые главы">
+        <div class="library-support-icon" aria-hidden="true">🌱</div>
+        <div class="library-support-copy">
+          <strong>Хочешь больше глав?</strong>
+          <span>Перейди в ТГК, найди ссылку на Boosty и оформи подписку. Подарочные новеллы видны всем, а читать их могут подписчики.</span>
+        </div>
+        <a class="library-support-link" href="https://t.me/c/2608069201" target="_blank" rel="noopener noreferrer" data-telegram-link>В ТГК</a>
+      </section>
+
       <section class="library-mobile-hint" aria-label="Подсказка по библиотеке">
         <span>Карточка открывает книгу. Если вы уже читали новеллу, Mini App предложит продолжить с места.</span>
       </section>
-
 
       <section class="library-update-banner" id="libraryUpdateBanner" hidden>
         <div class="library-update-icon">🔔</div>
@@ -152,14 +160,6 @@
           <div class="library-section-list" data-section-list="start"></div>
         </section>
 
-        <section class="library-support-banner library-support-banner-after-start" aria-label="Поддержать проект и открыть больше глав">
-          <div>
-            <span class="library-support-kicker">Хочется больше глав?</span>
-            <p>Перейдите в ТГК, найдите ссылку на Boosty и оформите подписку. Подписка открывает главы для тех, кто поддержал проект.</p>
-          </div>
-          <a class="library-support-link" href="https://t.me/c/2608069201" target="_blank" rel="noopener noreferrer" data-telegram-link>Открыть ТГК</a>
-        </section>
-
         <section class="library-section" data-library-section="waiting">
           <button class="library-section-header" type="button" data-section-toggle="waiting" aria-expanded="true">
             <span>
@@ -183,19 +183,19 @@
           <div class="library-section-list" data-section-list="finished"></div>
         </section>
 
-        <section class="library-section library-section-hidden-novels collapsed" data-library-section="hidden_novels">
-          <button class="library-section-header" type="button" data-section-toggle="hidden_novels" aria-expanded="false">
+        <section class="library-section library-section-hidden-novels" data-library-section="hidden" hidden>
+          <button class="library-section-header" type="button" data-section-toggle="hidden" aria-expanded="true">
             <span>
               Скрытые
-              <span class="library-section-count" data-section-count="hidden_novels">0</span>
+              <span class="library-section-count" data-section-count="hidden">0</span>
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Карточки, которые вы спрятали через меню ⋮. Их можно вернуть обратно.</div>
-          <div class="library-section-list" data-section-list="hidden_novels"></div>
+          <div class="library-section-helper">Карточки, которые вы убрали из библиотеки. Их можно вернуть через меню ⋮.</div>
+          <div class="library-section-list" data-section-list="hidden"></div>
         </section>
 
-        <section class="library-section" data-library-section="raw" hidden>
+        <section class="library-section library-raw-card-storage" data-library-section="raw" hidden>
           <div class="library-section-list" id="libraryRawCards">
             {% for novel in novels %}
               <article
@@ -218,7 +218,7 @@
                 data-boosty-paid-chapters="{{ novel.boosty_paid_chapters_count or 0 }}"
                 data-keeper-chapters="{{ novel.keeper_chapters_count or 0 }}"
                 data-required-role="{{ novel.required_role or 'guest' }}"
-                data-is-subscriber-only="{{ 'true' if novel.required_role == 'traveler' else 'false' }}"
+                data-subscriber-book="{{ 'true' if (novel.required_role and novel.required_role != 'guest') or (novel.access_badge and novel.access_badge.class_name == 'access-boosty') else 'false' }}"
                 data-progress="{{ novel.normalized_progress_percent or novel.progress_percent or 0 }}"
                 data-added="{{ novel.added_date or '' }}"
                 data-relation="{{ novel.relation_type or '' }}"
@@ -285,15 +285,15 @@
                     >
                       {{ novel.translation_status_label }}
                     </span>
-                    {% if novel.required_role == 'traveler' %}
-                      <span class="library-subscriber-badge" title="Доступно тем, кто поддержал проект подпиской">Для подписчиков</span>
+                    {% if (novel.required_role and novel.required_role != 'guest') or (novel.access_badge and novel.access_badge.class_name == 'access-boosty') %}
+                      <span class="library-subscriber-badge" title="Главы доступны тем, кто поддержал проект подпиской">✨ Для подписчиков</span>
                     {% endif %}
                     <span class="library-card-state-pill" data-card-state-pill hidden></span>
                   </div>
 
                   <div class="library-card-access-row" aria-label="Количество глав по уровням доступа">
-                    <span class="library-access-count library-access-free" title="{% if novel.required_role == 'traveler' %}Главы для подписчиков уровня Странствующий читатель{% else %}Главы, открытые бесплатно{% endif %}">
-                      {% if novel.required_role == 'traveler' %}🎁 {{ novel.free_chapters_count or 0 }}{% else %}🌱 {{ novel.free_chapters_count or 0 }}{% endif %}
+                    <span class="library-access-count library-access-free" title="Главы, открытые бесплатно">
+                      🌱 {{ novel.free_chapters_count or 0 }}
                     </span>
                     <span class="library-access-count library-access-keeper" title="Главы, доступные Хранителю по расписанию">
                       📜 {{ novel.keeper_chapters_count or 0 }}
@@ -315,7 +315,7 @@
 
                     {% if card_tags %}
                       {% for tag in card_tags %}
-                        {% if loop.index <= 10 %}
+                        {% if loop.index <= 8 %}
                           {% if tag.is_spoiler %}
                             <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
                           {% else %}
@@ -323,8 +323,8 @@
                           {% endif %}
                         {% endif %}
                       {% endfor %}
-                      {% if card_tags|length > 10 %}
-                        <span class="library-mini-tag library-mini-tag-more">+{{ card_tags|length - 10 }}</span>
+                      {% if card_tags|length > 8 %}
+                        <span class="library-mini-tag library-mini-tag-more">+{{ card_tags|length - 8 }}</span>
                       {% endif %}
                     {% endif %}
                   </div>
