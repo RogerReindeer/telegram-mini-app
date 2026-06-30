@@ -1,39 +1,42 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from pathlib import Path
+
+from dotenv import load_dotenv
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from .config import BASE_DIR, settings
-from .assets import build_manifest, static_url
-from .middleware import SecurityHeadersMiddleware, ResponseCacheHeadersMiddleware, RateLimitMiddleware
-from .templating import render_template
-from .routers import system, catalog, user, auth, sync, admin, payments
 
+from .assets import static_url
+from .middleware import install_exception_handlers, install_middlewares
+from .routers.admin import router as admin_router
+from .routers.admin_page import create_admin_page_router
+from .routers.auth import create_auth_router
+from .routers.catalog import create_catalog_router
+from .routers.payments import router as payments_router
+from .routers.sync import router as sync_router
+from .routers.system import router as system_router
+from .routers.user import create_user_router
+from .services.auth import public_viewer, require_authenticated_viewer
+from .services.catalog import get_fox
 
-def create_app() -> FastAPI:
-    build_manifest()
-    app = FastAPI(title=settings.app_title, version=settings.app_version)
-    app.mount('/static', StaticFiles(directory=BASE_DIR / 'static'), name='static')
-    templates = Jinja2Templates(directory=BASE_DIR / 'templates')
-    templates.env.globals['static_url'] = static_url
-    app.state.templates = templates
+SITE_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(SITE_ROOT / ".env")
 
-    app.add_middleware(RateLimitMiddleware)
-    app.add_middleware(ResponseCacheHeadersMiddleware)
-    app.add_middleware(SecurityHeadersMiddleware)
+APP_TITLE = "Зефиркины баоцзы"
 
-    app.include_router(system.router)
-    app.include_router(catalog.router)
-    app.include_router(user.router)
-    app.include_router(auth.router)
-    app.include_router(sync.router)
-    app.include_router(admin.router)
-    app.include_router(payments.router)
+app = FastAPI(title="Zefirki Reader Mini App")
+install_middlewares(app)
+app.mount("/static", StaticFiles(directory=str(SITE_ROOT / "static")), name="static")
+templates = Jinja2Templates(directory=str(SITE_ROOT / "templates"))
+templates.env.globals["static_url"] = static_url
 
-    @app.exception_handler(404)
-    def not_found(request: Request, exc: HTTPException) -> HTMLResponse:
-        from .services.catalog import get_fox
-        return render_template(request, 'index.html', {"app_title": settings.app_title, "fox": get_fox(), "error": "Страница не найдена. Вернитесь в библиотеку."}, status_code=404)
-
-    return app
+app.include_router(system_router)
+app.include_router(admin_router)
+app.include_router(create_admin_page_router(templates=templates, app_title=APP_TITLE))
+app.include_router(create_auth_router())
+app.include_router(create_user_router(require_authenticated_viewer, public_viewer))
+app.include_router(sync_router)
+app.include_router(payments_router)
+app.include_router(create_catalog_router(templates=templates, app_title=APP_TITLE))
+install_exception_handlers(app, templates=templates, app_title=APP_TITLE, get_fox=get_fox)

@@ -2,16 +2,15 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
   <title>{{ novel.display_title }} — {{ app_title }}</title>
 
   <link rel="stylesheet" href="{{ static_url('style.css') }}" />
-  <link rel="stylesheet" href="{{ static_url('design-polish.css') }}" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 
-<body class="page-novel novel-redesign-page">
+<body class="toc-audit-v65 page-novel novel-redesign-page">
   {% set title_fox = fox.fox_heart or fox.fox_sitting_front or fox.fox_pic or fox.fox_peek_right or fox.fox_peek_left or fox.fox_peek %}
   {% set side_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_pic or fox.fox_peek_right or fox.fox_peek %}
 
@@ -114,6 +113,15 @@
       {% endif %}
     </section>
 
+    {% if chapters and chapters|length > 0 %}
+      <section class="novel-read-action novel-read-action-v2 novel-read-action-priority">
+        <a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">
+          Начать читать
+        </a>
+        <p class="novel-read-action-hint" id="novelReadHint">Откроется первая доступная глава.</p>
+      </section>
+    {% endif %}
+
     {% if novel.description_paragraphs or novel.description %}
       <section class="novel-description-card" data-collapsible-description>
         <div class="novel-section-heading">
@@ -150,14 +158,6 @@
       </section>
     {% endif %}
 
-    {% if chapters and chapters|length > 0 %}
-      <section class="novel-read-action novel-read-action-v2">
-        <a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">
-          Начать читать
-        </a>
-      </section>
-    {% endif %}
-
     <section class="chapters-section chapters-section-v2">
       <div class="chapter-section-top-v2" id="chapterListStart">
         <div class="chapter-section-title-wrap">
@@ -169,7 +169,7 @@
         </div>
 
         <div class="chapter-section-actions">
-          <button class="chapter-jump-button" type="button" data-chapter-jump="end" aria-label="Перейти в конец списка глав">↓ В конец</button>
+          <button class="chapter-jump-button" type="button" data-chapter-jump="end" aria-label="Перейти в конец списка глав" {% if not chapters or chapters|length <= 30 %}hidden{% endif %}>↓ В конец</button>
           <button class="chapter-sort-button" type="button" data-chapter-sort-toggle data-sort-order="asc">
             <span class="chapter-sort-icon">☷</span>
             <span data-chapter-sort-label>Сортировка: по порядку</span>
@@ -215,8 +215,12 @@
               <span class="chapter-row-main">
                 <span class="chapter-title">{{ chapter.display_title }}</span>
 
-                {% if chapter.required_role == 'keeper' and not chapter.is_available %}
-                  <span class="chapter-access chapter-access-keeper">📜 Ранний релиз Хранителя</span>
+                {% if chapter.is_available and chapter.access_status in ['public_open', 'premium_open', 'full_book_entitlement'] %}
+                  <span class="chapter-access chapter-access-open" aria-label="Глава доступна"></span>
+                {% elif chapter.toc_access_label %}
+                  <span class="chapter-access {{ chapter.toc_access_class }}" {% if chapter.toc_access_hint %}title="{{ chapter.toc_access_hint }}"{% endif %}>{{ chapter.toc_access_label }}</span>
+                {% elif chapter.required_role == 'keeper' and not chapter.is_available %}
+                  <span class="chapter-access chapter-access-keeper">📜 Ранний релиз</span>
                 {% else %}
                   <span class="chapter-access {{ chapter.access_class }}">{{ chapter.access_label }}</span>
                 {% endif %}

@@ -2,87 +2,385 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes, viewport-fit=cover" />
-  <title>{{ app_title }} — Библиотека</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+  <title>Библиотека — {{ app_title }}</title>
+
   <link rel="stylesheet" href="{{ static_url('style.css') }}" />
-  <link rel="stylesheet" href="{{ static_url('design-polish.css') }}" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body class="page-library">
-  {% set page_fox = fox.fox_sitting_front or fox.fox_pic or fox.fox_peek or fox.fox_side %}
-  <main class="page library-page" data-library-page>
-    <header class="library-header">
-      <div>
-        <p class="library-kicker">Зефиркины баоцзы</p>
-        <h1>Библиотека</h1>
-        <p class="library-subtitle">Выберите новеллу для чтения</p>
-      </div>
-      {% if page_fox %}
-        <img class="library-header-fox" src="{{ page_fox }}" alt="Лисичка" data-fox>
-      {% endif %}
-    </header>
 
-    {% if continue_item %}
-      <section class="continue-card" aria-label="Продолжить чтение">
-        <div class="continue-copy">
-          <p class="continue-label">Вы остановились здесь</p>
-          <h2>{{ continue_item.novel_title }}</h2>
-          <p>{{ continue_item.chapter_title }}</p>
+<body class="ui-audit-v64 page-library library-redesign library-v4">
+  {% set header_fox = fox.fox_peek_right or fox.fox_peek_left or fox.fox_peek or fox.fox_pic or fox.fox_sitting_front or fox.fox_heart or fox.fox_side %}
+  {% set empty_fox = fox.fox_sleeping or fox.fox_laying_paws or fox.fox_sitting_front or fox.fox_pic or fox.fox_peek_right or fox.fox_side %}
+  {% set card_fox = fox.fox_peek_right or fox.fox_peek_left or fox.fox_heart or fox.fox_pic or fox.fox_side %}
+
+  <main class="library-app-shell">
+    <section class="library-screen">
+      <header class="library-hero library-hero-v4">
+        <div class="library-hero-main">
+          <div class="library-brand">
+            Зефиркины баоцзы
+            <span class="library-brand-bao">🥟</span>
+          </div>
+
+          <h1>Библиотека</h1>
+          <p>Выберите новеллу для чтения.</p>
         </div>
-        <a class="primary-read-button" href="/chapter/{{ continue_item.chapter_id }}">Продолжить чтение</a>
+
+        {% if header_fox %}
+          <img class="library-hero-fox" src="{{ header_fox }}" alt="Лисичка" data-fox>
+        {% endif %}
+      </header>
+
+      <section class="library-actions library-actions-v4" aria-label="Инструменты библиотеки">
+        <button class="library-action-button" type="button" id="librarySearchToggle">
+          <span class="library-action-icon">⌕</span>
+          <span>Поиск</span>
+        </button>
+
+        <button class="library-action-button" type="button" id="libraryFilterToggle">
+          <span class="library-action-icon">☷</span>
+          <span>Фильтры</span>
+        </button>
+
+        <label class="library-sort-pill">
+          <span>Сортировка:</span>
+          <select id="librarySort">
+            <option value="smart">Умная</option>
+            <option value="sort-order">По умолчанию</option>
+            <option value="title">А-Я</option>
+            <option value="status">Статус</option>
+            <option value="chapters">Главы</option>
+            <option value="translated">Переведено</option>
+            <option value="added">Новинки</option>
+          </select>
+        </label>
       </section>
-    {% endif %}
 
-    <section class="library-grid" aria-label="Список новелл">
-      {% for novel in novels %}
-        <a class="library-card" href="/novel/{{ novel.slug }}" data-novel-id="{{ novel.id }}">
-          <div class="library-cover-wrap">
-            {% if novel.cover_url %}
-              <img class="library-cover" src="{{ novel.cover_url }}" alt="{{ novel.display_title }}">
-            {% else %}
-              <div class="library-cover library-cover-empty">📖</div>
-            {% endif %}
-            {% if novel.age_rating %}<span class="library-age">{{ novel.age_rating }}</span>{% endif %}
+      <section class="library-search-panel" id="librarySearchPanel" hidden>
+        <label class="library-search-input-wrap">
+          <span>⌕</span>
+          <input
+            id="librarySearchInput"
+            type="search"
+            placeholder="Поиск по названию, жанру, тегам"
+            autocomplete="off"
+          >
+          <button type="button" id="librarySearchClear" aria-label="Очистить поиск">×</button>
+        </label>
+
+        <div class="library-quick-tags">
+          <button type="button" data-quick-filter="Сянься/Уся">Сянься/Уся</button>
+          <button type="button" data-quick-filter="Слэш">Слэш</button>
+          <button type="button" data-quick-filter="Гет">Гет</button>
+          <button type="button" data-quick-filter="Джен">Джен</button>
+          <button type="button" data-quick-filter="Романтика">Романтика</button>
+          <button type="button" data-quick-filter="Переводится">Переводится</button>
+        </div>
+      </section>
+
+      <section class="library-active-filters" id="libraryActiveFilters" hidden></section>
+
+      <section class="library-mobile-hint" aria-label="Подсказка по библиотеке">
+        <span>Карточка открывает книгу. Если вы уже читали новеллу, Mini App предложит продолжить с места.</span>
+      </section>
+
+      <section class="library-update-banner" id="libraryUpdateBanner" hidden>
+        <div class="library-update-icon">🔔</div>
+
+        <div class="library-update-text">
+          <div class="library-update-title">Новая глава</div>
+          <div class="library-update-subtitle" id="libraryUpdateText"></div>
+        </div>
+
+        <a class="library-update-button" id="libraryUpdateButton" href="#">Читать</a>
+        <button class="library-update-close" type="button" id="libraryUpdateClose" aria-label="Скрыть">×</button>
+      </section>
+
+      <section class="library-continue-panel" id="libraryContinuePanel" hidden aria-label="Продолжить чтение">
+        <div class="library-continue-header">
+          <div>
+            <p class="library-section-kicker">История чтения</p>
+            <h2>Продолжить чтение</h2>
           </div>
+          <button class="library-continue-clear" type="button" id="libraryContinueClear" hidden>Скрыть историю</button>
+        </div>
+        <div class="library-continue-list" id="libraryContinueList"></div>
+      </section>
 
-          <div class="library-card-body">
-            <div class="library-card-topline">
-              <span class="novel-status-pill status-{{ novel.translation_status }}" style="--status-color: {{ novel.translation_status_color }}">{{ novel.translation_status_label }}</span>
-              {% if novel.show_access_badge and novel.access_badge %}
-                <span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>
-              {% endif %}
-            </div>
-
-            <h2>{{ novel.library_short_title or novel.display_title }}</h2>
-            {% if novel.library_secondary_title %}
-              <p class="library-secondary-title">{{ novel.library_secondary_title }}</p>
-            {% endif %}
-
-            <div class="library-progress-line">
-              <span>🌱 {{ novel.free_chapters_count or 0 }}</span>
-              <span>📜 {{ novel.keeper_chapters_count or novel.free_chapters_count or 0 }}</span>
-              <span>🕘 {{ novel.translated_chapters or 0 }} из {{ novel.total_chapters or novel.translated_chapters or 0 }}</span>
-            </div>
-
-            {% set visible_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
-            {% if visible_tags %}
-              <div class="library-tags" aria-label="Теги">
-                {% for tag in visible_tags[:8] %}
-                  {% if not tag.is_spoiler %}<span class="tag {{ tag.class_name }}">{{ tag.text }}</span>{% endif %}
-                {% endfor %}
-              </div>
-            {% endif %}
-          </div>
-        </a>
-      {% else %}
-        <section class="empty empty-with-fox">
-          {% if page_fox %}<img class="library-empty-fox-img" src="{{ page_fox }}" alt="Лисичка" data-fox>{% endif %}
-          <h1>Библиотека пуста</h1>
-          <p>Новеллы появятся после синхронизации каталога.</p>
+      {% if novels %}
+        <section class="library-section library-section-favorites" data-library-section="favorite">
+          <button class="library-section-header" type="button" data-section-toggle="favorite" aria-expanded="true">
+            <span>
+              Избранное
+              <span class="library-section-count library-section-count-favorite" data-section-count="favorite">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-helper">Новеллы, которые вы добавили в избранное</div>
+          <div class="library-section-list" data-section-list="favorite"></div>
         </section>
-      {% endfor %}
+
+        <section class="library-section" data-library-section="reading">
+          <button class="library-section-header" type="button" data-section-toggle="reading" aria-expanded="true">
+            <span>
+              Читаю
+              <span class="library-section-count" data-section-count="reading">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-helper">Новеллы, которые вы уже читаете</div>
+          <div class="library-section-list" data-section-list="reading"></div>
+        </section>
+
+        <section class="library-section" data-library-section="start">
+          <button class="library-section-header" type="button" data-section-toggle="start" aria-expanded="true">
+            <span>
+              Можно начать
+              <span class="library-section-count" data-section-count="start">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-helper">Новеллы, которые уже доступны для чтения</div>
+          <div class="library-section-list" data-section-list="start"></div>
+        </section>
+
+        <section class="library-section" data-library-section="waiting">
+          <button class="library-section-header" type="button" data-section-toggle="waiting" aria-expanded="true">
+            <span>
+              Скоро
+              <span class="library-section-count" data-section-count="waiting">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-helper">Новеллы, которые скоро появятся для чтения</div>
+          <div class="library-section-list" data-section-list="waiting"></div>
+        </section>
+
+        <section class="library-section" data-library-section="finished">
+          <button class="library-section-header" type="button" data-section-toggle="finished" aria-expanded="true">
+            <span>
+              Прочитано
+              <span class="library-section-count" data-section-count="finished">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-list" data-section-list="finished"></div>
+        </section>
+
+        <section class="library-section" data-library-section="hidden" hidden>
+          <div class="library-section-list" id="libraryRawCards">
+            {% for novel in novels %}
+              <article
+                class="library-book-card library-book-card-v4"
+                data-library-novel-card
+                data-novel-id="{{ novel.id }}"
+                data-novel-slug="{{ novel.slug }}"
+                data-novel-title="{{ novel.library_short_title }} {{ novel.library_secondary_title or '' }}"
+                data-novel-cover="{{ novel.cover_url or '' }}"
+                data-title="{{ (novel.library_short_title ~ ' ' ~ novel.library_full_title)|lower }}"
+                data-description="{{ novel.description or '' }}"
+                data-tags="{{ novel.tags or '' }}"
+                data-sort-order="{{ novel.sort_order or novel.id }}"
+                data-status="{{ novel.translation_status or 'in_progress' }}"
+                data-status-label="{{ novel.translation_status_label or 'Переводится' }}"
+                data-chapters="{{ novel.display_chapters_count or novel.total_chapters or 0 }}"
+                data-translated-chapters="{{ novel.translated_chapters or 0 }}"
+                data-available-chapters="{{ novel.available_chapters_count or 0 }}"
+                data-free-chapters="{{ novel.free_chapters_count or 0 }}"
+                data-boosty-paid-chapters="{{ novel.boosty_paid_chapters_count or 0 }}"
+                data-keeper-chapters="{{ novel.keeper_chapters_count or 0 }}"
+                data-required-role="{{ novel.required_role or 'guest' }}"
+                data-progress="{{ novel.normalized_progress_percent or novel.progress_percent or 0 }}"
+                data-added="{{ novel.added_date or '' }}"
+                data-relation="{{ novel.relation_type or '' }}"
+                data-all-free="{{ 'true' if novel.all_chapters_free else 'false' }}"
+                data-card-href="/novel/{{ novel.slug }}"
+                role="link"
+                tabindex="0"
+                aria-label="Открыть оглавление: {{ novel.library_short_title }}"
+              >
+                {% if novel.cover_url %}
+                  <span class="library-card-cover-bg" style="background-image: url('{{ novel.cover_url }}')"></span>
+                {% endif %}
+
+                {% if card_fox %}
+                  <img class="library-card-fox" src="{{ card_fox }}" alt="" aria-hidden="true" data-fox>
+                {% endif %}
+
+                <a class="library-book-cover-link" href="/novel/{{ novel.slug }}">
+                  <span class="library-cover-frame">
+                    {% if novel.cover_url %}
+                      <img
+                        class="library-book-cover"
+                        src="{{ novel.cover_url }}"
+                        alt="{{ novel.library_short_title }}"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                      >
+                      <span class="library-book-cover library-book-cover-placeholder" style="display:none;">обложка</span>
+                    {% else %}
+                      <span class="library-book-cover library-book-cover-placeholder">обложка</span>
+                    {% endif %}
+
+                    {% if novel.age_rating %}
+                      <span class="library-age-badge">{{ novel.age_rating }}</span>
+                    {% endif %}
+                  </span>
+                </a>
+
+                <div class="library-book-body">
+                  <div class="library-book-topline">
+                    <a class="library-book-title" href="/novel/{{ novel.slug }}">
+                      {{ novel.library_short_title }}
+                    </a>
+
+                    <button
+                      class="library-book-menu"
+                      type="button"
+                      aria-label="Открыть меню новеллы"
+                      aria-haspopup="menu"
+                      aria-expanded="false"
+                      data-card-menu-button
+                    ><span aria-hidden="true">⋮</span></button>
+                  </div>
+
+                  {% if novel.library_secondary_title %}
+                    <div class="library-book-subtitle">{{ novel.library_secondary_title }}</div>
+                  {% endif %}
+
+                  <div class="library-card-status-row" aria-label="Статус новеллы и чтения">
+                    <span
+                      class="library-stat-status status-{{ novel.translation_status }}"
+                      data-project-status-pill
+                      data-project-status="{{ novel.translation_status }}"
+                      data-project-status-label="{{ novel.translation_status_label }}"
+                    >
+                      {{ novel.translation_status_label }}
+                    </span>
+                    <span class="library-card-state-pill" data-card-state-pill hidden></span>
+                  </div>
+
+                  <div class="library-card-access-row" aria-label="Количество глав по уровням доступа">
+                    <span class="library-access-count library-access-free" title="Главы, открытые бесплатно">
+                      🌱 {{ novel.free_chapters_count or 0 }}
+                    </span>
+                    <span class="library-access-count library-access-keeper" title="Главы, доступные Хранителю по расписанию">
+                      📜 {{ novel.keeper_chapters_count or 0 }}
+                    </span>
+                    <span class="library-access-count library-access-translated" title="Переведённые главы из общего количества">
+                      🕘 {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}
+                    </span>
+                  </div>
+
+                  <div class="library-progress-row" data-card-progress-row hidden>
+                    <span class="library-progress-track">
+                      <span class="library-progress-fill" data-card-progress-fill></span>
+                    </span>
+                    <span class="library-progress-text" data-card-progress-text></span>
+                  </div>
+
+                  <div class="library-card-tags">
+                    {% set card_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
+
+                    {% if card_tags %}
+                      {% for tag in card_tags %}
+                        {% if loop.index <= 3 %}
+                          {% if tag.is_spoiler %}
+                            <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
+                          {% else %}
+                            <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
+                          {% endif %}
+                        {% endif %}
+                      {% endfor %}
+                      {% if card_tags|length > 3 %}
+                        <span class="library-mini-tag library-mini-tag-more">+{{ card_tags|length - 3 }}</span>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+
+        <div class="library-empty-filter" id="libraryEmptyFilter" hidden>
+          {% if empty_fox %}
+            <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox>
+          {% endif %}
+          <div>Ничего не нашлось. Попробуйте убрать фильтр или изменить поиск.</div>
+        </div>
+      {% else %}
+        <div class="library-empty-filter">
+          {% if empty_fox %}
+            <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox>
+          {% endif %}
+          <div>В библиотеке пока нет активных новелл.</div>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="library-filter-sheet" id="libraryFilterSheet" hidden>
+      <div class="library-filter-backdrop" data-filter-close></div>
+
+      <div class="library-filter-panel">
+        <div class="library-filter-handle"></div>
+
+        <header class="library-filter-header">
+          <h2>Фильтры</h2>
+          <button type="button" data-filter-close aria-label="Закрыть">×</button>
+        </header>
+
+        <div class="library-filter-group">
+          <h3>Статус</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="all" class="active">Все</button>
+            <button type="button" data-filter-chip="favorite">Избранное</button>
+            <button type="button" data-filter-chip="reading">Читаю</button>
+            <button type="button" data-filter-chip="new">Новая глава</button>
+            <button type="button" data-filter-chip="start">Можно начать</button>
+            <button type="button" data-filter-chip="waiting">Скоро</button>
+            <button type="button" data-filter-chip="finished">Прочитано</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Статус проекта</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="in_progress">Переводится</button>
+            <button type="button" data-filter-chip="completed">Завершено</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Формат</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="Слэш">Слэш</button>
+            <button type="button" data-filter-chip="Гет">Гет</button>
+            <button type="button" data-filter-chip="Джен">Джен</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group">
+          <h3>Жанр / сеттинг</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="Сянься/Уся">Сянься/Уся</button>
+            <button type="button" data-filter-chip="Фэнтези">Фэнтези</button>
+            <button type="button" data-filter-chip="Современность">Современность</button>
+            <button type="button" data-filter-chip="Романтика">Романтика</button>
+            <button type="button" data-filter-chip="Иссекай/Попаданцы">Иссекай/Попаданцы</button>
+          </div>
+        </div>
+
+        <footer class="library-filter-footer">
+          <button type="button" class="library-filter-reset" id="libraryFilterReset">Сбросить</button>
+          <button type="button" class="library-filter-apply" id="libraryFilterApply">Показать новеллы</button>
+        </footer>
+      </div>
     </section>
   </main>
+
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
     window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
