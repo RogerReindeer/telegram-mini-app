@@ -1,6 +1,7 @@
 from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse
+from ..templating import render_template
 from ..config import settings
 from ..security import require_sync_token
 from ..cache import clear, stats
@@ -10,7 +11,7 @@ router = APIRouter()
 @router.get('/admin', response_class=HTMLResponse)
 def admin_page(request: Request, token: str | None = Query(default=None)):
     require_sync_token(token)
-    return request.app.state.templates.TemplateResponse(request, 'admin.html', {"app_title": settings.app_title, "fox": get_fox(), "state": project_state(), "token": token or ""})
+    return render_template(request, 'admin.html', {"app_title": settings.app_title, "fox": get_fox(), "state": project_state(), "token": token or ""})
 @router.get('/api/admin/state')
 def state(token: str | None = Query(default=None)):
     require_sync_token(token); return project_state()

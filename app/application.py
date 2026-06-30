@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from .config import BASE_DIR, settings
 from .assets import build_manifest, static_url
 from .middleware import SecurityHeadersMiddleware, ResponseCacheHeadersMiddleware, RateLimitMiddleware
+from .templating import render_template
 from .routers import system, catalog, user, auth, sync, admin, payments
 
 
@@ -33,6 +34,6 @@ def create_app() -> FastAPI:
     @app.exception_handler(404)
     def not_found(request: Request, exc: HTTPException) -> HTMLResponse:
         from .services.catalog import get_fox
-        return templates.TemplateResponse(request, 'index.html', {"app_title": settings.app_title, "fox": get_fox(), "error": "Страница не найдена. Вернитесь в библиотеку."}, status_code=404)
+        return render_template(request, 'index.html', {"app_title": settings.app_title, "fox": get_fox(), "error": "Страница не найдена. Вернитесь в библиотеку."}, status_code=404)
 
     return app
