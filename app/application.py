@@ -33,6 +33,6 @@ def create_app() -> FastAPI:
     @app.exception_handler(404)
     def not_found(request: Request, exc: HTTPException) -> HTMLResponse:
         from .services.catalog import get_fox
-        return templates.TemplateResponse('index.html', {"request": request, "app_title": settings.app_title, "fox": get_fox(), "error": "Страница не найдена. Вернитесь в библиотеку."}, status_code=404)
+        return templates.TemplateResponse(request, 'index.html', {"app_title": settings.app_title, "fox": get_fox(), "error": "Страница не найдена. Вернитесь в библиотеку."}, status_code=404)
 
     return app

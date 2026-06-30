@@ -12,13 +12,13 @@ def templates(request: Request):
 
 @router.get('/', response_class=HTMLResponse)
 def index(request: Request):
-    return templates(request).TemplateResponse('index.html', {"request": request, "app_title": settings.app_title, "fox": get_fox(), "error": None})
+    return templates(request).TemplateResponse(request, 'index.html', {"app_title": settings.app_title, "fox": get_fox(), "error": None})
 
 @router.get('/library', response_class=HTMLResponse)
 def library(request: Request):
     viewer = viewer_from_request(request)
     data = prepare_library(viewer)
-    return templates(request).TemplateResponse('library.html', {"request": request, "app_title": settings.app_title, "fox": get_fox(), "viewer": viewer, **data})
+    return templates(request).TemplateResponse(request, 'library.html', {"app_title": settings.app_title, "fox": get_fox(), "viewer": viewer, **data})
 
 @router.get('/novel/{slug}', response_class=HTMLResponse)
 def novel_page(request: Request, slug: str):
@@ -26,7 +26,7 @@ def novel_page(request: Request, slug: str):
     if not novel: raise HTTPException(status_code=404, detail='Novel not found')
     viewer = viewer_from_request(request)
     data = prepare_novel(novel, viewer)
-    return templates(request).TemplateResponse('novel.html', {"request": request, "app_title": settings.app_title, "fox": get_fox(), "viewer": viewer, "novel": novel, **data})
+    return templates(request).TemplateResponse(request, 'novel.html', {"app_title": settings.app_title, "fox": get_fox(), "viewer": viewer, "novel": novel, **data})
 
 @router.get('/chapter/{chapter_id}', response_class=HTMLResponse)
 def chapter_page(request: Request, chapter_id: str):
@@ -36,7 +36,7 @@ def chapter_page(request: Request, chapter_id: str):
     viewer = viewer_from_request(request)
     chapters = list_chapters(novel['id'])
     data = prepare_chapter(novel, chapter, chapters, index, viewer)
-    return templates(request).TemplateResponse('chapter.html', {"request": request, "app_title": settings.app_title, "fox": get_fox(), "viewer": viewer, "novel": novel, "chapter": chapter, "boosty_access_url": settings.boosty_traveler_url, **data})
+    return templates(request).TemplateResponse(request, 'chapter.html', {"app_title": settings.app_title, "fox": get_fox(), "viewer": viewer, "novel": novel, "chapter": chapter, "boosty_access_url": settings.boosty_traveler_url, **data})
 
 @router.get('/api/catalog/novels')
 def api_novels(): return {"novels": list_novels()}
