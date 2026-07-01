@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from ..services.access import access_copy, access_paywall_copy, chapter_preview_url, decide_chapter_access
@@ -20,9 +21,12 @@ from ..services.telegraph import fetch_locked_preview, fetch_telegraph_content
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
     router = APIRouter()
 
-    @router.get("/")
+    @router.get("/", include_in_schema=False)
     def index(request: Request):
-        return templates.TemplateResponse(request, "index.html", {"app_title": app_title, "fox": get_fox(), "error": ""})
+        # В Telegram Mini App не нужен промежуточный экран "загружается":
+        # корень сразу ведёт в библиотеку. Шаблон index.html остаётся только
+        # как безопасный HTML fallback для ошибок приложения.
+        return RedirectResponse(url="/library", status_code=307)
 
     @router.get("/library")
     def library(request: Request):

@@ -404,7 +404,7 @@
 
   function syncStatusLabel(status, pending) {
     if (!navigator.onLine) return "Нет сети";
-    if (pending > 0) return `Ждёт синхронизации: ${pending}`;
+    if (pending > 0) return "";
     if (status === "syncing") return "Синхронизация…";
     if (status === "error") return "Синхронизация позже";
     if (status === "ok") return "Сохранено";
@@ -432,7 +432,7 @@
     indicator.textContent = label;
     indicator.dataset.syncStatus = status.status || "idle";
     indicator.dataset.pending = String(pending);
-    indicator.hidden = !label || (pending === 0 && status.status !== "syncing" && status.status !== "error" && navigator.onLine);
+    indicator.hidden = !label || pending > 0 || (pending === 0 && status.status !== "syncing" && status.status !== "error" && navigator.onLine);
   }
 
   let syncQueueRunning = false;

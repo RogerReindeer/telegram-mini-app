@@ -6900,3 +6900,207 @@ body[data-reader-theme="dark"] .reader-quick-option.is-active {
     padding: 0 9px;
   }
 }
+
+
+/* =========================================================
+   V111 hotfix 2026-06-30 — mobile overlap/loading/sync cleanup
+   ========================================================= */
+
+/* Индикатор pending-очереди больше не всплывает поверх интерфейса.
+   Очередь синхронизации остаётся рабочей в JS, но не мешает чтению. */
+.sync-status-pill[data-pending]:not([data-pending="0"]),
+.sync-status-pill:empty {
+  display: none !important;
+}
+
+/* Оглавление: кнопка чтения должна быть рядом с карточкой, а не улетать
+   sticky-плашкой вниз экрана. */
+.page-novel .novel-read-action,
+.page-novel .novel-read-action-v2,
+.page-novel .novel-read-action-priority {
+  position: static !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  display: grid !important;
+  justify-items: center !important;
+  gap: 6px !important;
+  margin: 10px 0 12px !important;
+  padding: 0 !important;
+}
+
+.page-novel .novel-read-action-hint {
+  margin: 0 !important;
+  color: var(--muted, #7c6a60) !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  text-align: center !important;
+}
+
+/* Бейдж 18+ на обложке оглавления: фиксированная геометрия без перекоса. */
+.novel-toc-cover-panel {
+  position: relative !important;
+}
+
+.novel-toc-cover-panel .novel-cover-rating,
+.novel-cover-rating {
+  left: auto !important;
+  right: 8px !important;
+  top: 8px !important;
+  bottom: auto !important;
+  z-index: 4 !important;
+  min-width: 34px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 8px !important;
+  border: 1px solid rgba(255,255,255,.38) !important;
+  border-radius: 999px !important;
+  background: rgba(17, 17, 17, .76) !important;
+  color: #fff !important;
+  font-family: Arial, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+  transform: none !important;
+  box-shadow: 0 6px 14px rgba(0,0,0,.22) !important;
+}
+
+/* На телефоне карточка библиотеки получает жёсткую безопасную сетку:
+   обложка и текстовые колонки больше не могут наехать друг на друга. */
+@media (max-width: 520px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 86px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    min-height: 124px !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+  }
+
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 86px !important;
+  }
+
+  .library-book-card-v4 .library-book-cover {
+    height: 120px !important;
+    border-radius: 13px !important;
+  }
+
+  .library-book-card-v4 .library-book-body {
+    min-width: 0 !important;
+    width: 100% !important;
+    overflow: hidden !important;
+    gap: 5px !important;
+  }
+
+  .library-book-card-v4 .library-book-topline {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 38px !important;
+    gap: 6px !important;
+    min-height: 0 !important;
+    align-items: start !important;
+    padding-right: 0 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    display: -webkit-box !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    color: #201713 !important;
+    font-size: clamp(14px, 4.25vw, 17px) !important;
+    line-height: 1.12 !important;
+    letter-spacing: -0.01em !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+
+  .library-book-card-v4 .library-book-subtitle {
+    display: -webkit-box !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 1 !important;
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+
+  .library-book-card-v4 .library-book-menu {
+    width: 38px !important;
+    min-width: 38px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    margin: -3px -3px 0 0 !important;
+    padding-bottom: 6px !important;
+    font-size: 24px !important;
+  }
+
+  .library-book-card-v4 .library-card-status-row,
+  .library-book-card-v4 .library-card-access-row,
+  .library-book-card-v4 .library-card-tags {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .library-book-card-v4 .library-card-access-row {
+    gap: 4px 5px !important;
+  }
+
+  .library-book-card-v4 .library-access-count,
+  .library-book-card-v4 .library-stat-available,
+  .library-book-card-v4 .library-stat-boosty,
+  .library-book-card-v4 .library-stat-status,
+  .library-book-card-v4 .library-card-state-pill {
+    min-height: 24px !important;
+    padding-inline: 7px !important;
+    font-size: 10.5px !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+
+  .library-book-card-v4 .library-card-tags .library-mini-tag:nth-child(n+3) {
+    display: none !important;
+  }
+
+  .page-novel .novel-read-action,
+  .page-novel .novel-read-action-v2,
+  .page-novel .novel-read-action-priority {
+    margin: 8px 0 10px !important;
+  }
+
+  .page-novel .novel-continue-button {
+    width: 100% !important;
+    min-height: 48px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 78px minmax(0, 1fr) !important;
+    gap: 8px !important;
+    padding: 9px !important;
+  }
+
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 78px !important;
+  }
+
+  .library-book-card-v4 .library-book-cover {
+    height: 110px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(13.5px, 4.4vw, 16px) !important;
+  }
+}
