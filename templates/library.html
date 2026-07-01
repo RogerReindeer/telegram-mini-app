@@ -379,7 +379,19 @@
         </footer>
       </div>
     </section>
-  </main>
+  
+<section class="hidden-novels">
+  <h2>Скрытые новеллы</h2>
+  <div id="hiddenList"></div>
+</section>
+
+<section class="library-sort">
+  <button data-sort="default">По порядку</button>
+  <button data-sort="progress">По прогрессу</button>
+  <button data-sort="hidden">Скрытые вниз</button>
+</section>
+
+</main>
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
