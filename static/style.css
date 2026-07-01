@@ -6923,3 +6923,96 @@ body{font-family:-apple-system,BlinkMacSystemFont,Inter,Segoe UI,Roboto,Arial!im
 .chapter-list{display:flex;flex-direction:column;gap:8px;}
 
 [class*="sync"]{display:none!important;}
+
+
+/* ===== v119 BEAUTIFUL DENSITY ENGINE ===== */
+
+:root{
+  --ui-scale: 0.85;
+  --card-radius: 14px;
+  --gap: 10px;
+  --font-main: -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,Arial;
+}
+
+html{
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+}
+
+body{
+  font-family: var(--font-main) !important;
+  overflow-x:hidden;
+  background:#fff;
+}
+
+/* GLOBAL SCALE (safe, not 0.5 chaos) */
+.app{
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
+  width: calc(100% / var(--ui-scale));
+}
+
+/* CARD SYSTEM REDESIGN */
+.card,.library-card,.novel-card{
+  display:flex !important;
+  gap: var(--gap);
+  padding: 10px;
+  border-radius: var(--card-radius);
+  min-width:0;
+  overflow:hidden;
+  background: rgba(0,0,0,0.02);
+}
+
+/* COVER */
+.cover,.library-cover{
+  width:64px;
+  height:96px;
+  flex-shrink:0;
+  border-radius:10px;
+}
+
+/* CONTENT */
+.content{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  gap:4px;
+}
+
+/* TITLE */
+.title,.library-title,.novel-title{
+  font-size:14px;
+  font-weight:600;
+  line-height:1.2;
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  min-width:0;
+}
+
+/* META */
+.meta{
+  font-size:12px;
+  opacity:0.7;
+}
+
+/* BADGE */
+.badge-18,.age-badge{
+  position:relative !important;
+  margin-left:auto !important;
+  font-size:10px;
+  padding:2px 6px;
+  border-radius:6px;
+}
+
+/* TOC */
+.chapter-list,.toc{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+/* SYNC HIDE */
+[class*="sync"]{display:none !important;}
+
