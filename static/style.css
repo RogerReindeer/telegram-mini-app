@@ -2734,7 +2734,7 @@ body[data-site-theme="dark"] .novel-description-v2-content p {
    ========================================================= */
 
 :root {
-  --ui-serif: Georgia, "Times New Roman", Times, serif;
+  --ui-serif: var(--ui-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
   --ui-control-size: clamp(13px, 1.7vw, 15px);
 }
 
@@ -3042,7 +3042,7 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu {
    ========================================================= */
 
 :root {
-  --ui-serif: "Times New Roman", Times, Georgia, serif;
+  --ui-serif: var(--ui-font, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
   --library-control-ease: cubic-bezier(.2, .75, .25, 1);
 }
 
@@ -7610,3 +7610,62 @@ body[data-site-theme="dark"] {
 }
 body[data-site-theme="dark"] .library-redesign,
 body[data-site-theme="dark"].page-library { background: #111111 !important; }
+
+
+/* =========================================================
+   V121 — clean library card hotfix
+   ========================================================= */
+:root {
+  --ui-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+body,
+button,
+input,
+select,
+textarea,
+.page-library,
+.page-novel,
+.page-chapter {
+  font-family: var(--ui-font) !important;
+}
+
+/* В библиотеке остаётся только настоящая обложка. Фоновый дубль отключён. */
+.library-card-cover-bg {
+  display: none !important;
+}
+
+/* Кнопка «три точки» больше не имеет белого кружка/плашки. */
+.library-book-card-v4 .library-book-menu,
+.library-v4 .library-book-card-v4 .library-book-menu {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.library-book-card-v4 .library-book-menu:hover,
+.library-book-card-v4 .library-book-menu:focus-visible,
+.library-book-card-v4 .library-book-menu[aria-expanded="true"],
+.library-v4 .library-book-card-v4 .library-book-menu:hover,
+.library-v4 .library-book-card-v4 .library-book-menu:focus-visible,
+.library-v4 .library-book-card-v4 .library-book-menu[aria-expanded="true"] {
+  border-color: rgba(255, 106, 0, 0.18) !important;
+  background: rgba(255, 106, 0, 0.08) !important;
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.10) !important;
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu,
+body[data-site-theme="dark"] .library-v4 .library-book-card-v4 .library-book-menu {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu:hover,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu:focus-visible,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expanded="true"] {
+  border-color: rgba(255, 177, 90, 0.22) !important;
+  background: rgba(255, 177, 90, 0.10) !important;
+}

@@ -221,7 +221,7 @@
         const initData = getTelegramInitData();
         if (!initData) {
           alert(
-            "Telegram не передал данные Mini App. Закройте это окно и откройте читалку через кнопку Mini App в боте, а не через обычную ссылку."
+            "Telegram не передал данные Mini App — закройте это окно и откройте читалку через кнопку Mini App в боте, а не через обычную ссылку"
           );
           return;
         }
@@ -531,7 +531,7 @@
       }
       flushSyncQueue();
     } catch (error) {
-      console.warn("Серверный прогресс временно недоступен; используется локальный кеш.", error);
+      console.warn("Серверный прогресс временно недоступен; используется локальный кеш", error);
     }
   }
 
@@ -1798,8 +1798,8 @@
       title.textContent = totalNewChapters === 1 ? "Новая глава" : `${totalNewChapters} новые главы`;
     }
     text.textContent = newCards.length === 1
-      ? `${firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение.`
-      : `Новые главы доступны в ${novelCountText}.`;
+      ? `${firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение`
+      : `Новые главы доступны в ${novelCountText}`;
     button.href = firstCard.dataset.cardActionHref || `/novel/${firstCard.dataset.novelSlug || ""}`;
     button.textContent = newCards.length === 1 ? "Читать" : "К новинкам";
     banner.hidden = false;
@@ -2271,14 +2271,14 @@
       button.textContent = "Продолжить чтение";
       if (hint) {
         const progress = item.progressLabel || (item.availableChapters ? `глава ${Number(item.chapterIndex || 0) + 1} из ${item.availableChapters}` : "последнее место");
-        hint.textContent = item.chapterTitle ? `Вы остановились: ${item.chapterTitle} · ${progress}` : `Продолжить: ${progress}.`;
+        hint.textContent = item.chapterTitle ? `Вы остановились: ${item.chapterTitle} · ${progress}` : `Продолжить: ${progress}`;
       }
     } else if (hint) {
       const firstAvailable = document.querySelector("[data-chapter-row]:not(.chapter-row-locked)");
       if (firstAvailable && firstAvailable.dataset.chapterId) {
         button.href = `/chapter/${firstAvailable.dataset.chapterId}`;
       }
-      hint.textContent = "Откроется первая доступная глава.";
+      hint.textContent = "Откроется первая доступная глава";
     }
   }
 
@@ -2452,7 +2452,7 @@
       overlay = document.createElement("div");
       overlay.className = "spoiler-warning-overlay";
       overlay.dataset.spoilerWarningOverlay = "true";
-      overlay.innerHTML = `<div class="spoiler-warning-modal"><h2>Осторожно, спойлер</h2><p>Этот тег может раскрыть важную деталь сюжета.</p><label class="spoiler-warning-check"><input type="checkbox" data-spoiler-remember><span>Больше не предупреждать</span></label><div class="spoiler-warning-actions"><button type="button" class="spoiler-warning-cancel" data-spoiler-cancel>Не открывать</button><button type="button" class="spoiler-warning-confirm" data-spoiler-confirm>Показать</button></div></div>`;
+      overlay.innerHTML = `<div class="spoiler-warning-modal"><h2>Осторожно, спойлер</h2><p>Этот тег может раскрыть важную деталь сюжета</p><label class="spoiler-warning-check"><input type="checkbox" data-spoiler-remember><span>Больше не предупреждать</span></label><div class="spoiler-warning-actions"><button type="button" class="spoiler-warning-cancel" data-spoiler-cancel>Не открывать</button><button type="button" class="spoiler-warning-confirm" data-spoiler-confirm>Показать</button></div></div>`;
       document.body.appendChild(overlay);
     }
     overlay.hidden = false;

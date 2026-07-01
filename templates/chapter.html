@@ -32,7 +32,7 @@
         <article class="chapter-content" data-chapter-content-source="server" data-cache-chapter-content>
           {% if telegraph_content and telegraph_content.content_html %}{{ telegraph_content.content_html | safe }}{% else %}
             <div class="chapter-loading-placeholder" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-            <p class="chapter-empty-text">Текст главы пока не загрузился.</p>
+            <p class="chapter-empty-text">Текст главы пока не загрузился</p>
           {% endif %}
         </article>
         <section class="chapter-offline-copy" data-chapter-offline-copy hidden>
@@ -41,7 +41,7 @@
         </section>
       {% else %}
         <article class="chapter-content chapter-preview-card">
-          {% if preview_text %}<p class="chapter-preview-text">{{ preview_text }}</p>{% else %}<p class="chapter-preview-text">Начало этой главы доступно для ознакомления, а продолжение открывается после проверки подписки.</p>{% endif %}
+          {% if preview_text %}<p class="chapter-preview-text">{{ preview_text }}</p>{% else %}<p class="chapter-preview-text">Начало этой главы доступно для ознакомления, а продолжение открывается после проверки подписки</p>{% endif %}
           <div class="chapter-blurred-preview" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
           <section class="chapter-paywall chapter-paywall-v54 chapter-paywall-{{ access_paywall.severity }}">
             {% if footer_fox %}<img class="chapter-paywall-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>{% endif %}
@@ -64,7 +64,7 @@
     {% if telegraph_error %}
       <section class="locked-chapter-notice chapter-load-error" role="status" data-chapter-load-error>
         <div class="locked-title">Не удалось загрузить текст</div><p>{{ telegraph_error }}</p>
-        <p class="chapter-load-error-cached-note" data-chapter-cached-note hidden>Показываю сохранённую копию, пока источник главы недоступен.</p>
+        <p class="chapter-load-error-cached-note" data-chapter-cached-note hidden>Показываю сохранённую копию, пока источник главы недоступен</p>
         <div class="chapter-load-error-actions"><button type="button" class="chapter-retry-button" data-chapter-retry>Попробовать ещё раз</button><a class="chapter-load-error-link" href="/novel/{{ novel.slug }}">К оглавлению</a></div>
       </section>
     {% endif %}

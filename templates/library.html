@@ -25,7 +25,7 @@
           </div>
 
           <h1>Библиотека</h1>
-          <p>Выберите новеллу для чтения.</p>
+          <p>Выберите новеллу для чтения</p>
         </div>
 
         {% if header_fox %}
@@ -85,7 +85,7 @@
       <section class="library-active-filters" id="libraryActiveFilters" hidden></section>
 
       <section class="library-mobile-hint" aria-label="Подсказка по библиотеке">
-        <span>Карточка открывает книгу. Если вы уже читали новеллу, Mini App предложит продолжить с места.</span>
+        <span>Карточка открывает книгу, если вы уже читали новеллу, Mini App предложит продолжить с места</span>
       </section>
 
       <section class="library-update-banner" id="libraryUpdateBanner" hidden>
@@ -215,10 +215,6 @@
                 tabindex="0"
                 aria-label="Открыть оглавление: {{ novel.library_short_title }}"
               >
-                {% if novel.cover_url %}
-                  <span class="library-card-cover-bg" style="background-image: url('{{ novel.cover_url }}')"></span>
-                {% endif %}
-
                 {% if card_fox %}
                   <img class="library-card-fox" src="{{ card_fox }}" alt="" aria-hidden="true" data-fox>
                 {% endif %}
@@ -323,14 +319,14 @@
           {% if empty_fox %}
             <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox>
           {% endif %}
-          <div>Ничего не нашлось. Попробуйте убрать фильтр или изменить поиск.</div>
+          <div>Ничего не нашлось — попробуйте убрать фильтр или изменить поиск</div>
         </div>
       {% else %}
         <div class="library-empty-filter">
           {% if empty_fox %}
             <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox>
           {% endif %}
-          <div>В библиотеке пока нет активных новелл.</div>
+          <div>В библиотеке пока нет активных новелл</div>
         </div>
       {% endif %}
     </section>
