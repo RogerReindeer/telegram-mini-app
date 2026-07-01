@@ -1090,6 +1090,7 @@
     });
     const isReading = state === "reading" || state === "new" || state === "waiting_new";
     const isCompleted = state === "completed" || getIdList(STORAGE_KEYS.completedNovels).includes(novelId);
+    const isHidden = getIdList(STORAGE_KEYS.hiddenNovels).includes(novelId);
 
     const items = [
       ["contents", "☷", "К оглавлению"],
@@ -1103,7 +1104,7 @@
     }
 
     items.push(["reread", "↺", "Перечитать сначала"]);
-    items.push(["hide", "⊘", "Скрыть карточку"]);
+    items.push([isHidden ? "unhide" : "hide", isHidden ? "◉" : "⊘", isHidden ? "Вернуть в библиотеку" : "Скрыть карточку"]);
 
     const menu = document.createElement("div");
     menu.className = "library-card-menu-popover";
@@ -1190,6 +1191,15 @@
       syncLibraryState(novelId).catch(console.warn);
       closeAllCardMenus();
       renderLibraryCards();
+      return;
+    }
+
+    if (action === "unhide") {
+      removeIdFromList(STORAGE_KEYS.hiddenNovels, novelId);
+      syncLibraryState(novelId).catch(console.warn);
+      closeAllCardMenus();
+      renderLibraryCards();
+      return;
     }
   }
 
@@ -1264,9 +1274,10 @@
       start: document.querySelector('[data-section-list="start"]'),
       waiting: document.querySelector('[data-section-list="waiting"]'),
       finished: document.querySelector('[data-section-list="finished"]'),
+      hidden: document.querySelector('[data-section-list="hidden"]'),
     };
 
-    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished) {
+    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished || !lists.hidden) {
       return;
     }
 
@@ -1290,6 +1301,7 @@
       start: [],
       waiting: [],
       finished: [],
+      hidden: [],
     };
 
     const cards = Array.from(document.querySelectorAll("[data-library-novel-card]"));
@@ -1297,14 +1309,19 @@
     cards.forEach(function (card) {
       const novelId = String(card.dataset.novelId || "");
 
-      if (hiddenNovels.includes(novelId)) {
-        raw.appendChild(card);
-        return;
-      }
-
       const state = prepareLibraryCard(card, historyByNovel, readIds, completedNovels);
       card.dataset.cardState = state;
       card.dataset.isFavorite = favoriteNovels.includes(novelId) ? "true" : "false";
+      card.dataset.isHidden = hiddenNovels.includes(novelId) ? "true" : "false";
+
+      if (hiddenNovels.includes(novelId)) {
+        if (cardMatchesFilter(card, filter)) {
+          buckets.hidden.push(card);
+        } else {
+          raw.appendChild(card);
+        }
+        return;
+      }
 
       if (!cardMatchesFilter(card, filter)) {
         raw.appendChild(card);
@@ -1571,6 +1588,13 @@
         continue;
       }
 
+      if (chip === "hidden") {
+        if (card.dataset.isHidden !== "true") {
+          return false;
+        }
+        continue;
+      }
+
       if (chip === "in_progress" || chip === "completed" || chip === "paused") {
         if (card.dataset.status !== chip) {
           return false;
@@ -1590,6 +1614,14 @@
     const mode = document.getElementById("librarySort")?.value || "smart";
 
     cards.sort(function (a, b) {
+      if (mode === "hidden-first" || mode === "hidden-last") {
+        const hiddenA = a.dataset.isHidden === "true" ? 1 : 0;
+        const hiddenB = b.dataset.isHidden === "true" ? 1 : 0;
+        if (hiddenA !== hiddenB) {
+          return mode === "hidden-first" ? hiddenB - hiddenA : hiddenA - hiddenB;
+        }
+      }
+
       if (mode === "title") {
         return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
       }
@@ -1665,7 +1697,8 @@
       '[data-section-list="reading"] [data-library-novel-card], ' +
       '[data-section-list="start"] [data-library-novel-card], ' +
       '[data-section-list="waiting"] [data-library-novel-card], ' +
-      '[data-section-list="finished"] [data-library-novel-card]'
+      '[data-section-list="finished"] [data-library-novel-card], ' +
+      '[data-section-list="hidden"] [data-library-novel-card]'
     );
 
     button.textContent = `Показать ${visibleCards.length} новелл`;

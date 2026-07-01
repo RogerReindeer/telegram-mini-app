@@ -54,6 +54,8 @@
             <option value="chapters">Главы</option>
             <option value="translated">Переведено</option>
             <option value="added">Новинки</option>
+            <option value="hidden-last">Скрытые вниз</option>
+            <option value="hidden-first">Скрытые вверх</option>
           </select>
         </label>
       </section>
@@ -169,7 +171,19 @@
           <div class="library-section-list" data-section-list="finished"></div>
         </section>
 
-        <section class="library-section" data-library-section="hidden" hidden>
+        <section class="library-section library-section-hidden" data-library-section="hidden">
+          <button class="library-section-header" type="button" data-section-toggle="hidden" aria-expanded="false">
+            <span>
+              Скрытые новеллы
+              <span class="library-section-count" data-section-count="hidden">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-helper">Новеллы, которые вы скрыли в меню карточки</div>
+          <div class="library-section-list" data-section-list="hidden"></div>
+        </section>
+
+        <section class="library-section library-raw-cards" data-library-section="raw" hidden>
           <div class="library-section-list" id="libraryRawCards">
             {% for novel in novels %}
               <article
@@ -342,6 +356,7 @@
             <button type="button" data-filter-chip="start">Можно начать</button>
             <button type="button" data-filter-chip="waiting">Скоро</button>
             <button type="button" data-filter-chip="finished">Прочитано</button>
+            <button type="button" data-filter-chip="hidden">Скрытые</button>
           </div>
         </div>
 
@@ -379,7 +394,8 @@
         </footer>
       </div>
     </section>
-  </main>
+  
+</main>
 
   <script>
     window.ZEFIRKI_FOX = {{ fox | tojson }};
