@@ -7142,3 +7142,42 @@ body {
 
 /* remove sync debug if present */
 *[class*="sync"] { display: none !important; }
+
+
+
+/* === UI ENGINE FIX OVERRIDES === */
+.library-card, .novel-card, .card {
+  display:flex !important;
+  min-width:0 !important;
+  overflow:hidden !important;
+}
+
+.library-title, .novel-title, h3 {
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+  word-break:break-word;
+  min-width:0;
+}
+
+.age-badge, .badge-18 {
+  position:relative !important;
+  margin-left:auto !important;
+  align-self:flex-start !important;
+}
+
+.toc, .chapter-list {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+* {
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Arial !important;
+}
+
+.sync, .sync-status, [class*="sync"] {
+  display:none !important;
+}
+
