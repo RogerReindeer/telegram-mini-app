@@ -12,6 +12,7 @@
     syncQueue: "zefirki_sync_queue",
     syncStatus: "zefirki_sync_status",
     chapterCache: "zefirki_chapter_cache",
+    readerControlsHidden: "zefirki_reader_controls_hidden",
   };
 
   const DEFAULT_SETTINGS = {
@@ -47,6 +48,7 @@
       initChapterScrollProgress,
       initReaderFloatingControls,
       initReaderQuickSettings,
+      initReaderControlsVisibilityToggle,
       initChapterRetry,
       initNovelReadButton,
       initNovelReadingProgress,
@@ -1328,13 +1330,10 @@
         return;
       }
 
-      if (favoriteNovels.includes(novelId)) {
-        buckets.favorite.push(card);
-        return;
-      }
-
       if (state === "new" || state === "reading" || state === "waiting_new") {
         buckets.reading.push(card);
+      } else if (favoriteNovels.includes(novelId)) {
+        buckets.favorite.push(card);
       } else if (state === "start") {
         buckets.start.push(card);
       } else if (state === "locked" || state === "soon") {
@@ -1676,7 +1675,9 @@
     }
 
     if (section) {
-      section.hidden = count === 0;
+      const keepVisible = name === "reading";
+      section.hidden = keepVisible ? false : count === 0;
+      section.classList.toggle("is-empty", count === 0);
     }
   }
 
@@ -2226,6 +2227,49 @@
       if (panel.contains(event.target) || toggle.contains(event.target)) return;
       closeReaderQuickSettings(panel, toggle);
     }, true);
+  }
+
+  function initReaderControlsVisibilityToggle() {
+    const page = document.querySelector("[data-chapter-page]");
+    const controls = document.querySelector("[data-reader-floating-controls]");
+
+    if (!page || !controls || page.dataset.isLocked === "true") return;
+
+    let toggle = document.querySelector("[data-reader-controls-visibility-toggle]");
+
+    if (!toggle) {
+      toggle = document.createElement("button");
+      toggle.className = "reader-controls-visibility-toggle";
+      toggle.type = "button";
+      toggle.dataset.readerControlsVisibilityToggle = "true";
+      toggle.setAttribute("aria-controls", "readerFloatingControls");
+      toggle.setAttribute("aria-label", "Скрыть панель чтения");
+      document.body.appendChild(toggle);
+    }
+
+    controls.id = controls.id || "readerFloatingControls";
+
+    const apply = function (hidden) {
+      document.body.classList.toggle("reader-controls-hidden", hidden);
+      controls.setAttribute("aria-hidden", hidden ? "true" : "false");
+      toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
+      toggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
+      toggle.textContent = hidden ? "☰" : "×";
+      try {
+        window.localStorage.setItem(STORAGE_KEYS.readerControlsHidden, hidden ? "1" : "0");
+      } catch (error) {}
+    };
+
+    let hidden = false;
+    try {
+      hidden = window.localStorage.getItem(STORAGE_KEYS.readerControlsHidden) === "1";
+    } catch (error) {}
+
+    apply(hidden);
+
+    toggle.addEventListener("click", function () {
+      apply(!document.body.classList.contains("reader-controls-hidden"));
+    });
   }
 
   function initChapterRetry() {
