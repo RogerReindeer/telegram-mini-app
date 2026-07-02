@@ -8001,3 +8001,51 @@ body[data-reader-theme="dark"] .library-section[data-library-section="favorite"]
   border-color: rgba(244, 114, 182, .30) !important;
   box-shadow: 0 12px 28px rgba(0,0,0,.22) !important;
 }
+
+
+/* ===== v126: full-width read CTA on novel page ===== */
+.page-novel .novel-read-action,
+.page-novel .novel-read-action-v2,
+.page-novel .novel-read-action-priority {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: clamp(14px, 3vw, 24px) 0 clamp(18px, 3vw, 28px) !important;
+  padding: 0 !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  justify-items: stretch !important;
+  align-items: stretch !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.page-novel .novel-read-action .primary-read-button,
+.page-novel .novel-read-action-v2 .primary-read-button,
+.page-novel .novel-read-action-priority .primary-read-button,
+.page-novel .novel-continue-button {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  min-height: clamp(50px, 5.2vw, 60px) !important;
+}
+
+.page-novel .novel-read-action-hint {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 8px 0 0 !important;
+  text-align: center !important;
+}
+
+@media (min-width: 860px) {
+  .page-novel .novel-read-action,
+  .page-novel .novel-read-action-v2,
+  .page-novel .novel-read-action-priority {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
