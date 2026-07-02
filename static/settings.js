@@ -647,8 +647,13 @@
   function applySettings() {
     const settings = getSettings();
     const body = document.body;
-    body.dataset.siteTheme = settings.siteTheme || "light";
-    body.classList.toggle("site-theme-system", (settings.siteTheme || "light") === "system");
+    const requestedSiteTheme = settings.siteTheme || "light";
+    const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
+    body.dataset.siteTheme = resolvedSiteTheme;
+    body.dataset.siteThemeChoice = requestedSiteTheme;
+    body.dataset.resolvedTheme = resolvedSiteTheme;
+    body.classList.toggle("site-theme-system", requestedSiteTheme === "system");
     body.dataset.readerTheme = settings.readerTheme || "cream";
     body.dataset.readerWidth = settings.readerWidth || "comfort";
     body.dataset.textAlign = settings.textAlign || "left";
@@ -1759,7 +1764,6 @@
             <small>${escapeHtml(progressText)}${chapterPercent > 0 ? ` · ${chapterPercent}% главы` : ""}${lastRead ? ` · ${lastRead}` : ""}</small>
             <span class="library-continue-progress" aria-hidden="true"><span style="width:${bookPercent}%"></span></span>
           </span>
-          <span class="library-continue-action">${index === 0 ? "Читать" : "Продолжить"}</span>
         </a>
       `;
     }).join("");
@@ -2095,7 +2099,7 @@
           </section>
 
           <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Фон главы</span></div>
+            <div class="reader-settings-section-head-v2"><span hidden>Фон главы</span></div>
             <div class="reader-choice-grid-v2 reader-choice-grid-4-v2">
               ${createReaderSegment("readerTheme", ["cream", "white", "sepia", "dark"])}
             </div>
@@ -2857,8 +2861,13 @@
     const settings = readSettings();
     const body = document.body;
     if (!body) return;
-    body.dataset.siteTheme = settings.siteTheme || "light";
-    body.classList.toggle("site-theme-system", (settings.siteTheme || "light") === "system");
+    const requestedSiteTheme = settings.siteTheme || "light";
+    const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
+    body.dataset.siteTheme = resolvedSiteTheme;
+    body.dataset.siteThemeChoice = requestedSiteTheme;
+    body.dataset.resolvedTheme = resolvedSiteTheme;
+    body.classList.toggle("site-theme-system", requestedSiteTheme === "system");
     body.dataset.readerTheme = settings.readerTheme || "cream";
     body.dataset.readerWidth = settings.readerWidth || "comfort";
     body.dataset.textAlign = settings.textAlign || "left";
@@ -2935,12 +2944,16 @@
           <section class="zb-settings-pane is-active" data-zb-pane="reader">
             <div class="zb-settings-grid">
               ${settingCard("Размер", `<strong class="zb-setting-value" data-zb-font-value>16</strong>`, `<div class="zb-stepper"><button type="button" data-zb-font-step="-1">A−</button><div class="zb-range-track" aria-hidden="true"><span data-zb-font-track></span></div><button type="button" data-zb-font-step="1">A+</button></div>`)}
-              ${settingCard("Фон главы", "", choiceRow("readerTheme", ["cream", "white", "sepia", "dark"]))}
               ${settingCard("Ширина", "", choiceRow("readerWidth", ["comfort", "full", "wide"]))}
               ${settingCard("Интервал", "", choiceRow("lineHeight", ["1.45", "1.6", "1.75", "1.9"]))}
               ${settingCard("Абзацы", "", choiceRow("paragraphSpacing", ["12", "16", "20", "24"]))}
               ${settingCard("Край", "", choiceRow("textAlign", ["left", "justify"]))}
             </div>
+            <section class="zb-reader-preview" data-zb-reader-preview aria-label="Предпросмотр текста">
+              <div class="zb-reader-preview-label">Предпросмотр</div>
+              <p>Первый абзац показывает размер, интервал и ширину строки. Так сразу видно, как будет выглядеть глава во время чтения.</p>
+              <p>Второй абзац показывает отступы между абзацами и выравнивание текста.</p>
+            </section>
           </section>
           <section class="zb-settings-pane" data-zb-pane="app">
             <div class="zb-settings-grid">
@@ -3011,7 +3024,7 @@
     const title = overlay.querySelector("[data-zb-settings-title]");
     const subtitle = overlay.querySelector("[data-zb-settings-subtitle]");
     if (title) title.textContent = tab === "reader" ? "Настройки чтения" : tab === "app" ? "Настройки приложения" : tab === "access" ? "Доступ" : "О проекте";
-    if (subtitle) subtitle.textContent = tab === "reader" ? "Текст, фон, ширина и интервалы" : tab === "app" ? "Тема, плотность, акцент и панель" : tab === "access" ? "Как приложение понимает права читателя" : "Информация о читалке";
+    if (subtitle) subtitle.textContent = tab === "reader" ? "Текст, ширина, интервалы и предпросмотр" : tab === "app" ? "Тема, плотность, акцент и панель" : tab === "access" ? "Как приложение понимает права читателя" : "Информация о читалке";
   }
   function bindSheet(overlay) {
     overlay.addEventListener("click", function (event) {
@@ -3104,4 +3117,169 @@
   } else {
     initCleanSettings();
   }
+})();
+
+
+/* === v134 reader preview, system theme and infinite chapter scroll === */
+(function () {
+  const SETTINGS_KEY = "zefirki_reader_settings";
+  const DEFAULTS = {
+    siteTheme: "light",
+    readerWidth: "comfort",
+    fontSize: "16",
+    lineHeight: "1.6",
+    paragraphSpacing: "16",
+    textAlign: "left",
+    accentColor: "#ff6a00",
+    appSize: "normal"
+  };
+  function readSettings() {
+    try { return Object.assign({}, DEFAULTS, JSON.parse(window.localStorage.getItem(SETTINGS_KEY) || "{}")); }
+    catch (error) { return Object.assign({}, DEFAULTS); }
+  }
+  function resolveTheme(settings) {
+    const choice = settings.siteTheme || "light";
+    const dark = choice === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    return choice === "system" ? (dark ? "dark" : "light") : choice;
+  }
+  function applySystemThemeAndAccent() {
+    const settings = readSettings();
+    const resolved = resolveTheme(settings);
+    document.body.dataset.siteTheme = resolved;
+    document.body.dataset.resolvedTheme = resolved;
+    document.body.dataset.siteThemeChoice = settings.siteTheme || "light";
+    document.body.classList.toggle("site-theme-system", (settings.siteTheme || "light") === "system");
+    document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULTS.accentColor);
+    document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
+  }
+  function ensurePreview() {
+    const pane = document.querySelector('[data-zb-pane="reader"]');
+    if (!pane) return null;
+    let preview = pane.querySelector('[data-zb-reader-preview]');
+    if (!preview) {
+      preview = document.createElement("section");
+      preview.className = "zb-reader-preview";
+      preview.dataset.zbReaderPreview = "true";
+      preview.setAttribute("aria-label", "Предпросмотр текста");
+      preview.innerHTML = '<div class="zb-reader-preview-label">Предпросмотр</div><p>Первый абзац показывает размер, интервал и ширину строки. Так сразу видно, как будет выглядеть глава во время чтения.</p><p>Второй абзац показывает отступы между абзацами и выравнивание текста.</p>';
+      pane.appendChild(preview);
+    }
+    return preview;
+  }
+  function updatePreview() {
+    applySystemThemeAndAccent();
+    const settings = readSettings();
+    const preview = ensurePreview();
+    if (!preview) return;
+    preview.style.setProperty("--preview-font-size", `${Math.max(14, Math.min(24, Number(settings.fontSize || 16)))}px`);
+    preview.style.setProperty("--preview-line-height", settings.lineHeight || "1.6");
+    preview.style.setProperty("--preview-paragraph", `${Math.max(8, Math.min(32, Number(settings.paragraphSpacing || 16)))}px`);
+    preview.dataset.previewWidth = settings.readerWidth || "comfort";
+    preview.dataset.previewAlign = settings.textAlign || "left";
+    preview.querySelectorAll("p").forEach(function (p) {
+      p.style.fontSize = "var(--preview-font-size)";
+      p.style.lineHeight = "var(--preview-line-height)";
+      p.style.marginBottom = "var(--preview-paragraph)";
+      p.style.textAlign = settings.textAlign === "justify" ? "justify" : "left";
+    });
+  }
+  function hideReaderBackgroundControls() {
+    document.querySelectorAll('[data-zb-setting="readerTheme"], [data-reader-setting="readerTheme"]').forEach(function (button) {
+      const card = button.closest('.zb-setting-card, .reader-settings-section-v2');
+      if (card) card.hidden = true;
+      else button.hidden = true;
+    });
+  }
+  function initSettingsPreview() {
+    updatePreview();
+    hideReaderBackgroundControls();
+    document.addEventListener("click", function (event) {
+      if (event.target.closest('[data-zb-setting], [data-zb-font-step], [data-zb-tab], [data-reader-setting], [data-reader-font-step], [data-global-setting]')) {
+        window.setTimeout(function () { updatePreview(); hideReaderBackgroundControls(); }, 0);
+        window.setTimeout(function () { updatePreview(); hideReaderBackgroundControls(); }, 80);
+      }
+    }, true);
+    [0, 150, 600, 1400].forEach(function (delay) {
+      window.setTimeout(function () { updatePreview(); hideReaderBackgroundControls(); }, delay);
+    });
+  }
+  function initSystemThemeWatcher() {
+    applySystemThemeAndAccent();
+    try {
+      const media = window.matchMedia("(prefers-color-scheme: dark)");
+      const handler = function () { applySystemThemeAndAccent(); updatePreview(); };
+      if (media.addEventListener) media.addEventListener("change", handler);
+      else if (media.addListener) media.addListener(handler);
+    } catch (error) {}
+    window.addEventListener("storage", function (event) { if (event.key === SETTINGS_KEY) { applySystemThemeAndAccent(); updatePreview(); } });
+    [0, 200, 700, 1500].forEach(function (delay) { window.setTimeout(applySystemThemeAndAccent, delay); });
+  }
+  function initChapterInfiniteScroll() {
+    const page = document.querySelector('[data-chapter-page]');
+    const source = document.querySelector('[data-cache-chapter-content]');
+    if (!page || !source || page.dataset.isLocked === "true") return;
+    let nav = document.querySelector('.chapter-navigation');
+    let next = nav ? Array.from(nav.querySelectorAll('a[href*="/chapter/"]')).find(function (a) { return /Следующая/i.test(a.textContent || ""); }) : null;
+    let nextUrl = next ? next.href : "";
+    if (!nextUrl) return;
+    let loading = false;
+    let stopped = false;
+    const status = document.createElement("div");
+    status.className = "chapter-infinite-status";
+    status.textContent = "";
+    if (nav && nav.parentNode) nav.parentNode.insertBefore(status, nav);
+    function extractNext(doc) {
+      const nextLink = Array.from(doc.querySelectorAll('.chapter-navigation a[href*="/chapter/"]')).find(function (a) { return /Следующая/i.test(a.textContent || ""); });
+      return nextLink ? new URL(nextLink.getAttribute('href'), window.location.origin).href : "";
+    }
+    function appendChapter(doc, url) {
+      const nextPage = doc.querySelector('[data-chapter-page]');
+      if (!nextPage || nextPage.dataset.isLocked === "true") {
+        stopped = true;
+        status.textContent = "Дальше начинается закрытая или платная глава";
+        return;
+      }
+      const content = doc.querySelector('[data-cache-chapter-content]');
+      const title = doc.querySelector('.chapter-header h1');
+      if (!content) { stopped = true; return; }
+      const wrap = document.createElement("section");
+      wrap.className = "chapter-infinite-item";
+      wrap.dataset.chapterInfiniteItem = "true";
+      wrap.innerHTML = `<header class="chapter-infinite-head"><span>Следующая глава</span><h2>${title ? title.textContent : "Глава"}</h2></header><article class="chapter-content chapter-content-infinite">${content.innerHTML}</article>`;
+      if (nav && nav.parentNode) nav.parentNode.insertBefore(wrap, nav);
+      nextUrl = extractNext(doc);
+      if (!nextUrl || nextUrl === url) {
+        stopped = true;
+        status.textContent = "Доступные главы закончились";
+      } else {
+        status.textContent = "";
+      }
+    }
+    function loadNext() {
+      if (loading || stopped || !nextUrl) return;
+      loading = true;
+      status.textContent = "Загружаю следующую главу…";
+      const currentUrl = nextUrl;
+      fetch(currentUrl, { credentials: "same-origin" })
+        .then(function (response) { if (!response.ok) throw new Error(String(response.status)); return response.text(); })
+        .then(function (html) { appendChapter(new DOMParser().parseFromString(html, "text/html"), currentUrl); })
+        .catch(function () { stopped = true; status.textContent = "Не удалось автоматически загрузить следующую главу"; })
+        .finally(function () { loading = false; });
+    }
+    function maybeLoad() {
+      if (stopped || loading) return;
+      const remaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
+      if (remaining < 1000) loadNext();
+    }
+    window.addEventListener("scroll", maybeLoad, { passive: true });
+    window.addEventListener("resize", maybeLoad, { passive: true });
+    window.setTimeout(maybeLoad, 800);
+  }
+  function initV134() {
+    initSystemThemeWatcher();
+    initSettingsPreview();
+    initChapterInfiniteScroll();
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV134);
+  else initV134();
 })();

@@ -9939,3 +9939,137 @@ body[data-site-theme="dark"] .library-card-tags * {
 }
 
 /* End v133-dark-mobile-polish */
+
+
+/* =====================================================================
+   v134-reader-settings-infinite-scroll
+   ===================================================================== */
+.library-continue-action { display: none !important; }
+.library-continue-card,
+.library-continue-card-primary { grid-template-columns: 48px minmax(0, 1fr) !important; }
+
+/* Accent now applies to the whole site, not only settings. */
+.primary-read-button,
+.novel-continue-button,
+.chapter-nav-main,
+.library-filter-apply,
+.library-card-progress > span,
+.library-progress-track > span,
+.library-continue-progress > span,
+.novel-reading-progress-track > span,
+.novel-toc-progress-track > span,
+.chapter-scroll-progress > span,
+.subscription-refresh-button,
+.chapter-access-purchase-button,
+.reader-settings-toggle,
+.reader-floating-button:hover,
+.reader-floating-button:focus-visible,
+.zb-choice.is-active,
+.zb-settings-tab.is-active,
+.zb-reset-button,
+.library-card-state-pill.state-reading,
+.library-card-state-pill.state-new,
+.library-stat-status.status-reading {
+  background: var(--accent, #ff6a00) !important;
+  border-color: var(--accent, #ff6a00) !important;
+  color: #fff !important;
+}
+.library-book-card-v4.is-reading,
+.library-section[data-library-section="reading"] .library-book-card-v4 {
+  border-color: color-mix(in srgb, var(--accent, #ff6a00) 35%, transparent) !important;
+}
+.library-section-count,
+.library-action-button.is-active,
+.library-sort-pill.is-active,
+.tag-rating,
+.novel-cover-rating {
+  background: var(--accent, #ff6a00) !important;
+  border-color: var(--accent, #ff6a00) !important;
+  color: #fff !important;
+}
+a, .novel-project-brand-mark, .chapter-access-public { color: var(--accent, #ff6a00); }
+
+/* System theme resolves to the same final dark/light styles. */
+body[data-resolved-theme="dark"] { color-scheme: dark; }
+body[data-resolved-theme="light"] { color-scheme: light; }
+
+/* Remove background color controls from reader settings. */
+.zb-setting-card:has([data-zb-setting="readerTheme"]),
+.reader-settings-section-v2:has([data-reader-setting="readerTheme"]) { display: none !important; }
+
+/* Live preview in reader settings. */
+.zb-reader-preview {
+  margin: 12px 0 0;
+  padding: 16px;
+  border: 1px solid rgba(255, 106, 0, .25);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--accent, #ff6a00) 8%, var(--card-bg-solid, #fffaf3));
+  color: var(--text, #1d120c);
+  overflow: hidden;
+}
+.zb-reader-preview-label {
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent, #ff6a00) 70%, var(--text, #1d120c));
+}
+.zb-reader-preview p {
+  max-width: 100%;
+  margin: 0 0 var(--preview-paragraph, 16px);
+  font-size: var(--preview-font-size, 16px);
+  line-height: var(--preview-line-height, 1.6);
+  color: inherit;
+}
+.zb-reader-preview[data-preview-width="comfort"] p { max-width: 34em; }
+.zb-reader-preview[data-preview-width="full"] p { max-width: 44em; }
+.zb-reader-preview[data-preview-width="wide"] p { max-width: none; }
+.zb-reader-preview[data-preview-align="justify"] p { text-align: justify; }
+body[data-site-theme="dark"] .zb-reader-preview,
+body[data-resolved-theme="dark"] .zb-reader-preview {
+  background: color-mix(in srgb, var(--accent, #ff6a00) 12%, #181412);
+  border-color: color-mix(in srgb, var(--accent, #ff6a00) 45%, rgba(255,255,255,.12));
+  color: #f8efe6;
+}
+
+/* Infinite scroll appended chapters. */
+.chapter-infinite-status {
+  margin: 18px auto;
+  max-width: var(--reader-max-width, 760px);
+  color: var(--muted, #806f62);
+  text-align: center;
+  font-size: 14px;
+}
+.chapter-infinite-item {
+  margin: 28px auto 0;
+  max-width: var(--reader-max-width, 760px);
+}
+.chapter-infinite-head {
+  margin: 0 0 14px;
+  padding: 18px 0 12px;
+  border-top: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 45%, transparent);
+}
+.chapter-infinite-head span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent, #ff6a00);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.chapter-infinite-head h2 {
+  margin: 0;
+  font-size: clamp(22px, 5vw, 34px);
+  line-height: 1.15;
+}
+.chapter-content-infinite {
+  margin-top: 0 !important;
+}
+
+@media (max-width: 640px) {
+  .library-continue-card,
+  .library-continue-card-primary { grid-template-columns: 46px minmax(0, 1fr) !important; }
+  .zb-reader-preview { padding: 14px; border-radius: 16px; }
+}
