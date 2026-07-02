@@ -10073,3 +10073,132 @@ body[data-resolved-theme="dark"] .zb-reader-preview {
   .library-continue-card-primary { grid-template-columns: 46px minmax(0, 1fr) !important; }
   .zb-reader-preview { padding: 14px; border-radius: 16px; }
 }
+
+
+/* =====================================================================
+   v135-loading-progress-fix
+   ===================================================================== */
+.app-route-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: rgba(18, 12, 8, .10);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.app-route-loading[hidden] { display: none !important; }
+.app-route-loading-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 36%, rgba(255,255,255,.35));
+  background: color-mix(in srgb, var(--accent, #ff6a00) 10%, rgba(255, 250, 243, .96));
+  color: #2a160a;
+  box-shadow: 0 14px 44px rgba(0,0,0,.20);
+  font-weight: 850;
+}
+.app-route-spinner,
+.chapter-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid color-mix(in srgb, var(--accent, #ff6a00) 22%, rgba(255,255,255,.55));
+  border-top-color: var(--accent, #ff6a00);
+  animation: zb-spin .82s linear infinite;
+  flex: 0 0 auto;
+}
+@keyframes zb-spin { to { transform: rotate(360deg); } }
+
+.chapter-infinite-status {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent, #ff6a00) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 24%, transparent);
+}
+.chapter-loading-stop,
+.chapter-loading-done {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--accent, #ff6a00) 18%, transparent);
+  color: var(--accent, #ff6a00);
+  font-weight: 900;
+}
+.chapter-infinite-item {
+  position: relative;
+}
+.chapter-infinite-head {
+  border-top-style: dashed !important;
+}
+.chapter-infinite-head::before {
+  content: "";
+  display: block;
+  width: 28px;
+  height: 28px;
+  margin: -30px auto 12px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 50%, var(--accent, #ff6a00) 0 4px, transparent 5px),
+    color-mix(in srgb, var(--accent, #ff6a00) 12%, var(--card-bg-solid, #fffaf3));
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 30%, transparent);
+}
+
+body[data-site-theme="dark"] .app-route-loading,
+body[data-resolved-theme="dark"] .app-route-loading,
+body[data-reader-theme="dark"] .app-route-loading {
+  background: rgba(0, 0, 0, .30);
+}
+body[data-site-theme="dark"] .app-route-loading-card,
+body[data-resolved-theme="dark"] .app-route-loading-card,
+body[data-reader-theme="dark"] .app-route-loading-card {
+  background: color-mix(in srgb, var(--accent, #ff6a00) 14%, #17110e);
+  color: #fff4e8;
+  border-color: color-mix(in srgb, var(--accent, #ff6a00) 40%, rgba(255,255,255,.12));
+}
+body[data-site-theme="dark"] .chapter-infinite-status,
+body[data-resolved-theme="dark"] .chapter-infinite-status,
+body[data-reader-theme="dark"] .chapter-infinite-status {
+  background: color-mix(in srgb, var(--accent, #ff6a00) 12%, #17110e);
+  border-color: color-mix(in srgb, var(--accent, #ff6a00) 34%, rgba(255,255,255,.10));
+  color: #fff4e8;
+}
+body[data-site-theme="dark"] .chapter-infinite-head::before,
+body[data-resolved-theme="dark"] .chapter-infinite-head::before,
+body[data-reader-theme="dark"] .chapter-infinite-head::before {
+  background:
+    radial-gradient(circle at 50% 50%, var(--accent, #ff6a00) 0 4px, transparent 5px),
+    color-mix(in srgb, var(--accent, #ff6a00) 14%, #17110e);
+}
+
+@media (max-width: 640px) {
+  .app-route-loading-card {
+    max-width: calc(100vw - 44px);
+    min-height: 42px;
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+  .chapter-infinite-status {
+    margin-left: 14px;
+    margin-right: 14px;
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-route-spinner,
+  .chapter-loading-spinner { animation: none; }
+}

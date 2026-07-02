@@ -3236,7 +3236,7 @@
       const nextPage = doc.querySelector('[data-chapter-page]');
       if (!nextPage || nextPage.dataset.isLocked === "true") {
         stopped = true;
-        status.textContent = "Дальше начинается закрытая или платная глава";
+        status.innerHTML = '<span class="chapter-loading-stop" aria-hidden="true">🔒</span><span>Дальше начинается закрытая или платная глава</span>';
         return;
       }
       const content = doc.querySelector('[data-cache-chapter-content]');
@@ -3245,12 +3245,30 @@
       const wrap = document.createElement("section");
       wrap.className = "chapter-infinite-item";
       wrap.dataset.chapterInfiniteItem = "true";
+      wrap.dataset.novelId = nextPage.dataset.novelId || page.dataset.novelId || "";
+      wrap.dataset.novelSlug = nextPage.dataset.novelSlug || page.dataset.novelSlug || "";
+      wrap.dataset.novelTitle = nextPage.dataset.novelTitle || page.dataset.novelTitle || "";
+      wrap.dataset.chapterId = nextPage.dataset.chapterId || "";
+      wrap.dataset.chapterTitle = nextPage.dataset.chapterTitle || (title ? title.textContent : "");
+      wrap.dataset.chapterIndex = nextPage.dataset.chapterIndex || "0";
+      wrap.dataset.availableChapters = nextPage.dataset.availableChapters || page.dataset.availableChapters || "0";
+      wrap.dataset.chapterUrl = url;
       wrap.innerHTML = `<header class="chapter-infinite-head"><span>Следующая глава</span><h2>${title ? title.textContent : "Глава"}</h2></header><article class="chapter-content chapter-content-infinite">${content.innerHTML}</article>`;
       if (nav && nav.parentNode) nav.parentNode.insertBefore(wrap, nav);
+      try {
+        document.dispatchEvent(new CustomEvent("zefirki:chapter-appended", { detail: {
+          novelId: wrap.dataset.novelId,
+          chapterId: wrap.dataset.chapterId,
+          chapterTitle: wrap.dataset.chapterTitle,
+          chapterIndex: wrap.dataset.chapterIndex,
+          availableChapters: wrap.dataset.availableChapters,
+          element: wrap
+        }}));
+      } catch (error) {}
       nextUrl = extractNext(doc);
       if (!nextUrl || nextUrl === url) {
         stopped = true;
-        status.textContent = "Доступные главы закончились";
+        status.innerHTML = '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Доступные главы закончились</span>';
       } else {
         status.textContent = "";
       }
@@ -3258,12 +3276,12 @@
     function loadNext() {
       if (loading || stopped || !nextUrl) return;
       loading = true;
-      status.textContent = "Загружаю следующую главу…";
+      status.innerHTML = '<span class="chapter-loading-spinner" aria-hidden="true"></span><span>Загружаю следующую главу…</span>';
       const currentUrl = nextUrl;
       fetch(currentUrl, { credentials: "same-origin" })
         .then(function (response) { if (!response.ok) throw new Error(String(response.status)); return response.text(); })
         .then(function (html) { appendChapter(new DOMParser().parseFromString(html, "text/html"), currentUrl); })
-        .catch(function () { stopped = true; status.textContent = "Не удалось автоматически загрузить следующую главу"; })
+        .catch(function () { stopped = true; status.innerHTML = '<span class="chapter-loading-stop" aria-hidden="true">!</span><span>Не удалось автоматически загрузить следующую главу</span>'; })
         .finally(function () { loading = false; });
     }
     function maybeLoad() {
@@ -3282,4 +3300,289 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV134);
   else initV134();
+})();
+
+
+/* === v135 loading indicators and infinite-scroll progress fix === */
+(function () {
+  const SETTINGS_KEY = "zefirki_reader_settings";
+  const HISTORY_KEY = "zefirki_reading_history";
+  const META_KEY = "zefirki_novel_meta";
+  const READ_KEY = "zefirki_read_chapters";
+  const DEFAULT_ACCENT = "#ff6a00";
+
+  function readJson(key, fallback) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return parsed == null ? fallback : parsed;
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  function writeJson(key, value) {
+    try { window.localStorage.setItem(key, JSON.stringify(value)); }
+    catch (error) {}
+  }
+
+  function clamp(value, min, max) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return min;
+    return Math.max(min, Math.min(max, number));
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function ensureNavigationLoader() {
+    let overlay = document.querySelector("[data-app-route-loading]");
+    if (overlay) return overlay;
+    overlay = document.createElement("div");
+    overlay.className = "app-route-loading";
+    overlay.dataset.appRouteLoading = "true";
+    overlay.setAttribute("role", "status");
+    overlay.setAttribute("aria-live", "polite");
+    overlay.hidden = true;
+    overlay.innerHTML = '<div class="app-route-loading-card"><span class="app-route-spinner" aria-hidden="true"></span><span data-app-route-loading-text>Загружается…</span></div>';
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function showNavigationLoader(text) {
+    const overlay = ensureNavigationLoader();
+    const label = overlay.querySelector("[data-app-route-loading-text]");
+    if (label) label.textContent = text || "Загружается…";
+    overlay.hidden = false;
+    document.body.classList.add("app-is-loading-route");
+  }
+
+  function initRouteLoadingIndicators() {
+    ensureNavigationLoader();
+    document.addEventListener("click", function (event) {
+      const link = event.target.closest('a[href]');
+      if (!link) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (link.target && link.target !== "_self") return;
+      if (link.hasAttribute("download")) return;
+      const href = link.getAttribute("href") || "";
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      let url;
+      try { url = new URL(href, window.location.href); }
+      catch (error) { return; }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.hash) return;
+      const text = /\/chapter\//.test(url.pathname) ? "Открываю главу…" : /\/novel\//.test(url.pathname) ? "Открываю оглавление…" : "Загружается…";
+      showNavigationLoader(text);
+    }, true);
+    window.addEventListener("pageshow", function () {
+      const overlay = document.querySelector("[data-app-route-loading]");
+      if (overlay) overlay.hidden = true;
+      document.body.classList.remove("app-is-loading-route");
+    });
+  }
+
+  function getNovelMeta(novelId) {
+    const meta = readJson(META_KEY, {});
+    return meta[String(novelId)] || {};
+  }
+
+  function saveReadChapterId(chapterId) {
+    if (!chapterId) return [];
+    const ids = Array.isArray(readJson(READ_KEY, [])) ? readJson(READ_KEY, []) : [];
+    const normalized = ids.map(String);
+    if (!normalized.includes(String(chapterId))) normalized.push(String(chapterId));
+    const trimmed = normalized.slice(-3000);
+    writeJson(READ_KEY, trimmed);
+    return trimmed;
+  }
+
+  function sectionProgress(element) {
+    if (!element) return 0;
+    const rect = element.getBoundingClientRect();
+    const top = window.scrollY + rect.top;
+    const height = Math.max(1, element.offsetHeight - window.innerHeight);
+    return clamp((window.scrollY - top) / height, 0, 1);
+  }
+
+  function buildHistoryItemFromElement(element) {
+    const page = document.querySelector("[data-chapter-page]");
+    if (!page || !element) return null;
+    const novelId = element.dataset.novelId || page.dataset.novelId || "";
+    const meta = getNovelMeta(novelId);
+    const chapterId = element.dataset.chapterId || page.dataset.chapterId || "";
+    if (!novelId || !chapterId) return null;
+    const chapterIndex = Number(element.dataset.chapterIndex || page.dataset.chapterIndex || 0);
+    const available = Number(element.dataset.availableChapters || page.dataset.availableChapters || 0);
+    const title = element.dataset.chapterTitle || page.dataset.chapterTitle || "";
+    const progress = sectionProgress(element);
+    return {
+      novelId: String(novelId),
+      novelSlug: element.dataset.novelSlug || page.dataset.novelSlug || meta.novelSlug || "",
+      novelTitle: element.dataset.novelTitle || page.dataset.novelTitle || meta.novelTitle || "",
+      coverUrl: meta.coverUrl || "",
+      chapterId: String(chapterId),
+      chapterTitle: title,
+      chapterIndex: chapterIndex,
+      chapterNumber: chapterIndex + 1,
+      availableChapters: available,
+      progressLabel: available > 0 ? `Глава ${Math.min(chapterIndex + 1, available)} из ${available}` : `Глава ${chapterIndex + 1}`,
+      scrollPosition: progress,
+      scrollPositionPx: Math.max(0, Math.round(window.scrollY)),
+      updatedAt: Date.now(),
+      continueUrl: `/chapter/${encodeURIComponent(String(chapterId))}`,
+    };
+  }
+
+  let lastSavedChapterKey = "";
+  let serverTimer = null;
+
+  function putProgressToServer(item, readIds) {
+    if (!item || !item.novelId || !item.chapterId) return;
+    const viewer = window.ZEFIRKI_VIEWER || {};
+    if (!viewer || (!viewer.user_id && !viewer.userId && !viewer.telegram_id && !viewer.telegramId)) return;
+    const payload = {
+      novel_id: Number(item.novelId),
+      novel_slug: item.novelSlug || "",
+      novel_title: item.novelTitle || "",
+      cover_url: item.coverUrl || "",
+      chapter_id: item.chapterId,
+      chapter_title: item.chapterTitle || "",
+      chapter_index: Number(item.chapterIndex || 0),
+      available_chapters: Number(item.availableChapters || 0),
+      scroll_position: Number(item.scrollPosition || 0),
+      scroll_position_px: Math.max(0, Math.round(Number(item.scrollPositionPx || 0))),
+      completed: true,
+      read_chapter_ids: Array.isArray(readIds) ? readIds.slice(-3000) : [],
+    };
+    window.fetch("/api/user/progress", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).catch(function () {});
+  }
+
+  function saveVisibleProgress(element, options) {
+    const item = buildHistoryItemFromElement(element);
+    if (!item) return;
+    const readIds = saveReadChapterId(item.chapterId);
+    const history = Array.isArray(readJson(HISTORY_KEY, [])) ? readJson(HISTORY_KEY, []) : [];
+    const next = history.filter(function (entry) { return String(entry.novelId) !== String(item.novelId); }).concat(item).slice(-50);
+    writeJson(HISTORY_KEY, next);
+    const key = `${item.novelId}:${item.chapterId}`;
+    if (key !== lastSavedChapterKey) {
+      lastSavedChapterKey = key;
+      document.dispatchEvent(new CustomEvent("zefirki:reading-progress-visible", { detail: item }));
+    }
+    if (options && options.sync) {
+      putProgressToServer(item, readIds);
+    } else if (!serverTimer) {
+      serverTimer = window.setTimeout(function () {
+        serverTimer = null;
+        const current = getCurrentVisibleChapterElement();
+        const currentItem = buildHistoryItemFromElement(current);
+        if (currentItem) putProgressToServer(currentItem, saveReadChapterId(currentItem.chapterId));
+      }, 5000);
+    }
+  }
+
+  function registerOriginalChapterElement() {
+    const page = document.querySelector("[data-chapter-page]");
+    if (!page || page.dataset.isLocked === "true") return null;
+    let original = document.querySelector("[data-current-chapter-progress-root]");
+    if (original) return original;
+    original = document.querySelector(".chapter-content-shell") || document.querySelector("[data-cache-chapter-content]") || page;
+    original.dataset.currentChapterProgressRoot = "true";
+    original.dataset.chapterProgressItem = "true";
+    original.dataset.novelId = page.dataset.novelId || "";
+    original.dataset.novelSlug = page.dataset.novelSlug || "";
+    original.dataset.novelTitle = page.dataset.novelTitle || "";
+    original.dataset.chapterId = page.dataset.chapterId || "";
+    original.dataset.chapterTitle = page.dataset.chapterTitle || "";
+    original.dataset.chapterIndex = page.dataset.chapterIndex || "0";
+    original.dataset.availableChapters = page.dataset.availableChapters || "0";
+    return original;
+  }
+
+  function allChapterProgressElements() {
+    const original = registerOriginalChapterElement();
+    const items = Array.from(document.querySelectorAll("[data-chapter-infinite-item]"));
+    if (original && !items.includes(original)) items.unshift(original);
+    items.forEach(function (element) { element.dataset.chapterProgressItem = "true"; });
+    return items;
+  }
+
+  function getCurrentVisibleChapterElement() {
+    const items = allChapterProgressElements();
+    if (!items.length) return null;
+    const viewportMiddle = window.innerHeight * 0.42;
+    let best = null;
+    let bestScore = Infinity;
+    items.forEach(function (item) {
+      const rect = item.getBoundingClientRect();
+      if (rect.bottom < 40 || rect.top > window.innerHeight - 40) return;
+      const score = Math.abs(rect.top - viewportMiddle);
+      if (score < bestScore) {
+        bestScore = score;
+        best = item;
+      }
+    });
+    return best || items[0];
+  }
+
+  function initInfiniteProgressFix() {
+    const page = document.querySelector("[data-chapter-page]");
+    if (!page || page.dataset.isLocked === "true") return;
+    registerOriginalChapterElement();
+    let scrollTimer = null;
+    const onScroll = function () {
+      window.clearTimeout(scrollTimer);
+      scrollTimer = window.setTimeout(function () {
+        const current = getCurrentVisibleChapterElement();
+        if (current) saveVisibleProgress(current, { sync: false });
+      }, 140);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    window.addEventListener("pagehide", function () {
+      const current = getCurrentVisibleChapterElement();
+      if (current) saveVisibleProgress(current, { sync: true });
+    });
+    document.addEventListener("zefirki:chapter-appended", function (event) {
+      const element = event.detail && event.detail.element;
+      if (element) {
+        element.dataset.chapterProgressItem = "true";
+        window.setTimeout(onScroll, 50);
+      }
+    });
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.22) {
+            saveVisibleProgress(entry.target, { sync: false });
+          }
+        });
+      }, { threshold: [0.22, 0.45, 0.7] });
+      const observeAll = function () { allChapterProgressElements().forEach(function (item) { observer.observe(item); }); };
+      observeAll();
+      document.addEventListener("zefirki:chapter-appended", observeAll);
+    }
+    window.setTimeout(onScroll, 600);
+  }
+
+  function initV135() {
+    initRouteLoadingIndicators();
+    initInfiniteProgressFix();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV135);
+  else initV135();
 })();
