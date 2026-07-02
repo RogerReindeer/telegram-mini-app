@@ -8370,3 +8370,277 @@ body[data-app-size="large"] { --reader-font-size: 18px; }
   .settings-tabs-v2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .global-settings-grid-v2 { grid-template-columns: 1fr !important; }
 }
+
+
+/* ===== v129 CLEAN SETTINGS REBUILD ===== */
+:root {
+  --zb-accent: var(--accent, #ff6a00);
+  --zb-sheet-bg: rgba(255, 250, 244, .98);
+  --zb-sheet-text: #211713;
+  --zb-sheet-muted: rgba(33, 23, 19, .62);
+  --zb-sheet-line: rgba(121, 82, 48, .16);
+  --zb-chip-bg: rgba(255, 255, 255, .74);
+  --zb-chip-border: rgba(121, 82, 48, .16);
+}
+body[data-site-theme="dark"],
+body[data-reader-theme="dark"] {
+  --zb-sheet-bg: rgba(28, 24, 22, .98);
+  --zb-sheet-text: #fff7ed;
+  --zb-sheet-muted: rgba(255, 247, 237, .64);
+  --zb-sheet-line: rgba(255, 255, 255, .14);
+  --zb-chip-bg: rgba(255, 255, 255, .08);
+  --zb-chip-border: rgba(255, 255, 255, .14);
+}
+
+/* Old settings UI is intentionally disabled; v129 owns settings UI. */
+.settings-fab,
+.settings-fab-v2,
+.settings-overlay,
+.settings-overlay-v2,
+.reader-quick-settings,
+.reader-quick-settings-v2 {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.zb-global-settings-button,
+.zb-reader-settings-button {
+  position: fixed !important;
+  z-index: 1200 !important;
+  right: max(16px, env(safe-area-inset-right)) !important;
+  bottom: calc(18px + env(safe-area-inset-bottom)) !important;
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(121, 82, 48, .18) !important;
+  background: color-mix(in srgb, var(--zb-accent) 18%, #fff 82%) !important;
+  color: #1f130f !important;
+  box-shadow: 0 12px 30px rgba(78, 43, 24, .18) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font: 900 20px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+.zb-reader-settings-button { bottom: calc(86px + env(safe-area-inset-bottom)) !important; }
+body:not(.page-library) .zb-global-settings-button { display: none !important; }
+body:not(.page-chapter) .zb-reader-settings-button { display: none !important; }
+
+.zb-settings-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1300 !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 12px !important;
+  background: rgba(30, 20, 14, .30) !important;
+  backdrop-filter: blur(10px) !important;
+}
+.zb-settings-overlay[hidden] { display: none !important; }
+.zb-settings-sheet {
+  width: min(760px, 100%) !important;
+  max-height: min(86dvh, 760px) !important;
+  overflow: auto !important;
+  border-radius: 28px 28px 20px 20px !important;
+  border: 1px solid var(--zb-sheet-line) !important;
+  background: var(--zb-sheet-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  box-shadow: 0 24px 80px rgba(40, 22, 12, .28) !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+.zb-settings-drag {
+  width: 42px !important;
+  height: 5px !important;
+  margin: 10px auto 2px !important;
+  border-radius: 999px !important;
+  background: color-mix(in srgb, var(--zb-sheet-text) 18%, transparent) !important;
+}
+.zb-settings-head {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 44px !important;
+  gap: 10px !important;
+  align-items: start !important;
+  padding: 16px 18px 10px !important;
+  border-bottom: 1px solid var(--zb-sheet-line) !important;
+}
+.zb-settings-title {
+  margin: 0 !important;
+  font-size: clamp(22px, 4.8vw, 30px) !important;
+  font-weight: 900 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -.03em !important;
+}
+.zb-settings-subtitle {
+  margin: 6px 0 0 !important;
+  color: var(--zb-sheet-muted) !important;
+  font-size: 14px !important;
+  line-height: 1.35 !important;
+}
+.zb-settings-close {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  background: var(--zb-chip-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  font-size: 26px !important;
+  line-height: 1 !important;
+}
+.zb-settings-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  padding: 12px 14px 0 !important;
+}
+.zb-settings-tab {
+  min-height: 40px !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  border-radius: 999px !important;
+  background: var(--zb-chip-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  padding: 8px 10px !important;
+  white-space: nowrap !important;
+}
+.zb-settings-tab.is-active {
+  background: var(--zb-accent) !important;
+  border-color: var(--zb-accent) !important;
+  color: #fff !important;
+}
+.zb-settings-body { padding: 14px !important; }
+.zb-settings-pane { display: none !important; }
+.zb-settings-pane.is-active { display: block !important; }
+.zb-settings-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+}
+.zb-setting-card {
+  border: 1px solid var(--zb-sheet-line) !important;
+  border-radius: 20px !important;
+  background: color-mix(in srgb, var(--zb-chip-bg) 82%, transparent) !important;
+  padding: 12px !important;
+  min-width: 0 !important;
+}
+.zb-setting-label {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  color: var(--zb-sheet-muted) !important;
+}
+.zb-setting-value {
+  color: var(--zb-sheet-text) !important;
+  font-size: 16px !important;
+  font-weight: 900 !important;
+}
+.zb-choice-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+.zb-choice {
+  min-height: 38px !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  border-radius: 13px !important;
+  background: var(--zb-chip-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+  padding: 8px 11px !important;
+  flex: 1 1 auto !important;
+}
+.zb-choice.is-active {
+  border-color: var(--zb-accent) !important;
+  background: var(--zb-accent) !important;
+  color: #fff !important;
+}
+.zb-stepper {
+  display: grid !important;
+  grid-template-columns: 46px minmax(0, 1fr) 46px !important;
+  gap: 8px !important;
+  align-items: center !important;
+}
+.zb-stepper button {
+  width: 46px !important;
+  height: 42px !important;
+  border-radius: 13px !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  background: var(--zb-chip-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  font-weight: 900 !important;
+}
+.zb-range-track {
+  height: 8px !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: color-mix(in srgb, var(--zb-sheet-text) 12%, transparent) !important;
+}
+.zb-range-track span {
+  display: block !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  background: var(--zb-accent) !important;
+}
+.zb-accent-dot {
+  display: inline-block !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 999px !important;
+  background: var(--dot) !important;
+  margin-right: 6px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.55) !important;
+  vertical-align: -2px !important;
+}
+.zb-settings-note {
+  margin: 10px 2px 0 !important;
+  color: var(--zb-sheet-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+.zb-settings-footer {
+  display: flex !important;
+  justify-content: flex-end !important;
+  padding: 0 14px 14px !important;
+}
+.zb-reset-button {
+  min-height: 42px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  background: var(--zb-chip-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  font-weight: 850 !important;
+  padding: 9px 14px !important;
+}
+.zb-access-box, .zb-about-box {
+  border: 1px solid var(--zb-sheet-line) !important;
+  border-radius: 20px !important;
+  background: color-mix(in srgb, var(--zb-chip-bg) 80%, transparent) !important;
+  padding: 14px !important;
+  color: var(--zb-sheet-text) !important;
+}
+.zb-access-box h3, .zb-about-box h3 { margin: 0 0 6px !important; }
+.zb-access-box p, .zb-about-box p { margin: 0 !important; color: var(--zb-sheet-muted) !important; line-height: 1.45 !important; }
+
+@media (min-width: 760px) {
+  .zb-settings-overlay { align-items: center !important; }
+  .zb-settings-sheet { border-radius: 28px !important; max-height: min(82vh, 780px) !important; }
+}
+@media (max-width: 560px) {
+  .zb-settings-overlay { padding: 8px !important; }
+  .zb-settings-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .zb-settings-grid { grid-template-columns: 1fr !important; }
+  .zb-settings-sheet { max-height: 88dvh !important; border-radius: 24px 24px 18px 18px !important; }
+}
+@media (max-width: 360px) {
+  .zb-settings-head { padding-inline: 12px !important; }
+  .zb-settings-body { padding: 10px !important; }
+  .zb-choice { font-size: 13px !important; padding-inline: 8px !important; }
+}
