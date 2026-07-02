@@ -2408,6 +2408,7 @@
 
   function sortChapterList(list, order) {
     const fade = list.querySelector("[data-paid-fade]");
+    const listEnd = list.querySelector(".chapter-list-end");
     const rows = Array.from(list.querySelectorAll("[data-chapter-row]"));
     const volumeHeaders = Array.from(list.querySelectorAll("[data-volume-header]"));
 
@@ -2422,12 +2423,20 @@
       header.remove();
     });
 
+    if (listEnd) {
+      listEnd.remove();
+    }
+
     rows.forEach(function (row) {
       list.appendChild(row);
     });
 
     if (fade) {
       list.appendChild(fade);
+    }
+
+    if (listEnd) {
+      list.appendChild(listEnd);
     }
   }
 

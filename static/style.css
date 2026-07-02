@@ -7669,3 +7669,130 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   border-color: rgba(255, 177, 90, 0.22) !important;
   background: rgba(255, 177, 90, 0.10) !important;
 }
+
+
+/* =========================================================
+   V122 — screenshot QA fixes
+   ========================================================= */
+
+/* 1) Дубль обложки: span-placeholder не должен показываться, пока реальная img не упала. */
+.library-cover-frame {
+  height: var(--cover-h-mobile) !important;
+  min-height: var(--cover-h-mobile) !important;
+  max-height: var(--cover-h-mobile) !important;
+}
+.library-cover-frame > img.library-book-cover {
+  display: block !important;
+}
+.library-cover-frame:not(.is-cover-failed) > img.library-book-cover + .library-book-cover-placeholder {
+  display: none !important;
+}
+.library-cover-frame.is-cover-failed > img.library-book-cover {
+  display: none !important;
+}
+.library-cover-frame.is-cover-failed > .library-book-cover-placeholder,
+.library-cover-frame:not(:has(img.library-book-cover)) > .library-book-cover-placeholder {
+  display: flex !important;
+}
+.library-book-cover-placeholder {
+  text-align: center !important;
+}
+
+/* На всякий случай отключаем все фоновые/декоративные дубли обложки в карточке. */
+.library-card-cover-bg,
+.library-book-card-v4::before,
+.library-book-card-v4::after {
+  display: none !important;
+  content: none !important;
+  background-image: none !important;
+}
+
+/* 2) Три точки: без белого квадрата/круга на карточке. */
+.library-book-card-v4 .library-book-menu,
+.library-v4 .library-book-card-v4 .library-book-menu {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  border-radius: 10px !important;
+}
+.library-book-card-v4 .library-book-menu:hover,
+.library-book-card-v4 .library-book-menu:focus-visible,
+.library-book-card-v4 .library-book-menu[aria-expanded="true"] {
+  background: rgba(255,106,0,.08) !important;
+  box-shadow: none !important;
+}
+
+/* 3) Карточка после удаления дубля: нормальная высота и плотность. */
+.library-book-card-v4 {
+  align-items: start !important;
+}
+.library-book-body {
+  align-self: start !important;
+}
+.library-card-tags {
+  margin-top: 4px !important;
+}
+
+/* 4) Кнопка продолжения на странице новеллы: не растягивается странно на десктопе. */
+.novel-read-action,
+.novel-read-action-v2,
+.novel-read-action-priority {
+  width: 100% !important;
+  max-width: 420px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  margin: 16px 0 14px !important;
+  gap: 8px !important;
+}
+.novel-continue-button {
+  width: 100% !important;
+  min-height: 48px !important;
+}
+.novel-read-action-hint {
+  margin: 0 !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* 5) Оглавление: кнопка «К началу» всегда остаётся внизу списка после сортировки. */
+.chapter-list-end {
+  order: 9999 !important;
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  margin-top: 8px !important;
+}
+.chapter-list-end:first-child {
+  display: none !important;
+}
+
+@media (min-width: 820px) {
+  .library-cover-frame {
+    height: var(--cover-h-desktop) !important;
+    min-height: var(--cover-h-desktop) !important;
+    max-height: var(--cover-h-desktop) !important;
+  }
+  .library-section-list {
+    grid-template-columns: 1fr !important;
+  }
+  .library-book-card-v4 {
+    min-height: 0 !important;
+    padding: 14px !important;
+  }
+  .novel-read-action-v2,
+  .novel-read-action-priority {
+    max-width: 386px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .novel-read-action,
+  .novel-read-action-v2,
+  .novel-read-action-priority {
+    max-width: none !important;
+  }
+}

@@ -226,7 +226,7 @@
                         class="library-book-cover"
                         src="{{ novel.cover_url }}"
                         alt="{{ novel.library_short_title }}"
-                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                        onerror="this.style.display='none'; this.parentElement.classList.add('is-cover-failed'); this.nextElementSibling.style.display='flex';"
                       >
                       <span class="library-book-cover library-book-cover-placeholder" style="display:none;">обложка</span>
                     {% else %}
