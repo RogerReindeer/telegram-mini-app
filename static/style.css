@@ -9427,3 +9427,345 @@ body[data-reader-theme="dark"] .settings-overlay {
 }
 
 /* End V131 dark theme contrast hardening */
+
+
+/* =========================================================
+   v132-mobile-telegram-ui-fix
+   Real Telegram phone polish: controls, sort row, reader rail
+   ========================================================= */
+
+/* Library tools: stop the old 48px sort-icon mobile layout. */
+.library-v4 .library-actions-v4,
+.page-library .library-actions-v4 {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr) !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+}
+
+.library-v4 .library-actions-v4 > .library-action-button,
+.library-v4 .library-actions-v4 > .library-sort-pill,
+.page-library .library-actions-v4 > .library-action-button,
+.page-library .library-actions-v4 > .library-sort-pill {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px !important;
+  padding: 0 14px !important;
+  border-radius: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  overflow: hidden !important;
+  text-align: center !important;
+}
+
+.library-v4 .library-sort-pill,
+.page-library .library-sort-pill {
+  position: relative !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  justify-content: stretch !important;
+}
+
+.library-v4 .library-sort-pill::before,
+.page-library .library-sort-pill::before {
+  content: "↕" !important;
+  position: static !important;
+  inset: auto !important;
+  width: 24px !important;
+  height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+}
+
+.library-v4 .library-sort-pill > span,
+.page-library .library-sort-pill > span {
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  overflow: visible !important;
+  clip: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  white-space: nowrap !important;
+  font-size: 14px !important;
+  font-weight: 850 !important;
+  color: inherit !important;
+  opacity: 1 !important;
+}
+
+.library-v4 .library-sort-pill select,
+.page-library .library-sort-pill select {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0 !important;
+  cursor: pointer !important;
+}
+
+@media (max-width: 760px) {
+  .library-v4 .library-actions-v4,
+  .page-library .library-actions-v4 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .library-v4 .library-actions-v4 > .library-sort-pill,
+  .page-library .library-actions-v4 > .library-sort-pill {
+    grid-column: 1 / -1 !important;
+    justify-content: center !important;
+  }
+}
+
+/* Continue reading: cleaner phone card, no broken squeezed layout. */
+.library-continue-panel {
+  isolation: isolate !important;
+}
+
+.library-continue-card {
+  position: relative !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.library-continue-copy {
+  min-width: 0 !important;
+}
+
+.library-continue-copy strong,
+.library-continue-copy span,
+.library-continue-copy small {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+@media (max-width: 720px) {
+  .library-continue-panel {
+    padding: 18px 16px !important;
+    border-radius: 24px !important;
+  }
+
+  .library-continue-header {
+    display: flex !important;
+    align-items: start !important;
+    gap: 10px !important;
+  }
+
+  .library-continue-clear {
+    margin-left: auto !important;
+    flex: 0 0 auto !important;
+    min-height: 40px !important;
+    padding: 0 12px !important;
+    border-radius: 0 !important;
+    font-size: 13px !important;
+  }
+
+  .library-continue-card {
+    display: grid !important;
+    grid-template-columns: 56px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "cover copy"
+      "cover progress"
+      "action action" !important;
+    align-items: start !important;
+    gap: 8px 12px !important;
+    padding: 12px !important;
+    border-radius: 0 !important;
+  }
+
+  .library-continue-card img,
+  .library-continue-cover-placeholder {
+    grid-area: cover !important;
+    width: 56px !important;
+    min-width: 56px !important;
+    height: 72px !important;
+    border-radius: 10px !important;
+    object-fit: cover !important;
+  }
+
+  .library-continue-copy {
+    grid-area: copy !important;
+    display: grid !important;
+    gap: 3px !important;
+    align-self: start !important;
+  }
+
+  .library-continue-copy strong {
+    font-size: 16px !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+  }
+
+  .library-continue-copy > span:not(.library-continue-progress) {
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+  }
+
+  .library-continue-copy small {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+  }
+
+  .library-continue-progress {
+    grid-area: progress !important;
+    width: 100% !important;
+    align-self: end !important;
+  }
+
+  .library-continue-action {
+    grid-area: action !important;
+    justify-self: start !important;
+    min-height: 44px !important;
+    min-width: 92px !important;
+    padding: 0 18px !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 15px !important;
+    font-weight: 850 !important;
+  }
+}
+
+/* Library floating settings: keep it compact and out of card text. */
+.page-library {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+}
+
+.zb-global-settings-button {
+  width: 46px !important;
+  height: 46px !important;
+  right: max(14px, env(safe-area-inset-right)) !important;
+  bottom: calc(14px + env(safe-area-inset-bottom)) !important;
+  opacity: .92 !important;
+  font-size: 20px !important;
+}
+
+.zb-global-settings-button:active {
+  transform: scale(.96) !important;
+}
+
+/* Reader controls: one compact vertical rail. Old inline Aa is disabled; new settings button stays separate. */
+.reader-floating-controls .reader-settings-toggle,
+.reader-floating-controls [data-reader-settings-toggle] {
+  display: none !important;
+}
+
+.reader-floating-controls {
+  position: fixed !important;
+  top: auto !important;
+  left: auto !important;
+  right: max(8px, env(safe-area-inset-right)) !important;
+  bottom: calc(142px + env(safe-area-inset-bottom)) !important;
+  z-index: 950 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 8px !important;
+  transform: none !important;
+}
+
+.reader-floating-button,
+.reader-controls-visibility-toggle,
+.zb-reader-settings-button {
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  border-radius: 999px !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  box-shadow: 0 8px 22px rgba(50, 32, 20, .16) !important;
+}
+
+.zb-reader-settings-button {
+  right: max(8px, env(safe-area-inset-right)) !important;
+  bottom: calc(84px + env(safe-area-inset-bottom)) !important;
+  z-index: 970 !important;
+  font-size: 20px !important;
+}
+
+.reader-controls-visibility-toggle {
+  right: max(8px, env(safe-area-inset-right)) !important;
+  bottom: calc(28px + env(safe-area-inset-bottom)) !important;
+  z-index: 970 !important;
+  font-size: 20px !important;
+}
+
+.reader-controls-hidden .reader-floating-controls {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(10px) scale(.96) !important;
+}
+
+.reader-controls-hidden .zb-reader-settings-button {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+@media (max-width: 720px) {
+  .chapter-layout {
+    padding-right: calc(max(10px, env(safe-area-inset-right)) + 42px) !important;
+  }
+
+  .chapter-content {
+    padding-right: calc(clamp(18px, 5vw, 34px) + 42px) !important;
+  }
+
+  .reader-floating-controls {
+    bottom: calc(138px + env(safe-area-inset-bottom)) !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .chapter-layout {
+    padding-right: calc(max(8px, env(safe-area-inset-right)) + 38px) !important;
+  }
+
+  .chapter-content {
+    padding-right: calc(clamp(16px, 5vw, 28px) + 40px) !important;
+  }
+
+  .reader-floating-button,
+  .reader-controls-visibility-toggle,
+  .zb-reader-settings-button {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    font-size: 18px !important;
+  }
+}
+
+/* Theme contrast for final mobile surfaces. */
+body[data-site-theme="dark"] .library-continue-card {
+  background: #171311 !important;
+  border-color: rgba(255, 138, 35, .22) !important;
+}
+
+body[data-site-theme="dark"] .library-continue-action,
+body[data-site-theme="dark"] .library-update-button {
+  background: var(--zb-accent, #ff6a00) !important;
+  color: #fff !important;
+}
+
+body[data-site-theme="dark"] .reader-floating-button,
+body[data-site-theme="dark"] .reader-controls-visibility-toggle,
+body[data-site-theme="dark"] .zb-reader-settings-button,
+body[data-site-theme="dark"] .zb-global-settings-button {
+  background: #1e1916 !important;
+  color: #fff3e6 !important;
+  border-color: rgba(255, 138, 35, .28) !important;
+}
