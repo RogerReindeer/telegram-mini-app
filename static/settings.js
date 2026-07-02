@@ -2066,8 +2066,8 @@
       <div class="reader-quick-settings-card">
         <div class="reader-quick-settings-head">
           <div>
-            <div class="reader-quick-title">Текст</div>
-            <div class="reader-quick-subtitle">Настройка чтения</div>
+            <div class="reader-quick-title">Чтение</div>
+            <div class="reader-quick-subtitle">Шрифт, фон и интервалы</div>
           </div>
           <button class="reader-quick-close" type="button" data-reader-quick-close aria-label="Закрыть настройки">×</button>
         </div>
@@ -2117,7 +2117,7 @@
         </section>
 
         <div class="reader-quick-footer">
-          <button type="button" class="reader-quick-reset" data-reader-quick-reset>Сбросить текст</button>
+          <button type="button" class="reader-quick-reset" data-reader-quick-reset>Сбросить</button>
         </div>
       </div>`;
     document.body.appendChild(panel);
