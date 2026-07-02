@@ -17,7 +17,7 @@
   };
 
   const DEFAULT_SETTINGS = {
-    siteTheme: "light",
+    siteTheme: "system",
     readerTheme: "cream",
     readerWidth: "comfort",
     fontSize: "16",
@@ -647,7 +647,7 @@
   function applySettings() {
     const settings = getSettings();
     const body = document.body;
-    const requestedSiteTheme = settings.siteTheme || "light";
+    const requestedSiteTheme = settings.siteTheme || "system";
     const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
     body.dataset.siteTheme = resolvedSiteTheme;
@@ -1386,6 +1386,7 @@
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
     const projectStatus = String(card.dataset.status || "");
+    const hasFutureChapters = available > 0 && projectStatus !== "completed" && (Number(translated || 0) > available || Number(chapters || 0) > available || projectStatus === "in_progress" || projectStatus === "paused");
 
     const button = card.querySelector("[data-card-main-button]");
     const statePill = card.querySelector("[data-card-state-pill]");
@@ -1426,7 +1427,7 @@
     let visualProgress = 0;
     let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
-    if (isCompletedByUser) {
+    if (isCompletedByUser && !hasFutureChapters) {
       state = "completed";
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
@@ -1475,7 +1476,7 @@
     const configs = {
       new: ["is-new is-reading", "", `✨ ${newCount === 1 ? "Новая глава" : `${newCount} новые главы`}`, "state-new", "Читать новое", `/novel/${card.dataset.novelSlug || ""}`],
       reading: ["is-reading", "", currentChapterLabel, "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
-      waiting_new: ["is-reading is-waiting", "", currentChapterLabel || "Всё прочитано", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      waiting_new: ["is-reading is-waiting", "", "Жду главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
       locked: ["is-locked", "", "", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "", "", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
@@ -2810,7 +2811,7 @@
   const SETTINGS_KEY = "zefirki_reader_settings";
   const CONTROLS_KEY = "zefirki_reader_controls_hidden";
   const DEFAULTS = {
-    siteTheme: "light",
+    siteTheme: "system",
     readerTheme: "cream",
     readerWidth: "comfort",
     fontSize: "16",
@@ -2861,7 +2862,7 @@
     const settings = readSettings();
     const body = document.body;
     if (!body) return;
-    const requestedSiteTheme = settings.siteTheme || "light";
+    const requestedSiteTheme = settings.siteTheme || "system";
     const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
     body.dataset.siteTheme = resolvedSiteTheme;
@@ -3124,7 +3125,7 @@
 (function () {
   const SETTINGS_KEY = "zefirki_reader_settings";
   const DEFAULTS = {
-    siteTheme: "light",
+    siteTheme: "system",
     readerWidth: "comfort",
     fontSize: "16",
     lineHeight: "1.6",
@@ -3138,7 +3139,7 @@
     catch (error) { return Object.assign({}, DEFAULTS); }
   }
   function resolveTheme(settings) {
-    const choice = settings.siteTheme || "light";
+    const choice = settings.siteTheme || "system";
     const dark = choice === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     return choice === "system" ? (dark ? "dark" : "light") : choice;
   }
@@ -3147,8 +3148,8 @@
     const resolved = resolveTheme(settings);
     document.body.dataset.siteTheme = resolved;
     document.body.dataset.resolvedTheme = resolved;
-    document.body.dataset.siteThemeChoice = settings.siteTheme || "light";
-    document.body.classList.toggle("site-theme-system", (settings.siteTheme || "light") === "system");
+    document.body.dataset.siteThemeChoice = settings.siteTheme || "system";
+    document.body.classList.toggle("site-theme-system", (settings.siteTheme || "system") === "system");
     document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULTS.accentColor);
     document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
   }
@@ -3523,19 +3524,22 @@
   function getCurrentVisibleChapterElement() {
     const items = allChapterProgressElements();
     if (!items.length) return null;
-    const viewportMiddle = window.innerHeight * 0.42;
+    const activationLine = window.innerHeight * 0.28;
     let best = null;
-    let bestScore = Infinity;
+    let bestTop = -Infinity;
     items.forEach(function (item) {
       const rect = item.getBoundingClientRect();
-      if (rect.bottom < 40 || rect.top > window.innerHeight - 40) return;
-      const score = Math.abs(rect.top - viewportMiddle);
-      if (score < bestScore) {
-        bestScore = score;
+      if (rect.bottom <= 96 || rect.top >= window.innerHeight) return;
+      if (rect.top <= activationLine && rect.top > bestTop) {
+        bestTop = rect.top;
         best = item;
       }
     });
-    return best || items[0];
+    if (best) return best;
+    return items.find(function (item) {
+      const rect = item.getBoundingClientRect();
+      return rect.bottom > 96 && rect.top < window.innerHeight * 0.72;
+    }) || items[0];
   }
 
   function initInfiniteProgressFix() {
@@ -3560,13 +3564,14 @@
       const element = event.detail && event.detail.element;
       if (element) {
         element.dataset.chapterProgressItem = "true";
-        window.setTimeout(onScroll, 50);
+        window.setTimeout(onScroll, 220);
       }
     });
     if ("IntersectionObserver" in window) {
       const observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.22) {
+          const rect = entry.target.getBoundingClientRect();
+          if (entry.isIntersecting && rect.top <= window.innerHeight * 0.28 && rect.bottom > 96) {
             saveVisibleProgress(entry.target, { sync: false });
           }
         });
@@ -3585,4 +3590,135 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV135);
   else initV135();
+})();
+
+
+/* === v137 loaders and continue-history polish === */
+(function () {
+  function getThemeIsDark() {
+    return document.body.dataset.siteTheme === "dark" || document.body.dataset.resolvedTheme === "dark";
+  }
+  function ensureRouteLoader() {
+    let loader = document.querySelector("[data-zb-route-loader]");
+    if (loader) return loader;
+    loader = document.createElement("div");
+    loader.className = "zb-route-loader";
+    loader.dataset.zbRouteLoader = "true";
+    loader.hidden = true;
+    loader.innerHTML = '<div class="zb-route-loader-card"><span class="zb-route-loader-spinner" aria-hidden="true"></span><span data-zb-route-loader-text>Загружается…</span></div>';
+    document.body.appendChild(loader);
+    return loader;
+  }
+  function showRouteLoader(text) {
+    const loader = ensureRouteLoader();
+    const label = loader.querySelector("[data-zb-route-loader-text]");
+    if (label) label.textContent = text || "Загружается…";
+    loader.hidden = false;
+    document.body.classList.add("zb-route-loading-active");
+  }
+  function hideRouteLoader() {
+    const loader = document.querySelector("[data-zb-route-loader]");
+    if (loader) loader.hidden = true;
+    document.body.classList.remove("zb-route-loading-active");
+  }
+  function ensureLibraryLocalLoader() {
+    const screen = document.querySelector(".library-screen");
+    if (!screen) return null;
+    let loader = screen.querySelector("[data-library-local-loading]");
+    if (loader) return loader;
+    loader = document.createElement("div");
+    loader.className = "library-local-loading";
+    loader.dataset.libraryLocalLoading = "true";
+    loader.hidden = true;
+    loader.innerHTML = '<span class="library-local-loading-spinner" aria-hidden="true"></span><span data-library-local-loading-text>Обновляю библиотеку…</span>';
+    const actions = screen.querySelector(".library-actions-v4");
+    if (actions && actions.parentNode) actions.parentNode.insertBefore(loader, actions.nextSibling);
+    else screen.insertBefore(loader, screen.firstChild);
+    return loader;
+  }
+  let libraryLoaderTimer = null;
+  function pulseLibraryLoader(text, delay) {
+    const loader = ensureLibraryLocalLoader();
+    if (!loader) return;
+    const label = loader.querySelector("[data-library-local-loading-text]");
+    if (label) label.textContent = text || "Обновляю библиотеку…";
+    loader.hidden = false;
+    window.clearTimeout(libraryLoaderTimer);
+    libraryLoaderTimer = window.setTimeout(function () { loader.hidden = true; }, delay || 420);
+  }
+  function installNavigationLoaders() {
+    ensureRouteLoader();
+    if (document.body.classList.contains("page-library")) {
+      pulseLibraryLoader("Загружаю библиотеку…", 520);
+    }
+    document.addEventListener("click", function (event) {
+      const sortOrFilter = event.target.closest("#libraryFilterToggle, #librarySearchToggle, #libraryFilterApply, #libraryFilterReset, [data-filter-chip], [data-quick-filter]");
+      if (sortOrFilter) {
+        pulseLibraryLoader("Обновляю библиотеку…", 380);
+      }
+      const card = event.target.closest("[data-library-novel-card]");
+      const link = event.target.closest("a[href]");
+      const target = link || (card ? { getAttribute: function () { return card.dataset.cardHref || card.dataset.cardActionHref || ""; }, target: "" } : null);
+      if (!target) return;
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const href = target.getAttribute("href") || "";
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      let url;
+      try { url = new URL(href, window.location.href); }
+      catch (error) { return; }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.hash) return;
+      if (/\/novel\//.test(url.pathname)) showRouteLoader("Загружаю оглавление…");
+      else if (/\/chapter\//.test(url.pathname)) showRouteLoader("Загружаю главу…");
+      else if (/\/library/.test(url.pathname)) showRouteLoader("Загружаю библиотеку…");
+      else showRouteLoader("Загружается…");
+    }, true);
+    document.addEventListener("change", function (event) {
+      if (event.target && event.target.id === "librarySort") {
+        pulseLibraryLoader("Сортирую библиотеку…", 360);
+      }
+    }, true);
+    document.addEventListener("input", function (event) {
+      if (event.target && event.target.id === "librarySearchInput") {
+        pulseLibraryLoader("Ищу новеллы…", 300);
+      }
+    }, true);
+    window.addEventListener("pageshow", hideRouteLoader);
+    window.addEventListener("pagehide", function () { showRouteLoader("Загружается…"); });
+  }
+  function compactContinueHistory() {
+    const panel = document.getElementById("libraryContinuePanel");
+    const list = document.getElementById("libraryContinueList");
+    if (!panel || !list) return;
+    panel.classList.add("library-continue-panel-v137");
+    Array.from(list.querySelectorAll(".library-continue-card")).forEach(function (card) {
+      card.classList.add("library-continue-card-v137");
+      const copy = card.querySelector(".library-continue-copy");
+      if (!copy) return;
+      const title = copy.querySelector("strong");
+      const chapter = copy.querySelector("span:not(.library-continue-progress)");
+      const meta = copy.querySelector("small");
+      if (title) title.setAttribute("title", title.textContent || "");
+      if (chapter) chapter.setAttribute("title", chapter.textContent || "");
+      if (meta) {
+        const text = String(meta.textContent || "").replace(/\s+/g, " ").trim();
+        meta.textContent = text;
+        meta.setAttribute("title", text);
+      }
+    });
+  }
+  function observeContinueHistory() {
+    compactContinueHistory();
+    const list = document.getElementById("libraryContinueList");
+    if (!list || !("MutationObserver" in window)) return;
+    const observer = new MutationObserver(function () { compactContinueHistory(); });
+    observer.observe(list, { childList: true, subtree: true });
+  }
+  function initV137() {
+    installNavigationLoaders();
+    observeContinueHistory();
+    [80, 250, 700, 1400].forEach(function (delay) { window.setTimeout(compactContinueHistory, delay); });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV137);
+  else initV137();
 })();
