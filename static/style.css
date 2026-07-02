@@ -10202,3 +10202,143 @@ body[data-reader-theme="dark"] .chapter-infinite-head::before {
   .app-route-spinner,
   .chapter-loading-spinner { animation: none; }
 }
+
+
+/* =====================================================================
+   v136-sort-progress-system-theme-fix
+   ===================================================================== */
+:root {
+  --zb-progress-track-light: rgba(128, 85, 48, .16);
+  --zb-progress-track-dark: rgba(255, 255, 255, .28);
+}
+
+/* Native select dropdown: readable in light/system themes, no white-on-white list. */
+.library-sort-pill,
+.library-sort-pill select,
+.library-sort-pill option {
+  color: var(--app-text, #23140d) !important;
+  background-color: #fffaf3 !important;
+}
+.library-sort-pill select {
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  min-height: 42px !important;
+  line-height: 1.2 !important;
+  color-scheme: light !important;
+}
+.library-sort-pill option {
+  color: #241711 !important;
+  background: #fffaf3 !important;
+}
+body[data-site-theme="dark"] .library-sort-pill,
+body[data-site-theme="dark"] .library-sort-pill select,
+body[data-site-theme="dark"] .library-sort-pill option {
+  color: #fff8ef !important;
+  background-color: #1b1512 !important;
+  color-scheme: dark !important;
+}
+body[data-site-theme="dark"] .library-sort-pill option {
+  color: #fff8ef !important;
+  background: #1b1512 !important;
+}
+
+/* Progress bars: lighter empty track and stable mobile layout. */
+.library-progress-row,
+.library-book-card-v4 .library-progress-row,
+.library-continue-progress-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) max-content !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: visible !important;
+}
+.library-progress-track,
+.library-book-card-v4 .library-progress-track,
+.library-continue-progress,
+.novel-reading-progress-track,
+.novel-toc-progress-track,
+.chapter-scroll-progress {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 7px !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: var(--zb-progress-track-light) !important;
+  box-shadow: inset 0 0 0 1px rgba(80, 45, 22, .035) !important;
+}
+.library-progress-fill,
+.library-book-card-v4 .library-progress-fill,
+.library-continue-progress > span,
+.novel-reading-progress-track > span,
+.novel-toc-progress-track > span,
+.chapter-scroll-progress > span {
+  display: block !important;
+  height: 100% !important;
+  border-radius: inherit !important;
+  background: linear-gradient(90deg, var(--accent, #ff6a00), color-mix(in srgb, var(--accent, #ff6a00) 78%, #ff3f00)) !important;
+}
+.library-progress-text,
+.library-book-card-v4 .library-progress-text {
+  white-space: nowrap !important;
+  align-self: center !important;
+  line-height: 1 !important;
+  min-width: max-content !important;
+}
+body[data-site-theme="dark"] .library-progress-track,
+body[data-site-theme="dark"] .library-book-card-v4 .library-progress-track,
+body[data-site-theme="dark"] .library-continue-progress,
+body[data-site-theme="dark"] .novel-reading-progress-track,
+body[data-site-theme="dark"] .novel-toc-progress-track,
+body[data-site-theme="dark"] .chapter-scroll-progress {
+  background: var(--zb-progress-track-dark) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.05) !important;
+}
+@media (max-width: 520px) {
+  .library-progress-row,
+  .library-book-card-v4 .library-progress-row {
+    grid-template-columns: minmax(0, 1fr) max-content !important;
+    gap: 8px !important;
+  }
+  .library-progress-track,
+  .library-book-card-v4 .library-progress-track {
+    height: 6px !important;
+  }
+}
+
+/* Waiting-for-next-chapter state. */
+.library-card-state-pill.state-waiting-new,
+body[data-site-theme="dark"] .library-card-state-pill.state-waiting-new {
+  background: color-mix(in srgb, var(--accent, #ff6a00) 18%, transparent) !important;
+  color: color-mix(in srgb, var(--accent, #ff6a00) 55%, var(--app-text, #241711)) !important;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 35%, transparent) !important;
+}
+
+/* Accent is global, not only settings. */
+.primary-read-button,
+.novel-continue-button,
+.library-card-main-button,
+.chapter-nav-main,
+.reader-floating-button.is-primary,
+.library-filter-apply,
+.subscription-refresh-button,
+.chapter-access-purchase-button {
+  background: var(--accent, #ff6a00) !important;
+  border-color: var(--accent, #ff6a00) !important;
+}
+.library-progress-fill,
+.chapter-scroll-progress > span,
+.novel-reading-progress-track > span,
+.novel-toc-progress-track > span,
+.library-continue-progress > span {
+  background: linear-gradient(90deg, var(--accent, #ff6a00), color-mix(in srgb, var(--accent, #ff6a00) 78%, #ff3f00)) !important;
+}
+.library-section-count,
+.viz-badge,
+.reader-quick-option.is-active,
+.zb-choice.is-active,
+.zb-tab.is-active {
+  background: var(--accent, #ff6a00) !important;
+  border-color: var(--accent, #ff6a00) !important;
+}

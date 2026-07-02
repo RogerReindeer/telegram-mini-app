@@ -17,7 +17,7 @@
   };
 
   const DEFAULT_SETTINGS = {
-    siteTheme: "light",
+    siteTheme: "system",
     readerTheme: "cream",
     readerWidth: "comfort",
     fontSize: "16",
@@ -647,7 +647,7 @@
   function applySettings() {
     const settings = getSettings();
     const body = document.body;
-    const requestedSiteTheme = settings.siteTheme || "light";
+    const requestedSiteTheme = settings.siteTheme || "system";
     const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
     body.dataset.siteTheme = resolvedSiteTheme;
@@ -1386,6 +1386,7 @@
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
     const projectStatus = String(card.dataset.status || "");
+    const hasFutureChapters = available > 0 && projectStatus !== "completed" && (Number(translated || 0) > available || Number(chapters || 0) > available || projectStatus === "in_progress" || projectStatus === "paused");
 
     const button = card.querySelector("[data-card-main-button]");
     const statePill = card.querySelector("[data-card-state-pill]");
@@ -1426,7 +1427,7 @@
     let visualProgress = 0;
     let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
-    if (isCompletedByUser) {
+    if (isCompletedByUser && !hasFutureChapters) {
       state = "completed";
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
@@ -1475,7 +1476,7 @@
     const configs = {
       new: ["is-new is-reading", "", `✨ ${newCount === 1 ? "Новая глава" : `${newCount} новые главы`}`, "state-new", "Читать новое", `/novel/${card.dataset.novelSlug || ""}`],
       reading: ["is-reading", "", currentChapterLabel, "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
-      waiting_new: ["is-reading is-waiting", "", currentChapterLabel || "Всё прочитано", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      waiting_new: ["is-reading is-waiting", "", "Жду главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
       locked: ["is-locked", "", "", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "", "", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
@@ -2810,7 +2811,7 @@
   const SETTINGS_KEY = "zefirki_reader_settings";
   const CONTROLS_KEY = "zefirki_reader_controls_hidden";
   const DEFAULTS = {
-    siteTheme: "light",
+    siteTheme: "system",
     readerTheme: "cream",
     readerWidth: "comfort",
     fontSize: "16",
@@ -2861,7 +2862,7 @@
     const settings = readSettings();
     const body = document.body;
     if (!body) return;
-    const requestedSiteTheme = settings.siteTheme || "light";
+    const requestedSiteTheme = settings.siteTheme || "system";
     const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
     body.dataset.siteTheme = resolvedSiteTheme;
@@ -3124,7 +3125,7 @@
 (function () {
   const SETTINGS_KEY = "zefirki_reader_settings";
   const DEFAULTS = {
-    siteTheme: "light",
+    siteTheme: "system",
     readerWidth: "comfort",
     fontSize: "16",
     lineHeight: "1.6",
@@ -3138,7 +3139,7 @@
     catch (error) { return Object.assign({}, DEFAULTS); }
   }
   function resolveTheme(settings) {
-    const choice = settings.siteTheme || "light";
+    const choice = settings.siteTheme || "system";
     const dark = choice === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
     return choice === "system" ? (dark ? "dark" : "light") : choice;
   }
@@ -3147,8 +3148,8 @@
     const resolved = resolveTheme(settings);
     document.body.dataset.siteTheme = resolved;
     document.body.dataset.resolvedTheme = resolved;
-    document.body.dataset.siteThemeChoice = settings.siteTheme || "light";
-    document.body.classList.toggle("site-theme-system", (settings.siteTheme || "light") === "system");
+    document.body.dataset.siteThemeChoice = settings.siteTheme || "system";
+    document.body.classList.toggle("site-theme-system", (settings.siteTheme || "system") === "system");
     document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULTS.accentColor);
     document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
   }
@@ -3523,19 +3524,22 @@
   function getCurrentVisibleChapterElement() {
     const items = allChapterProgressElements();
     if (!items.length) return null;
-    const viewportMiddle = window.innerHeight * 0.42;
+    const activationLine = window.innerHeight * 0.28;
     let best = null;
-    let bestScore = Infinity;
+    let bestTop = -Infinity;
     items.forEach(function (item) {
       const rect = item.getBoundingClientRect();
-      if (rect.bottom < 40 || rect.top > window.innerHeight - 40) return;
-      const score = Math.abs(rect.top - viewportMiddle);
-      if (score < bestScore) {
-        bestScore = score;
+      if (rect.bottom <= 96 || rect.top >= window.innerHeight) return;
+      if (rect.top <= activationLine && rect.top > bestTop) {
+        bestTop = rect.top;
         best = item;
       }
     });
-    return best || items[0];
+    if (best) return best;
+    return items.find(function (item) {
+      const rect = item.getBoundingClientRect();
+      return rect.bottom > 96 && rect.top < window.innerHeight * 0.72;
+    }) || items[0];
   }
 
   function initInfiniteProgressFix() {
@@ -3560,13 +3564,14 @@
       const element = event.detail && event.detail.element;
       if (element) {
         element.dataset.chapterProgressItem = "true";
-        window.setTimeout(onScroll, 50);
+        window.setTimeout(onScroll, 220);
       }
     });
     if ("IntersectionObserver" in window) {
       const observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.22) {
+          const rect = entry.target.getBoundingClientRect();
+          if (entry.isIntersecting && rect.top <= window.innerHeight * 0.28 && rect.bottom > 96) {
             saveVisibleProgress(entry.target, { sync: false });
           }
         });
