@@ -7933,3 +7933,10 @@ body[data-reader-theme="dark"] .reader-controls-visibility-toggle {
   color: #f7eee7 !important;
   border-color: rgba(255, 255, 255, .12) !important;
 }
+
+
+/* v124: library cards should not show country tags, and favorite cards stay favorite-first. */
+.library-card-tags .tag-country,
+.library-book-card-v4 .library-card-tags .tag-country {
+  display: none !important;
+}

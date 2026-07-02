@@ -291,7 +291,7 @@
                   </div>
 
                   <div class="library-card-tags">
-                    {% set card_tags = novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items %}
+                    {% set card_tags = novel.library_card_tag_items if novel.library_card_tag_items is defined else (novel.card_tag_items if novel.card_tag_items is defined else novel.catalog_tag_items) %}
 
                     {% if card_tags %}
                       {% for tag in card_tags %}

@@ -1330,10 +1330,10 @@
         return;
       }
 
-      if (state === "new" || state === "reading" || state === "waiting_new") {
-        buckets.reading.push(card);
-      } else if (favoriteNovels.includes(novelId)) {
+      if (favoriteNovels.includes(novelId)) {
         buckets.favorite.push(card);
+      } else if (state === "new" || state === "reading" || state === "waiting_new") {
+        buckets.reading.push(card);
       } else if (state === "start") {
         buckets.start.push(card);
       } else if (state === "locked" || state === "soon") {

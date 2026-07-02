@@ -87,6 +87,9 @@ def normalize_tag_text_for_priority(tag: Any) -> str:
 def is_age_rating_tag(tag: Any) -> bool:
     return normalize_tag_text_for_priority(tag) in ("g", "pg", "pg-13", "r", "r18", "r-18", "nc-17", "16+", "18+", "21+")
 
+def is_country_tag_for_library(tag: Any) -> bool:
+    return normalize_tag_text_for_priority(tag) in ("китай", "корея", "япония", "англия", "сша")
+
 def get_age_rating_from_tags(tags: str) -> str:
     for raw_tag in split_tags(tags):
         normalized = normalize_tag_text_for_priority(raw_tag)
@@ -457,6 +460,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
 
     tag_items = prepare_tag_items(tags)
     card_tag_items = build_card_tag_items(tag_items)
+    library_card_tag_items = [item for item in card_tag_items if not is_country_tag_for_library(item.get("text"))]
     translation_status = normalize_translation_status(novel.get("translation_status") or novel.get("status"), novel.get("translation_status_label"))
     progress_percent = normalize_progress_percent(novel.get("progress_percent"))
     prepared.update({
@@ -482,7 +486,8 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "tag_items": tag_items,
         "catalog_tag_items": card_tag_items[:6],
         "card_tag_items": card_tag_items[:6],
-        "catalog_hidden_tags": max(0, len(card_tag_items) - 4),
+        "library_card_tag_items": library_card_tag_items[:6],
+        "catalog_hidden_tags": max(0, len(library_card_tag_items) - 4),
         "age_rating": clean_value(novel.get("age_rating")) or get_age_rating_from_tags(tags),
         "total_chapters": to_int(novel.get("total_chapters"), 0),
         "translated_chapters": to_int(novel.get("translated_chapters"), 0),
