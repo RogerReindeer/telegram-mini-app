@@ -7940,3 +7940,64 @@ body[data-reader-theme="dark"] .reader-controls-visibility-toggle {
 .library-book-card-v4 .library-card-tags .tag-country {
   display: none !important;
 }
+
+
+/* ===== v125: novel cover age badge, clean CTA hint, favorite pink cards ===== */
+.novel-cover-panel,
+.novel-toc-cover-panel {
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 14px !important;
+}
+
+.page-novel .novel-cover-rating,
+.page-novel .novel-toc-cover-panel .novel-cover-rating,
+.novel-cover-rating {
+  position: absolute !important;
+  left: auto !important;
+  right: 10px !important;
+  top: auto !important;
+  bottom: 10px !important;
+  transform: none !important;
+  z-index: 4 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 38px !important;
+  height: 28px !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  background: rgba(25, 22, 28, .88) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,.38) !important;
+  box-shadow: 0 6px 18px rgba(0,0,0,.20) !important;
+  font: 900 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+}
+
+.page-novel .novel-read-action-hint[hidden] {
+  display: none !important;
+}
+
+.page-novel .novel-read-action-hint {
+  min-height: 0 !important;
+}
+
+.library-section[data-library-section="favorite"] .library-book-card-v4 {
+  background:
+    linear-gradient(135deg, rgba(255, 230, 238, .96), rgba(255, 247, 250, .92)) !important;
+  border-color: rgba(244, 114, 182, .34) !important;
+  box-shadow: 0 12px 28px rgba(190, 85, 130, .10) !important;
+}
+
+.library-section[data-library-section="favorite"] .library-book-card-v4:hover {
+  background:
+    linear-gradient(135deg, rgba(255, 222, 235, .98), rgba(255, 245, 249, .95)) !important;
+}
+
+body[data-site-theme="dark"] .library-section[data-library-section="favorite"] .library-book-card-v4,
+body[data-reader-theme="dark"] .library-section[data-library-section="favorite"] .library-book-card-v4 {
+  background:
+    linear-gradient(135deg, rgba(79, 35, 58, .86), rgba(47, 33, 42, .92)) !important;
+  border-color: rgba(244, 114, 182, .30) !important;
+  box-shadow: 0 12px 28px rgba(0,0,0,.22) !important;
+}

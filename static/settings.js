@@ -2309,20 +2309,33 @@
     const button = document.getElementById("novelReadButton");
     const hint = document.getElementById("novelReadHint");
     if (!page || !button) return;
-    const item = readJson(STORAGE_KEYS.readingHistory, []).find((entry) => String(entry.novelId) === String(page.dataset.novelId));
+
+    const item = readJson(STORAGE_KEYS.readingHistory, []).find((entry) =>
+      String(entry.novelId) === String(page.dataset.novelId)
+    );
+
     if (item && item.chapterId) {
       button.href = `/chapter/${item.chapterId}`;
       button.textContent = "Продолжить чтение";
+
       if (hint) {
-        const progress = item.progressLabel || (item.availableChapters ? `глава ${Number(item.chapterIndex || 0) + 1} из ${item.availableChapters}` : "последнее место");
-        hint.textContent = item.chapterTitle ? `Вы остановились: ${item.chapterTitle} · ${progress}` : `Продолжить: ${progress}`;
+        const available = Number(item.availableChapters || page.dataset.availableChapters || 0);
+        const current = Math.max(1, Number(item.chapterIndex || 0) + 1);
+        hint.textContent = available > 0 ? `Глава ${current} из ${available}` : `Глава ${current}`;
+        hint.hidden = false;
       }
-    } else if (hint) {
-      const firstAvailable = document.querySelector("[data-chapter-row]:not(.chapter-row-locked)");
-      if (firstAvailable && firstAvailable.dataset.chapterId) {
-        button.href = `/chapter/${firstAvailable.dataset.chapterId}`;
-      }
-      hint.textContent = "Откроется первая доступная глава";
+      return;
+    }
+
+    const firstAvailable = document.querySelector("[data-chapter-row]:not(.chapter-row-locked)");
+    if (firstAvailable && firstAvailable.dataset.chapterId) {
+      button.href = `/chapter/${firstAvailable.dataset.chapterId}`;
+    }
+    button.textContent = "Начать читать";
+
+    if (hint) {
+      hint.textContent = "";
+      hint.hidden = true;
     }
   }
 
