@@ -8644,3 +8644,420 @@ body:not(.page-chapter) .zb-reader-settings-button { display: none !important; }
   .zb-settings-body { padding: 10px !important; }
   .zb-choice { font-size: 13px !important; padding-inline: 8px !important; }
 }
+
+
+/* =========================================================
+   V130 — dark theme rebuild for Library / Novel / Reader
+   Fixes unreadable dark mode: no cream leftovers, no white-on-light cards.
+   ========================================================= */
+
+:root {
+  --zb-dark-bg: #0d0d0c;
+  --zb-dark-page: #11100f;
+  --zb-dark-card: #1b1816;
+  --zb-dark-card-2: #211d1a;
+  --zb-dark-card-3: #29231f;
+  --zb-dark-text: #fff6eb;
+  --zb-dark-title: #fffaf3;
+  --zb-dark-muted: #d6c5b7;
+  --zb-dark-soft: #ad9d91;
+  --zb-dark-line: rgba(255, 226, 196, .18);
+  --zb-dark-line-strong: rgba(255, 196, 120, .32);
+  --zb-dark-accent: #ff7a1a;
+  --zb-dark-accent-2: #ffb86b;
+  --zb-dark-chip: rgba(255,255,255,.08);
+  --zb-dark-chip-2: rgba(255,255,255,.12);
+  --zb-dark-shadow: 0 20px 58px rgba(0,0,0,.42);
+}
+
+body[data-site-theme="dark"],
+body[data-reader-theme="dark"] {
+  background:
+    radial-gradient(circle at 10% -10%, rgba(255, 122, 26, .10), transparent 34%),
+    radial-gradient(circle at 92% 0%, rgba(255, 184, 107, .07), transparent 32%),
+    var(--zb-dark-bg) !important;
+  color: var(--zb-dark-text) !important;
+}
+
+body[data-site-theme="dark"].page-library,
+body[data-site-theme="dark"] .library-redesign,
+body[data-site-theme="dark"].page-novel,
+body[data-site-theme="dark"] .novel-redesign-page,
+body[data-site-theme="dark"].page-chapter,
+body[data-reader-theme="dark"].page-chapter {
+  background:
+    radial-gradient(circle at 12% -8%, rgba(255, 122, 26, .10), transparent 34%),
+    linear-gradient(180deg, #11100f 0%, #0d0d0c 100%) !important;
+  color: var(--zb-dark-text) !important;
+}
+
+body[data-site-theme="dark"] *,
+body[data-reader-theme="dark"].page-chapter * {
+  text-shadow: none !important;
+}
+
+/* Global text contrast */
+body[data-site-theme="dark"] h1,
+body[data-site-theme="dark"] h2,
+body[data-site-theme="dark"] h3,
+body[data-site-theme="dark"] .library-hero h1,
+body[data-site-theme="dark"] .library-section-title,
+body[data-site-theme="dark"] .section-title,
+body[data-site-theme="dark"] .novel-title-main-v2 h1,
+body[data-site-theme="dark"] .novel-section-heading h2,
+body[data-site-theme="dark"] .chapter-header h1,
+body[data-reader-theme="dark"].page-chapter h1,
+body[data-reader-theme="dark"].page-chapter h2,
+body[data-reader-theme="dark"].page-chapter h3 {
+  color: var(--zb-dark-title) !important;
+}
+
+body[data-site-theme="dark"] p,
+body[data-site-theme="dark"] small,
+body[data-site-theme="dark"] .library-section-helper,
+body[data-site-theme="dark"] .library-book-subtitle,
+body[data-site-theme="dark"] .library-book-state-line,
+body[data-site-theme="dark"] .novel-toc-full-title,
+body[data-site-theme="dark"] .novel-description-v2-content,
+body[data-site-theme="dark"] .novel-description-v2-content p,
+body[data-site-theme="dark"] .chapter-access,
+body[data-site-theme="dark"] .chapter-subtitle,
+body[data-reader-theme="dark"].page-chapter .chapter-subtitle,
+body[data-reader-theme="dark"].page-chapter .chapter-content {
+  color: var(--zb-dark-muted) !important;
+}
+
+/* Library top controls: no pale empty boxes in dark mode */
+body[data-site-theme="dark"] .library-action-button,
+body[data-site-theme="dark"] .library-sort-pill,
+body[data-site-theme="dark"] .library-sort-pill select,
+body[data-site-theme="dark"] .library-search-panel,
+body[data-site-theme="dark"] .library-update-banner,
+body[data-site-theme="dark"] .library-empty-filter,
+body[data-site-theme="dark"] .library-search-input-wrap,
+body[data-site-theme="dark"] .library-filter-panel,
+body[data-site-theme="dark"] .library-filter-footer,
+body[data-site-theme="dark"] .library-filter-legend,
+body[data-site-theme="dark"] .library-filter-chips button {
+  background: var(--zb-dark-card-2) !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+  box-shadow: none !important;
+}
+
+body[data-site-theme="dark"] .library-search-input-wrap input,
+body[data-site-theme="dark"] .library-search-input-wrap button,
+body[data-site-theme="dark"] .library-filter-header h2,
+body[data-site-theme="dark"] .library-filter-group h3,
+body[data-site-theme="dark"] .library-filter-legend h3,
+body[data-site-theme="dark"] .library-filter-legend-grid strong,
+body[data-site-theme="dark"] .library-filter-legend-grid small {
+  color: var(--zb-dark-text) !important;
+}
+
+body[data-site-theme="dark"] .library-search-input-wrap input::placeholder {
+  color: rgba(255,246,235,.55) !important;
+}
+
+body[data-site-theme="dark"] .library-quick-tags button,
+body[data-site-theme="dark"] .library-active-filters button,
+body[data-site-theme="dark"] .library-filter-chips button.active,
+body[data-site-theme="dark"] .library-filter-apply {
+  background: linear-gradient(135deg, #ff8a23, #ff6200) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* Continue/history block */
+body[data-site-theme="dark"] .library-continue-panel,
+body[data-site-theme="dark"] .library-continue-card,
+body[data-site-theme="dark"] .library-continue-item,
+body[data-site-theme="dark"] .continue-reading-card,
+body[data-site-theme="dark"] .library-history-card {
+  background: var(--zb-dark-card) !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+  box-shadow: var(--zb-dark-shadow) !important;
+}
+
+body[data-site-theme="dark"] .library-continue-title,
+body[data-site-theme="dark"] .library-continue-card-title,
+body[data-site-theme="dark"] .library-continue-item-title,
+body[data-site-theme="dark"] .continue-reading-title {
+  color: var(--zb-dark-title) !important;
+}
+
+body[data-site-theme="dark"] .library-continue-meta,
+body[data-site-theme="dark"] .library-continue-card-meta,
+body[data-site-theme="dark"] .library-continue-item-meta,
+body[data-site-theme="dark"] .continue-reading-meta {
+  color: var(--zb-dark-muted) !important;
+}
+
+/* Library cards: unified readable dark surfaces */
+body[data-site-theme="dark"] .library-v4 .library-book-card-v4,
+body[data-site-theme="dark"] .library-book-card-v4,
+body[data-site-theme="dark"] .library-book-card {
+  background: linear-gradient(135deg, #211c19 0%, #171514 100%) !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.34) !important;
+}
+
+body[data-site-theme="dark"] .library-section[data-library-section="favorite"] .library-book-card-v4 {
+  background: linear-gradient(135deg, #4a2238 0%, #2a1726 100%) !important;
+  border-color: rgba(255, 124, 186, .38) !important;
+}
+
+body[data-site-theme="dark"] .library-section[data-library-section="start"] .library-book-card-v4 {
+  background: linear-gradient(135deg, #1f2c20 0%, #171c16 100%) !important;
+  border-color: rgba(150, 220, 150, .28) !important;
+}
+
+body[data-site-theme="dark"] .library-section[data-library-section="reading"] .library-book-card-v4 {
+  background: linear-gradient(135deg, #202337 0%, #171923 100%) !important;
+  border-color: rgba(120, 155, 255, .28) !important;
+}
+
+body[data-site-theme="dark"] .library-book-title,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-title,
+body[data-site-theme="dark"] .library-book-card-v4 h3,
+body[data-site-theme="dark"] .library-book-card-v4 h2 {
+  color: var(--zb-dark-title) !important;
+}
+
+body[data-site-theme="dark"] .library-book-subtitle,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-subtitle,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-state-line,
+body[data-site-theme="dark"] .library-book-card-v4 .library-card-progress-label {
+  color: var(--zb-dark-muted) !important;
+}
+
+body[data-site-theme="dark"] .library-card-stats span,
+body[data-site-theme="dark"] .library-book-card-v4 .library-card-stats span,
+body[data-site-theme="dark"] .library-card-access-row span,
+body[data-site-theme="dark"] .library-card-state-pill,
+body[data-site-theme="dark"] .library-stat-status,
+body[data-site-theme="dark"] .library-access-count,
+body[data-site-theme="dark"] .library-mini-tag,
+body[data-site-theme="dark"] .tag,
+body[data-site-theme="dark"] .novel-tags-v2 .tag {
+  background: rgba(255,255,255,.10) !important;
+  color: var(--zb-dark-text) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+body[data-site-theme="dark"] .library-card-progress,
+body[data-site-theme="dark"] .library-progress-track,
+body[data-site-theme="dark"] .novel-reading-progress-track,
+body[data-site-theme="dark"] .novel-toc-progress-track {
+  background: rgba(255,255,255,.13) !important;
+}
+
+body[data-site-theme="dark"] .library-book-menu,
+body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu,
+body[data-site-theme="dark"] .library-card-menu-popover,
+body[data-site-theme="dark"] .library-card-menu-popover button {
+  background: transparent !important;
+  color: var(--zb-dark-text) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+body[data-site-theme="dark"] .library-card-menu-popover {
+  background: #211d1a !important;
+  box-shadow: 0 18px 44px rgba(0,0,0,.42) !important;
+}
+body[data-site-theme="dark"] .library-card-menu-popover button:hover {
+  background: rgba(255,255,255,.08) !important;
+}
+
+/* Novel page dark theme: the screenshot showed cream/black mixed. */
+body[data-site-theme="dark"] .page,
+body[data-site-theme="dark"] .title-layout,
+body[data-site-theme="dark"] .novel-redesign-layout,
+body[data-site-theme="dark"] .reader-layout {
+  color: var(--zb-dark-text) !important;
+}
+
+body[data-site-theme="dark"] .novel-project-brand,
+body[data-site-theme="dark"] .novel-back-button {
+  background: var(--zb-dark-card-2) !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+  box-shadow: none !important;
+}
+
+body[data-site-theme="dark"] .novel-hero-card,
+body[data-site-theme="dark"] .novel-toc-hero,
+body[data-site-theme="dark"] .novel-description-card,
+body[data-site-theme="dark"] .character-card,
+body[data-site-theme="dark"] .novel-character-info-v2 .character-card,
+body[data-site-theme="dark"] .chapters-section,
+body[data-site-theme="dark"] .chapters-section-v2,
+body[data-site-theme="dark"] .locked-chapter-notice,
+body[data-site-theme="dark"] .empty {
+  background: linear-gradient(135deg, #211d1a 0%, #171514 100%) !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+  box-shadow: 0 18px 50px rgba(0,0,0,.38) !important;
+}
+
+body[data-site-theme="dark"] .novel-hero-blur,
+body[data-site-theme="dark"] .title-hero-bg {
+  opacity: .16 !important;
+  filter: blur(24px) saturate(.82) brightness(.55) !important;
+}
+
+body[data-site-theme="dark"] .novel-toc-kicker,
+body[data-site-theme="dark"] .novel-toc-status-line,
+body[data-site-theme="dark"] .novel-toc-access-summary,
+body[data-site-theme="dark"] .novel-toc-facts,
+body[data-site-theme="dark"] .novel-reading-progress-text,
+body[data-site-theme="dark"] .novel-toc-progress-head,
+body[data-site-theme="dark"] .novel-description-toggle-v2,
+body[data-site-theme="dark"] .description-toggle,
+body[data-site-theme="dark"] .chapter-section-actions,
+body[data-site-theme="dark"] .chapter-jump-button,
+body[data-site-theme="dark"] .chapter-sort-button {
+  color: var(--zb-dark-text) !important;
+}
+
+body[data-site-theme="dark"] .novel-toc-summary,
+body[data-site-theme="dark"] .novel-toc-tags,
+body[data-site-theme="dark"] .chapter-section-top-v2 {
+  border-color: var(--zb-dark-line) !important;
+}
+
+body[data-site-theme="dark"] .chapter-jump-button,
+body[data-site-theme="dark"] .chapter-sort-button,
+body[data-site-theme="dark"] .description-toggle,
+body[data-site-theme="dark"] .novel-description-toggle-v2 {
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.14) !important;
+  color: var(--zb-dark-text) !important;
+}
+
+body[data-site-theme="dark"] .chapter-row,
+body[data-site-theme="dark"] .chapter-row-v2,
+body[data-site-theme="dark"] .volume-header,
+body[data-site-theme="dark"] .volume-header-v2,
+body[data-site-theme="dark"] .chapter-list-end {
+  background: #181817 !important;
+  color: var(--zb-dark-text) !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+body[data-site-theme="dark"] .chapter-row:hover,
+body[data-site-theme="dark"] .chapter-row-v2:hover,
+body[data-site-theme="dark"] .chapter-row-current,
+body[data-site-theme="dark"] .chapter-row.is-current {
+  background: #24201d !important;
+  border-color: var(--zb-dark-accent) !important;
+}
+
+body[data-site-theme="dark"] .chapter-title,
+body[data-site-theme="dark"] .chapter-row-main,
+body[data-site-theme="dark"] .chapter-row-icon,
+body[data-site-theme="dark"] .chapter-row-arrow {
+  color: var(--zb-dark-title) !important;
+}
+
+body[data-site-theme="dark"] .chapter-access,
+body[data-site-theme="dark"] .chapter-access-keeper,
+body[data-site-theme="dark"] .chapter-access-public,
+body[data-site-theme="dark"] .chapter-access-paid {
+  color: var(--zb-dark-muted) !important;
+}
+
+/* CTA must stay bright but not sit on a pale container in dark mode. */
+body[data-site-theme="dark"] .novel-read-action,
+body[data-site-theme="dark"] .novel-read-action-v2,
+body[data-site-theme="dark"] .novel-read-action-priority {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+body[data-site-theme="dark"] .primary-read-button,
+body[data-site-theme="dark"] .novel-continue-button,
+body[data-site-theme="dark"] .chapter-access-purchase-button {
+  background: linear-gradient(135deg, #ff8a23, #ff6200) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 12px 28px rgba(255, 98, 0, .20) !important;
+}
+body[data-site-theme="dark"] .novel-read-action-hint {
+  color: var(--zb-dark-muted) !important;
+}
+
+/* Reader dark mode */
+body[data-reader-theme="dark"].page-chapter,
+body[data-reader-theme="dark"] .chapter-layout {
+  background: var(--zb-dark-bg) !important;
+  color: var(--zb-dark-text) !important;
+}
+body[data-reader-theme="dark"] .chapter-header,
+body[data-reader-theme="dark"] .chapter-content-shell,
+body[data-reader-theme="dark"] .chapter-content,
+body[data-reader-theme="dark"] .chapter-navigation,
+body[data-reader-theme="dark"] .chapter-paywall,
+body[data-reader-theme="dark"] .locked-chapter-notice {
+  background: #171514 !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+}
+body[data-reader-theme="dark"] .chapter-content p,
+body[data-reader-theme="dark"] .chapter-content li,
+body[data-reader-theme="dark"] .chapter-content blockquote,
+body[data-reader-theme="dark"] .chapter-content span {
+  color: var(--zb-dark-text) !important;
+}
+body[data-reader-theme="dark"] .chapter-nav-button,
+body[data-reader-theme="dark"] .novel-back-button,
+body[data-reader-theme="dark"] .reader-floating-button,
+body[data-reader-theme="dark"] .reader-controls-visibility-toggle,
+body[data-reader-theme="dark"] .zb-reader-settings-button {
+  background: #211d1a !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+  box-shadow: 0 12px 30px rgba(0,0,0,.36) !important;
+}
+
+/* New settings sheet dark theme */
+body[data-site-theme="dark"] .zb-settings-overlay,
+body[data-reader-theme="dark"] .zb-settings-overlay {
+  background: rgba(0,0,0,.46) !important;
+}
+body[data-site-theme="dark"] .zb-settings-sheet,
+body[data-reader-theme="dark"] .zb-settings-sheet {
+  --zb-sheet-bg: #1b1816;
+  --zb-sheet-text: var(--zb-dark-text);
+  --zb-sheet-muted: var(--zb-dark-muted);
+  --zb-sheet-line: var(--zb-dark-line);
+  --zb-chip-bg: rgba(255,255,255,.08);
+  --zb-chip-border: rgba(255,255,255,.14);
+  background: #1b1816 !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+}
+body[data-site-theme="dark"] .zb-global-settings-button,
+body[data-reader-theme="dark"] .zb-reader-settings-button,
+body[data-site-theme="dark"] .zb-reader-settings-button {
+  background: #211d1a !important;
+  color: var(--zb-dark-text) !important;
+  border-color: var(--zb-dark-line) !important;
+}
+
+/* Native Telegram theme fallback when the app is set to system. */
+@media (prefers-color-scheme: dark) {
+  body.site-theme-system {
+    background: var(--zb-dark-bg) !important;
+    color: var(--zb-dark-text) !important;
+  }
+  body.site-theme-system .library-redesign,
+  body.site-theme-system.page-library,
+  body.site-theme-system.page-novel {
+    background: var(--zb-dark-bg) !important;
+    color: var(--zb-dark-text) !important;
+  }
+}
+
+/* End V130 dark theme rebuild */
