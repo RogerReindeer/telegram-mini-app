@@ -53,7 +53,7 @@ def format_release_date(value: Any) -> str:
         value_date = datetime.strptime(date_text, "%Y-%m-%d").date()
     except ValueError:
         return date_text
-    return value_date.strftime("%d.%m")
+    return value_date.strftime("%d.%m.%Y")
 
 
 def role_display_name(role: Any) -> str:
@@ -217,7 +217,7 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
     elif status == "book_access_denied":
         title = title or "Новелла доступна подписчикам 🌱"
         description = description or "Эта история лежит в закрытом доступе для Странствующих читателей. После вступления в приватную группу Mini App сам проверит доступ."
-        action_hint = action_hint or "Если подписка уже оформлена, нажмите «Проверить доступ ещё раз»."
+        action_hint = action_hint or "После оплаты Tribute добавит вас в приватную Telegram-группу. Затем вернитесь сюда и нажмите «Проверить доступ ещё раз»."
         primary_action = primary_action or "boosty"
         secondary_action = secondary_action or "refresh"
         severity = "subscription"
@@ -231,7 +231,7 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
     elif status == "free_scheduled":
         title = title or "Глава откроется бесплатно позже"
         description = description or (f"Бесплатный релиз запланирован на {release_label}. Ранний доступ можно открыть через 📜 Хранителя свитков, если для главы уже вышла премиум-версия." if release_label else "Бесплатный релиз запланирован позже. Ранний доступ можно открыть через 📜 Хранителя свитков, если для главы уже вышла премиум-версия.")
-        action_hint = action_hint or "Если подписка уже активна, проверьте доступ ещё раз."
+        action_hint = action_hint or "После оплаты Tribute добавит вас в приватную Telegram-группу. Затем вернитесь сюда и нажмите «Проверить доступ ещё раз»."
         primary_action = primary_action or "tribute"
         secondary_action = secondary_action or "refresh"
         severity = "scheduled"

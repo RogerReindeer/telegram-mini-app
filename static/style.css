@@ -10667,3 +10667,66 @@ body[data-site-theme="dark"] .page-library .library-continue-progress,
 body[data-resolved-theme="dark"] .page-library .library-continue-progress {
   background: rgba(255,255,255,.20) !important;
 }
+
+
+/* v138 — Tribute paywall and full-year release dates */
+.chapter-paywall-date {
+  white-space: nowrap !important;
+  letter-spacing: 0.01em;
+}
+.chapter-paywall-actions {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
+.chapter-access-purchase-tribute,
+.chapter-access-purchase-traveler,
+.chapter-access-purchase-keeper,
+.subscription-refresh-button,
+.chapter-access-secondary-button {
+  width: 100% !important;
+  min-height: 46px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+.chapter-access-purchase-traveler {
+  background: color-mix(in srgb, var(--app-accent, #ff6b00) 18%, #ffffff) !important;
+  border: 1px solid color-mix(in srgb, var(--app-accent, #ff6b00) 50%, #ffffff) !important;
+  color: var(--text-strong, #231711) !important;
+}
+.chapter-access-purchase-keeper {
+  background: var(--app-accent, #ff6b00) !important;
+  border: 1px solid var(--app-accent, #ff6b00) !important;
+  color: #fff !important;
+}
+.chapter-paywall-tribute-note {
+  margin: 0 !important;
+  padding: 4px 10px 0 !important;
+  color: var(--text-muted, #7b6a60) !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  text-align: center !important;
+}
+.theme-dark .chapter-access-purchase-traveler,
+[data-theme="dark"] .chapter-access-purchase-traveler {
+  background: color-mix(in srgb, var(--app-accent, #ff6b00) 22%, #201812) !important;
+  border-color: color-mix(in srgb, var(--app-accent, #ff6b00) 55%, #3a2a20) !important;
+  color: #fff3e7 !important;
+}
+.theme-dark .chapter-paywall-tribute-note,
+[data-theme="dark"] .chapter-paywall-tribute-note {
+  color: #cdbdb0 !important;
+}
+@media (min-width: 740px) {
+  .chapter-paywall-actions {
+    max-width: 560px !important;
+    margin-inline: auto !important;
+  }
+}
+
+/* compatibility/current marker: v138-tribute-paywall-dates */

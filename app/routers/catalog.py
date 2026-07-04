@@ -4,6 +4,8 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from ..config import settings
+
 from ..services.access import access_copy, access_paywall_copy, chapter_preview_url, decide_chapter_access
 from ..services.auth import public_viewer, viewer_access_profile, viewer_from_request
 from ..services.catalog import get_all_chapters, get_all_novels, get_chapter_by_id, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
@@ -93,7 +95,11 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "access_copy": access_copy(decision.required_role),
             "access_paywall": access_paywall_copy(decision, raw_novel, profile),
             "boosty_access_url": "",
-            "tribute_access_url": "",
+            "tribute_access_url": settings.tribute_keeper_url or settings.tribute_traveler_url,
+            "tribute_traveler_url": settings.tribute_traveler_url,
+            "tribute_keeper_url": settings.tribute_keeper_url,
+            "traveler_chat_id": settings.normalized_traveler_chat_id,
+            "keeper_chat_id": settings.normalized_keeper_chat_id,
             "previous_chapter": previous_chapter,
             "next_chapter": next_chapter,
         })
