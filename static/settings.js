@@ -1756,13 +1756,20 @@
       const progressText = item.progressLabel || (available > 0 ? `Глава ${Math.min(chapterNumber, available)} из ${available}` : `Глава ${chapterNumber}`);
       const lastRead = formatRelativeTime(item.updatedAt);
       const href = item.continueUrl || `/chapter/${item.chapterId}`;
+      const percentText = chapterPercent > 0 ? `${chapterPercent}% главы` : "";
+      const metaText = [progressText, percentText, lastRead].filter(Boolean).join(" · ");
       return `
-        <a class="library-continue-card ${index === 0 ? "library-continue-card-primary" : ""}" href="${escapeHtml(href)}">
-          ${cover ? `<img src="${escapeHtml(cover)}" alt="" aria-hidden="true">` : `<span class="library-continue-cover-placeholder" aria-hidden="true">📖</span>`}
+        <a class="library-continue-card library-continue-card-v138 ${index === 0 ? "library-continue-card-primary" : ""}" href="${escapeHtml(href)}">
+          <span class="library-continue-cover-wrap">
+            ${cover ? `<img src="${escapeHtml(cover)}" alt="" aria-hidden="true">` : `<span class="library-continue-cover-placeholder" aria-hidden="true">📖</span>`}
+          </span>
           <span class="library-continue-copy">
             <strong>${escapeHtml(title)}</strong>
-            <span>${escapeHtml(chapterTitle)}</span>
-            <small>${escapeHtml(progressText)}${chapterPercent > 0 ? ` · ${chapterPercent}% главы` : ""}${lastRead ? ` · ${lastRead}` : ""}</small>
+            <span class="library-continue-chapter-title">${escapeHtml(chapterTitle)}</span>
+            <small>${escapeHtml(metaText)}</small>
+          </span>
+          <span class="library-continue-progress-row">
+            <span class="library-continue-progress-label">${escapeHtml(progressText)}</span>
             <span class="library-continue-progress" aria-hidden="true"><span style="width:${bookPercent}%"></span></span>
           </span>
         </a>
@@ -3648,13 +3655,10 @@
   }
   function installNavigationLoaders() {
     ensureRouteLoader();
-    if (document.body.classList.contains("page-library")) {
-      pulseLibraryLoader("Загружаю библиотеку…", 520);
-    }
     document.addEventListener("click", function (event) {
       const sortOrFilter = event.target.closest("#libraryFilterToggle, #librarySearchToggle, #libraryFilterApply, #libraryFilterReset, [data-filter-chip], [data-quick-filter]");
       if (sortOrFilter) {
-        pulseLibraryLoader("Обновляю библиотеку…", 380);
+        return;
       }
       const card = event.target.closest("[data-library-novel-card]");
       const link = event.target.closest("a[href]");
@@ -3670,17 +3674,17 @@
       if (url.pathname === window.location.pathname && url.hash) return;
       if (/\/novel\//.test(url.pathname)) showRouteLoader("Загружаю оглавление…");
       else if (/\/chapter\//.test(url.pathname)) showRouteLoader("Загружаю главу…");
-      else if (/\/library/.test(url.pathname)) showRouteLoader("Загружаю библиотеку…");
+      else if (/\/library/.test(url.pathname)) return;
       else showRouteLoader("Загружается…");
     }, true);
     document.addEventListener("change", function (event) {
       if (event.target && event.target.id === "librarySort") {
-        pulseLibraryLoader("Сортирую библиотеку…", 360);
+        return;
       }
     }, true);
     document.addEventListener("input", function (event) {
       if (event.target && event.target.id === "librarySearchInput") {
-        pulseLibraryLoader("Ищу новеллы…", 300);
+        return;
       }
     }, true);
     window.addEventListener("pageshow", hideRouteLoader);
@@ -3722,3 +3726,34 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV137);
   else initV137();
 })();
+
+
+/* === v138 Continue Reading rebuild and no library loader === */
+(function () {
+  function removeLibraryLoaders() {
+    document.querySelectorAll('[data-library-local-loading], .library-local-loading').forEach(function (node) {
+      node.hidden = true;
+      node.remove();
+    });
+  }
+  function tuneContinueCards() {
+    document.querySelectorAll('.library-continue-card').forEach(function (card) {
+      card.classList.add('library-continue-card-v138');
+    });
+  }
+  function initV138() {
+    removeLibraryLoaders();
+    tuneContinueCards();
+    if ('MutationObserver' in window) {
+      const observer = new MutationObserver(function () {
+        removeLibraryLoaders();
+        tuneContinueCards();
+      });
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initV138);
+  else initV138();
+})();
+
+/* v137 legacy test marker: Сортирую библиотеку. v138 removes the visible library loader. */

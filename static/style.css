@@ -10345,7 +10345,7 @@ body[data-site-theme="dark"] .library-card-state-pill.state-waiting-new {
 
 
 /* =====================================================================
-   v137-loading-history-polish
+   v138-continue-reading-rebuild
    Sort label visibility, library loaders and rebuilt reading history
    ===================================================================== */
 
@@ -10611,103 +10611,212 @@ body[data-resolved-theme="dark"] .library-continue-progress {
   .zb-route-loader-spinner { animation: none !important; }
 }
 
-/* =====================================================================
-   v138-mobile-history-progress-fix
-   Move Continue Reading progress bar to its own bottom row on narrow screens
-   and high mobile zoom so it no longer fights the title/chapter text.
-   ===================================================================== */
 
-@media (max-width: 900px) {
-  .library-continue-card,
-  .library-continue-card-primary,
-  .library-continue-card-v137 {
-    display: grid !important;
-    grid-template-columns: clamp(62px, 18vw, 86px) minmax(0, 1fr) !important;
-    grid-template-rows: auto auto auto auto !important;
-    align-items: start !important;
-    gap: 8px 12px !important;
-    padding: clamp(12px, 3.2vw, 16px) !important;
+/* === v138 Continue Reading full rebuild === */
+.library-local-loading,
+[data-library-local-loading] {
+  display: none !important;
+}
+
+.library-continue-panel {
+  position: relative !important;
+  padding: clamp(18px, 2.6vw, 30px) !important;
+  overflow: hidden !important;
+}
+.library-continue-list {
+  display: grid !important;
+  gap: 12px !important;
+}
+.library-continue-card-v138,
+.library-continue-card.library-continue-card-v138,
+.library-continue-card-primary.library-continue-card-v138 {
+  display: grid !important;
+  grid-template-columns: clamp(72px, 11vw, 118px) minmax(0, 1fr) !important;
+  grid-template-areas:
+    "cover copy"
+    "cover progress" !important;
+  align-items: center !important;
+  gap: clamp(12px, 2vw, 22px) !important;
+  padding: clamp(14px, 2vw, 24px) !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  border-radius: clamp(18px, 2.2vw, 28px) !important;
+}
+.library-continue-cover-wrap {
+  grid-area: cover !important;
+  display: block !important;
+  width: clamp(72px, 11vw, 118px) !important;
+  min-width: 0 !important;
+}
+.library-continue-card-v138 > img,
+.library-continue-card-v138 .library-continue-cover-wrap > img,
+.library-continue-card-v138 .library-continue-cover-placeholder {
+  width: clamp(72px, 11vw, 118px) !important;
+  height: clamp(96px, 14.5vw, 156px) !important;
+  object-fit: cover !important;
+  border-radius: clamp(14px, 1.8vw, 22px) !important;
+}
+.library-continue-card-v138 > img {
+  grid-area: cover !important;
+}
+.library-continue-card-v138 .library-continue-copy {
+  grid-area: copy !important;
+  align-self: end !important;
+  display: grid !important;
+  gap: 6px !important;
+  min-width: 0 !important;
+}
+.library-continue-card-v138 .library-continue-copy strong {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 1 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: normal !important;
+  font-size: clamp(20px, 3vw, 34px) !important;
+  line-height: 1.05 !important;
+  max-width: 100% !important;
+}
+.library-continue-card-v138 .library-continue-copy > span:not(.library-continue-progress),
+.library-continue-card-v138 .library-continue-chapter-title {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  font-size: clamp(14px, 1.8vw, 22px) !important;
+  line-height: 1.2 !important;
+  opacity: .82 !important;
+}
+.library-continue-card-v138 .library-continue-copy small {
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  font-size: clamp(12px, 1.45vw, 17px) !important;
+  line-height: 1.2 !important;
+  opacity: .7 !important;
+}
+.library-continue-card-v138 .library-continue-progress-row {
+  grid-area: progress !important;
+  align-self: start !important;
+  display: grid !important;
+  grid-template-columns: minmax(72px, max-content) minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  width: 100% !important;
+}
+.library-continue-card-v138 .library-continue-progress-label {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  font-size: clamp(12px, 1.45vw, 16px) !important;
+  line-height: 1.1 !important;
+  opacity: .78 !important;
+}
+.library-continue-card-v138 .library-continue-progress {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 10px !important;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(104, 76, 54, .10) !important;
+  overflow: hidden !important;
+}
+.library-continue-card-v138 .library-continue-progress > span {
+  display: block !important;
+  height: 100% !important;
+  min-width: 6px !important;
+  border-radius: inherit !important;
+}
+body[data-site-theme="dark"] .library-continue-card-v138 .library-continue-progress,
+body[data-resolved-theme="dark"] .library-continue-card-v138 .library-continue-progress {
+  background: rgba(255,255,255,.12) !important;
+}
+body[data-site-theme="dark"] .library-continue-card-v138 .library-continue-progress-label,
+body[data-resolved-theme="dark"] .library-continue-card-v138 .library-continue-progress-label {
+  color: rgba(255,248,239,.78) !important;
+}
+
+@media (max-width: 640px) {
+  .library-continue-panel {
+    padding: 16px !important;
+    border-radius: 26px !important;
   }
-
-  .library-continue-card img,
-  .library-continue-card-primary img,
-  .library-continue-card-v137 img,
-  .library-continue-cover-placeholder {
-    grid-column: 1 !important;
-    grid-row: 1 / span 3 !important;
-    width: clamp(62px, 18vw, 86px) !important;
-    height: clamp(82px, 24vw, 114px) !important;
-    align-self: start !important;
+  .library-continue-header {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
   }
-
-  .library-continue-copy {
-    display: contents !important;
-    min-width: 0 !important;
+  .library-continue-clear {
+    justify-self: start !important;
   }
-
-  .library-continue-copy strong {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    font-size: clamp(17px, 5.1vw, 24px) !important;
-    line-height: 1.08 !important;
+  .library-continue-card-v138,
+  .library-continue-card.library-continue-card-v138,
+  .library-continue-card-primary.library-continue-card-v138 {
+    grid-template-columns: 68px minmax(0, 1fr) !important;
+    grid-template-areas:
+      "cover copy"
+      "progress progress" !important;
+    gap: 10px 12px !important;
+    padding: 12px !important;
+    align-items: center !important;
+  }
+  .library-continue-cover-wrap,
+  .library-continue-card-v138 > img,
+  .library-continue-card-v138 .library-continue-cover-wrap > img,
+  .library-continue-card-v138 .library-continue-cover-placeholder {
+    width: 68px !important;
+  }
+  .library-continue-card-v138 > img,
+  .library-continue-card-v138 .library-continue-cover-wrap > img,
+  .library-continue-card-v138 .library-continue-cover-placeholder {
+    height: 88px !important;
+    border-radius: 14px !important;
+  }
+  .library-continue-card-v138 .library-continue-copy {
+    align-self: center !important;
+    gap: 4px !important;
+  }
+  .library-continue-card-v138 .library-continue-copy strong {
+    font-size: 18px !important;
     -webkit-line-clamp: 2 !important;
+    line-height: 1.08 !important;
   }
-
-  .library-continue-copy > span:not(.library-continue-progress) {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    font-size: clamp(14px, 4.2vw, 18px) !important;
-    line-height: 1.2 !important;
+  .library-continue-card-v138 .library-continue-copy > span:not(.library-continue-progress),
+  .library-continue-card-v138 .library-continue-chapter-title {
+    font-size: 14px !important;
   }
-
-  .library-continue-copy small {
-    grid-column: 2 !important;
-    grid-row: 3 !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    font-size: clamp(12px, 3.7vw, 15px) !important;
-    line-height: 1.2 !important;
+  .library-continue-card-v138 .library-continue-copy small {
+    font-size: 12px !important;
   }
-
-  .library-continue-progress {
-    grid-column: 1 / -1 !important;
-    grid-row: 4 !important;
-    width: 100% !important;
-    height: 8px !important;
-    margin-top: 6px !important;
-    align-self: stretch !important;
-    justify-self: stretch !important;
+  .library-continue-card-v138 .library-continue-progress-row {
+    grid-template-columns: 1fr !important;
+    gap: 5px !important;
+    padding-top: 2px !important;
+  }
+  .library-continue-card-v138 .library-continue-progress-label {
+    font-size: 12px !important;
+  }
+  .library-continue-card-v138 .library-continue-progress {
+    height: 7px !important;
   }
 }
 
-@media (max-width: 420px) {
-  .library-continue-card,
-  .library-continue-card-primary,
-  .library-continue-card-v137 {
+@media (max-width: 360px) {
+  .library-continue-card-v138,
+  .library-continue-card.library-continue-card-v138,
+  .library-continue-card-primary.library-continue-card-v138 {
     grid-template-columns: 58px minmax(0, 1fr) !important;
-    gap: 7px 10px !important;
   }
-
-  .library-continue-card img,
-  .library-continue-card-primary img,
-  .library-continue-card-v137 img,
-  .library-continue-cover-placeholder {
+  .library-continue-cover-wrap,
+  .library-continue-card-v138 > img,
+  .library-continue-card-v138 .library-continue-cover-wrap > img,
+  .library-continue-card-v138 .library-continue-cover-placeholder {
     width: 58px !important;
-    height: 76px !important;
   }
-
-  .library-continue-progress {
-    height: 7px !important;
-    margin-top: 4px !important;
+  .library-continue-card-v138 > img,
+  .library-continue-card-v138 .library-continue-cover-wrap > img,
+  .library-continue-card-v138 .library-continue-cover-placeholder {
+    height: 76px !important;
   }
 }
