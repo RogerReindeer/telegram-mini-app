@@ -1756,21 +1756,20 @@
       const progressText = item.progressLabel || (available > 0 ? `Глава ${Math.min(chapterNumber, available)} из ${available}` : `Глава ${chapterNumber}`);
       const lastRead = formatRelativeTime(item.updatedAt);
       const href = item.continueUrl || `/chapter/${item.chapterId}`;
-      const percentText = chapterPercent > 0 ? `${chapterPercent}% главы` : "";
-      const metaText = [progressText, percentText, lastRead].filter(Boolean).join(" · ");
       return `
-        <a class="library-continue-card library-continue-card-v138 ${index === 0 ? "library-continue-card-primary" : ""}" href="${escapeHtml(href)}">
+        <a class="library-continue-card ${index === 0 ? "library-continue-card-primary" : ""}" href="${escapeHtml(href)}">
           <span class="library-continue-cover-wrap">
             ${cover ? `<img src="${escapeHtml(cover)}" alt="" aria-hidden="true">` : `<span class="library-continue-cover-placeholder" aria-hidden="true">📖</span>`}
           </span>
           <span class="library-continue-copy">
-            <strong>${escapeHtml(title)}</strong>
-            <span class="library-continue-chapter-title">${escapeHtml(chapterTitle)}</span>
-            <small>${escapeHtml(metaText)}</small>
-          </span>
-          <span class="library-continue-progress-row">
-            <span class="library-continue-progress-label">${escapeHtml(progressText)}</span>
-            <span class="library-continue-progress" aria-hidden="true"><span style="width:${bookPercent}%"></span></span>
+            <span class="library-continue-title-line">
+              <strong class="library-continue-title">${escapeHtml(title)}</strong>
+              <span class="library-continue-chapter">${escapeHtml(chapterTitle)}</span>
+            </span>
+            <small class="library-continue-meta">${escapeHtml(progressText)}${chapterPercent > 0 ? ` · ${chapterPercent}% главы` : ""}${lastRead ? ` · ${lastRead}` : ""}</small>
+            <span class="library-continue-progress-row" aria-hidden="true">
+              <span class="library-continue-progress"><span style="width:${bookPercent}%"></span></span>
+            </span>
           </span>
         </a>
       `;
@@ -3598,162 +3597,3 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV135);
   else initV135();
 })();
-
-
-/* === v137 loaders and continue-history polish === */
-(function () {
-  function getThemeIsDark() {
-    return document.body.dataset.siteTheme === "dark" || document.body.dataset.resolvedTheme === "dark";
-  }
-  function ensureRouteLoader() {
-    let loader = document.querySelector("[data-zb-route-loader]");
-    if (loader) return loader;
-    loader = document.createElement("div");
-    loader.className = "zb-route-loader";
-    loader.dataset.zbRouteLoader = "true";
-    loader.hidden = true;
-    loader.innerHTML = '<div class="zb-route-loader-card"><span class="zb-route-loader-spinner" aria-hidden="true"></span><span data-zb-route-loader-text>Загружается…</span></div>';
-    document.body.appendChild(loader);
-    return loader;
-  }
-  function showRouteLoader(text) {
-    const loader = ensureRouteLoader();
-    const label = loader.querySelector("[data-zb-route-loader-text]");
-    if (label) label.textContent = text || "Загружается…";
-    loader.hidden = false;
-    document.body.classList.add("zb-route-loading-active");
-  }
-  function hideRouteLoader() {
-    const loader = document.querySelector("[data-zb-route-loader]");
-    if (loader) loader.hidden = true;
-    document.body.classList.remove("zb-route-loading-active");
-  }
-  function ensureLibraryLocalLoader() {
-    const screen = document.querySelector(".library-screen");
-    if (!screen) return null;
-    let loader = screen.querySelector("[data-library-local-loading]");
-    if (loader) return loader;
-    loader = document.createElement("div");
-    loader.className = "library-local-loading";
-    loader.dataset.libraryLocalLoading = "true";
-    loader.hidden = true;
-    loader.innerHTML = '<span class="library-local-loading-spinner" aria-hidden="true"></span><span data-library-local-loading-text>Обновляю библиотеку…</span>';
-    const actions = screen.querySelector(".library-actions-v4");
-    if (actions && actions.parentNode) actions.parentNode.insertBefore(loader, actions.nextSibling);
-    else screen.insertBefore(loader, screen.firstChild);
-    return loader;
-  }
-  let libraryLoaderTimer = null;
-  function pulseLibraryLoader(text, delay) {
-    const loader = ensureLibraryLocalLoader();
-    if (!loader) return;
-    const label = loader.querySelector("[data-library-local-loading-text]");
-    if (label) label.textContent = text || "Обновляю библиотеку…";
-    loader.hidden = false;
-    window.clearTimeout(libraryLoaderTimer);
-    libraryLoaderTimer = window.setTimeout(function () { loader.hidden = true; }, delay || 420);
-  }
-  function installNavigationLoaders() {
-    ensureRouteLoader();
-    document.addEventListener("click", function (event) {
-      const sortOrFilter = event.target.closest("#libraryFilterToggle, #librarySearchToggle, #libraryFilterApply, #libraryFilterReset, [data-filter-chip], [data-quick-filter]");
-      if (sortOrFilter) {
-        return;
-      }
-      const card = event.target.closest("[data-library-novel-card]");
-      const link = event.target.closest("a[href]");
-      const target = link || (card ? { getAttribute: function () { return card.dataset.cardHref || card.dataset.cardActionHref || ""; }, target: "" } : null);
-      if (!target) return;
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const href = target.getAttribute("href") || "";
-      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
-      let url;
-      try { url = new URL(href, window.location.href); }
-      catch (error) { return; }
-      if (url.origin !== window.location.origin) return;
-      if (url.pathname === window.location.pathname && url.hash) return;
-      if (/\/novel\//.test(url.pathname)) showRouteLoader("Загружаю оглавление…");
-      else if (/\/chapter\//.test(url.pathname)) showRouteLoader("Загружаю главу…");
-      else if (/\/library/.test(url.pathname)) return;
-      else showRouteLoader("Загружается…");
-    }, true);
-    document.addEventListener("change", function (event) {
-      if (event.target && event.target.id === "librarySort") {
-        return;
-      }
-    }, true);
-    document.addEventListener("input", function (event) {
-      if (event.target && event.target.id === "librarySearchInput") {
-        return;
-      }
-    }, true);
-    window.addEventListener("pageshow", hideRouteLoader);
-    window.addEventListener("pagehide", function () { showRouteLoader("Загружается…"); });
-  }
-  function compactContinueHistory() {
-    const panel = document.getElementById("libraryContinuePanel");
-    const list = document.getElementById("libraryContinueList");
-    if (!panel || !list) return;
-    panel.classList.add("library-continue-panel-v137");
-    Array.from(list.querySelectorAll(".library-continue-card")).forEach(function (card) {
-      card.classList.add("library-continue-card-v137");
-      const copy = card.querySelector(".library-continue-copy");
-      if (!copy) return;
-      const title = copy.querySelector("strong");
-      const chapter = copy.querySelector("span:not(.library-continue-progress)");
-      const meta = copy.querySelector("small");
-      if (title) title.setAttribute("title", title.textContent || "");
-      if (chapter) chapter.setAttribute("title", chapter.textContent || "");
-      if (meta) {
-        const text = String(meta.textContent || "").replace(/\s+/g, " ").trim();
-        meta.textContent = text;
-        meta.setAttribute("title", text);
-      }
-    });
-  }
-  function observeContinueHistory() {
-    compactContinueHistory();
-    const list = document.getElementById("libraryContinueList");
-    if (!list || !("MutationObserver" in window)) return;
-    const observer = new MutationObserver(function () { compactContinueHistory(); });
-    observer.observe(list, { childList: true, subtree: true });
-  }
-  function initV137() {
-    installNavigationLoaders();
-    observeContinueHistory();
-    [80, 250, 700, 1400].forEach(function (delay) { window.setTimeout(compactContinueHistory, delay); });
-  }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV137);
-  else initV137();
-})();
-
-
-/* === v138 Continue Reading rebuild and no library loader === */
-(function () {
-  function removeLibraryLoaders() {
-    document.querySelectorAll('[data-library-local-loading], .library-local-loading').forEach(function (node) {
-      node.hidden = true;
-      node.remove();
-    });
-  }
-  function tuneContinueCards() {
-    document.querySelectorAll('.library-continue-card').forEach(function (card) {
-      card.classList.add('library-continue-card-v138');
-    });
-  }
-  function initV138() {
-    removeLibraryLoaders();
-    tuneContinueCards();
-    if ('MutationObserver' in window) {
-      const observer = new MutationObserver(function () {
-        removeLibraryLoaders();
-        tuneContinueCards();
-      });
-      observer.observe(document.documentElement, { childList: true, subtree: true });
-    }
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initV138);
-  else initV138();
-})();
-
-/* v137 legacy test marker: Сортирую библиотеку. v138 removes the visible library loader. */
