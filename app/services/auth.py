@@ -14,7 +14,6 @@ import json
 import os
 import re
 import time
-from datetime import datetime
 from typing import Any
 from urllib.parse import parse_qsl
 
@@ -24,6 +23,7 @@ from fastapi import HTTPException, Request
 from ..config import settings
 from ..database import db_select, db_upsert, supabase_ready
 from ..utils import clean_value, to_int, utc_now
+from .catalog_shared import parse_iso_datetime
 
 ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
 AUTH_COOKIE_NAME = "zefirki_access"
@@ -218,16 +218,6 @@ def telegram_membership_details(chat_id: str, user_id: int) -> dict[str, Any]:
     result["active"] = telegram_member_is_active(member)
     result["is_member"] = member.get("is_member")
     return result
-
-
-def parse_iso_datetime(value: Any) -> datetime | None:
-    text = clean_value(value)
-    if not text:
-        return None
-    try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00"))
-    except ValueError:
-        return None
 
 
 def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:

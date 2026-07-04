@@ -1,6 +1,6 @@
-fastapi
-uvicorn
-python-dotenv
-jinja2
-requests
-beautifulsoup4
+fastapi>=0.139,<0.140
+uvicorn>=0.50,<0.51
+python-dotenv>=1.2,<1.3
+jinja2>=3.1,<3.2
+requests>=2.34,<2.35
+beautifulsoup4>=4.15,<4.16
