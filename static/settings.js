@@ -3352,7 +3352,7 @@
     overlay.setAttribute("role", "status");
     overlay.setAttribute("aria-live", "polite");
     overlay.hidden = true;
-    overlay.innerHTML = '<div class="app-route-loading-card"><span class="app-route-spinner" aria-hidden="true"></span><span data-app-route-loading-text>Открываем</span></div>';
+    overlay.innerHTML = '<div class="app-route-loading-card"><span class="app-route-spinner" aria-hidden="true"></span><span data-app-route-loading-text>Загружается…</span></div>';
     document.body.appendChild(overlay);
     return overlay;
   }
@@ -3360,7 +3360,7 @@
   function showNavigationLoader(text) {
     const overlay = ensureNavigationLoader();
     const label = overlay.querySelector("[data-app-route-loading-text]");
-    if (label) label.textContent = text || "Открываем";
+    if (label) label.textContent = text || "Загружается…";
     overlay.hidden = false;
     document.body.classList.add("app-is-loading-route");
   }
@@ -3380,7 +3380,7 @@
       catch (error) { return; }
       if (url.origin !== window.location.origin) return;
       if (url.pathname === window.location.pathname && url.hash) return;
-      const text = /\/chapter\//.test(url.pathname) ? "Глава" : /\/novel\//.test(url.pathname) ? "Оглавление" : "Открываем";
+      const text = /\/chapter\//.test(url.pathname) ? "Открываю главу…" : /\/novel\//.test(url.pathname) ? "Открываю оглавление…" : "Загружается…";
       showNavigationLoader(text);
     }, true);
     window.addEventListener("pageshow", function () {
@@ -3605,14 +3605,14 @@
     loader.className = "zb-route-loader";
     loader.dataset.zbRouteLoader = "true";
     loader.hidden = true;
-    loader.innerHTML = '<div class="zb-route-loader-card"><span class="zb-route-loader-spinner" aria-hidden="true"></span><span data-zb-route-loader-text>Открываем</span></div>';
+    loader.innerHTML = '<div class="zb-route-loader-card"><span class="zb-route-loader-spinner" aria-hidden="true"></span><span data-zb-route-loader-text>Загружается…</span></div>';
     document.body.appendChild(loader);
     return loader;
   }
   function showRouteLoader(text) {
     const loader = ensureRouteLoader();
     const label = loader.querySelector("[data-zb-route-loader-text]");
-    if (label) label.textContent = text || "Открываем";
+    if (label) label.textContent = text || "Загружается…";
     loader.hidden = false;
     document.body.classList.add("zb-route-loading-active");
   }
@@ -3630,7 +3630,7 @@
     loader.className = "library-local-loading";
     loader.dataset.libraryLocalLoading = "true";
     loader.hidden = true;
-    loader.innerHTML = '<span class="library-local-loading-spinner" aria-hidden="true"></span><span data-library-local-loading-text>Обновление</span>';
+    loader.innerHTML = '<span class="library-local-loading-spinner" aria-hidden="true"></span><span data-library-local-loading-text>Обновляю библиотеку…</span>';
     const actions = screen.querySelector(".library-actions-v4");
     if (actions && actions.parentNode) actions.parentNode.insertBefore(loader, actions.nextSibling);
     else screen.insertBefore(loader, screen.firstChild);
@@ -3641,7 +3641,7 @@
     const loader = ensureLibraryLocalLoader();
     if (!loader) return;
     const label = loader.querySelector("[data-library-local-loading-text]");
-    if (label) label.textContent = text || "Обновление";
+    if (label) label.textContent = text || "Обновляю библиотеку…";
     loader.hidden = false;
     window.clearTimeout(libraryLoaderTimer);
     libraryLoaderTimer = window.setTimeout(function () { loader.hidden = true; }, delay || 420);
@@ -3649,12 +3649,12 @@
   function installNavigationLoaders() {
     ensureRouteLoader();
     if (document.body.classList.contains("page-library")) {
-      pulseLibraryLoader("Библиотека", 520);
+      pulseLibraryLoader("Загружаю библиотеку…", 520);
     }
     document.addEventListener("click", function (event) {
       const sortOrFilter = event.target.closest("#libraryFilterToggle, #librarySearchToggle, #libraryFilterApply, #libraryFilterReset, [data-filter-chip], [data-quick-filter]");
       if (sortOrFilter) {
-        pulseLibraryLoader("Обновление", 380);
+        pulseLibraryLoader("Обновляю библиотеку…", 380);
       }
       const card = event.target.closest("[data-library-novel-card]");
       const link = event.target.closest("a[href]");
@@ -3668,23 +3668,23 @@
       catch (error) { return; }
       if (url.origin !== window.location.origin) return;
       if (url.pathname === window.location.pathname && url.hash) return;
-      if (/\/novel\//.test(url.pathname)) showRouteLoader("Оглавление");
-      else if (/\/chapter\//.test(url.pathname)) showRouteLoader("Глава");
-      else if (/\/library/.test(url.pathname)) showRouteLoader("Библиотека");
-      else showRouteLoader("Открываем");
+      if (/\/novel\//.test(url.pathname)) showRouteLoader("Загружаю оглавление…");
+      else if (/\/chapter\//.test(url.pathname)) showRouteLoader("Загружаю главу…");
+      else if (/\/library/.test(url.pathname)) showRouteLoader("Загружаю библиотеку…");
+      else showRouteLoader("Загружается…");
     }, true);
     document.addEventListener("change", function (event) {
       if (event.target && event.target.id === "librarySort") {
-        pulseLibraryLoader("Сортировка", 360);
+        pulseLibraryLoader("Сортирую библиотеку…", 360);
       }
     }, true);
     document.addEventListener("input", function (event) {
       if (event.target && event.target.id === "librarySearchInput") {
-        pulseLibraryLoader("Поиск", 300);
+        pulseLibraryLoader("Ищу новеллы…", 300);
       }
     }, true);
     window.addEventListener("pageshow", hideRouteLoader);
-    window.addEventListener("pagehide", function () { showRouteLoader("Открываем"); });
+    window.addEventListener("pagehide", function () { showRouteLoader("Загружается…"); });
   }
   function compactContinueHistory() {
     const panel = document.getElementById("libraryContinuePanel");
@@ -3721,137 +3721,4 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV137);
   else initV137();
-})();
-
-
-/* === v139 beautiful loading UI === */
-(function () {
-  const COPY = {
-    library: { title: "Библиотека", hint: "Подготавливаем карточки" },
-    novel: { title: "Оглавление", hint: "Собираем главы" },
-    chapter: { title: "Глава", hint: "Открываем текст" },
-    search: { title: "Поиск", hint: "Обновляем выдачу" },
-    filters: { title: "Фильтры", hint: "Применяем подборку" },
-    sorting: { title: "Сортировка", hint: "Перестраиваем список" },
-    update: { title: "Обновление", hint: "Обновляем библиотеку" },
-    open: { title: "Открываем", hint: "Переходим дальше" }
-  };
-
-  function normalizeText(value) {
-    const text = String(value || "").replace(/[.\u2026]+$/g, "").trim().toLowerCase();
-    if (text.includes("библиотек")) return "library";
-    if (text.includes("оглавлен")) return "novel";
-    if (text.includes("глав")) return "chapter";
-    if (text.includes("поиск") || text.includes("ищ")) return "search";
-    if (text.includes("фильтр")) return "filters";
-    if (text.includes("сорт")) return "sorting";
-    if (text.includes("обнов")) return "update";
-    return "open";
-  }
-
-  function prettyCopy(kind) {
-    return COPY[kind] || COPY.open;
-  }
-
-  function buildRouteCard(kind) {
-    const copy = prettyCopy(kind);
-    return '' +
-      '<div class="zb-pretty-loader" data-zb-pretty-loader data-kind="' + kind + '">' +
-        '<span data-zb-route-loader-text hidden>' + copy.title + '</span>' +
-        '<div class="zb-pretty-loader-mark" aria-hidden="true">' +
-          '<span class="zb-pretty-loader-ring"></span>' +
-          '<span class="zb-pretty-loader-paw">🥟</span>' +
-        '</div>' +
-        '<div class="zb-pretty-loader-copy">' +
-          '<strong data-zb-pretty-title>' + copy.title + '</strong>' +
-          '<small data-zb-pretty-hint>' + copy.hint + '</small>' +
-          '<span class="zb-pretty-loader-bar" aria-hidden="true"><span></span></span>' +
-        '</div>' +
-      '</div>';
-  }
-
-  function buildLibraryLoader(kind) {
-    const copy = prettyCopy(kind);
-    return '' +
-      '<div class="zb-library-loader-card" data-zb-library-pretty-loader data-kind="' + kind + '">' +
-        '<span data-library-local-loading-text hidden>' + copy.title + '</span>' +
-        '<div class="zb-library-loader-head">' +
-          '<span class="zb-pretty-loader-ring" aria-hidden="true"></span>' +
-          '<div><strong data-zb-pretty-title>' + copy.title + '</strong><small data-zb-pretty-hint>' + copy.hint + '</small></div>' +
-        '</div>' +
-        '<div class="zb-library-loader-skeleton" aria-hidden="true">' +
-          '<span></span><span></span><span></span>' +
-        '</div>' +
-      '</div>';
-  }
-
-  function updatePrettyBox(box, sourceText) {
-    if (!box) return;
-    const kind = normalizeText(sourceText || box.textContent || box.dataset.kind || "");
-    const copy = prettyCopy(kind);
-    box.dataset.kind = kind;
-    const title = box.querySelector('[data-zb-pretty-title]');
-    const hint = box.querySelector('[data-zb-pretty-hint]');
-    if (title) title.textContent = copy.title;
-    if (hint) hint.textContent = copy.hint;
-  }
-
-  function upgradeRouteLoader() {
-    document.querySelectorAll('[data-zb-route-loader], .app-route-loading').forEach(function (loader) {
-      const card = loader.querySelector('.zb-route-loader-card, .app-route-loading-card');
-      if (!card) return;
-      if (!card.querySelector('[data-zb-pretty-loader]')) {
-        const oldText = card.textContent || "";
-        card.classList.add('zb-route-loader-card-v139');
-        card.innerHTML = buildRouteCard(normalizeText(oldText));
-      }
-      const hiddenLabel = card.querySelector('[data-zb-route-loader-text], [data-app-route-loading-text]');
-      updatePrettyBox(card.querySelector('[data-zb-pretty-loader]'), hiddenLabel ? hiddenLabel.textContent : card.textContent);
-    });
-  }
-
-  function upgradeLibraryLoader() {
-    document.querySelectorAll('[data-library-local-loading]').forEach(function (loader) {
-      if (!loader.querySelector('[data-zb-library-pretty-loader]')) {
-        const oldText = loader.textContent || "";
-        loader.classList.add('library-local-loading-v139');
-        loader.innerHTML = buildLibraryLoader(normalizeText(oldText));
-      }
-      const hiddenLabel = loader.querySelector('[data-library-local-loading-text]');
-      updatePrettyBox(loader.querySelector('[data-zb-library-pretty-loader]'), hiddenLabel ? hiddenLabel.textContent : loader.textContent);
-    });
-  }
-
-  function installNavigationHints() {
-    document.addEventListener('click', function (event) {
-      const sortOrFilter = event.target.closest('#libraryFilterToggle, #librarySearchToggle, #libraryFilterApply, #libraryFilterReset, [data-filter-chip], [data-quick-filter]');
-      if (sortOrFilter) window.setTimeout(function () { upgradeLibraryLoader(); }, 0);
-      const link = event.target.closest('a[href], [data-library-novel-card]');
-      if (!link) return;
-      window.setTimeout(function () { upgradeRouteLoader(); }, 0);
-    }, true);
-    document.addEventListener('change', function (event) {
-      if (event.target && event.target.id === 'librarySort') window.setTimeout(upgradeLibraryLoader, 0);
-    }, true);
-    document.addEventListener('input', function (event) {
-      if (event.target && event.target.id === 'librarySearchInput') window.setTimeout(upgradeLibraryLoader, 0);
-    }, true);
-  }
-
-  function init() {
-    upgradeRouteLoader();
-    upgradeLibraryLoader();
-    installNavigationHints();
-    const observer = new MutationObserver(function () {
-      upgradeRouteLoader();
-      upgradeLibraryLoader();
-    });
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    if (document.body.classList.contains('page-library')) {
-      document.body.classList.add('library-ready-v139');
-    }
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
 })();
