@@ -1736,7 +1736,9 @@
       return item && item.novelId && item.chapterId && cardsByNovel[String(item.novelId)];
     }).slice(0, 3);
 
-    panel.hidden = visibleItems.length === 0;
+    let continuePanelHidden = false;
+    try { continuePanelHidden = window.localStorage.getItem("zefirki_continue_panel_hidden") === "1"; } catch (error) {}
+    panel.hidden = visibleItems.length === 0 || continuePanelHidden;
     if (clear) clear.hidden = visibleItems.length === 0;
 
     if (!visibleItems.length) {
@@ -1777,8 +1779,8 @@
 
     if (clear) {
       clear.onclick = function () {
-        writeJson(STORAGE_KEYS.readingHistory, []);
-        renderLibraryCards();
+        try { window.localStorage.setItem("zefirki_continue_panel_hidden", "1"); } catch (error) {}
+        panel.hidden = true;
       };
     }
   }
@@ -2192,11 +2194,11 @@
     const panel = document.querySelector("[data-reader-quick-settings]");
     if (!panel) return;
     const settings = getSettings();
-    const font = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize), 14, 22);
+    const font = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize), 4, 22);
     const fontValue = panel.querySelector("[data-reader-font-value]");
     if (fontValue) fontValue.textContent = String(font);
     const track = panel.querySelector("[data-reader-font-track]");
-    if (track) track.style.width = `${((font - 14) / 8) * 100}%`;
+    if (track) track.style.width = `${((font - 4) / 18) * 100}%`;
 
     panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
       const name = button.dataset.readerSetting;
@@ -2332,7 +2334,7 @@
     panel.querySelectorAll("[data-reader-font-step]").forEach(function (button) {
       button.addEventListener("click", function () {
         const settings = getSettings();
-        const next = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize) + Number(button.dataset.readerFontStep || 0), 14, 22);
+        const next = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize) + Number(button.dataset.readerFontStep || 0), 4, 22);
         setReaderSetting("fontSize", next);
       });
     });
@@ -2417,6 +2419,7 @@
     const history = readJson(STORAGE_KEYS.readingHistory, []);
     const nextHistory = history.filter((entry) => String(entry.novelId) !== String(item.novelId)).concat(item).slice(-50);
     writeJson(STORAGE_KEYS.readingHistory, nextHistory);
+    try { window.localStorage.removeItem("zefirki_continue_panel_hidden"); } catch (error) {}
     if (options.sync !== false) {
       saveProgressToServer(item, readJson(STORAGE_KEYS.readChapters, [])).catch(console.warn);
     }
@@ -2692,7 +2695,7 @@
           <div class="global-settings-grid-v2">
             <label class="settings-field settings-field-v2"><span>Фон главы</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label>
             <label class="settings-field settings-field-v2"><span>Ширина</span><select data-setting="readerWidth"><option value="comfort">Комфорт</option><option value="full">Шире</option><option value="wide">Максимум</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Размер</span><select data-setting="fontSize"><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option></select></label>
+            <label class="settings-field settings-field-v2"><span>Размер</span><select data-setting="fontSize"><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option></select></label>
             <label class="settings-field settings-field-v2"><span>Интервал</span><select data-setting="lineHeight"><option value="1.45">Плотно</option><option value="1.6">Норма</option><option value="1.75">Свободно</option><option value="1.9">Воздух</option></select></label>
             <label class="settings-field settings-field-v2"><span>Абзацы</span><select data-setting="paragraphSpacing"><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label>
             <label class="settings-field settings-field-v2"><span>Край</span><select data-setting="textAlign"><option value="left">Слева</option><option value="justify">По ширине</option></select></label>
@@ -2881,7 +2884,7 @@
     body.dataset.appSize = settings.appSize || "normal";
     document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULTS.accentColor);
     document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
-    document.documentElement.style.setProperty("--reader-font-size", `${clamp(settings.fontSize, 14, 24)}px`);
+    document.documentElement.style.setProperty("--reader-font-size", `${clamp(settings.fontSize, 4, 24)}px`);
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${clamp(settings.paragraphSpacing, 8, 32)}px`);
   }
@@ -2894,7 +2897,7 @@
   }
   function setFont(delta) {
     const settings = readSettings();
-    settings.fontSize = String(clamp(Number(settings.fontSize || 16) + delta, 14, 24));
+    settings.fontSize = String(clamp(Number(settings.fontSize || 16) + delta, 4, 24));
     writeSettings(settings);
     applyCleanSettings();
     updateSheetState();
@@ -3070,11 +3073,11 @@
     const overlay = document.querySelector("[data-zb-settings-overlay]");
     if (!overlay) return;
     const settings = readSettings();
-    const font = clamp(settings.fontSize, 14, 24);
+    const font = clamp(settings.fontSize, 4, 24);
     const fontValue = overlay.querySelector("[data-zb-font-value]");
     if (fontValue) fontValue.textContent = String(font);
     const track = overlay.querySelector("[data-zb-font-track]");
-    if (track) track.style.width = `${((font - 14) / 10) * 100}%`;
+    if (track) track.style.width = `${((font - 4) / 20) * 100}%`;
     overlay.querySelectorAll("[data-zb-setting]").forEach(function (button) {
       const active = String(settings[button.dataset.zbSetting] || "").toLowerCase() === String(button.dataset.zbValue || "").toLowerCase();
       button.classList.toggle("is-active", active);
@@ -3178,7 +3181,7 @@
     const settings = readSettings();
     const preview = ensurePreview();
     if (!preview) return;
-    preview.style.setProperty("--preview-font-size", `${Math.max(14, Math.min(24, Number(settings.fontSize || 16)))}px`);
+    preview.style.setProperty("--preview-font-size", `${Math.max(4, Math.min(24, Number(settings.fontSize || 16)))}px`);
     preview.style.setProperty("--preview-line-height", settings.lineHeight || "1.6");
     preview.style.setProperty("--preview-paragraph", `${Math.max(8, Math.min(32, Number(settings.paragraphSpacing || 16)))}px`);
     preview.dataset.previewWidth = settings.readerWidth || "comfort";

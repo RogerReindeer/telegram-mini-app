@@ -10730,3 +10730,197 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
 }
 
 /* compatibility/current marker: v138-tribute-paywall-dates */
+
+
+/* === v139 mobile novel/reader/history fix === */
+:root {
+  --reader-min-font-size: 4px;
+}
+
+@media (max-width: 760px) {
+  .page-novel .novel-hero-card,
+  .novel-hero-card.novel-toc-hero {
+    padding: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .page-novel .novel-toc-summary,
+  .novel-toc-summary {
+    display: grid !important;
+    grid-template-columns: minmax(86px, 34vw) minmax(0, 1fr) !important;
+    grid-template-areas:
+      "cover title"
+      "facts facts" !important;
+    gap: 10px 12px !important;
+    align-items: start !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+  }
+
+  .page-novel .novel-toc-cover-panel,
+  .novel-toc-cover-panel {
+    grid-area: cover !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 120px !important;
+    position: relative !important;
+  }
+
+  .page-novel .novel-cover-large,
+  .novel-cover-large {
+    width: 100% !important;
+    aspect-ratio: 3 / 4 !important;
+    height: auto !important;
+    object-fit: cover !important;
+    border-radius: 14px !important;
+  }
+
+  .page-novel .novel-cover-rating,
+  .page-novel .novel-toc-cover-panel .novel-cover-rating,
+  .novel-cover-rating {
+    left: auto !important;
+    right: 6px !important;
+    bottom: 6px !important;
+    top: auto !important;
+    transform: none !important;
+    font-size: 12px !important;
+    min-height: 24px !important;
+    padding: 3px 7px !important;
+  }
+
+  .page-novel .novel-toc-info,
+  .novel-toc-info {
+    display: contents !important;
+  }
+
+  .page-novel .novel-title-row-v2,
+  .page-novel .novel-toc-title-row,
+  .novel-title-row-v2.novel-toc-title-row {
+    grid-area: title !important;
+    display: block !important;
+    min-width: 0 !important;
+  }
+
+  .page-novel .novel-title-main-v2,
+  .novel-title-main-v2 {
+    min-width: 0 !important;
+  }
+
+  .page-novel .novel-title-main-v2 h1,
+  .novel-title-main-v2 h1,
+  .page-novel .novel-toc-title-row h1 {
+    font-size: clamp(24px, 8vw, 36px) !important;
+    line-height: 1.02 !important;
+    margin: 4px 0 6px !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+  }
+
+  .page-novel .novel-toc-full-title,
+  .novel-toc-full-title {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    font-size: 13px !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+  }
+
+  .page-novel .novel-title-fox,
+  .novel-title-fox {
+    display: none !important;
+  }
+
+  .page-novel .novel-toc-facts,
+  .novel-toc-facts {
+    grid-area: facts !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 9px !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    margin-top: 2px !important;
+  }
+
+  .page-novel .novel-toc-status-line,
+  .novel-toc-status-line,
+  .page-novel .novel-toc-access-summary,
+  .novel-toc-access-summary {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .page-novel .novel-toc-reading-progress,
+  .novel-toc-reading-progress {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+  }
+
+  .page-novel .novel-toc-tags,
+  .novel-toc-tags {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+  }
+
+  .page-novel .novel-toc-tags .tag,
+  .page-novel .novel-toc-tags button.tag {
+    font-size: 11px !important;
+    line-height: 1.15 !important;
+    padding: 5px 7px !important;
+    max-width: 100% !important;
+  }
+
+  .page-chapter .chapter-content-shell,
+  .chapter-content-shell,
+  body[data-reader-width="comfort"] .chapter-content-shell,
+  body[data-reader-width="wide"] .chapter-content-shell,
+  body[data-reader-width="full"] .chapter-content-shell {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  .page-chapter .reader-layout,
+  .reader-layout.chapter-layout {
+    width: 100% !important;
+    max-width: none !important;
+    padding-left: max(10px, env(safe-area-inset-left)) !important;
+    padding-right: max(10px, env(safe-area-inset-right)) !important;
+  }
+
+  .page-chapter .chapter-content,
+  .chapter-content {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+    padding-left: clamp(14px, 4vw, 28px) !important;
+    padding-right: clamp(14px, 4vw, 28px) !important;
+    font-size: var(--reader-font-size, 16px) !important;
+    overflow-wrap: break-word !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .page-novel .novel-toc-summary,
+  .novel-toc-summary {
+    grid-template-columns: 94px minmax(0, 1fr) !important;
+    gap: 9px !important;
+  }
+
+  .page-novel .novel-title-main-v2 h1,
+  .novel-title-main-v2 h1,
+  .page-novel .novel-toc-title-row h1 {
+    font-size: clamp(22px, 7.4vw, 30px) !important;
+  }
+}
+
+/* compatibility/current marker: v139-mobile-novel-reader-history-fix */
