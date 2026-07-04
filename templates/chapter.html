@@ -8,6 +8,11 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body class="reader-audit-v66 page-chapter">
+  <div class="zb-initial-loader" data-initial-page-loader role="status" aria-live="polite">
+    <span class="zb-plain-loader-spinner" aria-hidden="true"></span>
+    <span class="zb-plain-loader-text">Загружаю главу</span>
+  </div>
+
   <div class="chapter-scroll-progress" aria-hidden="true"><span data-chapter-scroll-progress-bar></span></div>
   {% if not is_locked %}
     <aside class="reader-floating-controls" data-reader-floating-controls aria-label="Быстрая навигация по главе">

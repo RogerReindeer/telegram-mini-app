@@ -3722,3 +3722,99 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV137);
   else initV137();
 })();
+
+
+/* === v139 plain loading states === */
+(function () {
+  function pageLoadingText() {
+    if (document.body.classList.contains("page-library")) return "Загружаю библиотеку";
+    if (document.body.classList.contains("page-novel")) return "Загружаю оглавление";
+    if (document.body.classList.contains("page-chapter")) return "Загружаю главу";
+    return "Загружается";
+  }
+  function ensurePlainLoader() {
+    let loader = document.querySelector("[data-zb-route-loader]");
+    if (loader) return loader;
+    loader = document.createElement("div");
+    loader.className = "zb-route-loader";
+    loader.dataset.zbRouteLoader = "true";
+    loader.hidden = true;
+    loader.setAttribute("role", "status");
+    loader.setAttribute("aria-live", "polite");
+    loader.innerHTML = '<span class="zb-route-loader-spinner" aria-hidden="true"></span><span data-zb-route-loader-text>Загружается</span>';
+    document.body.appendChild(loader);
+    return loader;
+  }
+  function showPlainLoader(text) {
+    const loader = ensurePlainLoader();
+    const label = loader.querySelector("[data-zb-route-loader-text]");
+    if (label) label.textContent = text || "Загружается";
+    loader.hidden = false;
+    document.body.classList.add("zb-route-loading-active");
+  }
+  function hidePlainLoaders() {
+    document.querySelectorAll("[data-initial-page-loader], [data-zb-route-loader], [data-app-route-loading]").forEach(function (loader) {
+      loader.hidden = true;
+    });
+    document.body.classList.remove("zb-route-loading-active", "app-is-loading-route");
+  }
+  function routeTextFor(url) {
+    if (/\/chapter\//.test(url.pathname)) return "Загружаю главу";
+    if (/\/novel\//.test(url.pathname)) return "Загружаю оглавление";
+    if (/\/library/.test(url.pathname) || url.pathname === "/") return "Загружаю библиотеку";
+    return "Загружается";
+  }
+  let localTimer = null;
+  function showLocalLibraryLoader(text, ms) {
+    if (!document.body.classList.contains("page-library")) return;
+    const screen = document.querySelector(".library-screen") || document.body;
+    let loader = document.querySelector("[data-library-local-loading]");
+    if (!loader) {
+      loader = document.createElement("div");
+      loader.className = "library-local-loading";
+      loader.dataset.libraryLocalLoading = "true";
+      loader.hidden = true;
+      loader.setAttribute("role", "status");
+      loader.setAttribute("aria-live", "polite");
+      loader.innerHTML = '<span class="library-local-loading-spinner" aria-hidden="true"></span><span data-library-local-loading-text>Обновляю библиотеку</span>';
+      screen.appendChild(loader);
+    }
+    const label = loader.querySelector("[data-library-local-loading-text]");
+    if (label) label.textContent = text || "Обновляю библиотеку";
+    loader.hidden = false;
+    window.clearTimeout(localTimer);
+    localTimer = window.setTimeout(function () { loader.hidden = true; }, ms || 420);
+  }
+  function initPlainLoading() {
+    window.setTimeout(hidePlainLoaders, document.body.classList.contains("page-library") ? 520 : 260);
+    document.addEventListener("click", function (event) {
+      const link = event.target.closest("a[href]");
+      if (link && !event.defaultPrevented && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey && (!link.target || link.target === "_self") && !link.hasAttribute("download")) {
+        const href = link.getAttribute("href") || "";
+        if (href && !href.startsWith("#") && !href.startsWith("javascript:")) {
+          try {
+            const url = new URL(href, window.location.href);
+            if (url.origin === window.location.origin && !(url.pathname === window.location.pathname && url.hash)) {
+              showPlainLoader(routeTextFor(url));
+            }
+          } catch (error) {}
+        }
+      }
+      if (event.target.closest("#libraryFilterToggle, #librarySearchToggle, #libraryFilterApply, #libraryFilterReset, [data-filter-chip], [data-quick-filter]")) {
+        showLocalLibraryLoader("Обновляю библиотеку", 420);
+      }
+    }, true);
+    document.addEventListener("change", function (event) {
+      if (event.target && event.target.id === "librarySort") showLocalLibraryLoader("Сортирую библиотеку", 380);
+    }, true);
+    document.addEventListener("input", function (event) {
+      if (event.target && event.target.id === "librarySearchInput") showLocalLibraryLoader("Ищу новеллы", 320);
+    }, true);
+    window.addEventListener("pageshow", function () { window.setTimeout(hidePlainLoaders, 80); });
+    window.addEventListener("load", function () { window.setTimeout(hidePlainLoaders, 120); });
+    window.ZEFIRKI_SHOW_LOADING = showPlainLoader;
+    window.ZEFIRKI_HIDE_LOADING = hidePlainLoaders;
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPlainLoading);
+  else initPlainLoading();
+})();
