@@ -10850,3 +10850,16 @@ body[data-reader-theme="dark"] .library-local-loading [data-library-local-loadin
   .app-route-spinner,
   .library-local-loading-spinner { animation: none !important; }
 }
+
+
+/* === v140 loader failsafe === */
+.zb-loader-closed,
+[data-initial-page-loader].zb-loader-closed,
+[data-zb-route-loader].zb-loader-closed,
+[data-app-route-loading].zb-loader-closed {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* APP_VERSION marker: v140-loader-failsafe */

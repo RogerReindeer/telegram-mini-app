@@ -3818,3 +3818,56 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initPlainLoading);
   else initPlainLoading();
 })();
+
+
+/* === v140 loader failsafe: library must never stay in infinite loading === */
+(function () {
+  let routeFailsafeTimer = null;
+
+  function closeLoaderElement(loader) {
+    if (!loader) return;
+    loader.hidden = true;
+    loader.setAttribute("aria-hidden", "true");
+    loader.classList.add("zb-loader-closed");
+    loader.style.display = "none";
+  }
+
+  function hideAllLoaders() {
+    document.querySelectorAll("[data-initial-page-loader], [data-zb-route-loader], [data-app-route-loading]").forEach(closeLoaderElement);
+    document.body.classList.remove("zb-route-loading-active", "app-is-loading-route");
+  }
+
+  function hideInitialLibraryLoader() {
+    if (!document.body || !document.body.classList.contains("page-library")) return;
+    hideAllLoaders();
+  }
+
+  function scheduleLibraryLoaderClose() {
+    [80, 240, 650, 1400, 3000].forEach(function (delay) {
+      window.setTimeout(hideInitialLibraryLoader, delay);
+    });
+  }
+
+  function installRouteFailsafe() {
+    const previousShow = window.ZEFIRKI_SHOW_LOADING;
+    window.ZEFIRKI_SHOW_LOADING = function (text) {
+      if (typeof previousShow === "function") previousShow(text);
+      window.clearTimeout(routeFailsafeTimer);
+      routeFailsafeTimer = window.setTimeout(hideAllLoaders, 9000);
+    };
+    window.ZEFIRKI_HIDE_LOADING = hideAllLoaders;
+  }
+
+  function initV140LoaderFailsafe() {
+    scheduleLibraryLoaderClose();
+    installRouteFailsafe();
+    window.addEventListener("load", scheduleLibraryLoaderClose);
+    window.addEventListener("pageshow", scheduleLibraryLoaderClose);
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden) scheduleLibraryLoaderClose();
+    });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV140LoaderFailsafe);
+  else initV140LoaderFailsafe();
+})();
