@@ -2055,8 +2055,8 @@
       readerTheme: { cream: "Кремовая", white: "Белая", sepia: "Сепия", dark: "Тёмная" },
       readerWidth: { comfort: "Комфорт", full: "Шире", wide: "Макс." },
       textAlign: { left: "Слева", justify: "По ширине" },
-      lineHeight: { "1.45": "Плотно", "1.6": "Норма", "1.75": "Свободно", "1.9": "Воздух" },
-      paragraphSpacing: { "12": "12", "16": "16", "20": "20", "24": "24" },
+      lineHeight: { "1.1": "Мини", "1.2": "Очень плотно", "1.3": "Плотно", "1.45": "Норма", "1.6": "Свободно", "1.75": "Воздух", "1.9": "Макс." },
+      paragraphSpacing: { "0": "0", "2": "2", "4": "4", "8": "8", "12": "12", "16": "16", "20": "20", "24": "24" },
     };
     return (labels[name] && labels[name][String(value)]) || String(value);
   }
@@ -2124,14 +2124,14 @@
           <section class="reader-settings-section-v2">
             <div class="reader-settings-section-head-v2"><span>Воздух между строками</span></div>
             <div class="reader-choice-grid-v2 reader-choice-grid-4-v2">
-              ${createReaderSegment("lineHeight", ["1.45", "1.6", "1.75", "1.9"])}
+              ${createReaderSegment("lineHeight", ["1.1", "1.2", "1.3", "1.45", "1.6", "1.75", "1.9"])}
             </div>
           </section>
 
           <section class="reader-settings-section-v2">
             <div class="reader-settings-section-head-v2"><span>Абзацы</span></div>
             <div class="reader-choice-grid-v2 reader-choice-grid-4-v2">
-              ${createReaderSegment("paragraphSpacing", ["12", "16", "20", "24"])}
+              ${createReaderSegment("paragraphSpacing", ["0", "2", "4", "8", "12", "16", "20", "24"])}
             </div>
           </section>
 
@@ -2696,8 +2696,8 @@
             <label class="settings-field settings-field-v2"><span>Фон главы</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label>
             <label class="settings-field settings-field-v2"><span>Ширина</span><select data-setting="readerWidth"><option value="comfort">Комфорт</option><option value="full">Шире</option><option value="wide">Максимум</option></select></label>
             <label class="settings-field settings-field-v2"><span>Размер</span><select data-setting="fontSize"><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Интервал</span><select data-setting="lineHeight"><option value="1.45">Плотно</option><option value="1.6">Норма</option><option value="1.75">Свободно</option><option value="1.9">Воздух</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Абзацы</span><select data-setting="paragraphSpacing"><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label>
+            <label class="settings-field settings-field-v2"><span>Интервал</span><select data-setting="lineHeight"><option value="1.1">Мини</option><option value="1.2">Очень плотно</option><option value="1.3">Плотно</option><option value="1.45">Норма</option><option value="1.6">Свободно</option><option value="1.75">Воздух</option><option value="1.9">Макс.</option></select></label>
+            <label class="settings-field settings-field-v2"><span>Абзацы</span><select data-setting="paragraphSpacing"><option value="0">0</option><option value="2">2</option><option value="4">4</option><option value="8">8</option><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label>
             <label class="settings-field settings-field-v2"><span>Край</span><select data-setting="textAlign"><option value="left">Слева</option><option value="justify">По ширине</option></select></label>
           </div>
         </section>
@@ -2833,8 +2833,8 @@
   const LABELS = {
     readerTheme: { cream: "Кремовая", white: "Белая", sepia: "Сепия", dark: "Тёмная" },
     readerWidth: { comfort: "Комфорт", full: "Шире", wide: "Макс" },
-    lineHeight: { "1.45": "Плотно", "1.6": "Норма", "1.75": "Свободно", "1.9": "Воздух" },
-    paragraphSpacing: { "12": "12", "16": "16", "20": "20", "24": "24" },
+    lineHeight: { "1.1": "Мини", "1.2": "Очень плотно", "1.3": "Плотно", "1.45": "Норма", "1.6": "Свободно", "1.75": "Воздух", "1.9": "Макс." },
+    paragraphSpacing: { "0": "0", "2": "2", "4": "4", "8": "8", "12": "12", "16": "16", "20": "20", "24": "24" },
     textAlign: { left: "Слева", justify: "По ширине" },
     siteTheme: { light: "Светлая", system: "Системная", dark: "Тёмная" },
     appSize: { compact: "Плотно", normal: "Норма", large: "Крупно" },
@@ -2886,7 +2886,7 @@
     document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
     document.documentElement.style.setProperty("--reader-font-size", `${clamp(settings.fontSize, 4, 24)}px`);
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
-    document.documentElement.style.setProperty("--reader-paragraph-spacing", `${clamp(settings.paragraphSpacing, 8, 32)}px`);
+    document.documentElement.style.setProperty("--reader-paragraph-spacing", `${clamp(settings.paragraphSpacing, 0, 32)}px`);
   }
   function setSetting(name, value) {
     const settings = readSettings();
@@ -2955,8 +2955,8 @@
             <div class="zb-settings-grid">
               ${settingCard("Размер", `<strong class="zb-setting-value" data-zb-font-value>16</strong>`, `<div class="zb-stepper"><button type="button" data-zb-font-step="-1">A−</button><div class="zb-range-track" aria-hidden="true"><span data-zb-font-track></span></div><button type="button" data-zb-font-step="1">A+</button></div>`)}
               ${settingCard("Ширина", "", choiceRow("readerWidth", ["comfort", "full", "wide"]))}
-              ${settingCard("Интервал", "", choiceRow("lineHeight", ["1.45", "1.6", "1.75", "1.9"]))}
-              ${settingCard("Абзацы", "", choiceRow("paragraphSpacing", ["12", "16", "20", "24"]))}
+              ${settingCard("Интервал", "", choiceRow("lineHeight", ["1.1", "1.2", "1.3", "1.45", "1.6", "1.75", "1.9"]))}
+              ${settingCard("Абзацы", "", choiceRow("paragraphSpacing", ["0", "2", "4", "8", "12", "16", "20", "24"]))}
               ${settingCard("Край", "", choiceRow("textAlign", ["left", "justify"]))}
             </div>
             <section class="zb-reader-preview" data-zb-reader-preview aria-label="Предпросмотр текста">
@@ -3183,7 +3183,7 @@
     if (!preview) return;
     preview.style.setProperty("--preview-font-size", `${Math.max(4, Math.min(24, Number(settings.fontSize || 16)))}px`);
     preview.style.setProperty("--preview-line-height", settings.lineHeight || "1.6");
-    preview.style.setProperty("--preview-paragraph", `${Math.max(8, Math.min(32, Number(settings.paragraphSpacing || 16)))}px`);
+    preview.style.setProperty("--preview-paragraph", `${Math.max(0, Math.min(32, Number(settings.paragraphSpacing || 16)))}px`);
     preview.dataset.previewWidth = settings.readerWidth || "comfort";
     preview.dataset.previewAlign = settings.textAlign || "left";
     preview.querySelectorAll("p").forEach(function (p) {
@@ -3599,4 +3599,73 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV135);
   else initV135();
+})();
+
+
+/* v141 — compact paywall unlock modal and smaller reader spacing options */
+(function () {
+  function initPaywallUnlock() {
+    document.querySelectorAll('[data-paywall-unlock-open]').forEach(function (button) {
+      if (button.dataset.v141Bound === 'true') return;
+      button.dataset.v141Bound = 'true';
+      button.addEventListener('click', function () {
+        const root = button.closest('.chapter-paywall-actions') || document;
+        const panel = root.querySelector('[data-paywall-unlock-panel]');
+        if (!panel) return;
+        panel.hidden = false;
+        panel.classList.add('is-open');
+        const first = panel.querySelector('a, button:not([data-paywall-unlock-close])');
+        if (first) first.focus({ preventScroll: true });
+      });
+    });
+    document.querySelectorAll('[data-paywall-unlock-close]').forEach(function (button) {
+      if (button.dataset.v141Bound === 'true') return;
+      button.dataset.v141Bound = 'true';
+      button.addEventListener('click', function () {
+        const panel = button.closest('[data-paywall-unlock-panel]');
+        if (!panel) return;
+        panel.classList.remove('is-open');
+        panel.hidden = true;
+      });
+    });
+    document.addEventListener('click', function (event) {
+      const panel = event.target && event.target.closest && event.target.closest('[data-paywall-unlock-panel].is-open');
+      if (panel && event.target === panel) {
+        panel.classList.remove('is-open');
+        panel.hidden = true;
+      }
+    });
+  }
+
+  function enhanceReaderSpacingControls() {
+    const addOptions = function (select, values) {
+      if (!select) return;
+      values.forEach(function (item) {
+        if (!select.querySelector('option[value="' + item.value + '"]')) {
+          const option = document.createElement('option');
+          option.value = item.value;
+          option.textContent = item.label;
+          select.insertBefore(option, select.firstChild);
+        }
+      });
+    };
+    addOptions(document.querySelector('select[data-setting="lineHeight"]'), [
+      { value: '1.3', label: 'Плотно' },
+      { value: '1.2', label: 'Очень плотно' },
+      { value: '1.1', label: 'Мини' }
+    ]);
+    addOptions(document.querySelector('select[data-setting="paragraphSpacing"]'), [
+      { value: '8', label: '8' },
+      { value: '4', label: '4' },
+      { value: '2', label: '2' },
+      { value: '0', label: '0' }
+    ]);
+  }
+
+  function initV141() {
+    initPaywallUnlock();
+    enhanceReaderSpacingControls();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initV141);
+  else initV141();
 })();

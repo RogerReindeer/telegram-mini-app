@@ -51,12 +51,27 @@
               <p>{{ access_paywall.description or access_copy.description }}</p>
               {% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}
             </div>
-            <div class="chapter-paywall-actions">
-              {% if access_paywall.show_boosty and boosty_access_url %}<a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Открыть доступ на Boosty</a>{% endif %}
-              {% if access_paywall.show_tribute and tribute_traveler_url %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>🌱 Странствующий читатель</a>{% endif %}
-              {% if access_paywall.show_tribute and tribute_keeper_url %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>📜 Хранитель свитков</a>{% endif %}
-              {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ ещё раз</button>{% endif %}
-              {% if access_paywall.show_tribute %}<p class="chapter-paywall-tribute-note">После оплаты Tribute добавит вас в нужную приватную группу Telegram. Затем вернитесь сюда и проверьте доступ.</p>{% endif %}
+            <div class="chapter-paywall-actions chapter-paywall-actions-v141">
+              {% if access_paywall.show_tribute %}
+                <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>Разблокировать главу</button>
+                <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden>
+                  <div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="Разблокировать главу">
+                    <button class="chapter-unlock-close" type="button" data-paywall-unlock-close aria-label="Закрыть">×</button>
+                    <h3>Как открыть доступ</h3>
+                    <p>Оформите подписку в Tribute. После оплаты Tribute добавит вас в нужную приватную Telegram-группу. Затем вернитесь сюда и нажмите «Проверить доступ».</p>
+                    <div class="chapter-unlock-options">
+                      {% if tribute_traveler_url %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>🌱 Странствующий читатель</a>{% endif %}
+                      {% if tribute_keeper_url %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>📜 Хранитель свитков</a>{% endif %}
+                      {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
+                    </div>
+                  </div>
+                </div>
+              {% elif access_paywall.show_boosty and boosty_access_url %}
+                <a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Открыть доступ на Boosty</a>
+                {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
+              {% elif access_paywall.show_refresh %}
+                <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>
+              {% endif %}
               <a class="chapter-access-secondary-button" href="/novel/{{ novel.slug }}">К оглавлению</a>
             </div>
           </section>

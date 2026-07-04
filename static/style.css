@@ -10927,7 +10927,7 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
 
 
 /* =====================================================================
-   v140-light-search-sort-fix
+   v141-paywall-reader-density-fix
    Final light/system readable controls for Search / Filters / Sort.
    ===================================================================== */
 body.page-library:not([data-resolved-theme="dark"]) .library-actions-v4,
@@ -11057,4 +11057,168 @@ body.page-library[data-site-theme="system"]:not([data-resolved-theme="dark"]) .l
   opacity: 1 !important;
 }
 
-/* compatibility/current marker: v140-light-search-sort-fix */
+/* compatibility/current marker: v141-paywall-reader-density-fix */
+
+/* v141 — compact paywall and reader density controls */
+.chapter-preview-card {
+  padding-bottom: clamp(12px, 3vw, 22px) !important;
+}
+.chapter-blurred-preview {
+  margin: 10px auto 12px !important;
+  min-height: 118px !important;
+  max-height: 180px !important;
+  overflow: hidden !important;
+}
+.chapter-paywall,
+.chapter-paywall-v54 {
+  width: min(100%, 560px) !important;
+  margin: 14px auto 0 !important;
+  padding: clamp(14px, 3vw, 24px) !important;
+  gap: 10px !important;
+  border-radius: 16px !important;
+}
+.chapter-paywall-fox {
+  width: clamp(48px, 12vw, 76px) !important;
+  height: auto !important;
+  margin: 0 auto 4px !important;
+}
+.chapter-paywall-meta {
+  justify-content: center !important;
+  gap: 8px !important;
+  margin-bottom: 6px !important;
+}
+.chapter-paywall-copy h2 {
+  margin: 4px 0 6px !important;
+  font-size: clamp(18px, 4vw, 22px) !important;
+  line-height: 1.15 !important;
+}
+.chapter-paywall-copy p,
+.chapter-paywall-hint {
+  margin: 6px auto !important;
+  max-width: 58ch !important;
+  font-size: clamp(13px, 3vw, 15px) !important;
+  line-height: 1.45 !important;
+}
+.chapter-paywall-actions-v141,
+.chapter-paywall-actions {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 8px !important;
+  width: min(100%, 420px) !important;
+  margin: 8px auto 0 !important;
+}
+.chapter-unlock-button,
+.chapter-access-secondary-button,
+.subscription-refresh-button,
+.chapter-access-purchase-button {
+  min-height: 44px !important;
+  border-radius: 999px !important;
+  font-weight: 800 !important;
+}
+.chapter-unlock-button {
+  border: 0 !important;
+  background: var(--site-accent, #ff6a00) !important;
+  color: #fff !important;
+  box-shadow: 0 10px 24px rgba(255, 106, 0, .18) !important;
+}
+.chapter-access-secondary-button {
+  background: rgba(255,255,255,.72) !important;
+  border: 1px solid rgba(92, 69, 48, .18) !important;
+  color: var(--text-strong, #2a1710) !important;
+}
+.chapter-unlock-panel[hidden] { display: none !important; }
+.chapter-unlock-panel.is-open {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: grid !important;
+  place-items: end center !important;
+  padding: 16px !important;
+  background: rgba(34, 20, 12, .28) !important;
+  backdrop-filter: blur(8px) !important;
+}
+.chapter-unlock-panel-card {
+  position: relative !important;
+  width: min(100%, 480px) !important;
+  padding: 18px !important;
+  border-radius: 22px !important;
+  background: var(--app-card, #fffaf4) !important;
+  color: var(--text-strong, #24130d) !important;
+  border: 1px solid rgba(255, 106, 0, .22) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.24) !important;
+  text-align: center !important;
+}
+.chapter-unlock-panel-card h3 {
+  margin: 4px 36px 8px !important;
+  font-size: 20px !important;
+}
+.chapter-unlock-panel-card p {
+  margin: 0 auto 14px !important;
+  color: var(--text-muted, #715f54) !important;
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+.chapter-unlock-close {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(0,0,0,.08) !important;
+  background: rgba(0,0,0,.04) !important;
+  color: inherit !important;
+  font-size: 22px !important;
+}
+.chapter-unlock-options {
+  display: grid !important;
+  gap: 8px !important;
+}
+body[data-site-theme="dark"] .chapter-unlock-panel-card,
+body[data-reader-theme="dark"] .chapter-unlock-panel-card {
+  background: #1e1713 !important;
+  color: #fff4eb !important;
+  border-color: rgba(255, 132, 40, .36) !important;
+}
+body[data-site-theme="dark"] .chapter-unlock-panel-card p,
+body[data-reader-theme="dark"] .chapter-unlock-panel-card p {
+  color: #d6c3b6 !important;
+}
+body[data-site-theme="dark"] .chapter-access-secondary-button,
+body[data-reader-theme="dark"] .chapter-access-secondary-button {
+  background: rgba(255,255,255,.07) !important;
+  color: #fff4eb !important;
+  border-color: rgba(255,255,255,.16) !important;
+}
+.reader-choice-grid-v2,
+.zb-choice-row {
+  gap: 6px !important;
+}
+.reader-quick-option,
+.zb-choice,
+.settings-field-v2 select {
+  min-height: 40px !important;
+}
+@media (max-width: 640px) {
+  .chapter-blurred-preview {
+    min-height: 82px !important;
+    max-height: 120px !important;
+    margin-bottom: 8px !important;
+  }
+  .chapter-paywall,
+  .chapter-paywall-v54 {
+    width: calc(100% - 24px) !important;
+    padding: 14px !important;
+    margin-top: 10px !important;
+  }
+  .chapter-paywall-copy p:nth-of-type(n+2) {
+    display: none !important;
+  }
+  .chapter-unlock-panel.is-open {
+    align-items: end !important;
+    padding: 10px !important;
+  }
+  .chapter-unlock-panel-card {
+    border-radius: 20px 20px 18px 18px !important;
+  }
+}
