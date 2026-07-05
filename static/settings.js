@@ -1,6 +1,5 @@
 (function () {
   const STORAGE_KEYS = {
-    settings: "zefirki_reader_settings",
     readingHistory: "zefirki_reading_history",
     novelMeta: "zefirki_novel_meta",
     readChapters: "zefirki_read_chapters",
@@ -13,21 +12,6 @@
     syncStatus: "zefirki_sync_status",
     chapterCache: "zefirki_chapter_cache",
     readerControlsHidden: "zefirki_reader_controls_hidden",
-    globalSettingsOpenTab: "zefirki_global_settings_tab",
-  };
-
-  const DEFAULT_SETTINGS = {
-    siteTheme: "system",
-    readerTheme: "cream",
-    readerWidth: "comfort",
-    fontSize: "16",
-    lineHeight: "1.6",
-    paragraphSpacing: "16",
-    textAlign: "left",
-    hideFoxes: false,
-    accentColor: "#ff6a00",
-    appSize: "normal",
-    readerPanelTab: "reader",
   };
 
   const DEFAULT_FILTER = { query: "", chips: [] };
@@ -41,7 +25,6 @@
     // Каждый модуль запускается независимо: ошибка в библиотеке не должна
     // скрывать оглавление, главы или настройки на других экранах.
     const initializers = [
-      initSettings,
       initAppFullscreenButton,
       initLibrary,
       initNovelPageMeta,
@@ -49,7 +32,6 @@
       initChapterProgress,
       initChapterScrollProgress,
       initReaderFloatingControls,
-      initReaderQuickSettings,
       initReaderControlsVisibilityToggle,
       initChapterRetry,
       initNovelReadButton,
@@ -628,65 +610,6 @@
       payload,
     });
     return flushSyncQueue();
-  }
-
-  function getSettings() {
-    return { ...DEFAULT_SETTINGS, ...readJson(STORAGE_KEYS.settings, {}) };
-  }
-
-  function saveSettings(settings) {
-    writeJson(STORAGE_KEYS.settings, settings);
-  }
-
-  function initSettings() {
-    applySettings();
-    if (!document.querySelector("[data-settings-fab]")) createSettingsUi();
-    bindSettingsUi();
-  }
-
-  function applySettings() {
-    const settings = getSettings();
-    const body = document.body;
-    const requestedSiteTheme = settings.siteTheme || "system";
-    const systemDark = requestedSiteTheme === "system" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const resolvedSiteTheme = requestedSiteTheme === "system" ? (systemDark ? "dark" : "light") : requestedSiteTheme;
-    body.dataset.siteTheme = resolvedSiteTheme;
-    body.dataset.siteThemeChoice = requestedSiteTheme;
-    body.dataset.resolvedTheme = resolvedSiteTheme;
-    body.classList.toggle("site-theme-system", requestedSiteTheme === "system");
-    body.dataset.readerTheme = settings.readerTheme || "cream";
-    body.dataset.readerWidth = settings.readerWidth || "comfort";
-    body.dataset.textAlign = settings.textAlign || "left";
-    body.dataset.appSize = settings.appSize || "normal";
-
-    // В этой версии лисички — обязательный фирменный элемент.
-    // Если в старом localStorage была включена настройка hideFoxes, она могла скрыть все изображения.
-    if (settings.hideFoxes) {
-      settings.hideFoxes = false;
-      saveSettings(settings);
-    }
-    body.classList.remove("hide-foxes");
-
-    document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULT_SETTINGS.accentColor);
-    document.documentElement.style.setProperty("--reader-font-size", `${settings.fontSize || 16}px`);
-    document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
-    document.documentElement.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing || 16}px`);
-    applyReaderTheme(settings.readerTheme || "cream");
-    updateAppSizeButton();
-  }
-
-  function applyReaderTheme(theme) {
-    const themes = {
-      white: ["#f4f4f4", "#ffffff", "#111111", "#b45309"],
-      sepia: ["#ead7bd", "#f4e3c8", "#2b211c", "#92400e"],
-      dark: ["#0f0f0f", "#1b1b1b", "#eeeeee", "#fbbf24"],
-      cream: ["#f7efe7", "#fffaf3", "#111111", "#b45309"],
-    };
-    const values = themes[theme] || themes.cream;
-    document.documentElement.style.setProperty("--reader-page-bg", values[0]);
-    document.documentElement.style.setProperty("--reader-bg", values[1]);
-    document.documentElement.style.setProperty("--reader-text-color", values[2]);
-    document.documentElement.style.setProperty("--reader-link-color", values[3]);
   }
 
   function isMobileTelegramClient() {
@@ -2041,329 +1964,6 @@
   }
 
 
-  function setReaderSetting(name, value) {
-    const current = getSettings();
-    current[name] = String(value);
-    saveSettings(current);
-    applySettings();
-    fillSettingsInputs(getSettings());
-    updateReaderQuickSettingsState();
-  }
-
-  function readerSettingLabel(name, value) {
-    const labels = {
-      readerTheme: { cream: "Кремовая", white: "Белая", sepia: "Сепия", dark: "Тёмная" },
-      readerWidth: { comfort: "Комфорт", full: "Шире", wide: "Макс." },
-      textAlign: { left: "Слева", justify: "По ширине" },
-      lineHeight: { "1.1": "Мини", "1.2": "Очень плотно", "1.3": "Плотно", "1.45": "Норма", "1.6": "Свободно", "1.75": "Воздух", "1.9": "Макс." },
-      paragraphSpacing: { "0": "0", "2": "2", "4": "4", "8": "8", "12": "12", "16": "16", "20": "20", "24": "24" },
-    };
-    return (labels[name] && labels[name][String(value)]) || String(value);
-  }
-
-  function createReaderSegment(name, values) {
-    return values.map(function (value) {
-      return `<button class="reader-quick-option" type="button" data-reader-setting="${escapeHtml(name)}" data-reader-value="${escapeHtml(value)}">${escapeHtml(readerSettingLabel(name, value))}</button>`;
-    }).join("");
-  }
-
-  function ensureReaderQuickSettingsPanel() {
-    let panel = document.querySelector("[data-reader-quick-settings]");
-    if (panel) return panel;
-
-    panel = document.createElement("aside");
-    panel.className = "reader-quick-settings reader-quick-settings-v2";
-    panel.dataset.readerQuickSettings = "true";
-    panel.hidden = true;
-    panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-modal", "false");
-    panel.setAttribute("aria-label", "Настройки чтения");
-    panel.innerHTML = `
-      <div class="reader-quick-settings-card reader-settings-card-v2">
-        <div class="reader-settings-drag" aria-hidden="true"></div>
-        <div class="reader-quick-settings-head reader-settings-head-v2">
-          <div>
-            <div class="reader-quick-title">Настройки</div>
-            <div class="reader-quick-subtitle">Чтение и интерфейс</div>
-          </div>
-          <button class="reader-quick-close reader-settings-close-v2" type="button" data-reader-quick-close aria-label="Закрыть настройки">×</button>
-        </div>
-
-        <div class="reader-settings-tabs-v2" role="tablist" aria-label="Разделы настроек">
-          <button class="reader-settings-tab-v2 is-active" type="button" data-reader-settings-tab="reader" role="tab" aria-selected="true">Читалка</button>
-          <button class="reader-settings-tab-v2" type="button" data-reader-settings-tab="global" role="tab" aria-selected="false">Приложение</button>
-        </div>
-
-        <div class="reader-settings-pane-v2 is-active" data-reader-settings-pane="reader">
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2">
-              <span>Размер текста</span>
-              <strong data-reader-font-value>16</strong>
-            </div>
-            <div class="reader-font-control-v2">
-              <button type="button" data-reader-font-step="-1" aria-label="Уменьшить шрифт">A−</button>
-              <div class="reader-font-track-v2" aria-hidden="true"><span data-reader-font-track></span></div>
-              <button type="button" data-reader-font-step="1" aria-label="Увеличить шрифт">A+</button>
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span hidden>Фон главы</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-4-v2">
-              ${createReaderSegment("readerTheme", ["cream", "white", "sepia", "dark"])}
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Ширина текста</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-3-v2">
-              ${createReaderSegment("readerWidth", ["comfort", "full", "wide"])}
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Воздух между строками</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-4-v2">
-              ${createReaderSegment("lineHeight", ["1.1", "1.2", "1.3", "1.45", "1.6", "1.75", "1.9"])}
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Абзацы</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-4-v2">
-              ${createReaderSegment("paragraphSpacing", ["0", "2", "4", "8", "12", "16", "20", "24"])}
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Выравнивание</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-2-v2">
-              ${createReaderSegment("textAlign", ["left", "justify"])}
-            </div>
-          </section>
-        </div>
-
-        <div class="reader-settings-pane-v2" data-reader-settings-pane="global">
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Тема приложения</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-3-v2">
-              <button class="reader-quick-option" type="button" data-global-setting="siteTheme" data-global-value="light">Светлая</button>
-              <button class="reader-quick-option" type="button" data-global-setting="siteTheme" data-global-value="system">Системная</button>
-              <button class="reader-quick-option" type="button" data-global-setting="siteTheme" data-global-value="dark">Тёмная</button>
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Плотность интерфейса</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-3-v2">
-              <button class="reader-quick-option" type="button" data-global-setting="appSize" data-global-value="compact">Плотно</button>
-              <button class="reader-quick-option" type="button" data-global-setting="appSize" data-global-value="normal">Норма</button>
-              <button class="reader-quick-option" type="button" data-global-setting="appSize" data-global-value="large">Крупно</button>
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Акцент</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-5-v2 reader-accent-grid-v2">
-              <button class="reader-quick-option reader-accent-option" type="button" data-global-setting="accentColor" data-global-value="#ff6a00"><span style="--swatch:#ff6a00"></span>Оранж</button>
-              <button class="reader-quick-option reader-accent-option" type="button" data-global-setting="accentColor" data-global-value="#ec4899"><span style="--swatch:#ec4899"></span>Розовый</button>
-              <button class="reader-quick-option reader-accent-option" type="button" data-global-setting="accentColor" data-global-value="#8b5cf6"><span style="--swatch:#8b5cf6"></span>Фиолет</button>
-              <button class="reader-quick-option reader-accent-option" type="button" data-global-setting="accentColor" data-global-value="#0ea5e9"><span style="--swatch:#0ea5e9"></span>Синий</button>
-              <button class="reader-quick-option reader-accent-option" type="button" data-global-setting="accentColor" data-global-value="#10b981"><span style="--swatch:#10b981"></span>Зелёный</button>
-            </div>
-          </section>
-
-          <section class="reader-settings-section-v2">
-            <div class="reader-settings-section-head-v2"><span>Панель чтения</span></div>
-            <div class="reader-choice-grid-v2 reader-choice-grid-2-v2">
-              <button class="reader-quick-option" type="button" data-reader-controls-choice="show">Показывать</button>
-              <button class="reader-quick-option" type="button" data-reader-controls-choice="hide">Скрывать</button>
-            </div>
-          </section>
-        </div>
-
-        <div class="reader-quick-footer reader-settings-footer-v2">
-          <button type="button" class="reader-quick-reset" data-reader-quick-reset>Сбросить</button>
-        </div>
-      </div>`;
-    document.body.appendChild(panel);
-    return panel;
-  }
-
-    function updateReaderQuickSettingsState() {
-    const panel = document.querySelector("[data-reader-quick-settings]");
-    if (!panel) return;
-    const settings = getSettings();
-    const font = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize), 4, 22);
-    const fontValue = panel.querySelector("[data-reader-font-value]");
-    if (fontValue) fontValue.textContent = String(font);
-    const track = panel.querySelector("[data-reader-font-track]");
-    if (track) track.style.width = `${((font - 4) / 18) * 100}%`;
-
-    panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
-      const name = button.dataset.readerSetting;
-      const currentValue = String(settings[name] || DEFAULT_SETTINGS[name] || "");
-      const active = currentValue === String(button.dataset.readerValue || "");
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-    });
-
-    panel.querySelectorAll("[data-global-setting]").forEach(function (button) {
-      const name = button.dataset.globalSetting;
-      const currentValue = String(settings[name] || DEFAULT_SETTINGS[name] || "").toLowerCase();
-      const targetValue = String(button.dataset.globalValue || "").toLowerCase();
-      const active = currentValue === targetValue;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-    });
-
-    let hidden = false;
-    try { hidden = window.localStorage.getItem(STORAGE_KEYS.readerControlsHidden) === "1"; } catch (error) {}
-    panel.querySelectorAll("[data-reader-controls-choice]").forEach(function (button) {
-      const active = (button.dataset.readerControlsChoice === "hide") === hidden;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
-    });
-  }
-
-    function openReaderQuickSettings(panel, toggle) {
-    panel.hidden = false;
-    document.body.classList.add("reader-quick-settings-open");
-    if (toggle) toggle.setAttribute("aria-expanded", "true");
-    updateReaderQuickSettingsState();
-    const first = panel.querySelector("button");
-    if (first) window.setTimeout(function () { first.focus({ preventScroll: true }); }, 30);
-  }
-
-  function closeReaderQuickSettings(panel, toggle) {
-    panel.hidden = true;
-    document.body.classList.remove("reader-quick-settings-open");
-    if (toggle) toggle.setAttribute("aria-expanded", "false");
-  }
-
-  function initReaderQuickSettings() {
-    const page = document.querySelector("[data-chapter-page]");
-    const controls = document.querySelector("[data-reader-floating-controls]");
-    if (!page || !controls || page.dataset.isLocked === "true") return;
-
-    let toggle = controls.querySelector("[data-reader-settings-toggle]");
-    if (!toggle) {
-      toggle = document.createElement("button");
-      toggle.className = "reader-floating-button reader-settings-toggle";
-      toggle.type = "button";
-      toggle.dataset.readerSettingsToggle = "true";
-      toggle.setAttribute("aria-label", "Настройки чтения");
-      toggle.setAttribute("aria-expanded", "false");
-      toggle.title = "Настройки чтения";
-      toggle.textContent = "Aa";
-      controls.appendChild(toggle);
-    }
-
-    const panel = ensureReaderQuickSettingsPanel();
-    updateReaderQuickSettingsState();
-
-    function selectReaderSettingsTab(name) {
-      panel.querySelectorAll("[data-reader-settings-tab]").forEach(function (tab) {
-        const active = tab.dataset.readerSettingsTab === name;
-        tab.classList.toggle("is-active", active);
-        tab.setAttribute("aria-selected", active ? "true" : "false");
-      });
-      panel.querySelectorAll("[data-reader-settings-pane]").forEach(function (pane) {
-        pane.classList.toggle("is-active", pane.dataset.readerSettingsPane === name);
-      });
-      try { window.localStorage.setItem(STORAGE_KEYS.globalSettingsOpenTab, name); } catch (error) {}
-    }
-
-    try {
-      selectReaderSettingsTab(window.localStorage.getItem(STORAGE_KEYS.globalSettingsOpenTab) || "reader");
-    } catch (error) {
-      selectReaderSettingsTab("reader");
-    }
-
-    toggle.addEventListener("click", function () {
-      if (panel.hidden) {
-        openReaderQuickSettings(panel, toggle);
-      } else {
-        closeReaderQuickSettings(panel, toggle);
-      }
-    });
-
-    panel.querySelector("[data-reader-quick-close]")?.addEventListener("click", function () {
-      closeReaderQuickSettings(panel, toggle);
-      toggle.focus({ preventScroll: true });
-    });
-
-    panel.querySelectorAll("[data-reader-settings-tab]").forEach(function (tab) {
-      tab.addEventListener("click", function () { selectReaderSettingsTab(tab.dataset.readerSettingsTab || "reader"); });
-    });
-
-    panel.querySelectorAll("[data-reader-setting]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        setReaderSetting(button.dataset.readerSetting, button.dataset.readerValue);
-      });
-    });
-
-    panel.querySelectorAll("[data-global-setting]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        const current = getSettings();
-        current[button.dataset.globalSetting] = button.dataset.globalValue;
-        saveSettings(current);
-        applySettings();
-        fillSettingsInputs(getSettings());
-        updateReaderQuickSettingsState();
-      });
-    });
-
-    panel.querySelectorAll("[data-reader-controls-choice]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        const hidden = button.dataset.readerControlsChoice === "hide";
-        document.body.classList.toggle("reader-controls-hidden", hidden);
-        const floating = document.querySelector("[data-reader-floating-controls]");
-        if (floating) floating.setAttribute("aria-hidden", hidden ? "true" : "false");
-        const visibilityToggle = document.querySelector("[data-reader-controls-visibility-toggle]");
-        if (visibilityToggle) {
-          visibilityToggle.setAttribute("aria-pressed", hidden ? "true" : "false");
-          visibilityToggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
-          visibilityToggle.textContent = hidden ? "☰" : "×";
-        }
-        try { window.localStorage.setItem(STORAGE_KEYS.readerControlsHidden, hidden ? "1" : "0"); } catch (error) {}
-        updateReaderQuickSettingsState();
-      });
-    });
-
-    panel.querySelectorAll("[data-reader-font-step]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        const settings = getSettings();
-        const next = clampNumber(Number(settings.fontSize || DEFAULT_SETTINGS.fontSize) + Number(button.dataset.readerFontStep || 0), 4, 22);
-        setReaderSetting("fontSize", next);
-      });
-    });
-
-    panel.querySelector("[data-reader-quick-reset]")?.addEventListener("click", function () {
-      const current = getSettings();
-      ["readerTheme", "readerWidth", "fontSize", "lineHeight", "paragraphSpacing", "textAlign", "siteTheme", "appSize", "accentColor"].forEach(function (key) {
-        current[key] = DEFAULT_SETTINGS[key];
-      });
-      saveSettings(current);
-      applySettings();
-      fillSettingsInputs(getSettings());
-      updateReaderQuickSettingsState();
-    });
-
-    document.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && !panel.hidden) {
-        closeReaderQuickSettings(panel, toggle);
-        toggle.focus({ preventScroll: true });
-      }
-    });
-
-    document.addEventListener("click", function (event) {
-      if (panel.hidden) return;
-      if (panel.contains(event.target) || toggle.contains(event.target)) return;
-      closeReaderQuickSettings(panel, toggle);
-    }, true);
-  }
-
     function initReaderControlsVisibilityToggle() {
     const page = document.querySelector("[data-chapter-page]");
     const controls = document.querySelector("[data-reader-floating-controls]");
@@ -2662,150 +2262,6 @@
     overlay.querySelector("[data-spoiler-confirm]").onclick = function () { const remember = overlay.querySelector("[data-spoiler-remember]"); overlay.hidden = true; onConfirm(remember && remember.checked); };
   }
 
-  function createSettingsUi() {
-    const fab = document.createElement("button");
-    fab.className = "settings-fab settings-fab-v2";
-    fab.type = "button";
-    fab.dataset.settingsFab = "true";
-    fab.setAttribute("aria-label", "Глобальные настройки");
-    fab.textContent = "⚙";
-
-    const overlay = document.createElement("div");
-    overlay.className = "settings-overlay settings-overlay-v2";
-    overlay.hidden = true;
-    overlay.dataset.settingsOverlay = "true";
-    overlay.innerHTML = `
-      <div class="settings-modal settings-modal-v2" role="dialog" aria-modal="true" aria-label="Глобальные настройки">
-        <div class="settings-header settings-header-v2">
-          <div>
-            <h2>Настройки</h2>
-            <p>Единые настройки приложения и читалки</p>
-          </div>
-          <button class="settings-close settings-close-v2" type="button" data-settings-close aria-label="Закрыть">×</button>
-        </div>
-
-        <div class="settings-tabs settings-tabs-v2">
-          <button class="settings-tab active" type="button" data-settings-tab="reader">Читалка</button>
-          <button class="settings-tab" type="button" data-settings-tab="site">Приложение</button>
-          <button class="settings-tab" type="button" data-settings-tab="access">Доступ</button>
-          <button class="settings-tab" type="button" data-settings-tab="about">О проекте</button>
-        </div>
-
-        <section class="settings-section settings-section-v2 active" data-settings-section="reader">
-          <div class="global-settings-grid-v2">
-            <label class="settings-field settings-field-v2"><span>Фон главы</span><select data-setting="readerTheme"><option value="cream">Кремовая</option><option value="white">Белая</option><option value="sepia">Сепия</option><option value="dark">Тёмная</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Ширина</span><select data-setting="readerWidth"><option value="comfort">Комфорт</option><option value="full">Шире</option><option value="wide">Максимум</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Размер</span><select data-setting="fontSize"><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Интервал</span><select data-setting="lineHeight"><option value="1.1">Мини</option><option value="1.2">Очень плотно</option><option value="1.3">Плотно</option><option value="1.45">Норма</option><option value="1.6">Свободно</option><option value="1.75">Воздух</option><option value="1.9">Макс.</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Абзацы</span><select data-setting="paragraphSpacing"><option value="0">0</option><option value="2">2</option><option value="4">4</option><option value="8">8</option><option value="12">12</option><option value="16">16</option><option value="20">20</option><option value="24">24</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Край</span><select data-setting="textAlign"><option value="left">Слева</option><option value="justify">По ширине</option></select></label>
-          </div>
-        </section>
-
-        <section class="settings-section settings-section-v2" data-settings-section="site">
-          <div class="global-settings-grid-v2">
-            <label class="settings-field settings-field-v2"><span>Тема приложения</span><select data-setting="siteTheme"><option value="light">Светлая</option><option value="system">Как в Telegram/системе</option><option value="dark">Тёмная</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Плотность</span><select data-setting="appSize"><option value="compact">Плотно</option><option value="normal">Норма</option><option value="large">Крупно</option></select></label>
-            <label class="settings-field settings-field-v2"><span>Акцент</span><span class="settings-color-row settings-color-row-v2"><select data-setting="accentColor"><option value="#ff6a00">Апельсин</option><option value="#ec4899">Розовый</option><option value="#8b5cf6">Фиолетовый</option><option value="#0ea5e9">Голубой</option><option value="#10b981">Зелёный</option></select><input type="color" data-setting-color value="#ff6a00"></span></label>
-          </div>
-          <p class="settings-hint-v2">Эти настройки применяются ко всей библиотеке, оглавлению и читалке</p>
-        </section>
-
-        <section class="settings-section settings-section-v2" data-settings-section="access"><div class="access-debug-box"><div class="access-debug-toolbar"><div><h3>Проверка доступа</h3><p>Telegram, группы, подписки Tribute и купленные новеллы</p></div><button class="settings-access-refresh" type="button" data-access-debug-refresh>Обновить</button></div><div class="access-debug-content" data-access-debug-content><p>Откройте вкладку, чтобы проверить права</p></div></div></section>
-
-        <section class="settings-section settings-section-v2" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section>
-
-        <div class="settings-footer settings-footer-v2"><button class="settings-reset" type="button" data-settings-reset>Сбросить всё</button></div>
-      </div>`;
-    document.body.appendChild(fab);
-    document.body.appendChild(overlay);
-  }
-
-    function bindSettingsUi() {
-    const settings = getSettings();
-    const fab = document.querySelector("[data-settings-fab]");
-    const overlay = document.querySelector("[data-settings-overlay]");
-    if (!fab || !overlay) return;
-    fillSettingsInputs(settings);
-    fab.addEventListener("click", function () { overlay.hidden = false; });
-    overlay.addEventListener("click", function (event) { if (event.target === overlay) overlay.hidden = true; });
-    overlay.querySelector("[data-settings-close]")?.addEventListener("click", function () { overlay.hidden = true; });
-    overlay.querySelectorAll("[data-settings-tab]").forEach(function (tab) { tab.addEventListener("click", function () { const name = tab.dataset.settingsTab; overlay.querySelectorAll("[data-settings-tab]").forEach((item) => item.classList.toggle("active", item === tab)); overlay.querySelectorAll("[data-settings-section]").forEach((section) => section.classList.toggle("active", section.dataset.settingsSection === name)); if (name === "access") loadAccessDebug(false); }); });
-    overlay.querySelectorAll("[data-setting]").forEach(function (input) { input.addEventListener("change", function () { const current = getSettings(); current[input.dataset.setting] = input.value; saveSettings(current); applySettings(); updateReaderQuickSettingsState(); }); });
-    overlay.querySelectorAll("[data-setting-checkbox]").forEach(function (input) { input.addEventListener("change", function () { const current = getSettings(); current[input.dataset.settingCheckbox] = input.checked; saveSettings(current); applySettings(); }); });
-    const colorInput = overlay.querySelector("[data-setting-color]");
-    if (colorInput) colorInput.addEventListener("input", function () { const current = getSettings(); current.accentColor = colorInput.value; saveSettings(current); applySettings(); updateReaderQuickSettingsState(); });
-    overlay.querySelector("[data-settings-reset]")?.addEventListener("click", function () { saveSettings({ ...DEFAULT_SETTINGS }); fillSettingsInputs(getSettings()); applySettings(); updateReaderQuickSettingsState(); });
-    overlay.querySelector("[data-access-debug-refresh]")?.addEventListener("click", function () { loadAccessDebug(true); });
-    const aboutFoxWrap = overlay.querySelector("[data-about-fox-wrap]");
-    if (aboutFoxWrap) {
-      const foxUrl = getFoxUrl("fox_sitting_front") || getFoxUrl("fox_pic") || getFoxUrl("fox_peek") || getFoxUrl("fox_side");
-      aboutFoxWrap.innerHTML = foxUrl ? `<img class="about-fox" src="${escapeHtml(foxUrl)}" alt="Лисичка" data-fox>` : "";
-    }
-  }
-
-  async function loadAccessDebug(refresh) {
-    const container = document.querySelector("[data-access-debug-content]");
-    if (!container) return;
-    container.innerHTML = '<div class="access-debug-loading">Проверяем права…</div>';
-    try {
-      const response = await fetch(`/api/auth/debug?refresh=${refresh ? "true" : "false"}`, { credentials: "same-origin" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || "Не удалось проверить доступ");
-      renderAccessDebug(container, data);
-    } catch (error) {
-      container.innerHTML = `<div class="access-debug-error">${escapeHtml(error.message || error)}</div>`;
-    }
-  }
-
-  function renderAccessDebug(container, data) {
-    const telegram = data.telegram || {};
-    const rights = data.rights || {};
-    const groups = data.groups || {};
-    const subscriptions = Array.isArray(data.tribute_subscriptions) ? data.tribute_subscriptions : [];
-    const entitlements = Array.isArray(data.book_entitlements) ? data.book_entitlements : [];
-    const config = data.configuration || {};
-    const roleLabels = { guest: "Гость", traveler: "Странствующий читатель", keeper: "Хранитель свитков" };
-    const groupRow = function (label, group) {
-      group = group || {};
-      const state = group.active ? "Да" : "Нет";
-      const cls = group.active ? "is-ok" : (group.ok ? "is-no" : "is-error");
-      return `<div class="access-debug-row"><span>${escapeHtml(label)}</span><strong class="${cls}">${escapeHtml(state)}</strong><small>ID: ${escapeHtml(group.chat_id || "не настроен")} · status: ${escapeHtml(group.status || "—")}${group.description ? ` · ${escapeHtml(group.description)}` : ""}</small></div>`;
-    };
-    const subscriptionsHtml = subscriptions.length
-      ? subscriptions.map((item) => `<li>${escapeHtml(item.access_role || "—")} · план ${escapeHtml(item.external_plan_id || "—")} · до ${escapeHtml(item.expires_at || "—")} · ${escapeHtml(item.status || "—")}</li>`).join("")
-      : "<li>Активных подписок Tribute нет.</li>";
-    const entitlementsHtml = entitlements.length
-      ? entitlements.map((item) => `<li>NovelID ${escapeHtml(item.novel_id || "—")} · ${escapeHtml(item.access_type || "—")} · источник ${escapeHtml(item.source_type || "—")}</li>`).join("")
-      : "<li>Купленных или выданных книг нет.</li>";
-    container.innerHTML = `
-      <div class="access-debug-summary">
-        <div><span>Telegram ID</span><strong>${escapeHtml(telegram.user_id || "не получен")}</strong></div>
-        <div><span>Пользователь</span><strong>${escapeHtml(telegram.first_name || "—")}${telegram.username ? ` · @${escapeHtml(telegram.username)}` : ""}</strong></div>
-        <div><span>Итоговые права</span><strong>${escapeHtml(roleLabels[rights.role] || rights.role || "Гость")}</strong></div>
-      </div>
-      <h4>Что разрешено</h4>
-      <div class="access-debug-row"><span>Обычные книги</span><strong class="is-ok">Видит</strong><small>Чтение только после FreeReleaseDate.</small></div>
-      <div class="access-debug-row"><span>Книги с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Видит" : "Не видит"}</strong><small>Странствующий получает только видимость книги, не премиальные главы.</small></div>
-      <div class="access-debug-row"><span>Премиальные релизы</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>Открываются только Хранителю по PremiumReleaseDate.</small></div>
-      <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
-      <h4>Telegram-группы</h4>
-      ${groupRow("🌱 Странствующий", groups.traveler)}
-      ${groupRow("📜 Хранитель", groups.keeper)}
-      <h4>Подписки Tribute</h4><ul>${subscriptionsHtml}</ul>
-      <h4>Книжные доступы</h4><ul>${entitlementsHtml}</ul>
-      <details class="access-debug-config"><summary>Техническая конфигурация</summary><pre>${escapeHtml(JSON.stringify(config, null, 2))}</pre></details>
-      <p class="access-debug-time">Проверено: ${escapeHtml(data.checked_at || "—")}</p>`;
-  }
-
-  function fillSettingsInputs(settings) {
-    document.querySelectorAll("[data-setting]").forEach(function (input) { if (Object.prototype.hasOwnProperty.call(settings, input.dataset.setting)) input.value = settings[input.dataset.setting]; });
-    document.querySelectorAll("[data-setting-checkbox]").forEach(function (input) { if (Object.prototype.hasOwnProperty.call(settings, input.dataset.settingCheckbox)) input.checked = Boolean(settings[input.dataset.settingCheckbox]); });
-    const colorInput = document.querySelector("[data-setting-color]");
-    if (colorInput) colorInput.value = settings.accentColor || DEFAULT_SETTINGS.accentColor;
-  }
-
-  function getFoxUrl(name) { return (window.ZEFIRKI_FOX && window.ZEFIRKI_FOX[name]) || ""; }
   function statusWeight(status) { return { completed: 1, in_progress: 2, paused: 3 }[status] || 4; }
   function clampNumber(value, min, max) { return Number.isNaN(value) ? min : Math.min(max, Math.max(min, value)); }
   function cssEscape(value) { return window.CSS && typeof window.CSS.escape === "function" ? window.CSS.escape(value) : String(value).replace(/"/g, '\\"'); }
@@ -3090,35 +2546,16 @@
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
   }
-  function interceptOldReaderSettings() {
-    document.addEventListener("click", function (event) {
-      const oldToggle = event.target.closest("[data-reader-settings-toggle]");
-      if (!oldToggle) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === "function") event.stopImmediatePropagation();
-      openSheet("reader");
-    }, true);
-  }
-  function cleanupOldUi() {
-    document.querySelectorAll(".settings-fab, .settings-fab-v2, .settings-overlay, .settings-overlay-v2, .reader-quick-settings, .reader-quick-settings-v2").forEach(function (node) {
-      if (!node.classList.contains("zb-settings-overlay")) {
-        node.setAttribute("aria-hidden", "true");
-      }
-    });
-  }
   function initCleanSettings() {
     applyCleanSettings();
     ensureSheet();
     ensureButtons();
-    cleanupOldUi();
-    interceptOldReaderSettings();
     setControlsChoice(getControlsChoice());
     [0, 150, 500, 1200].forEach(function (delay) {
-      window.setTimeout(function () { applyCleanSettings(); ensureButtons(); cleanupOldUi(); updateSheetState(); }, delay);
+      window.setTimeout(function () { applyCleanSettings(); ensureButtons(); updateSheetState(); }, delay);
     });
     try {
-      const observer = new MutationObserver(function () { cleanupOldUi(); ensureButtons(); });
+      const observer = new MutationObserver(function () { ensureButtons(); });
       observer.observe(document.body, { childList: true, subtree: true });
     } catch (error) {}
   }
