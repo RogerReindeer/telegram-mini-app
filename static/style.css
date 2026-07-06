@@ -7519,14 +7519,28 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
 
 /* Плавающая кнопка «Начать/Продолжить читать» на странице новеллы: следует за
    пользователем на любой ширине экрана, а не только на мобильных.
-   Специфичность .page-novel .novel-read-action нужна, чтобы перебить
-   более раннее правило, которое сбрасывает position в static. */
+   position: sticky тут не работает — кнопка стоит у верха страницы, а sticky
+   "подхватывает" элемент только когда он мог бы уйти за нужный край при
+   скролле в соответствующую сторону (как .chapter-navigation внизу главы).
+   Нужен настоящий position: fixed, закреплённый к низу экрана. Специфичность
+   .page-novel .novel-read-action нужна, чтобы перебить более раннее правило,
+   которое сбрасывает position в static. */
 .page-novel .novel-read-action,
 .page-novel .novel-read-action-v2,
 .page-novel .novel-read-action-priority {
-  position: sticky !important;
+  position: fixed !important;
+  left: 50% !important;
+  right: auto !important;
   bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+  transform: translateX(-50%) !important;
+  width: min(calc(100vw - 48px), 720px) !important;
+  max-width: calc(100vw - 48px) !important;
   z-index: 950 !important;
+}
+
+.page-novel .page,
+.page-novel .novel-redesign-layout {
+  padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
 }
 
 .novel-read-action,
