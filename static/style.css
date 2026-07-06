@@ -6994,7 +6994,7 @@ body.page-library {
   overflow-wrap: anywhere !important;
 }
 .library-book-subtitle { min-width: 0 !important; max-width: 100% !important; padding: 0 !important; margin: -2px 0 0 !important; color: var(--app-muted) !important; font-size: 11px !important; line-height: 1.25 !important; display: -webkit-box !important; -webkit-line-clamp: 1 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; }
-.library-book-menu { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; margin: -6px -6px 0 0 !important; border: 0 !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.72) !important; color: var(--app-text) !important; font-size: 22px !important; box-shadow: none !important; }
+.library-book-menu { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; margin: 0 -6px 0 0 !important; border: 0 !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.72) !important; color: var(--app-text) !important; font-size: 22px !important; box-shadow: none !important; }
 .library-card-status-row,
 .library-card-access-row,
 .library-card-tags,
@@ -7515,6 +7515,28 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   background: var(--accent, #ff6a00) !important;
   color: #fff !important;
   border-color: transparent !important;
+}
+
+/* Плавающая кнопка «Начать/Продолжить читать» на странице новеллы: следует за
+   пользователем на любой ширине экрана, а не только на мобильных. */
+.novel-read-action {
+  position: sticky !important;
+  bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+  z-index: 950 !important;
+}
+
+.novel-read-action,
+.chapter-navigation,
+.zb-reader-settings-button {
+  transition: opacity .2s ease, transform .2s ease, visibility .2s ease !important;
+}
+
+.reader-controls-hidden .novel-read-action,
+.reader-controls-hidden .chapter-navigation {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: translateY(14px) scale(.97) !important;
 }
 
 @media (max-width: 520px) {
@@ -9396,6 +9418,13 @@ body[data-resolved-theme="dark"] .zb-reader-preview {
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent, #ff6a00) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 24%, transparent);
+}
+.chapter-infinite-status:empty {
+  display: none !important;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-height: 0;
 }
 .chapter-loading-stop,
 .chapter-loading-done {

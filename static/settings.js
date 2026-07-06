@@ -979,6 +979,7 @@
 
   function positionCardMenu(menu, button) {
     const viewportGap = 12;
+    const gapToButton = 8;
     const buttonRect = button.getBoundingClientRect();
     const width = Math.min(300, Math.max(236, window.innerWidth - viewportGap * 2));
 
@@ -989,18 +990,24 @@
     menu.style.setProperty("bottom", "auto", "important");
     menu.style.visibility = "hidden";
 
-    const menuHeight = Math.min(menu.scrollHeight, window.innerHeight - viewportGap * 2);
     let left = buttonRect.right - width;
     left = Math.max(viewportGap, Math.min(left, window.innerWidth - width - viewportGap));
 
-    let top = buttonRect.bottom + 8;
-    if (top + menuHeight > window.innerHeight - viewportGap) {
-      top = Math.max(viewportGap, buttonRect.top - menuHeight - 8);
-    }
+    // Открываем меню на той стороне кнопки (сверху/снизу), где реально больше
+    // свободного места, и никогда не даём высоте меню вылезти за эту сторону —
+    // иначе длинное меню "отрывается" от кнопки, когда та стоит у самого края экрана.
+    const spaceBelow = window.innerHeight - buttonRect.bottom - gapToButton - viewportGap;
+    const spaceAbove = buttonRect.top - gapToButton - viewportGap;
+    const openBelow = spaceBelow >= Math.min(menu.scrollHeight, spaceAbove) || spaceBelow >= spaceAbove;
+
+    const availableHeight = Math.max(160, openBelow ? spaceBelow : spaceAbove);
+    const top = openBelow
+      ? buttonRect.bottom + gapToButton
+      : Math.max(viewportGap, buttonRect.top - Math.min(menu.scrollHeight, availableHeight) - gapToButton);
 
     menu.style.setProperty("left", `${Math.round(left)}px`, "important");
     menu.style.setProperty("top", `${Math.round(top)}px`, "important");
-    menu.style.setProperty("max-height", `${Math.max(160, window.innerHeight - viewportGap * 2)}px`);
+    menu.style.setProperty("max-height", `${Math.round(availableHeight)}px`);
     menu.style.visibility = "visible";
   }
 
