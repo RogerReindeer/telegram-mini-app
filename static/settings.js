@@ -2044,38 +2044,15 @@
       observer.observe(sentinel);
     }
 
-    let lastY = window.scrollY;
-    let ticking = false;
-    const threshold = 6;
-    const topGuard = 32;
-
-    function handleScroll() {
-      ticking = false;
-      const currentY = window.scrollY;
-      const delta = currentY - lastY;
-      if (Math.abs(delta) < threshold) return;
-      lastY = currentY;
-      if (currentY <= topGuard || delta < 0) {
-        applyReaderControlsHidden(false);
-      } else {
-        applyReaderControlsHidden(true);
-      }
-    }
-    function requestScrollUpdate() {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(handleScroll);
-    }
-    window.addEventListener("scroll", requestScrollUpdate, { passive: true });
-
-    // Тап по пустому месту (не по ссылке/кнопке/лисичке) прячет плавающие
-    // кнопки — как в обычной читалке, где интерфейс убирается при чтении.
+    // Тап по пустому месту (не по ссылке/кнопке/лисичке) переключает
+    // видимость плавающих кнопок — один тап прячет, следующий возвращает.
+    // Скролл сам по себе больше ничего не прячет и не показывает.
     document.addEventListener("click", function (event) {
       const interactive = event.target.closest(
         "a, button, input, select, textarea, [role='button'], [data-card-menu], [data-fox]"
       );
       if (interactive) return;
-      applyReaderControlsHidden(true);
+      applyReaderControlsHidden(!document.body.classList.contains("reader-controls-hidden"));
     });
   }
 
