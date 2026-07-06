@@ -688,8 +688,9 @@ def prepare_library_novels_for_access(
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
         profile = viewer_access_profile(viewer, novel_id)
-        if not can_view_novel_for_profile(novel, profile):
-            continue
+        # Видимость новеллы в библиотеке не зависит от роли — 🎁-книги видят
+        # все пользователи, разрешённые к показу через MiniAppVisible в CRM.
+        # Роль ограничивает только фактическое чтение глав (см. access.py).
 
         novel_chapters = chapters_by_novel.get(novel_id_text, [])
         prepared = prepare_novel_for_template(novel)
