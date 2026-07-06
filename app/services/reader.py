@@ -255,7 +255,16 @@ def chapter_code_value(chapter: dict) -> str:
 
 def chapter_unit_key(chapter: dict) -> str:
     # Every ChapterNo is a separate MiniApp reading unit, including parts.
+    # Used for navigation (index/prev/next) — each part is its own page.
     return chapter_code_value(chapter) or f"{clean_value(chapter.get('novel_id'))}:{clean_value(chapter.get('chapter_no'))}"
+
+def chapter_source_unit_key(chapter: dict) -> str:
+    """Group split parts (PartNo 1, 2, ...) of the same SourceChapterNo as one
+    real book chapter, so counts/stats match the actual chapter numbering
+    (e.g. two parts of chapter 63 count as one, not two)."""
+    novel_id = clean_value(chapter.get("novel_id"))
+    source_no = clean_value(chapter.get("source_chapter_no")) or clean_value(chapter.get("chapter_no"))
+    return f"{novel_id}:{source_no}"
 
 def chapter_has_readable_url(chapter: dict) -> bool:
     return bool(clean_value(chapter.get("telegraph_url")) or clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_premium_url")))
@@ -264,10 +273,10 @@ def chapter_is_available(chapter: dict, viewer_role: str = "guest") -> bool:
     return bool(chapter_content_url_for_role(chapter, viewer_role))
 
 def count_chapter_units_for_card(chapters: list[dict]) -> int:
-    return len({chapter_unit_key(chapter) for chapter in chapters})
+    return len({chapter_source_unit_key(chapter) for chapter in chapters})
 
 def count_available_chapter_units(chapters: list[dict], viewer_role: str = "guest") -> int:
-    return len({chapter_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter, viewer_role)})
+    return len({chapter_source_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter, viewer_role)})
 
 def choose_chapter_url(chapter: dict, viewer_role: str = "guest") -> str:
     return chapter_content_url_for_role(chapter, viewer_role)
@@ -580,7 +589,7 @@ def count_available_chapter_units_for_access(
     chapters: list[dict], novel: dict, profile: dict[str, Any]
 ) -> int:
     return len({
-        chapter_unit_key(chapter)
+        chapter_source_unit_key(chapter)
         for chapter in chapters
         if chapter_content_url_for_access(chapter, novel, profile)
     })
