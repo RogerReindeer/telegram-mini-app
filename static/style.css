@@ -7517,17 +7517,17 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   border-color: transparent !important;
 }
 
-/* Плавающая кнопка «Начать/Продолжить читать» на странице новеллы: следует за
-   пользователем на любой ширине экрана, а не только на мобильных.
-   position: sticky тут не работает — кнопка стоит у верха страницы, а sticky
+/* Плавающая кнопка «Начать/Продолжить читать» на странице новеллы.
+   position: sticky тут не подходит — кнопка стоит у верха страницы, а sticky
    "подхватывает" элемент только когда он мог бы уйти за нужный край при
    скролле в соответствующую сторону (как .chapter-navigation внизу главы).
-   Нужен настоящий position: fixed, закреплённый к низу экрана. Специфичность
-   .page-novel .novel-read-action нужна, чтобы перебить более раннее правило,
-   которое сбрасывает position в static. */
-.page-novel .novel-read-action,
-.page-novel .novel-read-action-v2,
-.page-novel .novel-read-action-priority {
+   Постоянный position: fixed тоже не годится — тогда кнопка перекрывает
+   "О новелле" сразу при загрузке страницы. Поэтому кнопка "плавающей"
+   становится только после того, как её исходное место в потоке ушло из
+   вида (JS переключает .is-floating через IntersectionObserver). */
+.page-novel .novel-read-action.is-floating,
+.page-novel .novel-read-action-v2.is-floating,
+.page-novel .novel-read-action-priority.is-floating {
   position: fixed !important;
   left: 50% !important;
   right: auto !important;
@@ -7538,18 +7538,13 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   z-index: 950 !important;
 }
 
-.page-novel .page,
-.page-novel .novel-redesign-layout {
-  padding-bottom: calc(92px + env(safe-area-inset-bottom)) !important;
-}
-
 .novel-read-action,
 .chapter-navigation,
 .zb-reader-settings-button {
   transition: opacity .2s ease, transform .2s ease, visibility .2s ease !important;
 }
 
-.reader-controls-hidden .novel-read-action,
+.reader-controls-hidden .novel-read-action.is-floating,
 .reader-controls-hidden .chapter-navigation {
   opacity: 0 !important;
   pointer-events: none !important;

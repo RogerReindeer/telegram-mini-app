@@ -2020,6 +2020,20 @@
     const chapterPage = document.querySelector("[data-chapter-page]");
     if (chapterPage && chapterPage.dataset.isLocked === "true") return;
 
+    // Кнопка "Начать/Продолжить читать" становится плавающей только после
+    // того, как её обычное место в потоке страницы уходит за верх экрана —
+    // иначе fixed-версия перекрывала бы "О новелле" сразу при загрузке.
+    if (novelAction && typeof IntersectionObserver === "function") {
+      const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+          novelAction.classList.toggle("is-floating", scrolledPast);
+          if (!scrolledPast) applyReaderControlsHidden(false);
+        });
+      }, { threshold: 0 });
+      observer.observe(novelAction);
+    }
+
     let lastY = window.scrollY;
     let ticking = false;
     const threshold = 6;
