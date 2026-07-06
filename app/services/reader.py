@@ -652,20 +652,19 @@ def get_chapter_index_info_for_access(
         for chapter in sort_chapters(chapters)
         if chapter_content_url_for_access(chapter, novel, profile)
     ]
-    units = []
-    seen_units = set()
+    # Части одной главы (PartNo) считаются одной позицией в "Глава N из M":
+    # обе части дают одно и то же N, а M — число реальных глав, а не строк.
+    seen_units: set[str] = set()
+    total_units = 0
+    current_index = 0
     for chapter in available:
-        key = chapter_unit_key(chapter)
+        key = chapter_source_unit_key(chapter)
         if key not in seen_units:
             seen_units.add(key)
-            units.append({
-                "unit_key": key,
-                "chapter_id": chapter.get("chapter_id"),
-                "chapter_title": chapter.get("title"),
-            })
-    current_index = next((i for i, unit in enumerate(units, 1)
-                          if clean_value(unit.get("chapter_id")) == clean_value(current_chapter_id)), 0)
-    return {"chapter_index": current_index, "available_chapters": len(units)}
+            total_units += 1
+        if current_index == 0 and clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id):
+            current_index = total_units
+    return {"chapter_index": current_index, "available_chapters": total_units}
 
 def get_neighbor_chapters_for_access(
     chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
