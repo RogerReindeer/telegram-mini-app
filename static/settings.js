@@ -33,6 +33,7 @@
       initChapterScrollProgress,
       initReaderFloatingControls,
       initReaderControlsVisibilityToggle,
+      initFloatingControlsAutoHide,
       initChapterRetry,
       initNovelReadButton,
       initNovelReadingProgress,
@@ -1971,6 +1972,18 @@
   }
 
 
+  function applyReaderControlsHidden(hidden) {
+    document.body.classList.toggle("reader-controls-hidden", hidden);
+    const controls = document.querySelector("[data-reader-floating-controls]");
+    if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false");
+    const toggle = document.querySelector("[data-reader-controls-visibility-toggle]");
+    if (toggle) {
+      toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
+      toggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
+      toggle.textContent = hidden ? "☰" : "×";
+    }
+  }
+
     function initReaderControlsVisibilityToggle() {
     const page = document.querySelector("[data-chapter-page]");
     const controls = document.querySelector("[data-reader-floating-controls]");
@@ -1991,26 +2004,54 @@
 
     controls.id = controls.id || "readerFloatingControls";
 
-    const apply = function (hidden) {
-      document.body.classList.toggle("reader-controls-hidden", hidden);
-      controls.setAttribute("aria-hidden", hidden ? "true" : "false");
-      toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
-      toggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
-      toggle.textContent = hidden ? "☰" : "×";
-      try {
-        window.localStorage.setItem(STORAGE_KEYS.readerControlsHidden, hidden ? "1" : "0");
-      } catch (error) {}
-    };
-
-    let hidden = false;
-    try {
-      hidden = window.localStorage.getItem(STORAGE_KEYS.readerControlsHidden) === "1";
-    } catch (error) {}
-
-    apply(hidden);
+    // Панель всегда стартует видимой — состояние скрытия управляется скроллом
+    // и тапами в течение сессии, а не запоминается между перезагрузками.
+    applyReaderControlsHidden(false);
 
     toggle.addEventListener("click", function () {
-      apply(!document.body.classList.contains("reader-controls-hidden"));
+      applyReaderControlsHidden(!document.body.classList.contains("reader-controls-hidden"));
+    });
+  }
+
+  function initFloatingControlsAutoHide() {
+    const novelAction = document.querySelector(".novel-read-action");
+    const chapterNav = document.querySelector(".chapter-navigation");
+    if (!novelAction && !chapterNav) return;
+    const chapterPage = document.querySelector("[data-chapter-page]");
+    if (chapterPage && chapterPage.dataset.isLocked === "true") return;
+
+    let lastY = window.scrollY;
+    let ticking = false;
+    const threshold = 6;
+    const topGuard = 32;
+
+    function handleScroll() {
+      ticking = false;
+      const currentY = window.scrollY;
+      const delta = currentY - lastY;
+      if (Math.abs(delta) < threshold) return;
+      lastY = currentY;
+      if (currentY <= topGuard || delta < 0) {
+        applyReaderControlsHidden(false);
+      } else {
+        applyReaderControlsHidden(true);
+      }
+    }
+    function requestScrollUpdate() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(handleScroll);
+    }
+    window.addEventListener("scroll", requestScrollUpdate, { passive: true });
+
+    // Тап по пустому месту (не по ссылке/кнопке/лисичке) прячет плавающие
+    // кнопки — как в обычной читалке, где интерфейс убирается при чтении.
+    document.addEventListener("click", function (event) {
+      const interactive = event.target.closest(
+        "a, button, input, select, textarea, [role='button'], [data-card-menu], [data-fox]"
+      );
+      if (interactive) return;
+      applyReaderControlsHidden(true);
     });
   }
 
