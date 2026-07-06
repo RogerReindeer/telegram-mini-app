@@ -4630,7 +4630,7 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
 
 .chapter-list-end {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   padding: 14px 0 2px;
 }
 
@@ -7371,7 +7371,7 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   order: 9999 !important;
   width: 100% !important;
   display: flex !important;
-  justify-content: center !important;
+  justify-content: flex-end !important;
   margin-top: 8px !important;
 }
 .chapter-list-end:first-child {
