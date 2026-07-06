@@ -8047,6 +8047,15 @@ body[data-site-theme="dark"] .library-filter-chips button {
   box-shadow: none !important;
 }
 
+/* Заголовок и подзаголовок баннера "Новая глава" задают собственный цвет
+   текста (не наследуют его), поэтому тёмная тема их не подхватывала. */
+body[data-site-theme="dark"] .library-update-title {
+  color: var(--zb-dark-text) !important;
+}
+body[data-site-theme="dark"] .library-update-subtitle {
+  color: var(--zb-dark-muted) !important;
+}
+
 body[data-site-theme="dark"] .library-search-input-wrap input,
 body[data-site-theme="dark"] .library-search-input-wrap button,
 body[data-site-theme="dark"] .library-filter-header h2,
