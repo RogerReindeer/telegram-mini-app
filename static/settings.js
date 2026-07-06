@@ -1213,12 +1213,13 @@
       favorite: document.querySelector('[data-section-list="favorite"]'),
       reading: document.querySelector('[data-section-list="reading"]'),
       start: document.querySelector('[data-section-list="start"]'),
+      subscription: document.querySelector('[data-section-list="subscription"]'),
       waiting: document.querySelector('[data-section-list="waiting"]'),
       finished: document.querySelector('[data-section-list="finished"]'),
       hidden: document.querySelector('[data-section-list="hidden"]'),
     };
 
-    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished || !lists.hidden) {
+    if (!lists.favorite || !lists.reading || !lists.start || !lists.subscription || !lists.waiting || !lists.finished || !lists.hidden) {
       return;
     }
 
@@ -1240,6 +1241,7 @@
       favorite: [],
       reading: [],
       start: [],
+      subscription: [],
       waiting: [],
       finished: [],
       hidden: [],
@@ -1275,6 +1277,9 @@
         buckets.reading.push(card);
       } else if (state === "start") {
         buckets.start.push(card);
+      } else if ((state === "locked" || state === "soon") && card.dataset.requiredRole === "traveler") {
+        // 🎁-новеллы без доступа читателя — это не "скоро выйдет", а "нужна подписка".
+        buckets.subscription.push(card);
       } else if (state === "locked" || state === "soon") {
         buckets.waiting.push(card);
       } else {
@@ -1513,8 +1518,15 @@
         continue;
       }
 
+      if (chip === "subscription") {
+        if (!((state === "locked" || state === "soon") && card.dataset.requiredRole === "traveler")) {
+          return false;
+        }
+        continue;
+      }
+
       if (chip === "waiting") {
-        if (!(state === "locked" || state === "soon")) {
+        if (!((state === "locked" || state === "soon") && card.dataset.requiredRole !== "traveler")) {
           return false;
         }
         continue;
@@ -1637,6 +1649,7 @@
       '[data-section-list="favorite"] [data-library-novel-card], ' +
       '[data-section-list="reading"] [data-library-novel-card], ' +
       '[data-section-list="start"] [data-library-novel-card], ' +
+      '[data-section-list="subscription"] [data-library-novel-card], ' +
       '[data-section-list="waiting"] [data-library-novel-card], ' +
       '[data-section-list="finished"] [data-library-novel-card], ' +
       '[data-section-list="hidden"] [data-library-novel-card]'
