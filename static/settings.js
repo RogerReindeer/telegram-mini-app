@@ -2023,7 +2023,17 @@
     // Кнопка "Начать/Продолжить читать" становится плавающей только после
     // того, как её обычное место в потоке страницы уходит за верх экрана —
     // иначе fixed-версия перекрывала бы "О новелле" сразу при загрузке.
+    // Важно: наблюдаем не за самой кнопкой, а за неподвижным маркером рядом
+    // с ней. Если наблюдать за кнопкой, то после переключения в position:fixed
+    // она сама оказывается в зоне видимости (внизу экрана), наблюдатель тут же
+    // снимает is-floating, кнопка возвращается в поток, снова уходит из вида —
+    // и так по кругу (моргание/дублирование).
     if (novelAction && typeof IntersectionObserver === "function") {
+      const sentinel = document.createElement("span");
+      sentinel.setAttribute("aria-hidden", "true");
+      sentinel.style.cssText = "display:block;width:1px;height:1px;";
+      novelAction.parentNode.insertBefore(sentinel, novelAction);
+
       const observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
           const scrolledPast = !entry.isIntersecting && entry.boundingClientRect.top < 0;
@@ -2031,7 +2041,7 @@
           if (!scrolledPast) applyReaderControlsHidden(false);
         });
       }, { threshold: 0 });
-      observer.observe(novelAction);
+      observer.observe(sentinel);
     }
 
     let lastY = window.scrollY;
