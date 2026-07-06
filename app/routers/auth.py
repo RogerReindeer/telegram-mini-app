@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response
 
-from ..services.auth import authenticate_telegram_viewer, make_session_token, viewer_access_profile, viewer_from_request
+from ..services.auth import AUTH_COOKIE_NAME, authenticate_telegram_viewer, make_session_token, viewer_access_profile, viewer_from_request
 
-SESSION_COOKIE = "zefirki_session"
+SESSION_COOKIE = AUTH_COOKIE_NAME
 
 
 def create_auth_router() -> APIRouter:
