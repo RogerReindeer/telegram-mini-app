@@ -7180,7 +7180,7 @@ body.page-library {
   :root { --cover-w-mobile: 68px; --cover-h-mobile: 96px; }
   .library-app-shell { padding-left: max(9px, env(safe-area-inset-left)) !important; padding-right: max(9px, env(safe-area-inset-right)) !important; }
   .library-book-card-v4 { grid-template-columns: var(--cover-w-mobile) minmax(0, 1fr) !important; gap: 8px !important; padding: 8px !important; border-radius: 16px !important; }
-  .library-book-title { font-size: 13px !important; -webkit-line-clamp: 2 !important; }
+  .library-book-title { font-size: 13px !important; -webkit-line-clamp: 3 !important; }
   .library-book-subtitle { display: none !important; }
   .library-access-count:nth-child(n+3) { display: none !important; }
   .library-card-tags { display: none !important; }
