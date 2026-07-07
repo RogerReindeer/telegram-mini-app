@@ -9861,7 +9861,7 @@ body[data-resolved-theme="dark"] .library-v4 .library-sort-pill option {
 .page-library .library-continue-title-line {
   display: grid !important;
   grid-template-columns: minmax(0, auto) minmax(0, 1fr) !important;
-  align-items: baseline !important;
+  align-items: start !important;
   gap: 10px !important;
   min-width: 0 !important;
 }
@@ -9871,7 +9871,10 @@ body[data-resolved-theme="dark"] .library-v4 .library-sort-pill option {
   font-size: clamp(16px, 2.7vw, 22px) !important;
   line-height: 1.12 !important;
   font-weight: 900 !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
@@ -9880,7 +9883,10 @@ body[data-resolved-theme="dark"] .library-v4 .library-sort-pill option {
   color: color-mix(in srgb, var(--app-text, #241711) 58%, var(--app-muted, #8b7567)) !important;
   font-size: clamp(13px, 2.2vw, 18px) !important;
   line-height: 1.15 !important;
-  white-space: nowrap !important;
+  white-space: normal !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
