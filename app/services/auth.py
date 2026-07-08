@@ -287,6 +287,26 @@ def tribute_role_from_rows(rows: list[dict[str, Any]]) -> str:
     return "guest"
 
 
+def _entitlement_fields(user_id: int, novel_id: int | None, stale: dict[str, Any] | None) -> tuple[list[dict[str, Any]], bool]:
+    """Compute (book_entitlements, has_full_book_access) strictly for novel_id.
+
+    has_full_book_access gates paid chapter content, so it must never be
+    derived from a different novel (or from an entitlements query that
+    covered every novel because no novel_id was given). On a transient
+    lookup failure we fall back to a previous value only if it was computed
+    for this exact novel_id; otherwise we fail closed (no access) instead of
+    risking a stale/mismatched grant leaking paid content.
+    """
+    if not novel_id:
+        return [], False
+    entitlements, ok = get_active_book_entitlements(user_id, novel_id)
+    if ok:
+        return entitlements, any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
+    if stale and stale.get("novel_id") == novel_id:
+        return list(stale.get("book_entitlements") or []), bool(stale.get("has_full_book_access"))
+    return [], False
+
+
 def resolve_access_profile(
     user_id: int,
     novel_id: int | None = None,
@@ -296,41 +316,40 @@ def resolve_access_profile(
     now_ts = time.time()
     if not force_group_refresh and cached and cached[0] > now_ts:
         cached_profile = dict(cached[1])
-        if novel_id:
-            entitlements, entitlements_ok = get_active_book_entitlements(user_id, novel_id)
-            if entitlements_ok:
-                cached_profile["book_entitlements"] = entitlements
-                cached_profile["has_full_book_access"] = any(
-                    clean_value(row.get("access_type")) == "full_book" for row in entitlements
-                )
-            cached_profile["novel_id"] = novel_id
+        entitlements, full_book = _entitlement_fields(user_id, novel_id, cached_profile)
+        cached_profile["book_entitlements"] = entitlements
+        cached_profile["has_full_book_access"] = full_book
+        cached_profile["novel_id"] = novel_id
         return cached_profile
 
     keeper_group = telegram_membership_details(KEEPER_CHAT_ID, user_id)
     traveler_group = telegram_membership_details(TRAVELER_CHAT_ID, user_id)
     tribute_rows, tribute_ok = get_active_tribute_subscriptions(user_id)
-    entitlements, entitlements_ok = get_active_book_entitlements(user_id, novel_id)
 
     # Transient failures (Telegram API timeout, Supabase hiccup) must not
-    # silently downgrade a paying Keeper/Traveler to guest. If any lookup
-    # failed and we still have a previous profile (even expired), keep
-    # serving it instead of computing a profile from partial/missing data.
-    lookup_failed = (
+    # silently downgrade a paying Keeper/Traveler to guest. If the group
+    # membership/subscription lookup failed and we still have a previous
+    # profile (even expired), keep serving its role instead of computing a
+    # profile from partial/missing data. Book entitlements are handled
+    # separately by _entitlement_fields, which fails closed rather than
+    # trusting a stale cross-novel grant.
+    membership_lookup_failed = (
         keeper_group.get("status") == "request_error"
         or traveler_group.get("status") == "request_error"
         or not tribute_ok
-        or not entitlements_ok
     )
-    if lookup_failed and cached:
+    if membership_lookup_failed and cached:
         stale_profile = dict(cached[1])
-        if novel_id:
-            stale_profile["novel_id"] = novel_id
+        entitlements, full_book = _entitlement_fields(user_id, novel_id, stale_profile)
+        stale_profile["book_entitlements"] = entitlements
+        stale_profile["has_full_book_access"] = full_book
+        stale_profile["novel_id"] = novel_id
         return stale_profile
 
     tribute_role = tribute_role_from_rows(tribute_rows)
     group_role = "keeper" if keeper_group["active"] else ("traveler" if traveler_group["active"] else "guest")
     global_role = max((group_role, tribute_role), key=role_rank)
-    full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
+    entitlements, full_book = _entitlement_fields(user_id, novel_id, cached[1] if cached else None)
     profile = {
         "user_id": int(user_id),
         "role": global_role,
