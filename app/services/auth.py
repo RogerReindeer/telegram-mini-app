@@ -48,6 +48,11 @@ TRIBUTE_TRAVELER_URL = settings.tribute_traveler_url
 TRIBUTE_KEEPER_URL = settings.tribute_keeper_url
 ACCESS_DEBUG_ENABLED = settings.access_debug_enabled
 
+# In-process cache: fine only as long as the app runs as a single worker
+# (see render.yaml's --workers 1). With more than one worker each process
+# would keep its own copy, making the 5-minute TTL and the fail-open stale
+# fallback in resolve_access_profile inconsistent across requests. Move this
+# to a shared store (Redis, a DB table) before ever raising worker count.
 _membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
 
 
