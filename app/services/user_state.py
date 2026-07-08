@@ -262,7 +262,10 @@ def save_user_progress(telegram_user_id: int, payload: dict[str, Any]) -> dict[s
         },
         limit=1,
     )
-    if not chapter_rows:
+    if not chapter_rows or chapter_rows[0].get("is_visible") is not True:
+        # Same error either way: a hidden/unpublished chapter must not be
+        # distinguishable from a nonexistent one via this endpoint's response,
+        # otherwise it becomes an oracle for enumerating draft content.
         raise ChapterNotFoundError("Глава не найдена или относится к другой новелле")
 
     progress_percent = max(0.0, min(1.0, to_float(payload.get("scroll_position"), 0.0)))
