@@ -13,6 +13,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import time
 from datetime import datetime
 from typing import Any
@@ -34,7 +35,7 @@ APP_ENV = settings.app_env
 
 TELEGRAM_BOT_TOKEN = settings.telegram_bot_token
 SYNC_TOKEN = settings.sync_token
-SESSION_SECRET_TEXT = settings.session_secret or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or "change-me"
+SESSION_SECRET_TEXT = settings.session_secret or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or secrets.token_hex(32)
 SESSION_SECRET = SESSION_SECRET_TEXT.encode("utf-8")
 
 TRAVELER_CHAT_ID = settings.normalized_traveler_chat_id
@@ -230,9 +231,12 @@ def parse_iso_datetime(value: Any) -> datetime | None:
         return None
 
 
-def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
+def get_active_tribute_subscriptions(user_id: int) -> tuple[list[dict[str, Any]], bool]:
+    """Returns (active_rows, ok). ok=False means the lookup itself failed
+    (transient Supabase error), as opposed to legitimately having no active
+    subscription — callers must not treat a failed lookup as "no access"."""
     if not supabase_ready() or not user_id:
-        return []
+        return [], True
     try:
         rows = db_select(
             "user_subscriptions",
@@ -241,7 +245,7 @@ def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
         )
     except Exception as error:
         print("Tribute subscription lookup failed:", error)
-        return []
+        return [], False
     now = utc_now()
     active = []
     for row in rows:
@@ -251,12 +255,13 @@ def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
         if not expires or expires <= now:
             continue
         active.append(row)
-    return active
+    return active, True
 
 
-def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> list[dict[str, Any]]:
+def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> tuple[list[dict[str, Any]], bool]:
+    """Returns (active_rows, ok); see get_active_tribute_subscriptions."""
     if not supabase_ready() or not user_id:
-        return []
+        return [], True
     filters = {"telegram_user_id": f"eq.{int(user_id)}", "revoked_at": "is.null"}
     if novel_id:
         filters["novel_id"] = f"eq.{int(novel_id)}"
@@ -264,12 +269,13 @@ def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> l
         rows = db_select("user_entitlements", filters=filters, order="granted_at.desc")
     except Exception as error:
         print("Book entitlement lookup failed:", error)
-        return []
+        return [], False
     now = utc_now()
-    return [
+    active = [
         row for row in rows
         if not row.get("expires_at") or (parse_iso_datetime(row.get("expires_at")) or now) > now
     ]
+    return active, True
 
 
 def tribute_role_from_rows(rows: list[dict[str, Any]]) -> str:
@@ -291,21 +297,39 @@ def resolve_access_profile(
     if not force_group_refresh and cached and cached[0] > now_ts:
         cached_profile = dict(cached[1])
         if novel_id:
-            entitlements = get_active_book_entitlements(user_id, novel_id)
-            cached_profile["book_entitlements"] = entitlements
-            cached_profile["has_full_book_access"] = any(
-                clean_value(row.get("access_type")) == "full_book" for row in entitlements
-            )
+            entitlements, entitlements_ok = get_active_book_entitlements(user_id, novel_id)
+            if entitlements_ok:
+                cached_profile["book_entitlements"] = entitlements
+                cached_profile["has_full_book_access"] = any(
+                    clean_value(row.get("access_type")) == "full_book" for row in entitlements
+                )
             cached_profile["novel_id"] = novel_id
         return cached_profile
 
     keeper_group = telegram_membership_details(KEEPER_CHAT_ID, user_id)
     traveler_group = telegram_membership_details(TRAVELER_CHAT_ID, user_id)
-    tribute_rows = get_active_tribute_subscriptions(user_id)
+    tribute_rows, tribute_ok = get_active_tribute_subscriptions(user_id)
+    entitlements, entitlements_ok = get_active_book_entitlements(user_id, novel_id)
+
+    # Transient failures (Telegram API timeout, Supabase hiccup) must not
+    # silently downgrade a paying Keeper/Traveler to guest. If any lookup
+    # failed and we still have a previous profile (even expired), keep
+    # serving it instead of computing a profile from partial/missing data.
+    lookup_failed = (
+        keeper_group.get("status") == "request_error"
+        or traveler_group.get("status") == "request_error"
+        or not tribute_ok
+        or not entitlements_ok
+    )
+    if lookup_failed and cached:
+        stale_profile = dict(cached[1])
+        if novel_id:
+            stale_profile["novel_id"] = novel_id
+        return stale_profile
+
     tribute_role = tribute_role_from_rows(tribute_rows)
     group_role = "keeper" if keeper_group["active"] else ("traveler" if traveler_group["active"] else "guest")
     global_role = max((group_role, tribute_role), key=role_rank)
-    entitlements = get_active_book_entitlements(user_id, novel_id)
     full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
     profile = {
         "user_id": int(user_id),
