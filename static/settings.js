@@ -1948,25 +1948,13 @@
         window.scrollTo({ top: maxScroll * Number(existing.scrollPosition), behavior: "auto" });
       });
     }
-
-    let localScrollTimer = null;
-    let serverScrollTimer = null;
-    const persist = function () {
-      const item = makeItem();
-      clearTimeout(localScrollTimer);
-      localScrollTimer = setTimeout(function () {
-        saveReadingHistoryItem(item, { sync: false });
-      }, 500);
-
-      if (!serverScrollTimer) {
-        serverScrollTimer = setTimeout(function () {
-          serverScrollTimer = null;
-          saveReadingHistoryItem(makeItem(), { sync: true });
-        }, 10000);
-      }
-    };
-    window.addEventListener("scroll", persist, { passive: true });
-    window.addEventListener("pagehide", function () { saveReadingHistoryItem(makeItem(), { sync: true }); });
+    // Дальнейшее отслеживание прогресса при скролле (включая бесконечную
+    // подгрузку глав) делает initInfiniteProgressFix ниже — он привязывает
+    // прогресс к реально видимой главе. Второй independent scroll-listener
+    // здесь раньше писал в тот же ключ zefirki_reading_history с чужим,
+    // захваченным при открытии страницы chapterId — при бесконечной
+    // подгрузке это устаревшее значение периодически перезаписывало
+    // правильную запись и ломало восстановление позиции чтения.
   }
 
   function initChapterScrollProgress() {
