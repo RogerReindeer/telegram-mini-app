@@ -15,7 +15,7 @@ from typing import Any
 from urllib.parse import quote
 
 from ..config import settings
-from ..database import db_select, db_upsert
+from ..database import db_select, db_update, db_upsert
 from .auth import clean_value, invalidate_access_cache, to_int, utc_now
 
 TRIBUTE_SUBSCRIPTION_EVENTS = {
@@ -182,6 +182,14 @@ def import_boosty_order(payload: dict[str, Any]) -> dict[str, Any]:
 
     product = products[0]
     now_iso = utc_now().isoformat()
+
+    existing_orders = db_select(
+        "boosty_orders",
+        filters={"boosty_order_id": f"eq.{quote(order_key, safe='')}"},
+        limit=1,
+    )
+    previous_owner_id = to_int(existing_orders[0].get("telegram_user_id"), 0) if existing_orders else 0
+
     order_row = {
         "boosty_order_id": order_key,
         "boosty_bundle_key": product_key,
@@ -216,6 +224,25 @@ def import_boosty_order(payload: dict[str, Any]) -> dict[str, Any]:
         batch_size=1,
     )
     invalidate_access_cache(telegram_user_id)
+
+    if previous_owner_id and previous_owner_id != telegram_user_id:
+        # The conflict key above includes telegram_user_id, so re-importing
+        # the same boosty_order_id under a different account (CRM correction
+        # or operator mistake) would otherwise ADD a second entitlement row
+        # instead of moving it, leaving both accounts with access to a
+        # single purchase. Revoke the previous owner's entitlement for this
+        # exact order instead.
+        db_update(
+            "user_entitlements",
+            {
+                "telegram_user_id": f"eq.{previous_owner_id}",
+                "novel_id": f"eq.{product['novel_id']}",
+                "source_type": "eq.boosty_bundle",
+                "source_id": f"eq.{quote(order_key, safe='')}",
+            },
+            {"revoked_at": now_iso},
+        )
+        invalidate_access_cache(previous_owner_id)
 
     return {
         "status": "ok",
