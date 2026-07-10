@@ -1,5 +1,5 @@
-"""Service package."""
+"""Zefirki Telegram Mini App server package."""
 
-from .application import app
+from .main import app
 
 __all__ = ["app"]

@@ -255,16 +255,7 @@ def chapter_code_value(chapter: dict) -> str:
 
 def chapter_unit_key(chapter: dict) -> str:
     # Every ChapterNo is a separate MiniApp reading unit, including parts.
-    # Used for navigation (index/prev/next) — each part is its own page.
     return chapter_code_value(chapter) or f"{clean_value(chapter.get('novel_id'))}:{clean_value(chapter.get('chapter_no'))}"
-
-def chapter_source_unit_key(chapter: dict) -> str:
-    """Group split parts (PartNo 1, 2, ...) of the same SourceChapterNo as one
-    real book chapter, so counts/stats match the actual chapter numbering
-    (e.g. two parts of chapter 63 count as one, not two)."""
-    novel_id = clean_value(chapter.get("novel_id"))
-    source_no = clean_value(chapter.get("source_chapter_no")) or clean_value(chapter.get("chapter_no"))
-    return f"{novel_id}:{source_no}"
 
 def chapter_has_readable_url(chapter: dict) -> bool:
     return bool(clean_value(chapter.get("telegraph_url")) or clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_premium_url")))
@@ -273,10 +264,10 @@ def chapter_is_available(chapter: dict, viewer_role: str = "guest") -> bool:
     return bool(chapter_content_url_for_role(chapter, viewer_role))
 
 def count_chapter_units_for_card(chapters: list[dict]) -> int:
-    return len({chapter_source_unit_key(chapter) for chapter in chapters})
+    return len({chapter_unit_key(chapter) for chapter in chapters})
 
 def count_available_chapter_units(chapters: list[dict], viewer_role: str = "guest") -> int:
-    return len({chapter_source_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter, viewer_role)})
+    return len({chapter_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter, viewer_role)})
 
 def choose_chapter_url(chapter: dict, viewer_role: str = "guest") -> str:
     return chapter_content_url_for_role(chapter, viewer_role)
@@ -589,7 +580,7 @@ def count_available_chapter_units_for_access(
     chapters: list[dict], novel: dict, profile: dict[str, Any]
 ) -> int:
     return len({
-        chapter_source_unit_key(chapter)
+        chapter_unit_key(chapter)
         for chapter in chapters
         if chapter_content_url_for_access(chapter, novel, profile)
     })
@@ -652,19 +643,20 @@ def get_chapter_index_info_for_access(
         for chapter in sort_chapters(chapters)
         if chapter_content_url_for_access(chapter, novel, profile)
     ]
-    # Части одной главы (PartNo) считаются одной позицией в "Глава N из M":
-    # обе части дают одно и то же N, а M — число реальных глав, а не строк.
-    seen_units: set[str] = set()
-    total_units = 0
-    current_index = 0
+    units = []
+    seen_units = set()
     for chapter in available:
-        key = chapter_source_unit_key(chapter)
+        key = chapter_unit_key(chapter)
         if key not in seen_units:
             seen_units.add(key)
-            total_units += 1
-        if current_index == 0 and clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id):
-            current_index = total_units
-    return {"chapter_index": current_index, "available_chapters": total_units}
+            units.append({
+                "unit_key": key,
+                "chapter_id": chapter.get("chapter_id"),
+                "chapter_title": chapter.get("title"),
+            })
+    current_index = next((i for i, unit in enumerate(units, 1)
+                          if clean_value(unit.get("chapter_id")) == clean_value(current_chapter_id)), 0)
+    return {"chapter_index": current_index, "available_chapters": len(units)}
 
 def get_neighbor_chapters_for_access(
     chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
@@ -696,9 +688,8 @@ def prepare_library_novels_for_access(
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
         profile = viewer_access_profile(viewer, novel_id)
-        # Видимость новеллы в библиотеке не зависит от роли — 🎁-книги видят
-        # все пользователи, разрешённые к показу через MiniAppVisible в CRM.
-        # Роль ограничивает только фактическое чтение глав (см. access.py).
+        if not can_view_novel_for_profile(novel, profile):
+            continue
 
         novel_chapters = chapters_by_novel.get(novel_id_text, [])
         prepared = prepare_novel_for_template(novel)

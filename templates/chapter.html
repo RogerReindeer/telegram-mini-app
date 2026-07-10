@@ -18,7 +18,7 @@
   {% endif %}
   {% set reader_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_peek_left or fox.fox_pic %}
   {% set footer_fox = fox.fox_sitting_front or fox.fox_sleeping or fox.fox_heart or fox.fox_pic %}
-  <main class="page reader-layout chapter-layout" data-chapter-page data-novel-id="{{ novel.id }}" data-novel-slug="{{ novel.slug }}" data-novel-title="{{ novel.library_short_title or novel.display_title }}" data-chapter-id="{{ chapter.chapter_id }}" data-chapter-title="{{ chapter.display_title }}" data-chapter-index="{{ chapter_index }}" data-available-chapters="{{ available_chapters }}" data-is-locked="{{ 'true' if is_locked else 'false' }}">
+  <main class="page reader-layout chapter-layout" data-chapter-page data-novel-id="{{ novel.id }}" data-novel-slug="{{ novel.slug }}" data-novel-title="{{ novel.display_title }}" data-chapter-id="{{ chapter.chapter_id }}" data-chapter-title="{{ chapter.display_title }}" data-chapter-index="{{ chapter_index }}" data-available-chapters="{{ available_chapters }}" data-is-locked="{{ 'true' if is_locked else 'false' }}">
     <div class="page-top-row chapter-top-row">
       <a class="novel-back-button chapter-back-button" href="/novel/{{ novel.slug }}"><span class="novel-back-button-icon" aria-hidden="true">←</span><span>К оглавлению</span></a>
     </div>

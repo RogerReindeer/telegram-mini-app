@@ -81,12 +81,9 @@ def _resolve_external_image_url_uncached(url: Any) -> str:
         return text
 
     parsed = urlparse(text)
-    host = parsed.netloc.lower().split("@")[-1].split(":")[0]
+    host = parsed.netloc.lower()
 
-    def _is_allowed_host(candidate: str, allowed: str) -> bool:
-        return candidate == allowed or candidate.endswith(f".{allowed}")
-
-    if not _is_allowed_host(host, "teletype.in") and not _is_allowed_host(host, "telegra.ph"):
+    if "teletype.in" not in host and "telegra.ph" not in host:
         return text
 
     try:

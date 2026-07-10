@@ -111,11 +111,6 @@ class InMemoryRateLimiter:
     It is intentionally simple: enough to protect public endpoints from obvious
     accidental loops and brute-force token checks on a single Render instance.
     It is not a substitute for a CDN/WAF if traffic grows.
-
-    Relies on render.yaml running a single uvicorn worker (--workers 1) and a
-    single service instance. With more workers/instances each process gets
-    its own buckets, so the effective limit becomes limit * process_count.
-    Move this to a shared store (Redis) before raising worker/instance count.
     """
 
     def __init__(self) -> None:

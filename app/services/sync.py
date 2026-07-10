@@ -711,19 +711,6 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
     except Exception as error:
         print("MiniApp sync failed at stage:", stage)
         traceback.print_exc()
-        if stage in {"novels", "chapters", "fox"}:
-            # A later stage can fail after an earlier one already committed
-            # rows to Supabase (db_upsert has no cross-batch transaction), so
-            # the DB may hold partial/updated data even though this sync run
-            # is reported as an error. Clear caches regardless, otherwise the
-            # app keeps serving pre-sync data on top of a now-inconsistent
-            # catalog until the TTL happens to expire.
-            try:
-                clear_catalog_cache()
-                clear_telegraph_cache()
-                clear_image_cache()
-            except Exception as cache_error:
-                print("Could not clear caches after failed sync:", cache_error)
         _finish_sync_run(
             sync_id,
             {

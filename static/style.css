@@ -18,7 +18,7 @@
 }
 * { box-sizing: border-box; }
 html { min-height: 100%; }
-body { min-height: 100%; margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol"; background: var(--page-bg); color: var(--text); }
+body { min-height: 100%; margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--page-bg); color: var(--text); }
 body[data-site-theme="dark"] { --page-bg:#131313; --card-bg:rgba(30,30,30,.9); --card-bg-solid:#1c1c1c; --text:#f4f4f4; --muted:#c4b8ae; --border:rgba(255,255,255,.12); --shadow:0 16px 40px rgba(0,0,0,.35); }
 a { color: inherit; text-decoration: none; }
 button, select, input { font: inherit; }
@@ -3987,8 +3987,8 @@ body[data-site-theme="dark"] .library-v4 .library-book-card-v4 .library-card-sta
   gap: 8px;
   padding: 12px;
   border-radius: 16px;
-  background: var(--settings-control-bg, rgba(255,255,255,.58));
-  border: 1px solid var(--settings-control-border, rgba(80,60,45,.11));
+  background: rgba(255,255,255,.58);
+  border: 1px solid rgba(80,60,45,.11);
 }
 .access-debug-summary > div {
   display: grid;
@@ -4010,9 +4010,9 @@ body[data-site-theme="dark"] .library-v4 .library-book-card-v4 .library-card-sta
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px 10px;
   padding: 11px 12px;
-  border: 1px solid var(--settings-control-border, rgba(80,60,45,.11));
+  border: 1px solid rgba(80,60,45,.11);
   border-radius: 14px;
-  background: var(--settings-control-bg, rgba(255,255,255,.45));
+  background: rgba(255,255,255,.45);
 }
 .access-debug-row small {
   grid-column: 1 / -1;
@@ -4760,7 +4760,7 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
 
 .chapter-list-end {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   padding: 14px 0 2px;
 }
 
@@ -6309,30 +6309,6 @@ body[data-site-theme="dark"] .chapter-access-secondary-button {
   overflow-wrap: anywhere;
   font-weight: 850;
 }
-.admin-link-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-.admin-link-grid a {
-  display: block;
-  padding: 10px 14px;
-  border: 1px solid rgba(87,54,31,.12);
-  border-radius: 14px;
-  background: rgba(255,255,255,.6);
-  color: var(--accent);
-  font-weight: 850;
-  text-decoration: none;
-  text-align: center;
-}
-.admin-link-grid a:hover {
-  background: rgba(255,100,10,.12);
-}
-body[data-site-theme="dark"] .admin-link-grid a {
-  border-color: rgba(255,255,255,.09);
-  background: rgba(255,255,255,.06);
-}
 body[data-site-theme="dark"] .admin-hero,
 body[data-site-theme="dark"] .admin-panel,
 body[data-site-theme="dark"] .admin-card {
@@ -7410,7 +7386,7 @@ body.page-library {
   overflow-wrap: anywhere !important;
 }
 .library-book-subtitle { min-width: 0 !important; max-width: 100% !important; padding: 0 !important; margin: -2px 0 0 !important; color: var(--app-muted) !important; font-size: 11px !important; line-height: 1.25 !important; display: -webkit-box !important; -webkit-line-clamp: 1 !important; -webkit-box-orient: vertical !important; overflow: hidden !important; }
-.library-book-menu { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; margin: 0 -6px 0 0 !important; border: 0 !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.72) !important; color: var(--app-text) !important; font-size: 22px !important; box-shadow: none !important; }
+.library-book-menu { width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; margin: -6px -6px 0 0 !important; border: 0 !important; border-radius: 999px !important; background: rgba(255, 255, 255, 0.72) !important; color: var(--app-text) !important; font-size: 22px !important; box-shadow: none !important; }
 .library-card-status-row,
 .library-card-access-row,
 .library-card-tags,
@@ -7596,7 +7572,7 @@ body.page-library {
   :root { --cover-w-mobile: 68px; --cover-h-mobile: 96px; }
   .library-app-shell { padding-left: max(9px, env(safe-area-inset-left)) !important; padding-right: max(9px, env(safe-area-inset-right)) !important; }
   .library-book-card-v4 { grid-template-columns: var(--cover-w-mobile) minmax(0, 1fr) !important; gap: 8px !important; padding: 8px !important; border-radius: 16px !important; }
-  .library-book-title { font-size: 13px !important; -webkit-line-clamp: 3 !important; }
+  .library-book-title { font-size: 13px !important; -webkit-line-clamp: 2 !important; }
   .library-book-subtitle { display: none !important; }
   .library-access-count:nth-child(n+3) { display: none !important; }
   .library-card-tags { display: none !important; }
@@ -7787,7 +7763,7 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   order: 9999 !important;
   width: 100% !important;
   display: flex !important;
-  justify-content: flex-end !important;
+  justify-content: center !important;
   margin-top: 8px !important;
 }
 .chapter-list-end:first-child {
@@ -7931,41 +7907,6 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-book-menu[aria-expan
   background: var(--accent, #ff6a00) !important;
   color: #fff !important;
   border-color: transparent !important;
-}
-
-/* Плавающая кнопка «Начать/Продолжить читать» на странице новеллы.
-   position: sticky тут не подходит — кнопка стоит у верха страницы, а sticky
-   "подхватывает" элемент только когда он мог бы уйти за нужный край при
-   скролле в соответствующую сторону (как .chapter-navigation внизу главы).
-   Постоянный position: fixed тоже не годится — тогда кнопка перекрывает
-   "О новелле" сразу при загрузке страницы. Поэтому кнопка "плавающей"
-   становится только после того, как её исходное место в потоке ушло из
-   вида (JS переключает .is-floating через IntersectionObserver). */
-.page-novel .novel-read-action.is-floating,
-.page-novel .novel-read-action-v2.is-floating,
-.page-novel .novel-read-action-priority.is-floating {
-  position: fixed !important;
-  left: 50% !important;
-  right: auto !important;
-  bottom: calc(12px + env(safe-area-inset-bottom)) !important;
-  transform: translateX(-50%) !important;
-  width: min(calc(100vw - 48px), 720px) !important;
-  max-width: calc(100vw - 48px) !important;
-  z-index: 950 !important;
-}
-
-.novel-read-action,
-.chapter-navigation,
-.zb-reader-settings-button {
-  transition: opacity .2s ease, transform .2s ease, visibility .2s ease !important;
-}
-
-.reader-controls-hidden .novel-read-action.is-floating,
-.reader-controls-hidden .chapter-navigation {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  visibility: hidden !important;
-  transform: translateY(14px) scale(.97) !important;
 }
 
 @media (max-width: 520px) {
@@ -10185,13 +10126,6 @@ body[data-resolved-theme="dark"] .zb-reader-preview {
   background: color-mix(in srgb, var(--accent, #ff6a00) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 24%, transparent);
 }
-.chapter-infinite-status:empty {
-  display: none !important;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  min-height: 0;
-}
 .chapter-loading-stop,
 .chapter-loading-done {
   width: 22px;
@@ -10606,7 +10540,7 @@ body[data-resolved-theme="dark"] .library-v4 .library-sort-pill option {
 .page-library .library-continue-title-line {
   display: grid !important;
   grid-template-columns: minmax(0, auto) minmax(0, 1fr) !important;
-  align-items: start !important;
+  align-items: baseline !important;
   gap: 10px !important;
   min-width: 0 !important;
 }
@@ -10616,10 +10550,7 @@ body[data-resolved-theme="dark"] .library-v4 .library-sort-pill option {
   font-size: clamp(16px, 2.7vw, 22px) !important;
   line-height: 1.12 !important;
   font-weight: 900 !important;
-  white-space: normal !important;
-  display: -webkit-box !important;
-  -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 2 !important;
+  white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
@@ -10628,10 +10559,7 @@ body[data-resolved-theme="dark"] .library-v4 .library-sort-pill option {
   color: color-mix(in srgb, var(--app-text, #241711) 58%, var(--app-muted, #8b7567)) !important;
   font-size: clamp(13px, 2.2vw, 18px) !important;
   line-height: 1.15 !important;
-  white-space: normal !important;
-  display: -webkit-box !important;
-  -webkit-box-orient: vertical !important;
-  -webkit-line-clamp: 2 !important;
+  white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
@@ -11295,21 +11223,4 @@ body[data-reader-theme="dark"] .chapter-access-secondary-button {
   }
 }
 
-/* current marker: v146-current-patch-polished */
-
-/* v148: сортировка библиотеки — плашка «Сортировка/Умная» остаётся на месте
-   (справа в ряду с «Поиск»/«Фильтры», как было изначально), но текст внутри
-   неё выравнивается по левому краю, а не по центру, как у соседних кнопок.
-   Видимый текст — это сам нативный <select> (он непрозрачный и лежит поверх
-   скрытого <span>), поэтому text-align нужно ставить именно на select, а не
-   на span. Положение выпадающего списка при открытии решает браузер/ОС и
-   через CSS не двигается. */
-.library-v4 .library-actions-v4 > .library-sort-pill,
-.page-library .library-actions-v4 > .library-sort-pill {
-  justify-content: flex-start !important;
-}
-.library-v4 .library-sort-pill select,
-.page-library .library-sort-pill select,
-.library-sort-pill select {
-  text-align: left !important;
-}
+/* current marker: v144-full-excel-code */
