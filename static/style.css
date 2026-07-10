@@ -11272,3 +11272,17 @@ body[data-reader-theme="dark"] .chapter-access-secondary-button {
 }
 
 /* current marker: v146-current-patch-polished */
+
+/* v147: сортировка библиотеки — плашка «Сортировка/Умная» стояла в правой,
+   самой широкой колонке ряда с «Поиск»/«Фильтры». Сам выпадающий список —
+   нативный <select>, его положение при открытии решает браузер/ОС и через
+   CSS не двигается, поэтому просто визуально переносим саму плашку-триггер
+   в начало ряда (order не меняет DOM/tab-порядок, только раскладку в grid). */
+.library-v4 .library-actions-v4,
+.page-library .library-actions-v4 {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+.library-v4 .library-actions-v4 > .library-sort-pill,
+.page-library .library-actions-v4 > .library-sort-pill {
+  order: -1 !important;
+}
