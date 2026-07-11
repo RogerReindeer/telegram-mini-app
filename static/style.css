@@ -11223,7 +11223,7 @@ body[data-reader-theme="dark"] .chapter-access-secondary-button {
   }
 }
 
-/* current marker: v148-gold-reader-nav-fix */
+/* current marker: v150-access-settings-groups */
 
 
 /* v147 — library dark UX fix */
@@ -11433,4 +11433,48 @@ body[data-reader-theme="dark"] .reader-floating-next {
   }
 }
 
-/* current marker: v148-gold-reader-nav-fix */
+/* current marker: v150-access-settings-groups */
+
+/* v150 — access settings: Telegram groups and Tribute payment links */
+.access-debug-pay-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.access-debug-pay-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(202, 161, 83, 0.8);
+  background: linear-gradient(180deg, rgba(255, 238, 184, 0.22), rgba(202, 161, 83, 0.12));
+  color: var(--text, #2a1b13);
+  text-decoration: none;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.access-debug-pay-link:hover {
+  transform: translateY(-1px);
+}
+
+.access-debug-group-row small {
+  overflow-wrap: anywhere;
+}
+
+body[data-site-theme="dark"] .access-debug-pay-link,
+body.theme-dark .access-debug-pay-link {
+  color: #ffe9b0;
+  border-color: rgba(226, 188, 104, 0.82);
+  background: linear-gradient(180deg, rgba(226, 188, 104, 0.20), rgba(55, 42, 21, 0.48));
+}
+
+@media (max-width: 520px) {
+  .access-debug-pay-actions {
+    grid-template-columns: 1fr;
+  }
+}

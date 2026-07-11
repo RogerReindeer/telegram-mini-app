@@ -1386,7 +1386,9 @@
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
     const projectStatus = String(card.dataset.status || "");
-    const hasFutureChapters = available > 0 && projectStatus !== "completed" && (Number(translated || 0) > available || Number(chapters || 0) > available || projectStatus === "in_progress" || projectStatus === "paused");
+    const totalKnownChapters = Math.max(Number(translated || 0), Number(chapters || 0));
+    const hasLockedOrPaidChapters = available > 0 && totalKnownChapters > available;
+    const hasFutureChapters = available > 0 && (hasLockedOrPaidChapters || projectStatus === "in_progress" || projectStatus === "paused");
 
     const button = card.querySelector("[data-card-main-button]");
     const statePill = card.querySelector("[data-card-state-pill]");
@@ -1427,7 +1429,11 @@
     let visualProgress = 0;
     let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
-    if (isCompletedByUser && !hasFutureChapters) {
+    if (isCompletedByUser && hasLockedOrPaidChapters) {
+      state = "waiting_new";
+      visualProgress = 100;
+      progressLabel = available ? `${available} / ${available}` : `${totalKnownChapters || 0} / ${totalKnownChapters || 0}`;
+    } else if (isCompletedByUser && !hasFutureChapters) {
       state = "completed";
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
@@ -1440,7 +1446,7 @@
       visualProgress = safeHistoryIndex && available ? clampNumber((safeHistoryIndex / available) * 100, 0, 100) : 0;
       progressLabel = `${safeHistoryIndex || 0} / ${available || 0}`;
     } else if (historyItem && available && safeHistoryIndex >= available) {
-      state = projectStatus === "completed" ? "completed" : "waiting_new";
+      state = projectStatus === "completed" && !hasLockedOrPaidChapters ? "completed" : "waiting_new";
       visualProgress = 100;
       progressLabel = `${available} / ${available}`;
     } else if (historyItem) {
@@ -2765,12 +2771,20 @@
     const subscriptions = Array.isArray(data.tribute_subscriptions) ? data.tribute_subscriptions : [];
     const entitlements = Array.isArray(data.book_entitlements) ? data.book_entitlements : [];
     const config = data.configuration || {};
+    const travelerConfig = config.traveler || {};
+    const keeperConfig = config.keeper || {};
     const roleLabels = { guest: "Гость", traveler: "Странствующий читатель", keeper: "Хранитель свитков" };
-    const groupRow = function (label, group) {
+    const groupRow = function (label, group, itemConfig) {
       group = group || {};
-      const state = group.active ? "Да" : "Нет";
+      itemConfig = itemConfig || {};
+      const state = group.active ? "Есть" : "Нет";
       const cls = group.active ? "is-ok" : (group.ok ? "is-no" : "is-error");
-      return `<div class="access-debug-row"><span>${escapeHtml(label)}</span><strong class="${cls}">${escapeHtml(state)}</strong><small>ID: ${escapeHtml(group.chat_id || "не настроен")} · status: ${escapeHtml(group.status || "—")}${group.description ? ` · ${escapeHtml(group.description)}` : ""}</small></div>`;
+      const chatId = group.chat_id || itemConfig.normalized_chat_id || itemConfig.chat_id || "не настроен";
+      const rawId = itemConfig.chat_id && itemConfig.chat_id !== chatId ? ` · исходный ID: ${escapeHtml(itemConfig.chat_id)}` : "";
+      return `<div class="access-debug-row access-debug-group-row"><span>${escapeHtml(label)}</span><strong class="${cls}">${escapeHtml(state)}</strong><small>Группа: ${escapeHtml(chatId)}${rawId} · status: ${escapeHtml(group.status || "—")}${group.description ? ` · ${escapeHtml(group.description)}` : ""}</small></div>`;
+    };
+    const payLink = function (label, href) {
+      return href ? `<a class="access-debug-pay-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" data-telegram-link>${escapeHtml(label)}</a>` : "";
     };
     const subscriptionsHtml = subscriptions.length
       ? subscriptions.map((item) => `<li>${escapeHtml(item.access_role || "—")} · план ${escapeHtml(item.external_plan_id || "—")} · до ${escapeHtml(item.expires_at || "—")} · ${escapeHtml(item.status || "—")}</li>`).join("")
@@ -2790,8 +2804,13 @@
       <div class="access-debug-row"><span>Премиальные релизы</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>Открываются только Хранителю по PremiumReleaseDate.</small></div>
       <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>
-      ${groupRow("🌱 Странствующий", groups.traveler)}
-      ${groupRow("📜 Хранитель", groups.keeper)}
+      ${groupRow("🌱 Странствующий читатель", groups.traveler, travelerConfig)}
+      ${groupRow("📜 Хранитель свитков", groups.keeper, keeperConfig)}
+      <h4>Оплата Tribute</h4>
+      <div class="access-debug-pay-actions">
+        ${payLink("Оформить Странствующего", travelerConfig.payment_url)}
+        ${payLink("Оформить Хранителя", keeperConfig.payment_url)}
+      </div>
       <h4>Подписки Tribute</h4><ul>${subscriptionsHtml}</ul>
       <h4>Книжные доступы</h4><ul>${entitlementsHtml}</ul>
       <details class="access-debug-config"><summary>Техническая конфигурация</summary><pre>${escapeHtml(JSON.stringify(config, null, 2))}</pre></details>
@@ -3670,3 +3689,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initV141);
   else initV141();
 })();
+
+/* v149 — completed novels with locked paid tail stay in reading as waiting_new */

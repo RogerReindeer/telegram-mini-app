@@ -335,7 +335,7 @@ def resolve_telegram_role(user_id: int, force_refresh: bool = False) -> str:
     return clean_value(profile.get("role")) or "guest"
 
 
-def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None) -> dict[str, Any]:
+def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None, force_group_refresh: bool = False) -> dict[str, Any]:
     if not viewer.get("authenticated") or not viewer.get("user_id"):
         return {
             "user_id": None,
@@ -348,7 +348,7 @@ def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None) -
             "has_full_book_access": False,
             "novel_id": novel_id,
         }
-    return resolve_access_profile(int(viewer["user_id"]), novel_id=novel_id)
+    return resolve_access_profile(int(viewer["user_id"]), novel_id=novel_id, force_group_refresh=force_group_refresh)
 
 
 def authenticate_telegram_viewer(init_data: str, force_refresh: bool = True) -> dict[str, Any]:
