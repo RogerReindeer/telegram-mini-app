@@ -11223,7 +11223,7 @@ body[data-reader-theme="dark"] .chapter-access-secondary-button {
   }
 }
 
-/* current marker: v144-full-excel-code */
+/* current marker: v148-gold-reader-nav-fix */
 
 
 /* v147 — library dark UX fix */
@@ -11278,3 +11278,159 @@ body[data-resolved-theme="dark"] .library-update-banner .library-update-title {
 }
 
 /* compatibility/current marker: v147-library-dark-ux-fix */
+
+/* v148 — gold frame system, low-radius cards, reader chapter navigation */
+:root {
+  --zb-gold: #c99a3f;
+  --zb-gold-soft: rgba(201, 154, 63, 0.46);
+  --zb-gold-hairline: rgba(201, 154, 63, 0.30);
+  --zb-card-radius: 8px;
+  --zb-card-radius-small: 6px;
+}
+
+.library-book-card,
+.library-book-card-v4,
+.library-continue-card,
+.library-section,
+.library-controls-card,
+.library-search-panel,
+.library-update-banner,
+.novel-hero-card,
+.novel-description-card,
+.character-card,
+.chapters-section,
+.chapter-row,
+.volume-header,
+.chapter-content-shell,
+.chapter-preview-card,
+.chapter-paywall,
+.chapter-unlock-panel-card,
+.chapter-navigation,
+.chapter-nav-button,
+.admin-card,
+.admin-panel,
+.admin-table-wrap,
+.empty,
+.settings-panel-v2,
+.reader-quick-panel,
+.reader-settings-panel-v2,
+.locked-chapter-notice {
+  border-radius: var(--zb-card-radius) !important;
+  border-color: var(--zb-gold-soft) !important;
+  box-shadow: 0 10px 26px rgba(82, 49, 12, 0.10), inset 0 0 0 1px rgba(255, 231, 176, 0.22) !important;
+}
+
+.library-mini-tag,
+.tag,
+.meta-pill,
+.novel-status-pill,
+.novel-access-pill,
+.chapter-access,
+.library-card-status,
+.library-section-count,
+.library-card-count,
+.novel-cover-rating,
+.chapter-paywall-status,
+.chapter-paywall-date,
+.reader-quick-option,
+.zb-choice,
+.chapter-sort-button,
+.chapter-jump-button,
+.primary-read-button,
+.novel-back-button,
+.library-action-button,
+.library-sort-pill {
+  border-radius: var(--zb-card-radius-small) !important;
+  border-color: var(--zb-gold-hairline) !important;
+}
+
+.novel-toc-access-summary,
+.library-card-counts,
+.library-card-count-row,
+.library-card-meta,
+.library-book-meta {
+  background: transparent !important;
+  border-color: var(--zb-gold-hairline) !important;
+}
+
+.novel-toc-access-summary span,
+.library-card-count,
+.library-card-counts span,
+.library-card-count-row span,
+.library-book-meta span {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: 1px solid var(--zb-gold-hairline) !important;
+  color: inherit !important;
+  box-shadow: none !important;
+}
+
+body[data-site-theme="dark"] .novel-toc-access-summary span,
+body[data-site-theme="dark"] .library-card-count,
+body[data-site-theme="dark"] .library-card-counts span,
+body[data-site-theme="dark"] .library-card-count-row span,
+body[data-resolved-theme="dark"] .novel-toc-access-summary span,
+body[data-resolved-theme="dark"] .library-card-count,
+body[data-resolved-theme="dark"] .library-card-counts span,
+body[data-resolved-theme="dark"] .library-card-count-row span {
+  background: rgba(255, 221, 148, 0.06) !important;
+  color: #ffe7b0 !important;
+  border-color: rgba(232, 181, 82, 0.42) !important;
+}
+
+.reader-floating-controls {
+  right: max(10px, env(safe-area-inset-right)) !important;
+  gap: 6px !important;
+  grid-auto-flow: row !important;
+}
+
+.reader-floating-button {
+  border-radius: 8px !important;
+  border-color: rgba(201, 154, 63, 0.58) !important;
+  background: rgba(255, 250, 240, 0.94) !important;
+  color: #2f1d0f !important;
+  box-shadow: 0 10px 24px rgba(69, 43, 10, 0.16), inset 0 0 0 1px rgba(255, 236, 183, 0.55) !important;
+}
+
+.reader-floating-button.is-primary,
+.reader-floating-next {
+  background: linear-gradient(180deg, #ffe4a3, #d7a449) !important;
+  color: #2d1907 !important;
+  border-color: rgba(126, 82, 18, 0.45) !important;
+}
+
+body[data-site-theme="dark"] .reader-floating-button,
+body[data-resolved-theme="dark"] .reader-floating-button,
+body[data-reader-theme="dark"] .reader-floating-button {
+  background: rgba(35, 27, 18, 0.94) !important;
+  color: #ffe9b5 !important;
+  border-color: rgba(232, 181, 82, 0.50) !important;
+}
+
+body[data-site-theme="dark"] .reader-floating-button.is-primary,
+body[data-resolved-theme="dark"] .reader-floating-button.is-primary,
+body[data-reader-theme="dark"] .reader-floating-button.is-primary,
+body[data-site-theme="dark"] .reader-floating-next,
+body[data-resolved-theme="dark"] .reader-floating-next,
+body[data-reader-theme="dark"] .reader-floating-next {
+  background: linear-gradient(180deg, #ffe1a0, #b98229) !important;
+  color: #251407 !important;
+}
+
+@media (max-width: 720px) {
+  .reader-floating-controls {
+    right: max(8px, env(safe-area-inset-right)) !important;
+    bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+    grid-template-columns: repeat(2, 42px) !important;
+    grid-auto-flow: row !important;
+  }
+
+  .reader-floating-button {
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    font-size: 18px !important;
+  }
+}
+
+/* current marker: v148-gold-reader-nav-fix */

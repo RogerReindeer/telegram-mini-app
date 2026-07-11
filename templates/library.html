@@ -192,6 +192,7 @@
                 data-novel-id="{{ novel.id }}"
                 data-novel-slug="{{ novel.slug }}"
                 data-novel-title="{{ novel.library_short_title }} {{ novel.library_secondary_title or '' }}"
+                data-novel-short="{{ novel.library_short_title or novel.display_title }}"
                 data-novel-cover="{{ novel.cover_url or '' }}"
                 data-title="{{ (novel.library_short_title ~ ' ' ~ novel.library_full_title)|lower }}"
                 data-description="{{ novel.description or '' }}"

@@ -3436,7 +3436,8 @@
     return {
       novelId: String(novelId),
       novelSlug: element.dataset.novelSlug || page.dataset.novelSlug || meta.novelSlug || "",
-      novelTitle: element.dataset.novelTitle || page.dataset.novelTitle || meta.novelTitle || "",
+      novelTitle: element.dataset.novelShortTitle || page.dataset.novelShortTitle || element.dataset.novelTitle || page.dataset.novelTitle || meta.novelShort || meta.novelTitle || "",
+      novelShort: element.dataset.novelShortTitle || page.dataset.novelShortTitle || meta.novelShort || "",
       coverUrl: meta.coverUrl || "",
       chapterId: String(chapterId),
       chapterTitle: title,

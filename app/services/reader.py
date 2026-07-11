@@ -269,6 +269,50 @@ def count_chapter_units_for_card(chapters: list[dict]) -> int:
 def count_available_chapter_units(chapters: list[dict], viewer_role: str = "guest") -> int:
     return len({chapter_unit_key(chapter) for chapter in chapters if chapter_is_available(chapter, viewer_role)})
 
+def keeper_extra_chapter_limit_ids(chapters: list[dict], novel: dict, extra_count: int = 2) -> set[str]:
+    """Return chapter IDs available to Keeper: all free + N early chapters.
+
+    Хранитель не получает бесконечный хвост всех премиум-глав.
+    Его ранний доступ ограничен двумя следующими единицами чтения после
+    последней уже бесплатной главы. Полная покупка книги по-прежнему
+    проверяется отдельно через ``has_full_book_access``.
+    """
+    allowed: set[str] = set()
+    early_added = 0
+    for chapter in sort_chapters(chapters):
+        if not chapter_has_readable_url(chapter):
+            continue
+        code = chapter_code_value(chapter)
+        if chapter_public_ready(chapter):
+            allowed.add(code)
+            continue
+        if early_added < extra_count and chapter_premium_ready(chapter):
+            allowed.add(code)
+            early_added += 1
+    return allowed
+
+def chapter_is_keeper_extra_blocked(chapter: dict, profile: dict[str, Any], keeper_allowed_ids: set[str]) -> bool:
+    if clean_value(profile.get("role")) != "keeper":
+        return False
+    if profile.get("has_full_book_access"):
+        return False
+    if chapter_public_ready(chapter):
+        return False
+    if not chapter_premium_ready(chapter):
+        return False
+    return chapter_code_value(chapter) not in keeper_allowed_ids
+
+def count_available_chapter_units_for_profile(
+    chapters: list[dict], novel: dict, profile: dict[str, Any], keeper_allowed_ids: set[str] | None = None
+) -> int:
+    keeper_allowed_ids = keeper_allowed_ids if keeper_allowed_ids is not None else keeper_extra_chapter_limit_ids(chapters, novel)
+    return len({
+        chapter_unit_key(chapter)
+        for chapter in chapters
+        if chapter_content_url_for_access(chapter, novel, profile)
+        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids)
+    })
+
 def choose_chapter_url(chapter: dict, viewer_role: str = "guest") -> str:
     return chapter_content_url_for_role(chapter, viewer_role)
 
@@ -579,11 +623,7 @@ def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict], vi
 def count_available_chapter_units_for_access(
     chapters: list[dict], novel: dict, profile: dict[str, Any]
 ) -> int:
-    return len({
-        chapter_unit_key(chapter)
-        for chapter in chapters
-        if chapter_content_url_for_access(chapter, novel, profile)
-    })
+    return count_available_chapter_units_for_profile(chapters, novel, profile)
 
 def prepare_chapter_for_access_template(
     chapter: dict, novel: dict, profile: dict[str, Any]
@@ -612,6 +652,7 @@ def build_chapter_display_list_for_access(
     chapters: list[dict], novel: dict, profile: dict[str, Any]
 ) -> tuple[list[dict], int]:
     role = clean_value(profile.get("role")) or "guest"
+    keeper_allowed_ids = keeper_extra_chapter_limit_ids(chapters, novel)
     prepared = []
     for chapter in sort_chapters(chapters):
         # Rows without any Telegraph content are service/planning rows, not TOC items.
@@ -619,7 +660,19 @@ def build_chapter_display_list_for_access(
             continue
         if chapter.get("is_visible") is not True and role != "keeper" and not profile.get("has_full_book_access"):
             continue
-        prepared.append(prepare_chapter_for_access_template(chapter, novel, profile))
+        item = prepare_chapter_for_access_template(chapter, novel, profile)
+        if chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids):
+            item["url"] = ""
+            item["is_available"] = False
+            item["access_status"] = "premium_scheduled"
+            item["access_reason"] = "keeper_two_chapter_limit"
+            item["access_label"] = "📜 Хранитель свитков"
+            item["access_class"] = "chapter-access-keeper"
+            item["required_role"] = "keeper"
+            item["toc_access_label"] = "📜 Следующий ранний релиз"
+            item["toc_access_hint"] = "Хранителю доступно +2 главы от последней бесплатной"
+            item["toc_access_class"] = "chapter-access-keeper"
+        prepared.append(item)
 
     locked_seen = 0
     hidden_locked_count = 0
@@ -638,10 +691,12 @@ def build_chapter_display_list_for_access(
 def get_chapter_index_info_for_access(
     chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
 ) -> dict:
+    keeper_allowed_ids = keeper_extra_chapter_limit_ids(chapters, novel)
     available = [
         prepare_chapter_for_access_template(chapter, novel, profile)
         for chapter in sort_chapters(chapters)
         if chapter_content_url_for_access(chapter, novel, profile)
+        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids)
     ]
     units = []
     seen_units = set()
@@ -661,10 +716,12 @@ def get_chapter_index_info_for_access(
 def get_neighbor_chapters_for_access(
     chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
 ) -> tuple[dict | None, dict | None]:
+    keeper_allowed_ids = keeper_extra_chapter_limit_ids(chapters, novel)
     available = [
         prepare_chapter_for_access_template(chapter, novel, profile)
         for chapter in sort_chapters(chapters)
         if chapter_content_url_for_access(chapter, novel, profile)
+        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids)
     ]
     index = next((i for i, chapter in enumerate(available)
                   if clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id)), None)
@@ -698,11 +755,12 @@ def prepare_library_novels_for_access(
 
         guest_profile = {"role": "guest", "has_full_book_access": False}
         keeper_profile = {"role": "keeper", "has_full_book_access": False}
+        keeper_allowed_ids = keeper_extra_chapter_limit_ids(novel_chapters, novel)
         prepared["free_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, guest_profile)
         # Traveler chapter count intentionally equals free count. Its extra right is book visibility only.
         prepared["traveler_chapters_count"] = prepared["free_chapters_count"]
-        prepared["keeper_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, keeper_profile)
-        prepared["available_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, profile)
+        prepared["keeper_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, keeper_profile, keeper_allowed_ids)
+        prepared["available_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, profile, keeper_allowed_ids)
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
         prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))
         finalize_novel_access_summary(prepared)
