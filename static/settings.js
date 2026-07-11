@@ -1749,7 +1749,7 @@
     list.innerHTML = visibleItems.map(function (item, index) {
       const card = cardsByNovel[String(item.novelId)];
       const cover = item.coverUrl || card.dataset.novelCover || "";
-      const title = item.novelTitle || card.dataset.novelTitle || "Новелла";
+      const title = card.dataset.novelShort || item.novelShort || item.novelTitle || card.dataset.novelTitle || "Новелла";
       const chapterTitle = item.chapterTitle || "Последняя открытая глава";
       const available = Number(item.availableChapters || card.dataset.availableChapters || 0);
       const chapterNumber = Number(item.chapterNumber || Number(item.chapterIndex || 0) + 1);
@@ -1815,7 +1815,7 @@
       title.textContent = totalNewChapters === 1 ? "Новая глава" : `${totalNewChapters} новые главы`;
     }
     text.textContent = newCards.length === 1
-      ? `${firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение`
+      ? `${firstCard.dataset.novelShort || firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение`
       : `Новые главы доступны в ${novelCountText}`;
     button.href = firstCard.dataset.cardActionHref || `/novel/${firstCard.dataset.novelSlug || ""}`;
     button.textContent = newCards.length === 1 ? "Читать" : "К новинкам";
