@@ -73,7 +73,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         access_decision = decide_chapter_access(raw_chapter, raw_novel, profile)
         decision = access_decision
         keeper_allowed_ids = keeper_extra_chapter_limit_ids(raw_chapters, raw_novel)
-        if chapter_is_keeper_extra_blocked(raw_chapter, profile, keeper_allowed_ids):
+        if chapter_is_keeper_extra_blocked(raw_chapter, profile, keeper_allowed_ids, raw_novel):
             decision = AccessDecision(
                 allowed=False,
                 status="premium_scheduled",

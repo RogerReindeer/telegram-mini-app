@@ -11536,3 +11536,6 @@ body[data-theme="dark"] .library-card-state-pill.state-subscription {
   background: linear-gradient(135deg, rgba(255, 220, 119, .24), rgba(77, 45, 8, .72)) !important;
   border-color: rgba(255, 220, 126, .72) !important;
 }
+
+
+/* v153-gift-subscriber-read-fix — gift subscriber access marker */

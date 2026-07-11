@@ -152,6 +152,33 @@ def chapter_premium_ready(chapter: dict) -> bool:
     return bool(chapter_premium_url(chapter))
 
 
+def chapter_subscription_url(chapter: dict) -> str:
+    """Source for 🎁 subscription-only novels.
+
+    Gift novels are not ordinary free/early-access rows: any paid subscriber
+    (Traveler or Keeper) may read translated gift chapters when a source exists.
+    Prefer the premium/closed source, then fall back to the free source.
+    """
+    return chapter_premium_url(chapter) or chapter_public_url(chapter)
+
+
+def chapter_subscription_ready(chapter: dict) -> bool:
+    """Open a gift-novel chapter for any subscriber when it is actually ready.
+
+    If a PremiumReleaseDate is set, respect it. If it is empty, the presence of
+    TranslationDate plus a Telegraph source means the chapter is already posted
+    for subscription access.
+    """
+    if not chapter_is_translated(chapter):
+        return False
+    if not chapter_subscription_url(chapter):
+        return False
+    premium_release = clean_value(chapter.get("premium_release_date"))
+    if premium_release and not is_date_open(premium_release):
+        return False
+    return True
+
+
 def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
     """Legacy helper kept for older code paths."""
     if chapter.get("is_visible") is not True:
@@ -209,7 +236,7 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
     secondary_action = decision.secondary_action
     severity = decision.severity
 
-    if status in {"public_open", "premium_open", "full_book_entitlement"}:
+    if status in {"public_open", "premium_open", "subscription_open", "full_book_entitlement"}:
         title = title or "Глава открыта"
         description = description or "Можно читать полностью."
         primary_action = primary_action or "read"
@@ -308,7 +335,7 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
     """Short copy for locked rows in the table of contents."""
     release_label = format_release_date(decision.release_date)
     status = decision.status
-    if status in {"public_open", "premium_open", "full_book_entitlement"}:
+    if status in {"public_open", "premium_open", "subscription_open", "full_book_entitlement"}:
         return {"label": "", "hint": "", "class_name": "chapter-access-public"}
     if status == "free_scheduled":
         return {
@@ -415,6 +442,32 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             required_role="traveler",
             viewer_role=role,
         )
+
+    if novel_is_gift(novel) and viewer_can_access_required_role(role, "traveler"):
+        url = chapter_subscription_url(chapter)
+        if chapter_subscription_ready(chapter) and url:
+            return AccessDecision(
+                allowed=True,
+                status="subscription_open",
+                url=url,
+                label="Открыта",
+                class_name="chapter-access-public",
+                reason="gift_subscription_open",
+                required_role="traveler",
+                viewer_role=role,
+            )
+        release = clean_value(parse_date(chapter.get("premium_release_date")) or chapter.get("premium_release_date"))
+        if release and not is_date_open(release):
+            return AccessDecision(
+                allowed=False,
+                status="premium_scheduled",
+                label="Откроется по подписке позже",
+                class_name="chapter-access-keeper",
+                reason="gift_subscription_release_not_open",
+                required_role="traveler",
+                viewer_role=role,
+                release_date=release,
+            )
 
     if role == "keeper" and chapter_premium_ready(chapter):
         return AccessDecision(

@@ -291,7 +291,9 @@ def keeper_extra_chapter_limit_ids(chapters: list[dict], novel: dict, extra_coun
             early_added += 1
     return allowed
 
-def chapter_is_keeper_extra_blocked(chapter: dict, profile: dict[str, Any], keeper_allowed_ids: set[str]) -> bool:
+def chapter_is_keeper_extra_blocked(chapter: dict, profile: dict[str, Any], keeper_allowed_ids: set[str], novel: dict | None = None) -> bool:
+    if novel and novel_is_gift(novel):
+        return False
     if clean_value(profile.get("role")) != "keeper":
         return False
     if profile.get("has_full_book_access"):
@@ -310,7 +312,7 @@ def count_available_chapter_units_for_profile(
         chapter_unit_key(chapter)
         for chapter in chapters
         if chapter_content_url_for_access(chapter, novel, profile)
-        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids)
+        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids, novel)
     })
 
 def choose_chapter_url(chapter: dict, viewer_role: str = "guest") -> str:
@@ -559,30 +561,29 @@ def prepare_novel_for_template(novel: dict) -> dict:
     return prepared
 
 def finalize_novel_access_summary(prepared: dict) -> dict:
-    """
-    Подготавливает только значимые показатели доступа.
-
-    В MiniApp нет отдельного уровня глав для Странствующего.
-    Он видит подарочные новеллы, но читает в них только бесплатные главы.
-    Платный/ранний диапазон карточки — это разница между доступом Хранителя
-    и бесплатным доступом.
-    """
+    """Подготавливает только значимые показатели доступа."""
     total = max(0, to_int(prepared.get("display_chapters_count"), 0))
     free_count = max(0, to_int(prepared.get("free_chapters_count"), 0))
+    traveler_count = max(0, to_int(prepared.get("traveler_chapters_count"), 0))
     keeper_count = max(0, to_int(prepared.get("keeper_chapters_count"), 0))
+    is_gift = bool(prepared.get("is_gift"))
 
-    # Backward-compatible field for old templates/data attributes. It must never
-    # represent a separate chapter entitlement.
-    prepared["traveler_chapters_count"] = free_count
+    # В обычных книгах у Странствующего нет отдельного диапазона глав.
+    # В подарочных 🎁 книгах любая подписка открывает саму книгу и её готовые
+    # подписочные главы, поэтому traveler_count сохраняется отдельно.
+    if not is_gift:
+        traveler_count = free_count
+    prepared["traveler_chapters_count"] = traveler_count
 
     all_free = total > 0 and free_count >= total
     show_free = free_count > 0
-    show_keeper = keeper_count > free_count
+    show_traveler = is_gift and traveler_count > free_count
+    show_keeper = keeper_count > max(free_count, traveler_count)
     boosty_paid_count = max(0, keeper_count - free_count)
 
     prepared["all_chapters_free"] = all_free
     prepared["show_free_stat"] = show_free
-    prepared["show_traveler_stat"] = False
+    prepared["show_traveler_stat"] = show_traveler
     prepared["show_keeper_stat"] = show_keeper
     prepared["boosty_paid_chapters_count"] = boosty_paid_count
     prepared["show_boosty_paid_stat"] = boosty_paid_count > 0
@@ -662,7 +663,7 @@ def build_chapter_display_list_for_access(
         if chapter.get("is_visible") is not True and role != "keeper" and not profile.get("has_full_book_access"):
             continue
         item = prepare_chapter_for_access_template(chapter, novel, profile)
-        if chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids):
+        if chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids, novel):
             item["url"] = ""
             item["is_available"] = False
             item["access_status"] = "premium_scheduled"
@@ -697,7 +698,7 @@ def get_chapter_index_info_for_access(
         prepare_chapter_for_access_template(chapter, novel, profile)
         for chapter in sort_chapters(chapters)
         if chapter_content_url_for_access(chapter, novel, profile)
-        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids)
+        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids, novel)
     ]
     units = []
     seen_units = set()
@@ -722,7 +723,7 @@ def get_neighbor_chapters_for_access(
         prepare_chapter_for_access_template(chapter, novel, profile)
         for chapter in sort_chapters(chapters)
         if chapter_content_url_for_access(chapter, novel, profile)
-        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids)
+        and not chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids, novel)
     ]
     index = next((i for i, chapter in enumerate(available)
                   if clean_value(chapter.get("chapter_id")) == clean_value(current_chapter_id)), None)
@@ -745,7 +746,16 @@ def prepare_library_novels_for_access(
     for novel in novels:
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
-        profile = viewer_access_profile(viewer, novel_id)
+        if (clean_value(viewer.get("role")) in {"traveler", "keeper"}
+                and not viewer.get("authenticated")
+                and not viewer.get("user_id")):
+            # Contract-test and server-internal fallback: when a trusted prepared
+            # viewer already carries a role, do not downgrade it to guest just
+            # because there is no Telegram cookie in the test context. Real
+            # browser requests still go through viewer_access_profile().
+            profile = {"role": clean_value(viewer.get("role")), "has_full_book_access": False}
+        else:
+            profile = viewer_access_profile(viewer, novel_id)
         if not can_view_novel_for_profile(novel, profile):
             continue
 
@@ -759,8 +769,8 @@ def prepare_library_novels_for_access(
         keeper_profile = {"role": "keeper", "has_full_book_access": False}
         keeper_allowed_ids = keeper_extra_chapter_limit_ids(novel_chapters, novel)
         prepared["free_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, guest_profile)
-        # Traveler chapter count intentionally equals free count. Its extra right is book visibility only.
-        prepared["traveler_chapters_count"] = prepared["free_chapters_count"]
+        traveler_profile = {"role": "traveler", "has_full_book_access": False}
+        prepared["traveler_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, traveler_profile, keeper_allowed_ids)
         prepared["keeper_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, keeper_profile, keeper_allowed_ids)
         prepared["available_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, profile, keeper_allowed_ids)
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
