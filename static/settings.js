@@ -2780,8 +2780,17 @@
       const state = group.active ? "Есть" : "Нет";
       const cls = group.active ? "is-ok" : (group.ok ? "is-no" : "is-error");
       const chatId = group.chat_id || itemConfig.normalized_chat_id || itemConfig.chat_id || "не настроен";
+      const source = group.source ? ` · ${escapeHtml(group.source)}` : "";
       const rawId = itemConfig.chat_id && itemConfig.chat_id !== chatId ? ` · исходный ID: ${escapeHtml(itemConfig.chat_id)}` : "";
-      return `<div class="access-debug-row access-debug-group-row"><span>${escapeHtml(label)}</span><strong class="${cls}">${escapeHtml(state)}</strong><small>Группа: ${escapeHtml(chatId)}${rawId} · status: ${escapeHtml(group.status || "—")}${group.description ? ` · ${escapeHtml(group.description)}` : ""}</small></div>`;
+      return `<div class="access-debug-row access-debug-group-row"><span>${escapeHtml(label)}${source}</span><strong class="${cls}">${escapeHtml(state)}</strong><small>Группа: ${escapeHtml(chatId)}${rawId} · status: ${escapeHtml(group.status || "—")}${group.description ? ` · ${escapeHtml(group.description)}` : ""}</small></div>`;
+    };
+    const groupRows = function () {
+      const rows = [];
+      const travelerGroups = Array.isArray(groups.travelers) && groups.travelers.length ? groups.travelers : [groups.traveler];
+      const keeperGroups = Array.isArray(groups.keepers) && groups.keepers.length ? groups.keepers : [groups.keeper];
+      travelerGroups.forEach(function (group, index) { rows.push(groupRow(index === 0 ? "🌱 Tribute / Странствующий" : index === 1 ? "🌱 Boosty / Странствующий" : "🌱 Странствующий", group, travelerConfig)); });
+      keeperGroups.forEach(function (group, index) { rows.push(groupRow(index === 0 ? "📜 Tribute / Хранитель" : index === 1 ? "📜 Boosty / Хранитель" : "📜 Хранитель", group, keeperConfig)); });
+      return rows.join("");
     };
     const payLink = function (label, href) {
       return href ? `<a class="access-debug-pay-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" data-telegram-link>${escapeHtml(label)}</a>` : "";
@@ -2804,8 +2813,7 @@
       <div class="access-debug-row"><span>Премиальные релизы</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>Открываются только Хранителю по PremiumReleaseDate.</small></div>
       <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>
-      ${groupRow("🌱 Странствующий читатель", groups.traveler, travelerConfig)}
-      ${groupRow("📜 Хранитель свитков", groups.keeper, keeperConfig)}
+      ${groupRows()}
       <h4>Оплата Tribute</h4>
       <div class="access-debug-pay-actions">
         ${payLink("Оформить Странствующего", travelerConfig.payment_url)}
@@ -3691,3 +3699,21 @@
 })();
 
 /* v149 — completed novels with locked paid tail stay in reading as waiting_new */
+
+
+/* v151 — floating TOC controls and collapsible empty-space controls */
+(function () {
+  const TOC_HIDDEN_KEY = "zefirki_toc_controls_hidden";
+  const READER_HIDDEN_KEY = "zefirki_reader_controls_hidden";
+  function qs(selector, root) { return (root || document).querySelector(selector); }
+  function scrollToTarget(id, block) { const target = document.getElementById(id); if (target) target.scrollIntoView({ behavior: "smooth", block: block || "start" }); }
+  function applyTocHidden(hidden) { document.body.classList.toggle("toc-floating-controls-hidden", hidden); const controls = qs("[data-toc-floating-controls]"); const toggle = qs("[data-toc-controls-toggle]"); if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false"); if (toggle) { toggle.textContent = hidden ? "☰" : "×"; toggle.setAttribute("aria-pressed", hidden ? "true" : "false"); toggle.setAttribute("aria-label", hidden ? "Показать кнопки оглавления" : "Скрыть кнопки оглавления"); } try { window.localStorage.setItem(TOC_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {} }
+  function applyReaderHidden(hidden) { const controls = qs("[data-reader-floating-controls]"); const toggle = qs("[data-reader-controls-visibility-toggle]"); document.body.classList.toggle("reader-controls-hidden", hidden); if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false"); if (toggle) { toggle.textContent = hidden ? "☰" : "×"; toggle.setAttribute("aria-pressed", hidden ? "true" : "false"); toggle.setAttribute("aria-label", hidden ? "Показать кнопки читалки" : "Скрыть кнопки читалки"); } try { window.localStorage.setItem(READER_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {} }
+  function initFloatingTocControls() { const page = qs("[data-novel-page]"); const sourceButton = qs("#novelReadButton"); const chapterList = qs("[data-chapter-list]"); if (!page || !sourceButton || qs("[data-toc-floating-controls]")) return; const controls = document.createElement("aside"); controls.className = "toc-floating-controls"; controls.dataset.tocFloatingControls = "true"; controls.setAttribute("aria-label", "Быстрая навигация по оглавлению"); const cta = document.createElement("a"); cta.className = "toc-floating-main-button"; cta.dataset.tocFloatingRead = "true"; cta.href = sourceButton.href || "#chapterListStart"; cta.textContent = sourceButton.textContent.trim() || "Начать читать"; const top = document.createElement("button"); top.className = "toc-floating-nav-button"; top.type = "button"; top.textContent = "↑"; top.setAttribute("aria-label", "К началу оглавления"); const bottom = document.createElement("button"); bottom.className = "toc-floating-nav-button"; bottom.type = "button"; bottom.textContent = "↓"; bottom.setAttribute("aria-label", "В конец оглавления"); controls.appendChild(cta); controls.appendChild(top); controls.appendChild(bottom); document.body.appendChild(controls); const toggle = document.createElement("button"); toggle.className = "toc-controls-visibility-toggle"; toggle.type = "button"; toggle.dataset.tocControlsToggle = "true"; document.body.appendChild(toggle); const syncCta = function () { cta.href = sourceButton.href || cta.href; cta.textContent = sourceButton.textContent.trim() || cta.textContent; }; syncCta(); try { new MutationObserver(syncCta).observe(sourceButton, { attributes: true, childList: true, subtree: true, characterData: true }); } catch (error) {} top.addEventListener("click", function (event) { event.stopPropagation(); scrollToTarget("chapterListStart", "start"); }); bottom.addEventListener("click", function (event) { event.stopPropagation(); scrollToTarget("chapterListEnd", chapterList ? "end" : "start"); }); controls.addEventListener("click", function (event) { event.stopPropagation(); }); toggle.addEventListener("click", function (event) { event.stopPropagation(); applyTocHidden(!document.body.classList.contains("toc-floating-controls-hidden")); }); let hidden = false; try { hidden = window.localStorage.getItem(TOC_HIDDEN_KEY) === "1"; } catch (error) {} applyTocHidden(hidden); }
+  function initReaderEmptySpaceCollapse() { const page = qs("[data-chapter-page]"); const controls = qs("[data-reader-floating-controls]"); const toggle = qs("[data-reader-controls-visibility-toggle]"); if (!page || !controls || !toggle) return; controls.addEventListener("click", function (event) { event.stopPropagation(); }); toggle.addEventListener("click", function (event) { event.stopPropagation(); applyReaderHidden(!document.body.classList.contains("reader-controls-hidden")); }); }
+  function initEmptySpaceCollapse() { document.addEventListener("click", function (event) { const target = event.target; if (!target || !target.closest) return; if (target.closest("a, button, input, select, textarea, summary, [role='button'], .settings-overlay, .zb-settings-sheet, .reader-quick-settings, [data-toc-floating-controls], [data-reader-floating-controls], [data-toc-controls-toggle], [data-reader-controls-visibility-toggle]")) return; if (document.body.classList.contains("page-novel") && qs("[data-toc-floating-controls]")) applyTocHidden(true); if (document.body.classList.contains("page-chapter") && qs("[data-reader-floating-controls]")) applyReaderHidden(true); }, false); }
+  function initV151() { initFloatingTocControls(); initReaderEmptySpaceCollapse(); initEmptySpaceCollapse(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV151); else initV151();
+})();
+
+/* access labels: 🌱 Странствующий читатель · 📜 Хранитель свитков · v151-floating-toc-gold-groups */

@@ -39,6 +39,8 @@ SESSION_SECRET = SESSION_SECRET_TEXT.encode("utf-8")
 
 TRAVELER_CHAT_ID = settings.normalized_traveler_chat_id
 KEEPER_CHAT_ID = settings.normalized_keeper_chat_id
+TRAVELER_CHAT_IDS = settings.traveler_chat_ids or tuple(filter(None, (TRAVELER_CHAT_ID,)))
+KEEPER_CHAT_IDS = settings.keeper_chat_ids or tuple(filter(None, (KEEPER_CHAT_ID,)))
 
 TRIBUTE_API_KEY = settings.tribute_api_key
 TRIBUTE_TRAVELER_SUBSCRIPTION_ID = settings.tribute_traveler_subscription_id
@@ -188,9 +190,12 @@ def telegram_member_is_active(result: dict[str, Any]) -> bool:
     return False
 
 
-def telegram_membership_details(chat_id: str, user_id: int) -> dict[str, Any]:
+def telegram_membership_details(chat_id: str, user_id: int, *, label: str = "", source: str = "", role: str = "") -> dict[str, Any]:
     result = {
         "chat_id": chat_id or "",
+        "label": label or chat_id or "",
+        "source": source or "telegram",
+        "role": role or "",
         "configured": bool(TELEGRAM_BOT_TOKEN and chat_id),
         "ok": False,
         "active": False,
@@ -219,6 +224,23 @@ def telegram_membership_details(chat_id: str, user_id: int) -> dict[str, Any]:
     result["is_member"] = member.get("is_member")
     return result
 
+
+
+
+def telegram_memberships_for_role(chat_ids: tuple[str, ...], user_id: int, *, role: str) -> list[dict[str, Any]]:
+    details: list[dict[str, Any]] = []
+    for index, chat_id in enumerate(chat_ids):
+        label = "📜 Хранитель свитков" if role == "keeper" else "🌱 Странствующий читатель"
+        source = "tribute" if index == 0 else "boosty" if index == 1 else f"group_{index + 1}"
+        details.append(telegram_membership_details(chat_id, user_id, label=label, source=source, role=role))
+    return details
+
+
+def first_active_group(groups: list[dict[str, Any]]) -> dict[str, Any] | None:
+    for group in groups:
+        if group.get("active"):
+            return group
+    return None
 
 def parse_iso_datetime(value: Any) -> datetime | None:
     text = clean_value(value)
@@ -299,11 +321,13 @@ def resolve_access_profile(
             cached_profile["novel_id"] = novel_id
         return cached_profile
 
-    keeper_group = telegram_membership_details(KEEPER_CHAT_ID, user_id)
-    traveler_group = telegram_membership_details(TRAVELER_CHAT_ID, user_id)
+    keeper_groups = telegram_memberships_for_role(KEEPER_CHAT_IDS, user_id, role="keeper")
+    traveler_groups = telegram_memberships_for_role(TRAVELER_CHAT_IDS, user_id, role="traveler")
+    keeper_group = first_active_group(keeper_groups) or (keeper_groups[0] if keeper_groups else telegram_membership_details("", user_id, label="📜 Хранитель свитков", role="keeper"))
+    traveler_group = first_active_group(traveler_groups) or (traveler_groups[0] if traveler_groups else telegram_membership_details("", user_id, label="🌱 Странствующий читатель", role="traveler"))
     tribute_rows = get_active_tribute_subscriptions(user_id)
     tribute_role = tribute_role_from_rows(tribute_rows)
-    group_role = "keeper" if keeper_group["active"] else ("traveler" if traveler_group["active"] else "guest")
+    group_role = "keeper" if any(group.get("active") for group in keeper_groups) else ("traveler" if any(group.get("active") for group in traveler_groups) else "guest")
     global_role = max((group_role, tribute_role), key=role_rank)
     entitlements = get_active_book_entitlements(user_id, novel_id)
     full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
@@ -312,7 +336,7 @@ def resolve_access_profile(
         "role": global_role,
         "group_role": group_role,
         "tribute_role": tribute_role,
-        "groups": {"traveler": traveler_group, "keeper": keeper_group},
+        "groups": {"traveler": traveler_group, "keeper": keeper_group, "travelers": traveler_groups, "keepers": keeper_groups},
         "tribute_subscriptions": tribute_rows,
         "book_entitlements": entitlements,
         "has_full_book_access": full_book,

@@ -29,6 +29,20 @@ def normalize_telegram_chat_id(value: str) -> str:
     return text
 
 
+def normalize_telegram_chat_ids(value: str, fallback: str = "") -> tuple[str, ...]:
+    raw = str(value or fallback or "")
+    parts = re.split(r"[;,\n]+", raw)
+    result: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        chat_id = normalize_telegram_chat_id(part)
+        if not chat_id or chat_id in seen:
+            continue
+        seen.add(chat_id)
+        result.append(chat_id)
+    return tuple(result)
+
+
 def _env(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
 
@@ -43,6 +57,10 @@ class Settings:
     session_secret: str = _env("SESSION_SECRET")
     traveler_chat_id: str = _env("TRAVELER_CHAT_ID", "3769149961")
     keeper_chat_id: str = _env("KEEPER_CHAT_ID", "4366591335")
+    traveler_chat_ids_raw: str = _env("TRAVELER_CHAT_IDS")
+    keeper_chat_ids_raw: str = _env("KEEPER_CHAT_IDS")
+    boosty_traveler_chat_id: str = _env("BOOSTY_TRAVELER_CHAT_ID")
+    boosty_keeper_chat_id: str = _env("BOOSTY_KEEPER_CHAT_ID")
     auth_session_ttl_seconds: int = int(_env("AUTH_SESSION_TTL_SECONDS", "900") or "900")
     telegram_init_data_max_age_seconds: int = int(_env("TELEGRAM_INIT_DATA_MAX_AGE_SECONDS", "86400") or "86400")
     membership_cache_seconds: int = int(_env("MEMBERSHIP_CACHE_SECONDS", "300") or "300")
@@ -61,7 +79,7 @@ class Settings:
     rate_limit_public_max_requests: int = int(_env("RATE_LIMIT_PUBLIC_MAX_REQUESTS", "240") or "240")
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
-    app_version: str = _env("APP_VERSION", "v150-access-settings-groups")
+    app_version: str = _env("APP_VERSION", "v151-floating-toc-gold-groups")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 
@@ -72,6 +90,24 @@ class Settings:
     @property
     def normalized_keeper_chat_id(self) -> str:
         return normalize_telegram_chat_id(self.keeper_chat_id)
+
+    @property
+    def normalized_boosty_traveler_chat_id(self) -> str:
+        return normalize_telegram_chat_id(self.boosty_traveler_chat_id)
+
+    @property
+    def normalized_boosty_keeper_chat_id(self) -> str:
+        return normalize_telegram_chat_id(self.boosty_keeper_chat_id)
+
+    @property
+    def traveler_chat_ids(self) -> tuple[str, ...]:
+        fallback = ",".join(filter(None, (self.traveler_chat_id, self.boosty_traveler_chat_id)))
+        return normalize_telegram_chat_ids(self.traveler_chat_ids_raw, fallback)
+
+    @property
+    def keeper_chat_ids(self) -> tuple[str, ...]:
+        fallback = ",".join(filter(None, (self.keeper_chat_id, self.boosty_keeper_chat_id)))
+        return normalize_telegram_chat_ids(self.keeper_chat_ids_raw, fallback)
 
     def validate_production(self) -> list[str]:
         missing: list[str] = []

@@ -46,11 +46,8 @@ def _env_checks() -> list[Check]:
         ))
 
     optional = {
-        "TRAVELER_CHAT_ID": settings.normalized_traveler_chat_id,
-        "KEEPER_CHAT_ID": settings.normalized_keeper_chat_id,
-        "TRIBUTE_API_KEY": settings.tribute_api_key,
-        "TRIBUTE_TRAVELER_SUBSCRIPTION_ID": settings.tribute_traveler_subscription_id,
-        "TRIBUTE_KEEPER_SUBSCRIPTION_ID": settings.tribute_keeper_subscription_id,
+        "TRAVELER_CHAT_IDS": ",".join(settings.traveler_chat_ids),
+        "KEEPER_CHAT_IDS": ",".join(settings.keeper_chat_ids),
         "TRIBUTE_TRAVELER_URL": settings.tribute_traveler_url,
         "TRIBUTE_KEEPER_URL": settings.tribute_keeper_url,
     }
