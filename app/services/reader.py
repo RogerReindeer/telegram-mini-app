@@ -605,7 +605,8 @@ def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict], vi
     for novel in novels:
         prepared = prepare_novel_for_template(novel)
         novel_chapters = chapters_by_novel.get(clean_value(prepared.get("id")), [])
-        prepared["required_role"] = novel_required_role(novel)
+        prepared["is_gift"] = novel_is_gift(novel)
+        prepared["required_role"] = "traveler" if prepared["is_gift"] else novel_required_role(novel)
         prepared["display_chapters_count"] = count_chapter_units_for_card(novel_chapters) or prepared["total_chapters"] or 0
         prepared["free_chapters_count"] = count_available_chapter_units(novel_chapters, "guest")
         prepared["traveler_chapters_count"] = count_available_chapter_units(novel_chapters, "traveler")
@@ -750,7 +751,8 @@ def prepare_library_novels_for_access(
 
         novel_chapters = chapters_by_novel.get(novel_id_text, [])
         prepared = prepare_novel_for_template(novel)
-        prepared["required_role"] = "traveler" if novel_is_gift(novel) else "guest"
+        prepared["is_gift"] = novel_is_gift(novel)
+        prepared["required_role"] = "traveler" if prepared["is_gift"] else "guest"
         prepared["display_chapters_count"] = count_chapter_units_for_card(novel_chapters) or prepared["total_chapters"] or 0
 
         guest_profile = {"role": "guest", "has_full_book_access": False}

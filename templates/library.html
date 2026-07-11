@@ -148,6 +148,18 @@
           <div class="library-section-list" data-section-list="start"></div>
         </section>
 
+        <section class="library-section library-section-subscription" data-library-section="subscription">
+          <button class="library-section-header" type="button" data-section-toggle="subscription" aria-expanded="true">
+            <span>
+              По подписке
+              <span class="library-section-count" data-section-count="subscription">0</span>
+            </span>
+            <span class="library-section-arrow">⌃</span>
+          </button>
+          <div class="library-section-helper">Подарочные новеллы 🎁 для Странствующего читателя и Хранителя свитков</div>
+          <div class="library-section-list" data-section-list="subscription"></div>
+        </section>
+
         <section class="library-section" data-library-section="waiting">
           <button class="library-section-header" type="button" data-section-toggle="waiting" aria-expanded="true">
             <span>
@@ -207,6 +219,8 @@
                 data-boosty-paid-chapters="{{ novel.boosty_paid_chapters_count or 0 }}"
                 data-keeper-chapters="{{ novel.keeper_chapters_count or 0 }}"
                 data-required-role="{{ novel.required_role or 'guest' }}"
+                data-is-gift="{{ 'true' if novel.is_gift else 'false' }}"
+                data-post-icons="{{ novel.post_icons or '' }}"
                 data-progress="{{ novel.normalized_progress_percent or novel.progress_percent or 0 }}"
                 data-added="{{ novel.added_date or '' }}"
                 data-relation="{{ novel.relation_type or '' }}"

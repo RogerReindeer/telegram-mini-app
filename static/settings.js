@@ -1282,12 +1282,13 @@
       favorite: document.querySelector('[data-section-list="favorite"]'),
       reading: document.querySelector('[data-section-list="reading"]'),
       start: document.querySelector('[data-section-list="start"]'),
+      subscription: document.querySelector('[data-section-list="subscription"]'),
       waiting: document.querySelector('[data-section-list="waiting"]'),
       finished: document.querySelector('[data-section-list="finished"]'),
       hidden: document.querySelector('[data-section-list="hidden"]'),
     };
 
-    if (!lists.favorite || !lists.reading || !lists.start || !lists.waiting || !lists.finished || !lists.hidden) {
+    if (!lists.favorite || !lists.reading || !lists.start || !lists.subscription || !lists.waiting || !lists.finished || !lists.hidden) {
       return;
     }
 
@@ -1309,6 +1310,7 @@
       favorite: [],
       reading: [],
       start: [],
+      subscription: [],
       waiting: [],
       finished: [],
       hidden: [],
@@ -1344,6 +1346,8 @@
         buckets.reading.push(card);
       } else if (state === "start") {
         buckets.start.push(card);
+      } else if (state === "subscription") {
+        buckets.subscription.push(card);
       } else if (state === "locked" || state === "soon") {
         buckets.waiting.push(card);
       } else {
@@ -1386,6 +1390,7 @@
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
     const projectStatus = String(card.dataset.status || "");
+    const isGiftSubscriptionNovel = card.dataset.isGift === "true" || String(card.dataset.postIcons || "").includes("🎁") || card.dataset.requiredRole === "traveler";
     const totalKnownChapters = Math.max(Number(translated || 0), Number(chapters || 0));
     const hasLockedOrPaidChapters = available > 0 && totalKnownChapters > available;
     const hasFutureChapters = available > 0 && (hasLockedOrPaidChapters || projectStatus === "in_progress" || projectStatus === "paused");
@@ -1438,7 +1443,7 @@
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
     } else if (!historyItem && !available) {
-      state = projectStatus === "soon" ? "soon" : "locked";
+      state = isGiftSubscriptionNovel ? "subscription" : (projectStatus === "soon" ? "soon" : "locked");
       visualProgress = 0;
       progressLabel = "0 / 0";
     } else if (historyItem && newCount > 0) {
@@ -1485,6 +1490,7 @@
       waiting_new: ["is-reading is-waiting", "", "Жду главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
       locked: ["is-locked", "", "", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
+      subscription: ["is-locked is-subscription", "", "🎁 По подписке", "state-subscription", "Открыть", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "", "", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
       start: [
         "is-start",
@@ -1507,13 +1513,13 @@
     card.dataset.cardActionHref = config[5] || card.dataset.cardHref || "";
     card.setAttribute("aria-label", `${config[4]}: ${card.dataset.novelTitle || card.dataset.title || "новелла"}`);
 
-    const isSoonState = state === "soon" || state === "locked";
+    const isSoonState = state === "soon" || state === "locked" || state === "subscription";
 
     if (projectStatusPill) {
       const originalStatus = projectStatusPill.dataset.projectStatus || projectStatus || "in_progress";
       const originalLabel = projectStatusPill.dataset.projectStatusLabel || "Переводится";
-      projectStatusPill.textContent = isSoonState ? "Скоро" : originalLabel;
-      projectStatusPill.className = `library-stat-status status-${isSoonState ? "soon" : originalStatus}`;
+      projectStatusPill.textContent = state === "subscription" ? "По подписке" : (isSoonState ? "Скоро" : originalLabel);
+      projectStatusPill.className = `library-stat-status status-${state === "subscription" ? "subscription" : (isSoonState ? "soon" : originalStatus)}`;
     }
 
     if (statePill) {
@@ -1589,7 +1595,7 @@
       }
 
       if (chip === "waiting") {
-        if (!(state === "locked" || state === "soon")) {
+        if (!(state === "locked" || state === "soon" || state === "subscription")) {
           return false;
         }
         continue;

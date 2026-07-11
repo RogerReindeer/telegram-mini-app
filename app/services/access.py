@@ -334,11 +334,14 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
 
 
 def can_view_novel_for_profile(novel: dict, profile: dict[str, Any]) -> bool:
-    if profile.get("has_full_book_access"):
-        return True
-    if not novel_is_gift(novel):
-        return True
-    return clean_value(profile.get("role")) in {"traveler", "keeper"}
+    """Return whether the novel card/TOC may be shown.
+
+    🎁 novels are visible to guests too, but their chapters fail closed in
+    decide_chapter_access() until the viewer has any subscription role
+    (traveler or keeper) or a full-book entitlement. This lets the library show
+    them in the subscription section instead of hiding them completely.
+    """
+    return True
 
 
 def effective_role_for_novel(viewer: dict[str, Any], novel: dict) -> tuple[str, dict[str, Any]]:
