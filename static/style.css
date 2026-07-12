@@ -11539,3 +11539,23 @@ body[data-theme="dark"] .library-card-state-pill.state-subscription {
 
 
 /* v153-gift-subscriber-read-fix — gift subscriber access marker */
+
+
+/* v154 — short badge for chapters unlocked by subscription */
+.chapter-access-subscription,
+.chapter-access.chapter-access-subscription {
+  color: #5b3700;
+  background: linear-gradient(135deg, rgba(255, 236, 160, 0.98), rgba(214, 157, 45, 0.92));
+  border: 1px solid rgba(148, 94, 16, 0.55);
+  box-shadow: 0 0 0 1px rgba(255, 245, 190, 0.34) inset, 0 4px 14px rgba(128, 82, 14, 0.12);
+}
+
+body[data-site-theme="dark"] .chapter-access-subscription,
+body[data-site-theme="dark"] .chapter-access.chapter-access-subscription {
+  color: #fff4c2;
+  background: linear-gradient(135deg, rgba(111, 74, 13, 0.92), rgba(166, 116, 30, 0.78));
+  border-color: rgba(255, 217, 125, 0.54);
+  box-shadow: 0 0 0 1px rgba(255, 231, 150, 0.16) inset, 0 4px 16px rgba(0, 0, 0, 0.28);
+}
+
+/* Compatibility/current marker: v154-subscription-unlocked-badges */

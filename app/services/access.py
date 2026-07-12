@@ -335,8 +335,16 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
     """Short copy for locked rows in the table of contents."""
     release_label = format_release_date(decision.release_date)
     status = decision.status
-    if status in {"public_open", "premium_open", "subscription_open", "full_book_entitlement"}:
+    if status == "public_open":
         return {"label": "", "hint": "", "class_name": "chapter-access-public"}
+    if status in {"premium_open", "subscription_open"}:
+        return {
+            "label": "🔓 Подписка",
+            "hint": "Глава открыта благодаря подписке",
+            "class_name": "chapter-access-subscription",
+        }
+    if status == "full_book_entitlement":
+        return {"label": "Открыта покупкой", "hint": "Доступ к книге куплен отдельно", "class_name": "chapter-access-public"}
     if status == "free_scheduled":
         return {
             "label": f"Откроется {release_label}" if release_label else "Откроется позже",
@@ -450,8 +458,8 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
                 allowed=True,
                 status="subscription_open",
                 url=url,
-                label="Открыта",
-                class_name="chapter-access-public",
+                label="🔓 Подписка",
+                class_name="chapter-access-subscription",
                 reason="gift_subscription_open",
                 required_role="traveler",
                 viewer_role=role,
@@ -474,8 +482,8 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             allowed=True,
             status="premium_open",
             url=chapter_premium_url(chapter),
-            label="Открыта",
-            class_name="chapter-access-public",
+            label="🔓 Подписка",
+            class_name="chapter-access-subscription",
             reason="premium_release_open",
             required_role=required_role,
             viewer_role=role,
