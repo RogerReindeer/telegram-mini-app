@@ -11726,3 +11726,56 @@ body[data-site-theme="dark"] .chapter-access.chapter-access-subscription {
 }
 
 /* Compatibility/current marker: v155-targeted-gold-fix */
+
+/* v156 — contextual TOC controls, mobile chapter totals, reader settings style */
+.toc-floating-controls-suppressed .toc-floating-controls,
+.toc-floating-controls-suppressed .toc-controls-visibility-toggle {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(16px) scale(.96) !important;
+}
+
+.reader-floating-controls .reader-settings-toggle,
+.reader-floating-controls [data-reader-settings-toggle],
+.reader-settings-toggle,
+[data-reader-settings-toggle] {
+  border-radius: var(--zb-chip-radius-v151, 5px) !important;
+  border: 1px solid rgba(255,216,106,.62) !important;
+  background: linear-gradient(135deg,rgba(95,55,7,.94),rgba(35,24,11,.94)) !important;
+  color: #fff5c7 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.24) !important;
+  font-weight: 900 !important;
+}
+
+body[data-site-theme="dark"] .reader-settings-toggle,
+body[data-resolved-theme="dark"] .reader-settings-toggle,
+body[data-reader-theme="dark"] .reader-settings-toggle,
+body[data-site-theme="dark"] [data-reader-settings-toggle],
+body[data-resolved-theme="dark"] [data-reader-settings-toggle],
+body[data-reader-theme="dark"] [data-reader-settings-toggle] {
+  background: linear-gradient(135deg,rgba(95,55,7,.94),rgba(35,24,11,.94)) !important;
+  color: #fff5c7 !important;
+  border-color: rgba(255,216,106,.62) !important;
+}
+
+@media (max-width: 430px) {
+  .library-card-access-row {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 4px !important;
+  }
+  .library-access-count,
+  .library-access-count:nth-child(n+3),
+  .library-access-count:nth-child(3),
+  .library-access-translated {
+    display: inline-flex !important;
+  }
+  .library-access-translated {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+    justify-content: flex-start !important;
+  }
+}
+
+/* current marker: v156-toc-progress-mobile-fix */

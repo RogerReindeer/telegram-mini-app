@@ -1392,8 +1392,10 @@
     const projectStatus = String(card.dataset.status || "");
     const isGiftSubscriptionNovel = card.dataset.isGift === "true" || String(card.dataset.postIcons || "").includes("🎁") || card.dataset.requiredRole === "traveler";
     const totalKnownChapters = Math.max(Number(translated || 0), Number(chapters || 0));
+    const hasUnreleasedChapters = Number(chapters || 0) > 0 && Number(translated || 0) < Number(chapters || 0);
     const hasLockedOrPaidChapters = available > 0 && totalKnownChapters > available;
-    const hasFutureChapters = available > 0 && (hasLockedOrPaidChapters || projectStatus === "in_progress" || projectStatus === "paused");
+    const hasFutureChapters = available > 0 && (hasUnreleasedChapters || hasLockedOrPaidChapters || projectStatus === "in_progress" || projectStatus === "paused");
+    const canBeCompleted = available > 0 && totalKnownChapters > 0 && available >= totalKnownChapters && !hasUnreleasedChapters && projectStatus === "completed";
 
     const button = card.querySelector("[data-card-main-button]");
     const statePill = card.querySelector("[data-card-state-pill]");
@@ -1438,7 +1440,7 @@
       state = "waiting_new";
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${totalKnownChapters || 0} / ${totalKnownChapters || 0}`;
-    } else if (isCompletedByUser && !hasFutureChapters) {
+    } else if (isCompletedByUser && canBeCompleted && !hasFutureChapters) {
       state = "completed";
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
@@ -1451,7 +1453,7 @@
       visualProgress = safeHistoryIndex && available ? clampNumber((safeHistoryIndex / available) * 100, 0, 100) : 0;
       progressLabel = `${safeHistoryIndex || 0} / ${available || 0}`;
     } else if (historyItem && available && safeHistoryIndex >= available) {
-      state = projectStatus === "completed" && !hasLockedOrPaidChapters ? "completed" : "waiting_new";
+      state = canBeCompleted && !hasFutureChapters ? "completed" : "waiting_new";
       visualProgress = 100;
       progressLabel = `${available} / ${available}`;
     } else if (historyItem) {
@@ -1935,18 +1937,34 @@
     const makeItem = function () {
       const doc = document.documentElement;
       const maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+      const progressItems = Array.from(document.querySelectorAll("[data-chapter-progress-item], [data-current-chapter-progress-root], [data-chapter-infinite-item]"));
+      const currentVisible = progressItems.reduce(function (best, element) {
+        const rect = element.getBoundingClientRect();
+        if (rect.bottom <= 96 || rect.top >= window.innerHeight) return best;
+        const score = Math.abs(rect.top - window.innerHeight * 0.28);
+        if (!best || score < best.score) return { element: element, score: score };
+        return best;
+      }, null);
+      const source = currentVisible && currentVisible.element ? currentVisible.element : page;
+      const sourceChapterId = source.dataset.chapterId || chapterId;
+      const sourceChapterIndex = Number(source.dataset.chapterIndex || page.dataset.chapterIndex || 0);
+      const sourceAvailable = Number(source.dataset.availableChapters || page.dataset.availableChapters || 0);
       return {
-        novelId,
-        novelSlug: page.dataset.novelSlug || novelMeta.novelSlug || "",
-        novelTitle: page.dataset.novelTitle || novelMeta.novelTitle || "",
+        novelId: source.dataset.novelId || novelId,
+        novelSlug: source.dataset.novelSlug || page.dataset.novelSlug || novelMeta.novelSlug || "",
+        novelTitle: source.dataset.novelShortTitle || page.dataset.novelShortTitle || source.dataset.novelTitle || page.dataset.novelTitle || novelMeta.novelShort || novelMeta.novelTitle || "",
+        novelShort: source.dataset.novelShortTitle || page.dataset.novelShortTitle || novelMeta.novelShort || "",
         coverUrl: novelMeta.coverUrl || "",
-        chapterId,
-        chapterTitle: page.dataset.chapterTitle || "",
-        chapterIndex: Number(page.dataset.chapterIndex || 0),
-        availableChapters: Number(page.dataset.availableChapters || 0),
+        chapterId: sourceChapterId,
+        chapterTitle: source.dataset.chapterTitle || page.dataset.chapterTitle || "",
+        chapterIndex: sourceChapterIndex,
+        chapterNumber: sourceChapterIndex + 1,
+        availableChapters: sourceAvailable,
+        progressLabel: sourceAvailable > 0 ? `Глава ${Math.min(sourceChapterIndex + 1, sourceAvailable)} из ${sourceAvailable}` : `Глава ${sourceChapterIndex + 1}`,
         scrollPosition: Math.max(0, Math.min(1, window.scrollY / maxScroll)),
         scrollPositionPx: Math.max(0, Math.round(window.scrollY)),
         updatedAt: Date.now(),
+        continueUrl: `/chapter/${encodeURIComponent(String(sourceChapterId))}`,
       };
     };
 
@@ -3707,19 +3725,119 @@
 /* v149 — completed novels with locked paid tail stay in reading as waiting_new */
 
 
-/* v151 — floating TOC controls and collapsible empty-space controls */
+/* v156 — contextual floating TOC and reader controls */
 (function () {
   const TOC_HIDDEN_KEY = "zefirki_toc_controls_hidden";
   const READER_HIDDEN_KEY = "zefirki_reader_controls_hidden";
   function qs(selector, root) { return (root || document).querySelector(selector); }
   function scrollToTarget(id, block) { const target = document.getElementById(id); if (target) target.scrollIntoView({ behavior: "smooth", block: block || "start" }); }
-  function applyTocHidden(hidden) { document.body.classList.toggle("toc-floating-controls-hidden", hidden); const controls = qs("[data-toc-floating-controls]"); const toggle = qs("[data-toc-controls-toggle]"); if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false"); if (toggle) { toggle.textContent = hidden ? "☰" : "×"; toggle.setAttribute("aria-pressed", hidden ? "true" : "false"); toggle.setAttribute("aria-label", hidden ? "Показать кнопки оглавления" : "Скрыть кнопки оглавления"); } try { window.localStorage.setItem(TOC_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {} }
-  function applyReaderHidden(hidden) { const controls = qs("[data-reader-floating-controls]"); const toggle = qs("[data-reader-controls-visibility-toggle]"); document.body.classList.toggle("reader-controls-hidden", hidden); if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false"); if (toggle) { toggle.textContent = hidden ? "☰" : "×"; toggle.setAttribute("aria-pressed", hidden ? "true" : "false"); toggle.setAttribute("aria-label", hidden ? "Показать кнопки читалки" : "Скрыть кнопки читалки"); } try { window.localStorage.setItem(READER_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {} }
-  function initFloatingTocControls() { const page = qs("[data-novel-page]"); const sourceButton = qs("#novelReadButton"); const chapterList = qs("[data-chapter-list]"); if (!page || !sourceButton || qs("[data-toc-floating-controls]")) return; const controls = document.createElement("aside"); controls.className = "toc-floating-controls"; controls.dataset.tocFloatingControls = "true"; controls.setAttribute("aria-label", "Быстрая навигация по оглавлению"); const cta = document.createElement("a"); cta.className = "toc-floating-main-button"; cta.dataset.tocFloatingRead = "true"; cta.href = sourceButton.href || "#chapterListStart"; cta.textContent = sourceButton.textContent.trim() || "Начать читать"; const top = document.createElement("button"); top.className = "toc-floating-nav-button"; top.type = "button"; top.textContent = "↑"; top.setAttribute("aria-label", "К началу оглавления"); const bottom = document.createElement("button"); bottom.className = "toc-floating-nav-button"; bottom.type = "button"; bottom.textContent = "↓"; bottom.setAttribute("aria-label", "В конец оглавления"); controls.appendChild(cta); controls.appendChild(top); controls.appendChild(bottom); document.body.appendChild(controls); const toggle = document.createElement("button"); toggle.className = "toc-controls-visibility-toggle"; toggle.type = "button"; toggle.dataset.tocControlsToggle = "true"; document.body.appendChild(toggle); const syncCta = function () { cta.href = sourceButton.href || cta.href; cta.textContent = sourceButton.textContent.trim() || cta.textContent; }; syncCta(); try { new MutationObserver(syncCta).observe(sourceButton, { attributes: true, childList: true, subtree: true, characterData: true }); } catch (error) {} top.addEventListener("click", function (event) { event.stopPropagation(); scrollToTarget("chapterListStart", "start"); }); bottom.addEventListener("click", function (event) { event.stopPropagation(); scrollToTarget("chapterListEnd", chapterList ? "end" : "start"); }); controls.addEventListener("click", function (event) { event.stopPropagation(); }); toggle.addEventListener("click", function (event) { event.stopPropagation(); applyTocHidden(!document.body.classList.contains("toc-floating-controls-hidden")); }); let hidden = false; try { hidden = window.localStorage.getItem(TOC_HIDDEN_KEY) === "1"; } catch (error) {} applyTocHidden(hidden); }
-  function initReaderEmptySpaceCollapse() { const page = qs("[data-chapter-page]"); const controls = qs("[data-reader-floating-controls]"); const toggle = qs("[data-reader-controls-visibility-toggle]"); if (!page || !controls || !toggle) return; controls.addEventListener("click", function (event) { event.stopPropagation(); }); toggle.addEventListener("click", function (event) { event.stopPropagation(); applyReaderHidden(!document.body.classList.contains("reader-controls-hidden")); }); }
-  function initEmptySpaceCollapse() { document.addEventListener("click", function (event) { const target = event.target; if (!target || !target.closest) return; if (target.closest("a, button, input, select, textarea, summary, [role='button'], .settings-overlay, .zb-settings-sheet, .reader-quick-settings, [data-toc-floating-controls], [data-reader-floating-controls], [data-toc-controls-toggle], [data-reader-controls-visibility-toggle]")) return; if (document.body.classList.contains("page-novel") && qs("[data-toc-floating-controls]")) applyTocHidden(true); if (document.body.classList.contains("page-chapter") && qs("[data-reader-floating-controls]")) applyReaderHidden(true); }, false); }
-  function initV151() { initFloatingTocControls(); initReaderEmptySpaceCollapse(); initEmptySpaceCollapse(); }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV151); else initV151();
+  function isTopReadButtonVisible(sourceButton) {
+    if (!sourceButton) return false;
+    const rect = sourceButton.getBoundingClientRect();
+    return rect.bottom > 10 && rect.top < window.innerHeight - 72;
+  }
+  function applyTocHidden(hidden) {
+    document.body.classList.toggle("toc-floating-controls-hidden", hidden);
+    const controls = qs("[data-toc-floating-controls]");
+    const toggle = qs("[data-toc-controls-toggle]");
+    if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false");
+    if (toggle) {
+      toggle.textContent = hidden ? "☰" : "×";
+      toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
+      toggle.setAttribute("aria-label", hidden ? "Показать кнопки оглавления" : "Скрыть кнопки оглавления");
+    }
+    try { window.localStorage.setItem(TOC_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {}
+  }
+  function applyReaderHidden(hidden) {
+    const controls = qs("[data-reader-floating-controls]");
+    const toggle = qs("[data-reader-controls-visibility-toggle]");
+    document.body.classList.toggle("reader-controls-hidden", hidden);
+    if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false");
+    if (toggle) {
+      toggle.textContent = hidden ? "☰" : "×";
+      toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
+      toggle.setAttribute("aria-label", hidden ? "Показать кнопки читалки" : "Скрыть кнопки читалки");
+    }
+    try { window.localStorage.setItem(READER_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {}
+  }
+  function initFloatingTocControls() {
+    const page = qs("[data-novel-page]");
+    const sourceButton = qs("#novelReadButton");
+    const chapterList = qs("[data-chapter-list]");
+    if (!page || !sourceButton || qs("[data-toc-floating-controls]")) return;
+    const controls = document.createElement("aside");
+    controls.className = "toc-floating-controls";
+    controls.dataset.tocFloatingControls = "true";
+    controls.setAttribute("aria-label", "Быстрая навигация по оглавлению");
+    const cta = document.createElement("a");
+    cta.className = "toc-floating-main-button";
+    cta.dataset.tocFloatingRead = "true";
+    cta.href = sourceButton.href || "#chapterListStart";
+    cta.textContent = sourceButton.textContent.trim() || "Начать читать";
+    const top = document.createElement("button");
+    top.className = "toc-floating-nav-button";
+    top.type = "button";
+    top.textContent = "↑";
+    top.setAttribute("aria-label", "К началу оглавления");
+    const bottom = document.createElement("button");
+    bottom.className = "toc-floating-nav-button";
+    bottom.type = "button";
+    bottom.textContent = "↓";
+    bottom.setAttribute("aria-label", "В конец оглавления");
+    controls.appendChild(cta);
+    controls.appendChild(top);
+    controls.appendChild(bottom);
+    document.body.appendChild(controls);
+    const toggle = document.createElement("button");
+    toggle.className = "toc-controls-visibility-toggle";
+    toggle.type = "button";
+    toggle.dataset.tocControlsToggle = "true";
+    document.body.appendChild(toggle);
+    const syncCta = function () {
+      cta.href = sourceButton.href || cta.href;
+      cta.textContent = sourceButton.textContent.trim() || cta.textContent;
+    };
+    const syncVisibility = function () {
+      const topButtonVisible = isTopReadButtonVisible(sourceButton);
+      document.body.classList.toggle("toc-floating-controls-suppressed", topButtonVisible);
+      controls.setAttribute("data-suppressed-by-top-button", topButtonVisible ? "true" : "false");
+      toggle.setAttribute("data-suppressed-by-top-button", topButtonVisible ? "true" : "false");
+    };
+    syncCta();
+    syncVisibility();
+    try { new MutationObserver(function () { syncCta(); syncVisibility(); }).observe(sourceButton, { attributes: true, childList: true, subtree: true, characterData: true }); } catch (error) {}
+    top.addEventListener("click", function (event) { event.stopPropagation(); scrollToTarget("chapterListStart", "start"); });
+    bottom.addEventListener("click", function (event) { event.stopPropagation(); scrollToTarget("chapterListEnd", chapterList ? "end" : "start"); });
+    controls.addEventListener("click", function (event) { event.stopPropagation(); });
+    toggle.addEventListener("click", function (event) { event.stopPropagation(); applyTocHidden(!document.body.classList.contains("toc-floating-controls-hidden")); });
+    window.addEventListener("scroll", syncVisibility, { passive: true });
+    window.addEventListener("resize", syncVisibility, { passive: true });
+    if ("IntersectionObserver" in window) {
+      try { new IntersectionObserver(syncVisibility, { threshold: [0, .1, .45, .9, 1] }).observe(sourceButton); } catch (error) {}
+    }
+    let hidden = false;
+    try { hidden = window.localStorage.getItem(TOC_HIDDEN_KEY) === "1"; } catch (error) {}
+    applyTocHidden(hidden);
+  }
+  function initReaderEmptySpaceCollapse() {
+    const page = qs("[data-chapter-page]");
+    const controls = qs("[data-reader-floating-controls]");
+    const toggle = qs("[data-reader-controls-visibility-toggle]");
+    if (!page || !controls || !toggle) return;
+    controls.addEventListener("click", function (event) { event.stopPropagation(); });
+    toggle.addEventListener("click", function (event) { event.stopPropagation(); applyReaderHidden(!document.body.classList.contains("reader-controls-hidden")); });
+  }
+  function initEmptySpaceCollapse() {
+    document.addEventListener("click", function (event) {
+      const target = event.target;
+      if (!target || !target.closest) return;
+      if (target.closest("a, button, input, select, textarea, summary, [role='button'], .settings-overlay, .zb-settings-sheet, .reader-quick-settings, [data-toc-floating-controls], [data-reader-floating-controls], [data-toc-controls-toggle], [data-reader-controls-visibility-toggle]")) return;
+      if (document.body.classList.contains("page-novel") && qs("[data-toc-floating-controls]")) applyTocHidden(true);
+      if (document.body.classList.contains("page-chapter") && qs("[data-reader-floating-controls]")) applyReaderHidden(true);
+    }, false);
+  }
+  function initV156() { initFloatingTocControls(); initReaderEmptySpaceCollapse(); initEmptySpaceCollapse(); }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV156); else initV156();
 })();
 
 /* access labels: 🌱 Странствующий читатель · 📜 Хранитель свитков · v151-floating-toc-gold-groups */
