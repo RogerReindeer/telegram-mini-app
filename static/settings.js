@@ -2816,7 +2816,15 @@
       keeperGroups.forEach(function (group, index) { rows.push(groupRow(index === 0 ? "📜 Tribute / Хранитель" : index === 1 ? "📜 Boosty / Хранитель" : "📜 Хранитель", group, keeperConfig)); });
       return rows.join("");
     };
-    const payLink = function (label, href) {
+    const ownedButton = function (label) {
+      return `<button class="access-debug-pay-link access-debug-pay-owned" type="button" data-access-already-owned>${escapeHtml(label)} · уже есть</button>`;
+    };
+    const payLink = function (label, href, level) {
+      const role = rights.role || "guest";
+      const hasTraveler = role === "traveler" || role === "keeper";
+      const hasKeeper = role === "keeper";
+      if (level === "traveler" && hasTraveler) return ownedButton("Странствующий");
+      if (level === "keeper" && hasKeeper) return ownedButton("Хранитель");
       return href ? `<a class="access-debug-pay-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" data-telegram-link>${escapeHtml(label)}</a>` : "";
     };
     const subscriptionsHtml = subscriptions.length
@@ -2840,14 +2848,26 @@
       ${groupRows()}
       <h4>Оплата Tribute</h4>
       <div class="access-debug-pay-actions">
-        ${payLink("Оформить Странствующего", travelerConfig.payment_url)}
-        ${payLink("Оформить Хранителя", keeperConfig.payment_url)}
+        ${payLink("Оформить Странствующего", travelerConfig.payment_url, "traveler")}
+        ${payLink("Оформить Хранителя", keeperConfig.payment_url, "keeper")}
       </div>
       <h4>Подписки Tribute</h4><ul>${subscriptionsHtml}</ul>
       <h4>Книжные доступы</h4><ul>${entitlementsHtml}</ul>
       <details class="access-debug-config"><summary>Техническая конфигурация</summary><pre>${escapeHtml(JSON.stringify(config, null, 2))}</pre></details>
       <p class="access-debug-time">Проверено: ${escapeHtml(data.checked_at || "—")}</p>`;
   }
+
+  document.addEventListener("click", function (event) {
+    const target = event.target && event.target.closest ? event.target.closest("[data-access-already-owned]") : null;
+    if (!target) return;
+    event.preventDefault();
+    const message = "Этот доступ уже куплен и активен. Повторно покупать его не нужно.";
+    if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.showAlert === "function") {
+      window.Telegram.WebApp.showAlert(message);
+    } else {
+      window.alert(message);
+    }
+  });
 
   function fillSettingsInputs(settings) {
     document.querySelectorAll("[data-setting]").forEach(function (input) { if (Object.prototype.hasOwnProperty.call(settings, input.dataset.setting)) input.value = settings[input.dataset.setting]; });

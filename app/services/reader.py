@@ -660,7 +660,12 @@ def build_chapter_display_list_for_access(
         # Rows without any Telegraph content are service/planning rows, not TOC items.
         if not chapter_has_readable_url(chapter):
             continue
-        if chapter.get("is_visible") is not True and role != "keeper" and not profile.get("has_full_book_access"):
+        if (
+            chapter.get("is_visible") is not True
+            and not novel_is_gift(novel)
+            and role != "keeper"
+            and not profile.get("has_full_book_access")
+        ):
             continue
         item = prepare_chapter_for_access_template(chapter, novel, profile)
         if chapter_is_keeper_extra_blocked(chapter, profile, keeper_allowed_ids, novel):

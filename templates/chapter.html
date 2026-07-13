@@ -66,8 +66,21 @@
                     <h3>Как открыть доступ</h3>
                     <p>Оформите подписку в Tribute. После оплаты Tribute добавит вас в нужную приватную Telegram-группу. Затем вернитесь сюда и нажмите «Проверить доступ».</p>
                     <div class="chapter-unlock-options">
-                      {% if tribute_traveler_url %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>🌱 Странствующий читатель</a>{% endif %}
-                      {% if tribute_keeper_url %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>📜 Хранитель свитков</a>{% endif %}
+                      {% if tribute_traveler_url %}
+                        {% if access_paywall.show_traveler_purchase %}
+                          <a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>🌱 Странствующий читатель</a>
+                        {% elif access_paywall.traveler_already_owned %}
+                          <button class="chapter-access-owned-button" type="button" data-access-already-owned>🌱 Уже есть доступ</button>
+                        {% endif %}
+                      {% endif %}
+                      {% if tribute_keeper_url %}
+                        {% if access_paywall.show_keeper_purchase %}
+                          <a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>📜 Хранитель свитков</a>
+                        {% elif access_paywall.keeper_already_owned %}
+                          <button class="chapter-access-owned-button" type="button" data-access-already-owned>📜 Уже есть доступ</button>
+                        {% endif %}
+                      {% endif %}
+                      {% if access_paywall.already_owned_message %}<p class="chapter-access-owned-note">{{ access_paywall.already_owned_message }}</p>{% endif %}
                       {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
                     </div>
                   </div>

@@ -11778,4 +11778,45 @@ body[data-reader-theme="dark"] [data-reader-settings-toggle] {
   }
 }
 
-/* current marker: v156-toc-progress-mobile-fix */
+/* current marker: v158-subscription-labels-gift-fix */
+
+/* v157 — no repeated purchase for already active access */
+.chapter-access-owned-button,
+.access-debug-pay-owned {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(168, 130, 60, 0.58);
+  background: rgba(156, 126, 67, 0.12);
+  color: var(--muted, #7b6859);
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.chapter-access-owned-button:hover,
+.access-debug-pay-owned:hover {
+  transform: none;
+  background: rgba(156, 126, 67, 0.18);
+}
+
+.chapter-access-owned-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--muted, #7b6859);
+  text-align: center;
+}
+
+body[data-site-theme="dark"] .chapter-access-owned-button,
+body.theme-dark .chapter-access-owned-button,
+body[data-site-theme="dark"] .access-debug-pay-owned,
+body.theme-dark .access-debug-pay-owned {
+  color: rgba(255, 233, 176, 0.82);
+  border-color: rgba(226, 188, 104, 0.42);
+  background: rgba(226, 188, 104, 0.10);
+}

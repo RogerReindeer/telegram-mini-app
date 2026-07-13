@@ -304,11 +304,26 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
 
 
 def access_paywall_copy(decision: AccessDecision, novel: dict, profile: dict[str, Any]) -> dict[str, Any]:
-    """Return template-ready paywall copy and button visibility."""
+    """Return template-ready paywall copy and button visibility.
+
+    Payment links must never invite a reader to buy the same access level twice.
+    The Mini App source of truth is Telegram group membership: if a reader is
+    already Traveler, the Traveler payment is replaced with an "already owned"
+    state; if a reader is already Keeper, both subscription payments are blocked.
+    """
     release_label = format_release_date(decision.release_date)
+    viewer_role = clean_value(profile.get("role") or decision.viewer_role) or "guest"
+    viewer_rank = role_rank(viewer_role)
+
     can_show_boosty = decision.status in {"book_access_denied", "free_scheduled"}
     can_show_tribute = decision.status in {"book_access_denied", "free_scheduled"}
     can_refresh = decision.status in {"book_access_denied", "free_scheduled", "premium_scheduled", "locked"}
+
+    show_traveler_purchase = can_show_tribute and viewer_rank < role_rank("traveler")
+    show_keeper_purchase = can_show_tribute and viewer_rank < role_rank("keeper")
+    traveler_already_owned = viewer_rank >= role_rank("traveler")
+    keeper_already_owned = viewer_rank >= role_rank("keeper")
+
     required_label = role_display_name(decision.required_role)
     if decision.status in {"free_scheduled", "premium_scheduled"}:
         required_label = "дождаться даты релиза"
@@ -323,9 +338,15 @@ def access_paywall_copy(decision: AccessDecision, novel: dict, profile: dict[str
         "release_date": decision.release_date,
         "release_label": release_label,
         "required_role_label": required_label,
-        "viewer_role_label": role_display_name(decision.viewer_role),
-        "show_boosty": can_show_boosty,
+        "viewer_role_label": role_display_name(viewer_role),
+        "viewer_role": viewer_role,
+        "show_boosty": can_show_boosty and viewer_rank < role_rank("traveler"),
         "show_tribute": can_show_tribute,
+        "show_traveler_purchase": show_traveler_purchase,
+        "show_keeper_purchase": show_keeper_purchase,
+        "traveler_already_owned": traveler_already_owned,
+        "keeper_already_owned": keeper_already_owned,
+        "already_owned_message": "Этот доступ уже куплен и активен." if traveler_already_owned else "",
         "show_refresh": can_refresh,
         "show_back_to_toc": True,
     }
@@ -339,7 +360,7 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
         return {"label": "", "hint": "", "class_name": "chapter-access-public"}
     if status in {"premium_open", "subscription_open"}:
         return {
-            "label": "🔓 Подписка",
+            "label": "🔓 По подписке",
             "hint": "Глава открыта благодаря подписке",
             "class_name": "chapter-access-subscription",
         }
@@ -352,13 +373,23 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
             "class_name": "chapter-access-locked",
         }
     if status == "premium_scheduled":
+        if decision.required_role == "traveler":
+            return {
+                "label": f"🔒 {release_label}" if release_label else "🔒 По подписке",
+                "hint": "Разблокируется по подписке после даты релиза",
+                "class_name": "chapter-access-keeper",
+            }
         return {
             "label": f"📜 {release_label}" if release_label else "📜 по расписанию",
             "hint": "Уже в подписке, но ещё не настала дата релиза",
             "class_name": "chapter-access-keeper",
         }
     if status == "book_access_denied":
-        return {"label": "Нужна 🌱 подписка", "hint": "Закрытая новелла", "class_name": "chapter-access-boosty"}
+        return {
+            "label": f"🔒 {release_label}" if release_label else "🔒 По подписке",
+            "hint": "Глава разблокируется по подписке",
+            "class_name": "chapter-access-boosty",
+        }
     if status == "not_translated":
         return {"label": "Ещё не переведена", "hint": "Глава в плане", "class_name": "chapter-access-hidden"}
     if status == "no_content_source":
@@ -404,7 +435,14 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
     role = clean_value(profile.get("role")) or "guest"
     required_role = normalize_required_role(chapter.get("access_level"))
 
-    if chapter.get("is_visible") is not True and role != "keeper" and not profile.get("has_full_book_access"):
+    is_gift_novel = novel_is_gift(novel)
+
+    if (
+        chapter.get("is_visible") is not True
+        and not is_gift_novel
+        and role != "keeper"
+        and not profile.get("has_full_book_access")
+    ):
         return AccessDecision(
             allowed=False,
             status="hidden",
@@ -440,7 +478,10 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
                 viewer_role=role,
             )
 
-    if novel_is_gift(novel) and role == "guest":
+    if is_gift_novel and role == "guest":
+        release = clean_value(parse_date(chapter.get("premium_release_date")) or chapter.get("premium_release_date"))
+        if release and is_date_open(release):
+            release = ""
         return AccessDecision(
             allowed=False,
             status="book_access_denied",
@@ -449,16 +490,32 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             reason="gift_novel_requires_subscription",
             required_role="traveler",
             viewer_role=role,
+            release_date=release,
         )
 
-    if novel_is_gift(novel) and viewer_can_access_required_role(role, "traveler"):
+    # Бесплатный релиз всегда побеждает подписочную метку для пользователя,
+    # который уже может видеть книгу: если глава стала бесплатной, она больше
+    # не считается «разблокированной подпиской».
+    if chapter_public_ready(chapter):
+        return AccessDecision(
+            allowed=True,
+            status="public_open",
+            url=chapter_public_url(chapter),
+            label="Открыта",
+            class_name="chapter-access-public",
+            reason="free_release_open",
+            required_role=required_role,
+            viewer_role=role,
+        )
+
+    if is_gift_novel and viewer_can_access_required_role(role, "traveler"):
         url = chapter_subscription_url(chapter)
         if chapter_subscription_ready(chapter) and url:
             return AccessDecision(
                 allowed=True,
                 status="subscription_open",
                 url=url,
-                label="🔓 Подписка",
+                label="🔓 По подписке",
                 class_name="chapter-access-subscription",
                 reason="gift_subscription_open",
                 required_role="traveler",
@@ -482,21 +539,9 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             allowed=True,
             status="premium_open",
             url=chapter_premium_url(chapter),
-            label="🔓 Подписка",
+            label="🔓 По подписке",
             class_name="chapter-access-subscription",
             reason="premium_release_open",
-            required_role=required_role,
-            viewer_role=role,
-        )
-
-    if chapter_public_ready(chapter):
-        return AccessDecision(
-            allowed=True,
-            status="public_open",
-            url=chapter_public_url(chapter),
-            label="Открыта",
-            class_name="chapter-access-public",
-            reason="free_release_open",
             required_role=required_role,
             viewer_role=role,
         )
