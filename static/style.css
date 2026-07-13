@@ -11778,7 +11778,7 @@ body[data-reader-theme="dark"] [data-reader-settings-toggle] {
   }
 }
 
-/* current marker: v158-subscription-labels-gift-fix */
+/* current marker: v159-mobile-cover-balance-fix */
 
 /* v157 — no repeated purchase for already active access */
 .chapter-access-owned-button,
@@ -11820,3 +11820,72 @@ body.theme-dark .access-debug-pay-owned {
   border-color: rgba(226, 188, 104, 0.42);
   background: rgba(226, 188, 104, 0.10);
 }
+
+/* v159 — mobile library cover balance fix */
+@media (max-width: 520px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 116px minmax(0, 1fr) !important;
+    gap: 12px !important;
+    min-height: 176px !important;
+    align-items: start !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 116px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover {
+    height: 164px !important;
+    min-height: 164px !important;
+    border-radius: 10px !important;
+    object-fit: cover !important;
+  }
+
+  .library-book-card-v4 .library-book-topline {
+    min-height: 34px !important;
+  }
+
+  .library-book-card-v4 .library-book-title {
+    font-size: 15.5px !important;
+    line-height: 1.18 !important;
+  }
+
+  .library-book-card-v4 .library-book-subtitle,
+  .library-book-subtitle {
+    -webkit-line-clamp: 2 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 108px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    min-height: 162px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 108px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover {
+    height: 152px !important;
+    min-height: 152px !important;
+  }
+}
+
+/* current marker: v159-mobile-cover-balance-fix */
