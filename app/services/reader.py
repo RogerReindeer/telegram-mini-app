@@ -506,6 +506,11 @@ def prepare_novel_for_template(novel: dict) -> dict:
 
     tag_items = prepare_tag_items(tags)
     card_tag_items = build_card_tag_items(tag_items)
+    toc_tag_items = [
+        item
+        for item in sorted(tag_items, key=lambda item: (tag_priority_score(item), clean_value(item.get("text")).lower()))
+        if not is_age_rating_tag(item.get("text")) and not is_card_hidden_tag(item.get("text"))
+    ]
     library_card_tag_items = [item for item in card_tag_items if not is_country_tag_for_library(item.get("text"))]
     translation_status = normalize_translation_status(novel.get("translation_status") or novel.get("status"), novel.get("translation_status_label"))
     progress_percent = normalize_progress_percent(novel.get("progress_percent"))
@@ -530,6 +535,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "bottom_description": clean_value(novel.get("bottom_description")),
         "tags": tags,
         "tag_items": tag_items,
+        "toc_tag_items": toc_tag_items,
         "catalog_tag_items": card_tag_items[:6],
         "card_tag_items": card_tag_items[:6],
         "library_card_tag_items": library_card_tag_items[:6],

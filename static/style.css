@@ -11778,7 +11778,7 @@ body[data-reader-theme="dark"] [data-reader-settings-toggle] {
   }
 }
 
-/* current marker: v159-mobile-cover-balance-fix */
+/* current marker: v160-library-dismiss-buttons-fix */
 
 /* v157 — no repeated purchase for already active access */
 .chapter-access-owned-button,
@@ -11888,4 +11888,310 @@ body.theme-dark .access-debug-pay-owned {
   }
 }
 
-/* current marker: v159-mobile-cover-balance-fix */
+/* current marker: v160-library-dismiss-buttons-fix */
+
+
+/* v160 — mobile library dismiss buttons placement */
+.library-update-banner,
+.page-library .library-update-banner {
+  position: relative !important;
+  grid-template-columns: auto minmax(0, 1fr) !important;
+  padding-right: 46px !important;
+}
+
+.library-update-banner .library-update-close,
+.page-library .library-update-close {
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 3 !important;
+  width: 34px !important;
+  height: 34px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--app-text, #241711) !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  font-weight: 500 !important;
+  opacity: .92 !important;
+}
+
+.library-update-banner .library-update-button,
+.page-library .library-update-button {
+  grid-column: 2 / 3 !important;
+  width: min(100%, 440px) !important;
+  justify-self: stretch !important;
+}
+
+.page-library .library-continue-panel {
+  position: relative !important;
+  padding-top: clamp(16px, 2.6vw, 24px) !important;
+  padding-right: clamp(48px, 8vw, 64px) !important;
+}
+
+.page-library .library-continue-header {
+  padding-right: 0 !important;
+}
+
+.page-library .library-continue-clear {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 4 !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  padding: 0 !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--app-text, #241711) !important;
+  font-size: 30px !important;
+  line-height: 1 !important;
+  font-weight: 500 !important;
+  box-shadow: none !important;
+}
+
+.page-library .library-continue-clear:hover,
+.page-library .library-update-close:hover {
+  background: rgba(255, 106, 0, .10) !important;
+}
+
+body[data-site-theme="dark"] .library-update-banner .library-update-close,
+body[data-resolved-theme="dark"] .library-update-banner .library-update-close,
+body[data-site-theme="dark"] .page-library .library-continue-clear,
+body[data-resolved-theme="dark"] .page-library .library-continue-clear {
+  color: #fff4e8 !important;
+  background: transparent !important;
+}
+
+body[data-site-theme="dark"] .page-library .library-continue-clear:hover,
+body[data-resolved-theme="dark"] .page-library .library-continue-clear:hover,
+body[data-site-theme="dark"] .library-update-banner .library-update-close:hover,
+body[data-resolved-theme="dark"] .library-update-banner .library-update-close:hover {
+  background: rgba(255, 185, 112, .14) !important;
+}
+
+@media (max-width: 560px) {
+  .library-update-banner,
+  .page-library .library-update-banner {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    padding: 12px 46px 12px 12px !important;
+  }
+
+  .library-update-banner .library-update-icon,
+  .page-library .library-update-icon {
+    grid-column: 1 !important;
+    grid-row: 1 / 3 !important;
+    align-self: start !important;
+  }
+
+  .library-update-banner .library-update-text,
+  .page-library .library-update-text {
+    grid-column: 2 !important;
+    min-width: 0 !important;
+  }
+
+  .library-update-banner .library-update-button,
+  .page-library .library-update-button {
+    grid-column: 2 !important;
+    width: 100% !important;
+  }
+
+  .page-library .library-continue-panel {
+    padding: 14px 46px 14px 14px !important;
+  }
+
+  .page-library .library-continue-header {
+    grid-template-columns: minmax(0, 1fr) !important;
+    margin-right: 0 !important;
+  }
+
+  .page-library .library-continue-clear {
+    top: 8px !important;
+    right: 8px !important;
+    justify-self: auto !important;
+  }
+}
+
+/* current marker: v160-library-dismiss-buttons-fix */
+
+/* v161 — mobile card cover fills left column; chapter counts stay inline */
+@media (max-width: 560px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: minmax(118px, 34vw) minmax(0, 1fr) !important;
+    gap: 12px !important;
+    align-items: stretch !important;
+    min-height: 0 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-book-cover-link {
+    display: block !important;
+    align-self: stretch !important;
+    height: 100% !important;
+    min-height: 178px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-cover-frame {
+    display: block !important;
+    height: 100% !important;
+    min-height: 178px !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 178px !important;
+    object-fit: cover !important;
+    object-position: center top !important;
+    border-radius: 10px !important;
+  }
+
+  .library-card-access-row,
+  .library-book-card-v4 .library-card-access-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 5px !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .library-access-count,
+  .library-access-count:nth-child(n+3),
+  .library-access-count:nth-child(3),
+  .library-access-translated,
+  .library-book-card-v4 .library-access-count,
+  .library-book-card-v4 .library-access-translated {
+    display: inline-flex !important;
+    flex: 0 1 auto !important;
+    flex-basis: auto !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    padding: 0 7px !important;
+    font-size: 10px !important;
+    line-height: 1 !important;
+  }
+
+  .library-access-translated,
+  .library-book-card-v4 .library-access-translated {
+    margin-top: 0 !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: minmax(112px, 35vw) minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    min-height: 168px !important;
+  }
+
+  .library-card-access-row,
+  .library-book-card-v4 .library-card-access-row {
+    gap: 4px !important;
+  }
+
+  .library-access-count,
+  .library-book-card-v4 .library-access-count {
+    padding: 0 6px !important;
+    font-size: 9.4px !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 104px minmax(0, 1fr) !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    min-height: 156px !important;
+  }
+
+  .library-access-count,
+  .library-book-card-v4 .library-access-count {
+    padding: 0 5px !important;
+    font-size: 9px !important;
+  }
+}
+
+/* current marker: v161-mobile-card-balance-counts-fix */
+
+
+/* v162 — full TOC tags and green badges for chapters opened by subscription */
+.novel-toc-tags-full {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.novel-toc-tags-full .tag,
+.novel-toc-tags-full .tag-spoiler-reveal {
+  white-space: normal;
+}
+
+.chapter-access-subscription,
+.chapter-access.chapter-access-subscription,
+.chapter-access-subscription-open,
+.chapter-access.chapter-access-subscription-open {
+  color: #073b1c !important;
+  background: linear-gradient(135deg, rgba(203, 255, 218, 0.98), rgba(51, 186, 102, 0.92)) !important;
+  border: 1px solid rgba(45, 160, 89, 0.72) !important;
+  box-shadow: 0 0 0 1px rgba(235, 255, 240, 0.55) inset, 0 4px 14px rgba(28, 122, 64, 0.16) !important;
+}
+
+body[data-site-theme="dark"] .chapter-access-subscription,
+body[data-site-theme="dark"] .chapter-access.chapter-access-subscription,
+body[data-theme="dark"] .chapter-access-subscription,
+body[data-theme="dark"] .chapter-access.chapter-access-subscription,
+body[data-site-theme="dark"] .chapter-access-subscription-open,
+body[data-site-theme="dark"] .chapter-access.chapter-access-subscription-open,
+body[data-theme="dark"] .chapter-access-subscription-open,
+body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
+  color: #eaffef !important;
+  background: linear-gradient(135deg, rgba(22, 118, 57, 0.94), rgba(10, 76, 39, 0.92)) !important;
+  border-color: rgba(103, 237, 151, 0.72) !important;
+  box-shadow: 0 0 0 1px rgba(176, 255, 203, 0.20) inset, 0 4px 16px rgba(0, 0, 0, 0.28) !important;
+}
+
+/* current marker: v162-toc-tags-subscription-green-fix */

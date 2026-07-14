@@ -1822,6 +1822,21 @@
     const totalNewChapters = newCards.reduce(function (sum, card) {
       return sum + Math.max(1, Number(card.dataset.newChaptersCount || 1));
     }, 0);
+    const bannerSignature = newCards.map(function (card) {
+      return [
+        card.dataset.novelId || card.dataset.novelSlug || "novel",
+        card.dataset.newChaptersCount || "1",
+        card.dataset.availableChapters || "0",
+        card.dataset.translatedChapters || "0",
+      ].join(":");
+    }).join("|");
+    let dismissedSignature = "";
+    try { dismissedSignature = window.localStorage.getItem("zefirki_update_banner_dismissed") || ""; } catch (error) {}
+    if (bannerSignature && dismissedSignature === bannerSignature) {
+      banner.hidden = true;
+      return;
+    }
+
     const firstCard = newCards[0];
     const novelCountText = newCards.length === 1 ? "1 новелле" : `${newCards.length} новеллах`;
 
@@ -1837,6 +1852,7 @@
 
     if (close) {
       close.onclick = function () {
+        try { window.localStorage.setItem("zefirki_update_banner_dismissed", bannerSignature); } catch (error) {}
         banner.hidden = true;
       };
     }
