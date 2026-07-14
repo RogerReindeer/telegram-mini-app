@@ -12194,4 +12194,124 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   box-shadow: 0 0 0 1px rgba(176, 255, 203, 0.20) inset, 0 4px 16px rgba(0, 0, 0, 0.28) !important;
 }
 
-/* current marker: v162-toc-tags-subscription-green-fix */
+/* current marker: v163-mobile-title-cover-balance-fix */
+
+/* v163 — balanced mobile library covers; titles get readable width */
+@media (max-width: 560px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 92px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    align-items: start !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 92px !important;
+    min-width: 92px !important;
+    max-width: 92px !important;
+    height: 130px !important;
+    min-height: 130px !important;
+    max-height: 130px !important;
+    flex: 0 0 92px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover {
+    object-fit: cover !important;
+    object-position: center top !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-body,
+  .library-book-card-v4 .library-book-body {
+    min-width: 0 !important;
+    overflow: visible !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-topline,
+  .library-book-card-v4 .library-book-topline {
+    grid-template-columns: minmax(0, 1fr) 28px !important;
+    gap: 4px !important;
+    align-items: start !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(15px, 4.6vw, 18px) !important;
+    line-height: 1.12 !important;
+    -webkit-line-clamp: 2 !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-menu,
+  .library-book-card-v4 .library-book-menu {
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    margin-right: -4px !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 86px minmax(0, 1fr) !important;
+    gap: 9px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 86px !important;
+    min-width: 86px !important;
+    max-width: 86px !important;
+    height: 122px !important;
+    min-height: 122px !important;
+    max-height: 122px !important;
+    flex-basis: 86px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(14px, 4.7vw, 17px) !important;
+  }
+}
+
+@media (max-width: 340px) {
+  .library-v4 .library-book-card-v4,
+  .library-book-card-v4 {
+    grid-template-columns: 78px minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-cover-link,
+  .library-v4 .library-book-card-v4 .library-cover-frame,
+  .library-v4 .library-book-card-v4 .library-book-cover,
+  .library-book-card-v4 .library-book-cover-link,
+  .library-book-card-v4 .library-cover-frame,
+  .library-book-card-v4 .library-book-cover {
+    width: 78px !important;
+    min-width: 78px !important;
+    max-width: 78px !important;
+    height: 110px !important;
+    min-height: 110px !important;
+    max-height: 110px !important;
+    flex-basis: 78px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: 14px !important;
+    line-height: 1.12 !important;
+  }
+}
+
+/* current marker: v163-mobile-title-cover-balance-fix */
