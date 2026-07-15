@@ -37,9 +37,9 @@
               {% if novel.show_access_badge and novel.access_badge %}<span class="novel-access-pill">{{ novel.access_badge.icon }} {{ novel.access_badge.label }}</span>{% endif %}
             </div>
             <div class="novel-toc-access-summary" aria-label="Доступность глав">
-              <span title="Открыто бесплатно">🌱 <b>{{ novel.free_chapters_count or 0 }}</b></span>
-              <span title="Доступно Хранителю">📜 <b>{{ novel.keeper_chapters_count or novel.free_chapters_count or 0 }}</b></span>
-              <span title="Переведено всего">🕘 <b>{{ novel.translated_chapters or 0 }}</b> из <b>{{ novel.total_chapters or novel.translated_chapters or 0 }}</b></span>
+              <span class="novel-toc-counter novel-toc-counter-free" title="Открыто бесплатно"><span class="novel-toc-counter-mark" aria-hidden="true">Б</span><b>{{ novel.free_chapters_count or 0 }}</b></span>
+              <span class="novel-toc-counter novel-toc-counter-subscription" title="Доступно по подписке"><span class="novel-toc-counter-mark" aria-hidden="true">П</span><b>{{ novel.keeper_chapters_count or novel.free_chapters_count or 0 }}</b></span>
+              <span class="novel-toc-counter novel-toc-counter-total" title="Переведено всего"><span class="novel-toc-counter-mark" aria-hidden="true">Σ</span><b>{{ novel.translated_chapters or 0 }}</b><span class="novel-toc-counter-separator">из</span><b>{{ novel.total_chapters or novel.translated_chapters or 0 }}</b></span>
             </div>
             <div class="novel-toc-reading-progress" data-novel-reading-progress hidden><div class="novel-toc-progress-head"><span>Прогресс чтения</span><span class="novel-reading-progress-text" data-novel-reading-progress-text>0 / 0</span></div><span class="novel-reading-progress-track" aria-hidden="true"><span data-novel-reading-progress-bar></span></span></div>
           </div>

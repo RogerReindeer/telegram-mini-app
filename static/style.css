@@ -12194,7 +12194,7 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   box-shadow: 0 0 0 1px rgba(176, 255, 203, 0.20) inset, 0 4px 16px rgba(0, 0, 0, 0.28) !important;
 }
 
-/* current marker: v164-mobile-tags-spacing-fix */
+/* current marker: v166-novel-counter-chip-fix */
 
 /* v163 — balanced mobile library covers; titles get readable width */
 @media (max-width: 560px) {
@@ -12314,7 +12314,7 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   }
 }
 
-/* current marker: v164-mobile-tags-spacing-fix */
+/* current marker: v166-novel-counter-chip-fix */
 
 /* v164 — mobile library: show up to 4 tags and tighten vertical rhythm */
 @media (max-width: 760px) {
@@ -12394,4 +12394,163 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   }
 }
 
-/* current marker: v164-mobile-tags-spacing-fix */
+/* current marker: v166-novel-counter-chip-fix */
+
+/* v165 — mobile library title/subtitle spacing balance */
+@media (max-width: 760px) {
+  .library-v4 .library-book-card-v4 .library-book-body,
+  .library-book-card-v4 .library-book-body {
+    gap: 2px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-topline,
+  .library-book-card-v4 .library-book-topline {
+    margin: 0 0 -3px !important;
+    align-items: start !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(13px, 3.75vw, 15.5px) !important;
+    line-height: 1.03 !important;
+    letter-spacing: -0.025em !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle,
+  .library-book-card-v4 .library-book-subtitle {
+    margin: 0 !important;
+    font-size: 10.5px !important;
+    line-height: 1.12 !important;
+    -webkit-line-clamp: 2 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-description,
+  .library-book-card-v4 .library-book-description {
+    margin: 0 0 1px !important;
+    font-size: 11px !important;
+    line-height: 1.16 !important;
+  }
+}
+
+@media (max-width: 390px) {
+  .library-v4 .library-book-card-v4 .library-book-body,
+  .library-book-card-v4 .library-book-body {
+    gap: 1px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-topline,
+  .library-book-card-v4 .library-book-topline {
+    margin-bottom: -4px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(12.5px, 3.9vw, 14.5px) !important;
+    line-height: 1.02 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle,
+  .library-book-card-v4 .library-book-subtitle {
+    font-size: 10px !important;
+    line-height: 1.1 !important;
+  }
+}
+
+/* current marker: v166-novel-counter-chip-fix */
+
+/* current marker: v166-novel-counter-chip-fix */
+
+/* v166 — clean homogeneous chapter-count chips on novel table-of-contents */
+.novel-toc-access-summary {
+  gap: 7px !important;
+  align-items: center !important;
+}
+
+.novel-toc-access-summary .novel-toc-counter {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 31px !important;
+  padding: 3px 10px 3px 5px !important;
+  border-radius: 10px !important;
+  background: rgba(74, 51, 30, 0.045) !important;
+  border: 1px solid rgba(189, 135, 45, 0.34) !important;
+  color: inherit !important;
+  box-shadow: none !important;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.novel-toc-access-summary .novel-toc-counter-mark {
+  display: inline-grid !important;
+  place-items: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+  padding: 0 !important;
+  border-radius: 7px !important;
+  border: 0 !important;
+  background: linear-gradient(180deg, rgba(255, 226, 152, 0.95), rgba(194, 132, 35, 0.92)) !important;
+  color: #281606 !important;
+  box-shadow: inset 0 0 0 1px rgba(112, 70, 12, 0.28) !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  font-family: inherit !important;
+}
+
+.novel-toc-access-summary .novel-toc-counter-separator {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: currentColor !important;
+  font-size: .88em !important;
+  opacity: .72 !important;
+}
+
+.novel-toc-access-summary .novel-toc-counter b {
+  color: currentColor !important;
+  font-weight: 900 !important;
+}
+
+body[data-site-theme="dark"] .novel-toc-access-summary .novel-toc-counter,
+body[data-resolved-theme="dark"] .novel-toc-access-summary .novel-toc-counter,
+body[data-reader-theme="dark"] .novel-toc-access-summary .novel-toc-counter {
+  background: rgba(255, 226, 152, 0.055) !important;
+  border-color: rgba(232, 181, 82, 0.38) !important;
+  color: #ffe7b0 !important;
+}
+
+body[data-site-theme="dark"] .novel-toc-access-summary .novel-toc-counter-mark,
+body[data-resolved-theme="dark"] .novel-toc-access-summary .novel-toc-counter-mark,
+body[data-reader-theme="dark"] .novel-toc-access-summary .novel-toc-counter-mark {
+  background: linear-gradient(180deg, rgba(255, 220, 137, 0.96), rgba(181, 118, 31, 0.94)) !important;
+  color: #241304 !important;
+}
+
+@media (max-width: 560px) {
+  .novel-toc-access-summary {
+    gap: 6px !important;
+  }
+
+  .novel-toc-access-summary .novel-toc-counter {
+    min-height: 29px !important;
+    padding: 3px 8px 3px 5px !important;
+    gap: 5px !important;
+    border-radius: 9px !important;
+    font-size: 12px !important;
+  }
+
+  .novel-toc-access-summary .novel-toc-counter-mark {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+  }
+}
