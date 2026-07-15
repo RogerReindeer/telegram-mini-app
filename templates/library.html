@@ -310,7 +310,7 @@
 
                     {% if card_tags %}
                       {% for tag in card_tags %}
-                        {% if loop.index <= 3 %}
+                        {% if loop.index <= 4 %}
                           {% if tag.is_spoiler %}
                             <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
                           {% else %}
@@ -318,8 +318,8 @@
                           {% endif %}
                         {% endif %}
                       {% endfor %}
-                      {% if card_tags|length > 3 %}
-                        <span class="library-mini-tag library-mini-tag-more">+{{ card_tags|length - 3 }}</span>
+                      {% if card_tags|length > 4 %}
+                        <span class="library-mini-tag library-mini-tag-more">+{{ card_tags|length - 4 }}</span>
                       {% endif %}
                     {% endif %}
                   </div>
