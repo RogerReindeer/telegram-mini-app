@@ -12194,7 +12194,7 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   box-shadow: 0 0 0 1px rgba(176, 255, 203, 0.20) inset, 0 4px 16px rgba(0, 0, 0, 0.28) !important;
 }
 
-/* current marker: v166-novel-counter-chip-fix */
+/* current marker: v168-reader-settings-button-style-fix */
 
 /* v163 — balanced mobile library covers; titles get readable width */
 @media (max-width: 560px) {
@@ -12314,7 +12314,7 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   }
 }
 
-/* current marker: v166-novel-counter-chip-fix */
+/* current marker: v168-reader-settings-button-style-fix */
 
 /* v164 — mobile library: show up to 4 tags and tighten vertical rhythm */
 @media (max-width: 760px) {
@@ -12394,7 +12394,7 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   }
 }
 
-/* current marker: v166-novel-counter-chip-fix */
+/* current marker: v168-reader-settings-button-style-fix */
 
 /* v165 — mobile library title/subtitle spacing balance */
 @media (max-width: 760px) {
@@ -12457,9 +12457,9 @@ body[data-theme="dark"] .chapter-access.chapter-access-subscription-open {
   }
 }
 
-/* current marker: v166-novel-counter-chip-fix */
+/* current marker: v168-reader-settings-button-style-fix */
 
-/* current marker: v166-novel-counter-chip-fix */
+/* current marker: v168-reader-settings-button-style-fix */
 
 /* v166 — clean homogeneous chapter-count chips on novel table-of-contents */
 .novel-toc-access-summary {
@@ -12554,3 +12554,114 @@ body[data-reader-theme="dark"] .novel-toc-access-summary .novel-toc-counter-mark
     font-size: 11px !important;
   }
 }
+
+/* v167 — return emoji counter icons and remove numeric white/gray backplates */
+.novel-toc-access-summary .novel-toc-counter-mark {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif !important;
+  font-size: 1.04em !important;
+  line-height: 1 !important;
+}
+
+.novel-toc-access-summary .novel-toc-counter b,
+.novel-toc-access-summary .novel-toc-counter .novel-toc-counter-number {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.novel-toc-access-summary .novel-toc-counter-separator {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: currentColor !important;
+}
+
+@media (max-width: 560px) {
+  .novel-toc-access-summary .novel-toc-counter-mark {
+    font-size: 1em !important;
+  }
+}
+
+/* current marker: v168-reader-settings-button-style-fix */
+
+/* v168 — reader Aa button uses the same rail style as the other reader buttons */
+.reader-floating-controls .zb-reader-settings-button.reader-settings-docked,
+.reader-floating-controls [data-reader-settings-docked] {
+  position: static !important;
+  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: var(--zb-chip-radius-v151, 7px) !important;
+  border: 1px solid rgba(255,216,106,.62) !important;
+  background: linear-gradient(135deg,rgba(95,55,7,.94),rgba(35,24,11,.94)) !important;
+  color: #fff5c7 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.24) !important;
+  font-size: 18px !important;
+  font-weight: 950 !important;
+  line-height: 1 !important;
+}
+
+.reader-floating-controls .zb-reader-settings-button.reader-settings-docked::before,
+.reader-floating-controls .zb-reader-settings-button.reader-settings-docked::after,
+.reader-floating-controls [data-reader-settings-docked]::before,
+.reader-floating-controls [data-reader-settings-docked]::after {
+  display: none !important;
+  content: none !important;
+}
+
+.reader-floating-controls .zb-reader-settings-button.reader-settings-docked:hover,
+.reader-floating-controls [data-reader-settings-docked]:hover {
+  transform: translateY(-1px) !important;
+  filter: brightness(1.04) !important;
+}
+
+body.reader-controls-hidden .reader-floating-controls .zb-reader-settings-button.reader-settings-docked,
+body.reader-controls-hidden .reader-floating-controls [data-reader-settings-docked] {
+  pointer-events: none !important;
+}
+
+@media (max-width: 720px) {
+  .reader-floating-controls .zb-reader-settings-button.reader-settings-docked,
+  .reader-floating-controls [data-reader-settings-docked] {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    font-size: 17px !important;
+  }
+}
+
+/* current marker: v168-reader-settings-button-style-fix */

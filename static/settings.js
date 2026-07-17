@@ -3877,3 +3877,38 @@
 })();
 
 /* access labels: 🌱 Странствующий читатель · 📜 Хранитель свитков · v151-floating-toc-gold-groups */
+
+/* v168 — dock reader Aa settings button into the same floating rail */
+(function () {
+  function dockReaderSettingsButton() {
+    if (!document.body.classList.contains("page-chapter")) return false;
+    const controls = document.querySelector("[data-reader-floating-controls]");
+    const button = document.querySelector("[data-zb-reader-settings]");
+    if (!controls || !button) return false;
+    if (button.parentElement !== controls) {
+      controls.appendChild(button);
+    }
+    button.classList.add("reader-settings-docked");
+    button.classList.add("reader-floating-button");
+    button.setAttribute("data-reader-settings-docked", "true");
+    button.setAttribute("title", "Настройки чтения");
+    return true;
+  }
+
+  function initDockedReaderSettingsButton() {
+    if (dockReaderSettingsButton()) return;
+    let attempts = 0;
+    const timer = window.setInterval(function () {
+      attempts += 1;
+      if (dockReaderSettingsButton() || attempts > 30) {
+        window.clearInterval(timer);
+      }
+    }, 120);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDockedReaderSettingsButton);
+  } else {
+    initDockedReaderSettingsButton();
+  }
+})();
