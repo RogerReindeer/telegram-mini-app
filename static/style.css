@@ -12666,7 +12666,7 @@ body.reader-controls-hidden .reader-floating-controls [data-reader-settings-dock
 
 /* current marker: v168-reader-settings-button-style-fix */
 
-/* current marker: v170-filter-reset-button-fix */
+/* current marker: v172-library-title-gap-real-fix */
 
 /* v169 — align chapter titles lower when the row has no visible access/status label */
 .chapter-row-v2.chapter-row-no-access-label {
@@ -12738,7 +12738,7 @@ body.dark .library-filter-footer {
   border-top-color: rgba(198, 143, 61, 0.34) !important;
 }
 
-/* current marker: v170-filter-reset-button-fix */
+/* current marker: v172-library-title-gap-real-fix */
 
 
 /* current marker: v171-mobile-novel-title-gap-fix */
@@ -12774,3 +12774,91 @@ body.dark .library-filter-footer {
 }
 
 /* current marker: v171-mobile-novel-title-gap-fix */
+
+
+/* current marker: v172-library-title-gap-real-fix */
+
+/* v172 — real mobile library card title/subtitle gap fix */
+@media (max-width: 900px) {
+  .library-v4 .library-book-card-v4 .library-book-body,
+  .library-book-card-v4 .library-book-body {
+    gap: 0 !important;
+    row-gap: 0 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-topline,
+  .library-book-card-v4 .library-book-topline {
+    margin-top: 0 !important;
+    margin-bottom: -8px !important;
+    padding-bottom: 0 !important;
+    min-height: 0 !important;
+    line-height: 1 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(13px, 3.65vw, 15px) !important;
+    line-height: .98 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle,
+  .library-book-card-v4 .library-book-subtitle {
+    margin: -2px 0 2px !important;
+    padding: 0 !important;
+    font-size: clamp(10px, 3.2vw, 12px) !important;
+    line-height: 1.08 !important;
+    max-width: 100% !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .library-v4 .library-book-card-v4 .library-book-topline,
+  .library-book-card-v4 .library-book-topline {
+    margin-bottom: -10px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(12px, 3.7vw, 14px) !important;
+    line-height: .96 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle,
+  .library-book-card-v4 .library-book-subtitle {
+    margin-top: -3px !important;
+    font-size: 10px !important;
+    line-height: 1.06 !important;
+  }
+}
+
+/* Also tighten the same title pair on the novel TOC hero in Telegram WebView. */
+@media (max-width: 900px) {
+  .page-novel .novel-toc-title-row .novel-title-main-v2,
+  .novel-toc-title-row .novel-title-main-v2 {
+    gap: 0 !important;
+    row-gap: 0 !important;
+  }
+
+  .page-novel .novel-toc-title-row .novel-title-main-v2 h1,
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: .96 !important;
+  }
+
+  .page-novel .novel-toc-full-title,
+  .novel-toc-full-title {
+    margin: -1px 0 0 !important;
+    padding: 0 !important;
+    line-height: 1.08 !important;
+  }
+}
+
+/* current marker: v172-library-title-gap-real-fix */

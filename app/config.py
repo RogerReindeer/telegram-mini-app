@@ -79,7 +79,7 @@ class Settings:
     rate_limit_public_max_requests: int = int(_env("RATE_LIMIT_PUBLIC_MAX_REQUESTS", "240") or "240")
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
-    app_version: str = _env("APP_VERSION", "v170-filter-reset-button-fix")
+    app_version: str = _env("APP_VERSION", "v172-library-title-gap-real-fix")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 
