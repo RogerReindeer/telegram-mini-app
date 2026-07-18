@@ -12665,3 +12665,112 @@ body.reader-controls-hidden .reader-floating-controls [data-reader-settings-dock
 }
 
 /* current marker: v168-reader-settings-button-style-fix */
+
+/* current marker: v170-filter-reset-button-fix */
+
+/* v169 — align chapter titles lower when the row has no visible access/status label */
+.chapter-row-v2.chapter-row-no-access-label {
+  align-items: stretch !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-icon,
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-arrow {
+  align-self: center !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+  align-self: stretch !important;
+  min-height: 54px !important;
+  display: flex !important;
+  align-items: center !important;
+  padding-top: 5px !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-title {
+  transform: translateY(2px) !important;
+}
+
+.chapter-row-v2:not(.chapter-row-no-access-label) .chapter-row-main {
+  padding-top: 0 !important;
+}
+
+@media (max-width: 560px) {
+  .chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+    min-height: 58px !important;
+    padding-top: 7px !important;
+  }
+
+  .chapter-row-v2.chapter-row-no-access-label .chapter-title {
+    transform: translateY(3px) !important;
+  }
+}
+
+/* v170 — readable reset button in dark filter sheet */
+body[data-site-theme="dark"] .library-filter-reset,
+body[data-resolved-theme="dark"] .library-filter-reset,
+body[data-reader-theme="dark"] .library-filter-reset,
+body.dark .library-filter-reset {
+  color: #fff3df !important;
+  background: rgba(255, 106, 0, 0.10) !important;
+  border-color: rgba(255, 122, 24, 0.78) !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.38) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 199, 112, 0.08) !important;
+  opacity: 1 !important;
+}
+
+body[data-site-theme="dark"] .library-filter-reset:hover,
+body[data-resolved-theme="dark"] .library-filter-reset:hover,
+body[data-reader-theme="dark"] .library-filter-reset:hover,
+body.dark .library-filter-reset:hover,
+body[data-site-theme="dark"] .library-filter-reset:focus-visible,
+body[data-resolved-theme="dark"] .library-filter-reset:focus-visible,
+body[data-reader-theme="dark"] .library-filter-reset:focus-visible,
+body.dark .library-filter-reset:focus-visible {
+  color: #ffffff !important;
+  background: rgba(255, 106, 0, 0.18) !important;
+  border-color: rgba(255, 168, 72, 0.96) !important;
+}
+
+body[data-site-theme="dark"] .library-filter-footer,
+body[data-resolved-theme="dark"] .library-filter-footer,
+body[data-reader-theme="dark"] .library-filter-footer,
+body.dark .library-filter-footer {
+  border-top-color: rgba(198, 143, 61, 0.34) !important;
+}
+
+/* current marker: v170-filter-reset-button-fix */
+
+
+/* current marker: v171-mobile-novel-title-gap-fix */
+
+/* v171 — tighten the gap between short and full title on mobile novel page */
+@media (max-width: 720px) {
+  .page-novel .novel-toc-title-row .novel-title-main-v2,
+  .novel-toc-title-row .novel-title-main-v2 {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    gap: 1px !important;
+  }
+
+  .page-novel .novel-toc-title-row .novel-title-main-v2 h1,
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    margin: 0 !important;
+    line-height: 0.98 !important;
+  }
+
+  .page-novel .novel-toc-full-title,
+  .novel-toc-full-title,
+  .page-novel .novel-title-en,
+  .novel-title-en {
+    margin: 1px 0 0 !important;
+    line-height: 1.18 !important;
+  }
+
+  .page-novel .novel-toc-kicker,
+  .novel-toc-kicker {
+    margin: 0 0 1px !important;
+  }
+}
+
+/* current marker: v171-mobile-novel-title-gap-fix */
