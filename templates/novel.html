@@ -46,7 +46,7 @@
         </div>
       </div>
       {% set visible_tags = novel.toc_tag_items if novel.toc_tag_items is defined else (novel.tag_items if novel.tag_items is defined else novel.catalog_tag_items) %}
-      {% if visible_tags or novel.age_rating %}<div class="novel-tags-v2 novel-toc-tags novel-toc-tags-full" aria-label="Теги">{% if novel.age_rating %}<span class="tag tag-rating">{{ novel.age_rating }}</span>{% endif %}{% for tag in visible_tags %}{% if tag.is_spoiler %}<button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}">спойлер</button>{% else %}<span class="tag {{ tag.class_name }}">{{ tag.text }}</span>{% endif %}{% endfor %}</div>{% endif %}
+      {% if visible_tags or novel.age_rating %}<div class="novel-tags-v2 novel-toc-tags novel-toc-tags-full" aria-label="Теги">{% if novel.age_rating %}<span class="tag tag-rating">{{ novel.age_rating }}</span>{% endif %}{% for tag in visible_tags %}{% if tag.is_spoiler %}<button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}" data-spoiler-class="{{ tag.class_name }}" aria-label="Показать скрытый тег"><span class="tag-spoiler-icon" aria-hidden="true">⚠️</span><span class="tag-spoiler-text">Скрытый тег</span><span class="tag-spoiler-action">показать</span></button>{% else %}<span class="tag {{ tag.class_name }}">{{ tag.text }}</span>{% endif %}{% endfor %}</div>{% endif %}
     </section>
     {% if chapters and chapters|length > 0 %}
       <section class="novel-read-action novel-read-action-v2 novel-read-action-priority"><a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ chapters[0].chapter_id }}">Начать читать</a><p class="novel-read-action-hint" id="novelReadHint" hidden></p></section>

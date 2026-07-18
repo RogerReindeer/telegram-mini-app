@@ -312,7 +312,7 @@
                       {% for tag in card_tags %}
                         {% if loop.index <= 4 %}
                           {% if tag.is_spoiler %}
-                            <span class="library-mini-tag library-mini-tag-spoiler">спойлер</span>
+                            <span class="library-mini-tag library-mini-tag-spoiler">⚠️ скрытый тег</span>
                           {% else %}
                             <span class="library-mini-tag {{ tag.class_name }}">{{ tag.text }}</span>
                           {% endif %}
