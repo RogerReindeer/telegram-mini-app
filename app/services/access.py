@@ -111,9 +111,20 @@ def chapter_is_translated(chapter: dict) -> bool:
     return bool(clean_value(chapter.get("translation_date")))
 
 
+def chapter_content_source(chapter: dict, url_key: str, code_key: str) -> str:
+    """Return a readable Telegraph source from either URL or code/path.
+
+    In the CRM some subscription-only rows are filled through Telegraph*Code
+    instead of Telegraph*URL. The Telegraph loader can read both a full URL and
+    a Telegraph path/code, so access checks must treat codes as real content
+    sources too.
+    """
+    return clean_value(chapter.get(url_key)) or clean_value(chapter.get(code_key))
+
+
 def chapter_public_url(chapter: dict) -> str:
     required = normalize_required_role(chapter.get("access_level"))
-    free_url = clean_value(chapter.get("telegraph_free_url"))
+    free_url = chapter_content_source(chapter, "telegraph_free_url", "telegraph_free_code")
     if free_url:
         return free_url
     if required == "guest":
@@ -129,7 +140,7 @@ def chapter_premium_url(chapter: dict) -> str:
     FreeReleaseDate. Full-book access may still fall back to the free source in
     decide_chapter_access(), where that behaviour is explicit.
     """
-    return clean_value(chapter.get("telegraph_premium_url"))
+    return chapter_content_source(chapter, "telegraph_premium_url", "telegraph_premium_code")
 
 
 def chapter_public_ready(chapter: dict) -> bool:

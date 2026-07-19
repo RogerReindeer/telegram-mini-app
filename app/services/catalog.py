@@ -261,15 +261,19 @@ def adapt_chapter_from_db(row: dict) -> dict:
     chapter_id = clean_value(row.get("chapter_id"))
     free_url = clean_value(row.get("telegraph_free_url"))
     premium_url = clean_value(row.get("telegraph_premium_url"))
+    free_code = clean_value(row.get("telegraph_free_code"))
+    premium_code = clean_value(row.get("telegraph_premium_code"))
+    free_source = free_url or free_code
+    premium_source = premium_url or premium_code
     free_release_date = clean_value(row.get("free_release_date"))
     premium_release_date = clean_value(row.get("premium_release_date"))
     free_ready = bool(
-        free_url
+        free_source
         and free_release_date
         and is_date_open(free_release_date)
     )
     premium_ready = bool(
-        premium_url
+        premium_source
         and premium_release_date
         and is_date_open(premium_release_date)
     )
@@ -282,9 +286,9 @@ def adapt_chapter_from_db(row: dict) -> dict:
         "part_no": clean_value(row.get("part_no")),
         "title": chapter_display_title(row),
         "sort_order": parse_chapter_no_number(row.get("chapter_no")),
-        "is_visible": bool(free_url or premium_url),
+        "is_visible": bool(free_source or premium_source),
         "access_level": access_level,
-        "telegraph_url": premium_url or free_url,
+        "telegraph_url": premium_source or free_source,
     })
     return adapted
 

@@ -258,7 +258,13 @@ def chapter_unit_key(chapter: dict) -> str:
     return chapter_code_value(chapter) or f"{clean_value(chapter.get('novel_id'))}:{clean_value(chapter.get('chapter_no'))}"
 
 def chapter_has_readable_url(chapter: dict) -> bool:
-    return bool(clean_value(chapter.get("telegraph_url")) or clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_premium_url")))
+    return bool(
+        clean_value(chapter.get("telegraph_url"))
+        or clean_value(chapter.get("telegraph_free_url"))
+        or clean_value(chapter.get("telegraph_free_code"))
+        or clean_value(chapter.get("telegraph_premium_url"))
+        or clean_value(chapter.get("telegraph_premium_code"))
+    )
 
 def chapter_is_available(chapter: dict, viewer_role: str = "guest") -> bool:
     return bool(chapter_content_url_for_role(chapter, viewer_role))

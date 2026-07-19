@@ -50,7 +50,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         if not raw_novel:
             raise HTTPException(status_code=404, detail="Novel not found")
         raw_chapters = get_novel_chapters(str(raw_novel.get("novel_id") or raw_novel.get("id")))
-        novel_prepared = prepare_novel_for_template(raw_novel)
+        prepared_novels = prepare_library_novels_for_access([raw_novel], raw_chapters, viewer)
+        novel_prepared = prepared_novels[0] if prepared_novels else prepare_novel_for_template(raw_novel)
         chapters, hidden_subscriber_count = build_chapter_display_list_for_access(raw_chapters, raw_novel, viewer)
         return templates.TemplateResponse(request, "novel.html", {
             "app_title": app_title,

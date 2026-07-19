@@ -12931,3 +12931,170 @@ body.dark .library-filter-footer {
 }
 
 /* current marker: v174-counter-icon-bg-fix */
+
+
+/* current marker: v175-novel-title-spacing-restore */
+
+/* v175 — restore readable spacing after the novel title on TOC pages.
+   Previous mobile compression was too aggressive: title, subtitle and facts
+   visually stuck together. Keep library-card compactness, but return breathing
+   room inside the novel TOC hero. */
+@media (max-width: 720px) {
+  .page-novel .novel-toc-title-row .novel-title-main-v2,
+  .novel-toc-title-row .novel-title-main-v2 {
+    display: block !important;
+  }
+
+  .page-novel .novel-toc-kicker,
+  .novel-toc-kicker {
+    margin: 0 0 4px !important;
+    line-height: 1.15 !important;
+  }
+
+  .page-novel .novel-toc-title-row .novel-title-main-v2 h1,
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    margin: 0 0 7px !important;
+    line-height: 1.06 !important;
+    letter-spacing: -0.035em !important;
+  }
+
+  .page-novel .novel-toc-full-title,
+  .novel-toc-full-title,
+  .page-novel .novel-title-en,
+  .novel-title-en {
+    margin: 0 0 10px !important;
+    line-height: 1.24 !important;
+    max-width: 100% !important;
+  }
+
+  .page-novel .novel-toc-status-line,
+  .page-novel .novel-toc-access-summary,
+  .novel-toc-status-line,
+  .novel-toc-access-summary {
+    margin-top: 9px !important;
+  }
+
+  .page-novel .novel-toc-summary,
+  .novel-toc-summary {
+    align-items: start !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .page-novel .novel-toc-title-row .novel-title-main-v2 h1,
+  .novel-toc-title-row .novel-title-main-v2 h1 {
+    margin-bottom: 6px !important;
+    line-height: 1.04 !important;
+  }
+
+  .page-novel .novel-toc-full-title,
+  .novel-toc-full-title,
+  .page-novel .novel-title-en,
+  .novel-title-en {
+    margin-bottom: 8px !important;
+    line-height: 1.2 !important;
+  }
+}
+
+/* current marker: v175-novel-title-spacing-restore */
+
+
+/* current marker: v178-reader-toc-book-icon */
+
+/* v176 — real fix: remove inner backgrounds from emoji and numbers in novel TOC counters.
+   Older dark-theme rules styled every span/b inside .novel-toc-access-summary,
+   so the emoji mark and numeric b tags got their own gray backplates. */
+.page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+.page-novel .novel-toc-access-summary .novel-toc-counter > b,
+.page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator,
+.novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+.novel-toc-access-summary .novel-toc-counter > b,
+.novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  text-shadow: none !important;
+  filter: none !important;
+}
+
+body[data-site-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+body[data-site-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > b,
+body[data-site-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator,
+body[data-resolved-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+body[data-resolved-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > b,
+body[data-resolved-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator,
+body[data-reader-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+body[data-reader-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > b,
+body[data-reader-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator,
+body.dark .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+body.dark .page-novel .novel-toc-access-summary .novel-toc-counter > b,
+body.dark .page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+  color: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark,
+.novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-mark {
+  display: inline !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  line-height: 1 !important;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif !important;
+  font-size: 1.06em !important;
+}
+
+.page-novel .novel-toc-access-summary .novel-toc-counter > b,
+.novel-toc-access-summary .novel-toc-counter > b {
+  display: inline !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  line-height: inherit !important;
+  font-weight: 900 !important;
+}
+
+.page-novel .novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator,
+.novel-toc-access-summary .novel-toc-counter > .novel-toc-counter-separator {
+  display: inline !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  opacity: .75 !important;
+}
+
+/* Keep one shared chip background only on the whole counter. */
+.page-novel .novel-toc-access-summary .novel-toc-counter,
+.novel-toc-access-summary .novel-toc-counter {
+  background: rgba(74, 51, 30, 0.045) !important;
+}
+
+body[data-site-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter,
+body[data-resolved-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter,
+body[data-reader-theme="dark"] .page-novel .novel-toc-access-summary .novel-toc-counter,
+body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
+  background: rgba(255, 226, 152, 0.055) !important;
+}
+
+/* current marker: v178-reader-toc-book-icon */
