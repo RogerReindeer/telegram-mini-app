@@ -359,6 +359,34 @@ def resolve_telegram_role(user_id: int, force_refresh: bool = False) -> str:
     return clean_value(profile.get("role")) or "guest"
 
 
+
+def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = None) -> dict[str, Any]:
+    """Build a page-render access profile without network calls.
+
+    Telegram group membership is already reflected in the signed session cookie
+    after /api/auth/telegram or /api/auth/me. Page rendering must not call
+    Telegram getChatMember synchronously, otherwise opening a novel TOC can wait
+    for several external requests. This fast profile is intentionally used only
+    for normal HTML page rendering; explicit access refresh endpoints still use
+    viewer_access_profile(..., force_group_refresh=True).
+    """
+    role = clean_value(viewer.get("role")) or "guest"
+    user_id = to_int(viewer.get("user_id") or viewer.get("telegram_user_id"), 0)
+    entitlements = get_active_book_entitlements(user_id, novel_id) if user_id and novel_id else []
+    full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
+    return {
+        "user_id": user_id or None,
+        "role": role if role in ROLE_RANK else "guest",
+        "group_role": role if role in ROLE_RANK else "guest",
+        "tribute_role": "guest",
+        "groups": {},
+        "tribute_subscriptions": [],
+        "book_entitlements": entitlements,
+        "has_full_book_access": full_book,
+        "novel_id": novel_id,
+        "fast_page_profile": True,
+    }
+
 def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None, force_group_refresh: bool = False) -> dict[str, Any]:
     if not viewer.get("authenticated") or not viewer.get("user_id"):
         return {

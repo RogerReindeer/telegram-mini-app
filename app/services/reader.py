@@ -67,18 +67,54 @@ def tag_class_name(tag: str) -> str:
         return "tag-country"
     if text in ("g", "pg", "pg-13", "r", "16+", "18+", "21+", "nc-17"):
         return "tag-rating"
-    if text in ("сянься/уся", "уся/сянься", "фэнтези", "романтика", "приключения"):
+    if text in ("сянься/уся", "уся/сянься", "фэнтези", "романтика", "приключения", "хэ"):
         return "tag-genre"
     return ""
+
+def normalize_visible_tag_text(tag: Any) -> str:
+    """Return the user-facing tag text.
+
+    Some Latin abbreviations are visually ambiguous in the current UI font.
+    In particular, Latin ``HE`` looks like Cyrillic ``НЕ`` on tag chips, so
+    show the localized fandom abbreviation ``ХЭ`` instead.
+    """
+    text = clean_value(tag)
+    if not text:
+        return ""
+
+    alias_key = (
+        text.strip()
+        .lower()
+        .replace("ё", "е")
+        .replace("н", "h")
+        .replace("е", "e")
+        .replace("э", "e")
+        .replace(" ", "")
+        .replace("-", "")
+        .replace("_", "")
+    )
+
+    if alias_key in {"he", "happyending", "happyend"}:
+        return "ХЭ"
+
+    return text
+
 
 def prepare_tag_items(tags: str) -> list[dict]:
     result = []
     for raw_tag in split_tags(tags):
         text = clean_value(raw_tag)
         is_spoiler = text.startswith("!")
-        shown_text = text[1:].strip() if is_spoiler else text
+        source_text = text[1:].strip() if is_spoiler else text
+        shown_text = normalize_visible_tag_text(source_text)
         if shown_text:
-            result.append({"text": shown_text, "raw_text": text, "is_spoiler": is_spoiler, "class_name": tag_class_name(shown_text)})
+            result.append({
+                "text": shown_text,
+                "source_text": source_text,
+                "raw_text": text,
+                "is_spoiler": is_spoiler,
+                "class_name": tag_class_name(shown_text),
+            })
     return result
 
 def normalize_tag_text_for_priority(tag: Any) -> str:
@@ -134,7 +170,7 @@ def tag_priority_score(tag: dict) -> int:
         return 2
     if text in {"pov героини", "pov героя", "pov пассива", "pov актива"}:
         return 3
-    if text in {"сянься/уся", "уся/сянься", "фэнтези", "романтика", "приключения", "юмор", "детектив", "мистика/оккультизм", "магия", "звери", "зверолюди/оборотни", "реинкарнация/возрождение", "здоровые отношения"}:
+    if text in {"сянься/уся", "уся/сянься", "фэнтези", "романтика", "приключения", "юмор", "детектив", "мистика/оккультизм", "магия", "звери", "зверолюди/оборотни", "реинкарнация/возрождение", "здоровые отношения", "хэ"}:
         return 4
     return 50
 
@@ -763,7 +799,13 @@ def prepare_library_novels_for_access(
     for novel in novels:
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
-        if (clean_value(viewer.get("role")) in {"traveler", "keeper"}
+        if viewer.get("__fast_access_profile"):
+            # HTML page rendering uses the signed-cookie role and must not make
+            # Telegram getChatMember requests during navigation. Explicit refresh
+            # endpoints still use viewer_access_profile().
+            profile = dict(viewer.get("__fast_access_profile") or {})
+            profile["novel_id"] = novel_id
+        elif (clean_value(viewer.get("role")) in {"traveler", "keeper"}
                 and not viewer.get("authenticated")
                 and not viewer.get("user_id")):
             # Contract-test and server-internal fallback: when a trusted prepared

@@ -12999,7 +12999,7 @@ body.dark .library-filter-footer {
 /* current marker: v175-novel-title-spacing-restore */
 
 
-/* current marker: v178-reader-toc-book-icon */
+/* current marker: v179-fast-library-novel-navigation */
 
 /* v176 — real fix: remove inner backgrounds from emoji and numbers in novel TOC counters.
    Older dark-theme rules styled every span/b inside .novel-toc-access-summary,
@@ -13097,4 +13097,34 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
   background: rgba(255, 226, 152, 0.055) !important;
 }
 
-/* current marker: v178-reader-toc-book-icon */
+/* current marker: v179-fast-library-novel-navigation */
+
+
+/* current marker: v180-tag-labels-spoiler-fix */
+
+/* v180 — make spoiler tags and HE tag readable instead of confusing "НЕ" */
+.novel-toc-tags .tag,
+.novel-toc-tags-full .tag {
+  max-width: 100% !important;
+}
+
+.novel-toc-tags .tag-spoiler-reveal,
+.novel-toc-tags-full .tag-spoiler-reveal,
+.tag.tag-spoiler.tag-spoiler-reveal {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  white-space: nowrap !important;
+}
+
+.tag-spoiler-text::after {
+  content: "" !important;
+}
+
+.tag-spoiler-opened {
+  display: inline-flex !important;
+  align-items: center !important;
+  max-width: 100% !important;
+}
+
+/* current marker: v180-tag-labels-spoiler-fix */
