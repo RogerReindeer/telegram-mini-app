@@ -2547,12 +2547,24 @@
   }
 
   function initReadChapterMarks() {
-    const readIds = readJson(STORAGE_KEYS.readChapters, []);
+    const readIds = readJson(STORAGE_KEYS.readChapters, []).map(String);
     const page = document.querySelector("[data-novel-page]");
     const historyItem = page ? readJson(STORAGE_KEYS.readingHistory, []).find((entry) => String(entry.novelId) === String(page.dataset.novelId)) : null;
+    const historyIndex = historyItem && Number.isFinite(Number(historyItem.chapterIndex))
+      ? Number(historyItem.chapterIndex)
+      : null;
+
     document.querySelectorAll("[data-chapter-row]").forEach(function (row) {
-      if (readIds.includes(String(row.dataset.chapterId))) row.classList.add("chapter-row-read");
-      if (historyItem && String(historyItem.chapterId) === String(row.dataset.chapterId)) {
+      const chapterId = String(row.dataset.chapterId || "");
+      const sortValue = Number(row.dataset.sortValue || 0);
+      const isKnownRead = readIds.includes(chapterId);
+      const isBeforeOrAtProgress = historyIndex !== null && sortValue > 0 && sortValue <= historyIndex + 1;
+
+      if (isKnownRead || isBeforeOrAtProgress) {
+        row.classList.add("chapter-row-read");
+      }
+
+      if (historyItem && String(historyItem.chapterId) === chapterId) {
         row.classList.add("chapter-row-current");
         row.setAttribute("aria-current", "page");
       }

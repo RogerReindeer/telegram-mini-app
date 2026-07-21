@@ -13100,7 +13100,7 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
 /* current marker: v179-fast-library-novel-navigation */
 
 
-/* current marker: v180-tag-labels-spoiler-fix */
+/* current marker: v181-chapter-row-read-align-fix */
 
 /* v180 — make spoiler tags and HE tag readable instead of confusing "НЕ" */
 .novel-toc-tags .tag,
@@ -13127,4 +13127,4 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
   max-width: 100% !important;
 }
 
-/* current marker: v180-tag-labels-spoiler-fix */
+/* current marker: v181-chapter-row-read-align-fix */
