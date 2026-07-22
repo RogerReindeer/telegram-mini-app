@@ -1760,10 +1760,10 @@
     const banner = document.getElementById("libraryUpdateBanner");
     const text = document.getElementById("libraryUpdateText");
     const title = banner ? banner.querySelector(".library-update-title") : null;
-    const button = document.getElementById("libraryUpdateButton");
+    const link = document.getElementById("libraryUpdateLink");
     const close = document.getElementById("libraryUpdateClose");
 
-    if (!banner || !text || !button) {
+    if (!banner || !text || !link) {
       return;
     }
 
@@ -1803,8 +1803,7 @@
     text.textContent = newCards.length === 1
       ? `${firstCard.dataset.novelShort || firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение`
       : `Новые главы доступны в ${novelCountText}`;
-    button.href = firstCard.dataset.cardActionHref || `/novel/${firstCard.dataset.novelSlug || ""}`;
-    button.textContent = newCards.length === 1 ? "Читать" : "К новинкам";
+    link.href = firstCard.dataset.cardActionHref || `/novel/${firstCard.dataset.novelSlug || ""}`;
     banner.hidden = false;
 
     if (close) {

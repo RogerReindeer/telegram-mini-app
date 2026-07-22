@@ -13278,3 +13278,117 @@ body[data-theme="dark"] .library-v4 .library-book-card-v4[data-status="paused"] 
   border-color: rgba(177, 153, 213, 0.23) !important;
   background: linear-gradient(105deg, rgba(59, 47, 75, 0.97), rgba(47, 39, 61, 0.96)) !important;
 }
+
+/* v186 — clickable update title, brighter back buttons, clearer library soon logic */
+.page-library .library-update-banner,
+.library-update-banner {
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  align-items: center !important;
+}
+
+.page-library .library-update-link,
+.library-update-link {
+  display: block;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 16px;
+  padding: 2px 0;
+}
+
+.page-library .library-update-link:hover,
+.page-library .library-update-link:focus-visible,
+.library-update-link:hover,
+.library-update-link:focus-visible {
+  text-decoration: none;
+  outline: none;
+}
+
+.page-library .library-update-link .library-update-title,
+.library-update-link .library-update-title {
+  color: #ffb46a;
+}
+
+.page-library .library-update-link .library-update-subtitle,
+.library-update-link .library-update-subtitle {
+  color: #fff4ea;
+}
+
+.page-library .library-update-link:hover .library-update-title,
+.page-library .library-update-link:focus-visible .library-update-title,
+.library-update-link:hover .library-update-title,
+.library-update-link:focus-visible .library-update-title {
+  color: #ffd08b;
+}
+
+.page-library .library-update-link:hover .library-update-subtitle,
+.page-library .library-update-link:focus-visible .library-update-subtitle,
+.library-update-link:hover .library-update-subtitle,
+.library-update-link:focus-visible .library-update-subtitle {
+  color: #ffffff;
+}
+
+.page-library .novel-back-button,
+.novel-back-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 50px !important;
+  padding: 0 18px !important;
+  border-radius: 16px !important;
+  background: linear-gradient(135deg, #ff9d2f 0%, #ff6f00 100%) !important;
+  color: #fff8ef !important;
+  border: 1px solid rgba(255, 188, 104, 0.85) !important;
+  box-shadow: 0 12px 28px rgba(255, 111, 0, 0.28) !important;
+  font-weight: 900 !important;
+}
+
+.page-library .novel-back-button:hover,
+.page-library .novel-back-button:focus-visible,
+.novel-back-button:hover,
+.novel-back-button:focus-visible {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #ffad4d 0%, #ff7a10 100%) !important;
+  box-shadow: 0 16px 32px rgba(255, 111, 0, 0.34) !important;
+  transform: translateY(-1px);
+}
+
+.novel-back-button-icon {
+  font-size: 18px !important;
+  opacity: 1 !important;
+}
+
+.reader-floating-button {
+  background: linear-gradient(135deg, #ff9d2f 0%, #ff6f00 100%) !important;
+  color: #fff8ef !important;
+  border: 1px solid rgba(255, 188, 104, 0.85) !important;
+  box-shadow: 0 12px 28px rgba(255, 111, 0, 0.28) !important;
+}
+
+.reader-floating-button:hover,
+.reader-floating-button:focus-visible {
+  background: linear-gradient(135deg, #ffad4d 0%, #ff7a10 100%) !important;
+  color: #ffffff !important;
+}
+
+body[data-site-theme="dark"] .novel-back-button,
+body[data-resolved-theme="dark"] .novel-back-button,
+body[data-reader-theme="dark"] .novel-back-button,
+body[data-site-theme="dark"] .reader-floating-button,
+body[data-resolved-theme="dark"] .reader-floating-button,
+body[data-reader-theme="dark"] .reader-floating-button {
+  color: #fff8ef !important;
+}
+
+@media (max-width: 640px) {
+  .page-library .library-update-banner,
+  .library-update-banner {
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+  }
+
+  .page-library .novel-back-button,
+  .novel-back-button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
