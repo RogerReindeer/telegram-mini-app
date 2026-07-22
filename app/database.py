@@ -190,6 +190,16 @@ class SupabaseClient:
                     prefer="resolution=merge-duplicates,return=minimal",
                 )
             except Exception as error:
+                # PGRST204 is a table schema-cache mismatch, not a bad row.
+                # Row-by-row retries would only repeat the same request and make
+                # sync slower/noisier. Let the sync service apply its explicit
+                # allow-listed compatibility fallback instead.
+                if "PGRST204" in str(error) and "schema cache" in str(error).lower():
+                    raise SupabaseError(
+                        f"Ошибка Supabase: таблица {table}, пакет {batch_number}, "
+                        f"строки {start + 1}-{start + len(batch)}. {error}"
+                    ) from error
+
                 diagnostics = self._diagnose_failed_upsert_batch(
                     table=table,
                     batch=batch,

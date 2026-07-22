@@ -753,7 +753,6 @@
     initLibraryNovelMeta();
     initLibrarySearch();
     initLibraryFilters();
-    initLibrarySortControl();
     initLibrarySectionToggles();
     initLibraryCardMenus();
     initLibraryCardNavigation();
@@ -870,18 +869,6 @@
       open.setAttribute("aria-expanded", "false");
       renderLibraryCards();
     });
-  }
-
-  function initLibrarySortControl() {
-    const select = document.getElementById("librarySort");
-    const pill = select ? select.closest(".library-sort-pill") : null;
-    if (!select) return;
-    select.addEventListener("change", function () {
-      animateLibraryControl(pill, "is-changing", 340);
-      renderLibraryCards();
-    });
-    select.addEventListener("focus", function () { pill?.classList.add("is-active"); });
-    select.addEventListener("blur", function () { pill?.classList.remove("is-active"); });
   }
 
   function toggleFilterChip(chip, shouldRender = true) {
@@ -1640,46 +1627,9 @@
   }
 
   function sortCards(cards) {
-    const mode = document.getElementById("librarySort")?.value || "smart";
-
+    // Порядок библиотеки приходит из backend/Supabase. Пользовательские
+    // сортировки удалены, чтобы интерфейс не переупорядочивал данные сам.
     cards.sort(function (a, b) {
-      if (mode === "hidden-first" || mode === "hidden-last") {
-        const hiddenA = a.dataset.isHidden === "true" ? 1 : 0;
-        const hiddenB = b.dataset.isHidden === "true" ? 1 : 0;
-        if (hiddenA !== hiddenB) {
-          return mode === "hidden-first" ? hiddenB - hiddenA : hiddenA - hiddenB;
-        }
-      }
-
-      if (mode === "title") {
-        return String(a.dataset.title || "").localeCompare(String(b.dataset.title || ""), "ru");
-      }
-
-      if (mode === "status") {
-        return statusWeight(a.dataset.status) - statusWeight(b.dataset.status);
-      }
-
-      if (mode === "chapters") {
-        return Number(b.dataset.chapters || 0) - Number(a.dataset.chapters || 0);
-      }
-
-      if (mode === "translated") {
-        return Number(b.dataset.translatedChapters || 0) - Number(a.dataset.translatedChapters || 0);
-      }
-
-      if (mode === "added") {
-        return String(b.dataset.added || "").localeCompare(String(a.dataset.added || ""));
-      }
-
-      if (mode === "smart") {
-        const stateWeightA = cardStateWeight(a.dataset.cardState);
-        const stateWeightB = cardStateWeight(b.dataset.cardState);
-
-        if (stateWeightA !== stateWeightB) {
-          return stateWeightA - stateWeightB;
-        }
-      }
-
       return Number(a.dataset.sortOrder || 0) - Number(b.dataset.sortOrder || 0);
     });
   }

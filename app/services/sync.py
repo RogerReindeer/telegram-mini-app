@@ -22,6 +22,29 @@ from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normali
 EXPECTED_SCHEMA_VERSION = 18
 SUPPORTED_SCHEMA_VERSIONS = frozenset({17, 18})
 
+# Columns introduced by recent patches. The SQL migration remains the proper
+# fix, but production sync must not crash with HTTP 500 while PostgREST still
+# uses an older schema cache. Only non-key compatibility fields may be omitted
+# for that single sync; all core content columns remain fail-closed.
+SYNC_SCHEMA_COMPAT_COLUMNS: dict[str, frozenset[str]] = {
+    "novels": frozenset({
+        "release_free_count",
+        "premium_lead_weeks",
+        "premium_count",
+        "keeper_extra_chapters",
+    }),
+    "chapters": frozenset({
+        "keeper_access",
+        "keeper_access_order",
+        "keeper_access_source",
+    }),
+}
+
+_POSTGREST_MISSING_COLUMN_RE = re.compile(
+    r"Could not find the ['\"](?P<column>[^'\"]+)['\"] column of ['\"](?P<table>[^'\"]+)['\"] in the schema cache",
+    flags=re.IGNORECASE,
+)
+
 NOVEL_TABLE_COLUMNS = {
     "novel_id", "code", "novel_short", "title_ru", "title_en", "title_original",
     "original_language", "post_icons", "status", "access_model", "schedule_mode",
@@ -544,6 +567,63 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _missing_schema_column(error: Exception, table: str) -> str:
+    match = _POSTGREST_MISSING_COLUMN_RE.search(str(error))
+    if not match:
+        return ""
+    if clean_value(match.group("table")).lower() != clean_value(table).lower():
+        return ""
+    return clean_value(match.group("column"))
+
+
+def _upsert_with_schema_compat(
+    table: str,
+    rows: list[dict[str, Any]],
+    conflict_key: str,
+    *,
+    batch_size: int,
+) -> tuple[int, list[str]]:
+    """Upsert rows and tolerate only known non-key columns from newer patches.
+
+    Supabase/PostgREST can temporarily expose an older schema after deploy. A
+    missing optional counter/access marker must not turn the whole Excel sync
+    into HTTP 500. The function retries after removing only allow-listed fields.
+    Unknown/core columns still raise the original error.
+    """
+    if not rows:
+        return 0, []
+
+    allowed = set(SYNC_SCHEMA_COMPAT_COLUMNS.get(table, frozenset()))
+    working_rows = [dict(row) for row in rows]
+    omitted: list[str] = []
+
+    while True:
+        try:
+            return db_upsert(table, working_rows, conflict_key, batch_size=batch_size), omitted
+        except Exception as error:
+            missing = _missing_schema_column(error, table)
+            if not missing or missing not in allowed or missing == conflict_key:
+                raise
+            if missing in omitted:
+                raise
+            if not any(missing in row for row in working_rows):
+                raise
+            omitted.append(missing)
+            working_rows = [
+                {key: value for key, value in row.items() if key != missing}
+                for row in working_rows
+            ]
+
+
+def _schema_compat_warning(table: str, omitted: list[str]) -> str:
+    columns = ", ".join(omitted)
+    return (
+        f"Supabase: в таблице {table} пока отсутствуют поля {columns}; "
+        "синхронизация продолжена в режиме совместимости. "
+        "Запустите последнюю SQL-миграцию из папки sql/migrations."
+    )
+
+
 def normalize_payload(payload: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     validation = validate_sync_payload(payload)
     if validation["errors"]:
@@ -744,12 +824,22 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
 
         stage = "novels"
         if novels:
-            result["novels_upserted"] = db_upsert("novels", novels, "novel_id", batch_size=50)
+            novels_upserted, omitted_novel_columns = _upsert_with_schema_compat(
+                "novels", novels, "novel_id", batch_size=50
+            )
+            result["novels_upserted"] = novels_upserted
+            if omitted_novel_columns:
+                warnings.append(_schema_compat_warning("novels", omitted_novel_columns))
             _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "warnings": warnings[:100]})
 
         stage = "chapters"
         if chapters:
-            result["chapters_upserted"] = db_upsert("chapters", chapters, "chapter_id", batch_size=100)
+            chapters_upserted, omitted_chapter_columns = _upsert_with_schema_compat(
+                "chapters", chapters, "chapter_id", batch_size=100
+            )
+            result["chapters_upserted"] = chapters_upserted
+            if omitted_chapter_columns:
+                warnings.append(_schema_compat_warning("chapters", omitted_chapter_columns))
             _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "warnings": warnings[:100]})
 
         stage = "prune_stale_chapters"
@@ -763,6 +853,9 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
             if payload.get("full_snapshot") is True:
                 result["stale_fox_deleted"] = _delete_stale_fox_for_snapshot(fox_rows)
             _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "fox_count": result["fox_upserted"], "warnings": warnings[:100]})
+
+        result["warnings_count"] = len(warnings)
+        result["warnings"] = warnings[:100]
 
         result["cache_cleared"] = {
             "catalog": clear_catalog_cache(),

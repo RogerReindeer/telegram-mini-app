@@ -13100,7 +13100,7 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
 /* current marker: v179-fast-library-novel-navigation */
 
 
-/* current marker: v184-soon-status-card-colors */
+/* current marker: v185-sync-schema-compat-clean-library */
 
 /* v180 — make spoiler tags and HE tag readable instead of confusing "НЕ" */
 .novel-toc-tags .tag,
@@ -13127,7 +13127,7 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
   max-width: 100% !important;
 }
 
-/* current marker: v184-soon-status-card-colors */
+/* current marker: v185-sync-schema-compat-clean-library */
 
 
 /* v182.1 — chapter title vertical alignment + compact Boosty subline */
@@ -13198,7 +13198,7 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
 /* current marker: v182-chapter-title-boosty-layout-fix */
 
 /* =====================================================================
-   v184-soon-status-card-colors
+   v185-sync-schema-compat-clean-library
    Статус карточки приходит из Supabase. Если Excel не нашёл ни одной
    Telegraph-ссылки/кода, sync сохраняет status="Скоро".
    ===================================================================== */
