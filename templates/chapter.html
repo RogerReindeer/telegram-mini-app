@@ -31,9 +31,7 @@
         </article>
         <section class="chapter-offline-copy" data-chapter-offline-copy hidden><div class="chapter-offline-copy-head"><span>Сохранённая копия</span><small data-chapter-offline-copy-time></small></div><article class="chapter-content chapter-content-cached" data-chapter-offline-copy-content></article></section>
       {% else %}
-        <article class="chapter-content chapter-preview-card">
-          {% if preview_text %}<p class="chapter-preview-text">{{ preview_text }}</p>{% else %}<p class="chapter-preview-text">Начало этой главы доступно для ознакомления, а продолжение открывается после проверки подписки</p>{% endif %}
-          <div class="chapter-blurred-preview" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <article class="chapter-content chapter-locked-card">
           <section class="chapter-paywall chapter-paywall-v54 chapter-paywall-{{ access_paywall.severity }}">
             {% if footer_fox %}<img class="chapter-paywall-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>{% endif %}
             <div class="chapter-paywall-copy"><div class="chapter-paywall-meta"><span class="chapter-paywall-status">{{ chapter.access_label }}</span>{% if access_paywall.release_label %}<span class="chapter-paywall-date">{{ access_paywall.release_label }}</span>{% endif %}</div><h2>{{ access_paywall.title or access_copy.title }}</h2><p>{{ access_paywall.description or access_copy.description }}</p>{% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}</div>

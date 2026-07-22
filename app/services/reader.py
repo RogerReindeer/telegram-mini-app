@@ -21,7 +21,6 @@ from .access import (
     chapter_content_url_for_access,
     chapter_content_url_for_role,
     chapter_is_translated,
-    chapter_preview_url,
     chapter_public_ready,
     chapter_public_url,
     chapter_premium_ready,
@@ -542,11 +541,11 @@ def prepare_novel_for_template(novel: dict) -> dict:
         if not is_age_rating_tag(item.get("text")) and not is_card_hidden_tag(item.get("text"))
     ]
     library_card_tag_items = [item for item in card_tag_items if not is_country_tag_for_library(item.get("text"))]
-    has_catalog_code = bool(clean_value(novel.get("code")))
-    has_catalog_link = bool(clean_value(novel.get("telegraph_catalog_url")))
-    translation_status = (
-        "soon" if has_catalog_code and not has_catalog_link
-        else normalize_translation_status(novel.get("translation_status") or novel.get("status"), novel.get("translation_status_label"))
+    # Статус полностью готовится при синхронизации Excel -> Supabase.
+    # Видимость и наличие каталожной ссылки не участвуют в вычислении на сайте.
+    translation_status = normalize_translation_status(
+        novel.get("translation_status") or novel.get("status"),
+        novel.get("translation_status_label"),
     )
     progress_percent = normalize_progress_percent(novel.get("progress_percent"))
     prepared.update({

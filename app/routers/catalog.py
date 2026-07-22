@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..config import settings
 
-from ..services.access import access_copy, access_paywall_copy, chapter_preview_url, decide_chapter_access
+from ..services.access import access_copy, access_paywall_copy, decide_chapter_access
 from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request
 from ..services.catalog import get_all_chapters, get_all_novels, get_chapter_by_id, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
 from ..services.reader import (
@@ -17,7 +17,7 @@ from ..services.reader import (
     prepare_library_novels_for_access,
     prepare_novel_for_template,
 )
-from ..services.telegraph import fetch_locked_preview, fetch_telegraph_content
+from ..services.telegraph import fetch_telegraph_content
 
 
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
@@ -82,11 +82,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         info = get_chapter_index_info_for_access(raw_chapters, chapter_id, raw_novel, profile)
         previous_chapter, next_chapter = get_neighbor_chapters_for_access(raw_chapters, chapter_id, raw_novel, profile)
         telegraph_content, telegraph_error = (None, "")
-        preview_text, preview_error = ("", "")
         if decision.allowed and decision.url:
             telegraph_content, telegraph_error = fetch_telegraph_content(decision.url)
-        elif chapter_preview_url(raw_chapter):
-            preview_text, preview_error = fetch_locked_preview(raw_chapter)
         return templates.TemplateResponse(request, "chapter.html", {
             "app_title": app_title,
             "fox": get_fox(),
@@ -97,8 +94,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "available_chapters": info.get("available_chapters", 0),
             "is_locked": not decision.allowed,
             "telegraph_content": telegraph_content,
-            "telegraph_error": telegraph_error or preview_error,
-            "preview_text": preview_text,
+            "telegraph_error": telegraph_error,
             "access_copy": access_copy(decision.required_role),
             "access_paywall": access_paywall_copy(decision, raw_novel, profile),
             "boosty_access_url": "",

@@ -9,7 +9,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from ..cache import cache_get_or_set, image_cache_ttl, telegraph_cache_ttl
-from .reader import clean_value, split_text_paragraphs, chapter_preview_url
+from .reader import clean_value, split_text_paragraphs
 
 def telegraph_path_from_url(url: str) -> str:
     text = clean_value(url)
@@ -276,30 +276,3 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
         lambda: _fetch_telegraph_content_uncached(text),
         namespace="telegraph",
     )
-
-
-
-def extract_preview_text(html_content: str, max_sentences: int = 2, max_chars: int = 460) -> str:
-    if not html_content:
-        return ""
-    soup = BeautifulSoup(html_content, "html.parser")
-    text = " ".join(soup.stripped_strings)
-    text = re.sub(r"\s+", " ", text).strip()
-    if not text:
-        return ""
-    sentences = re.split(r"(?<=[.!?…])\s+", text)
-    preview = " ".join(sentences[:max_sentences]).strip()
-    if len(preview) > max_chars:
-        preview = preview[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:") + "…"
-    return preview
-
-
-def fetch_locked_preview(chapter: dict) -> tuple[str, str]:
-    url = chapter_preview_url(chapter)
-    if not url:
-        return "", ""
-    content, error = fetch_telegraph_content(url)
-    if error or not content:
-        return "", error
-    return extract_preview_text(content.get("content_html") or ""), ""
-

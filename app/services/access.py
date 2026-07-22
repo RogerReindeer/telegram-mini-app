@@ -223,20 +223,13 @@ def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
 
 
 def chapter_preview_url(chapter: dict) -> str:
-    """Return a source only for a translated, scheduled locked chapter.
+    """Locked chapter previews are disabled.
 
-    The route that uses this helper must still return only the short server-side
-    preview, never the source URL or the full chapter body.
+    A closed chapter must never expose its source URL or any fragment of its
+    text. The helper remains only for backward compatibility and always
+    returns an empty value.
     """
-    if chapter.get("is_visible") is not True:
-        return ""
-    if not chapter_is_translated(chapter):
-        return ""
-    premium_release = clean_value(chapter.get("premium_release_date"))
-    free_release = clean_value(chapter.get("free_release_date"))
-    if not premium_release and not free_release:
-        return ""
-    return chapter_premium_url(chapter) or chapter_public_url(chapter)
+    return ""
 
 
 def access_copy(required_role: str) -> dict[str, str]:
