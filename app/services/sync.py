@@ -20,6 +20,7 @@ from ..database import db_delete, db_insert, db_select, db_update, db_upsert, su
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
 
 EXPECTED_SCHEMA_VERSION = 18
+SUPPORTED_SCHEMA_VERSIONS = frozenset({17, 18})
 
 NOVEL_TABLE_COLUMNS = {
     "novel_id", "code", "novel_short", "title_ru", "title_en", "title_original",
@@ -323,12 +324,11 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     free_url = clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_free_code"))
     premium_url = clean_value(chapter.get("telegraph_premium_url")) or clean_value(chapter.get("telegraph_premium_code"))
 
-    if translated and (free_url or premium_url) and not free_date and not premium_date:
-        issues.append(f"{chapter_id}: переведена и имеет ссылку, но нет ни FreeReleaseDate, ни PremiumReleaseDate; в MiniApp закрыта")
+    # PremiumReleaseDate необязательна: ранний доступ Хранителя приходит
+    # готовым флагом keeper_access из Excel/ReleaseSchedule. Пустая дата у
+    # premium-ссылки не является ошибкой и не должна засорять отчёт синхронизации.
     if free_url and not free_date:
         issues.append(f"{chapter_id}: есть бесплатная ссылка, но нет FreeReleaseDate; бесплатный доступ закрыт")
-    if premium_url and not premium_date:
-        issues.append(f"{chapter_id}: есть премиальная ссылка, но нет PremiumReleaseDate; доступ Хранителя закрыт")
     if free_date and not free_url:
         issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет бесплатной ссылки/кода")
     if premium_date and not premium_url:
@@ -416,13 +416,14 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
     source = clean_value(payload.get("source")) or "Translation CRM"
     schema_version = to_int(payload.get("schema_version"), 0) or EXPECTED_SCHEMA_VERSION
 
-    if schema_version != EXPECTED_SCHEMA_VERSION:
+    if schema_version not in SUPPORTED_SCHEMA_VERSIONS:
+        supported = ", ".join(str(version) for version in sorted(SUPPORTED_SCHEMA_VERSIONS))
         _append_issue(
             issue_rows,
             severity="error",
             code="schema_version_mismatch",
             label="payload.schema_version",
-            message=f"Неподдерживаемая версия схемы: {schema_version}. Ожидается {EXPECTED_SCHEMA_VERSION}.",
+            message=f"Неподдерживаемая версия схемы: {schema_version}. Поддерживаются: {supported}.",
             field="schema_version",
         )
 
@@ -459,10 +460,8 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
         if not clean_value(row.get("title_ru")):
             _append_issue(issue_rows, severity="error", code="novel_missing_title", label=label, message="отсутствует title_ru.", row=row, field="title_ru")
             continue
-        if not clean_value(row.get("cover_url")):
-            warnings.append(f"NovelID {novel_id}: отсутствует обложка.")
-        if not clean_value(row.get("description")):
-            warnings.append(f"NovelID {novel_id}: отсутствует описание.")
+        # Обложка и описание являются необязательными полями. Пустые значения
+        # сохраняются как NULL и не блокируют/не засоряют полную синхронизацию.
         seen_novel_ids.add(novel_id)
         novels.append(row)
 

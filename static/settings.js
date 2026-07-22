@@ -1436,7 +1436,14 @@
     let visualProgress = 0;
     let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
-    if (isCompletedByUser && hasLockedOrPaidChapters) {
+    if (projectStatus === "soon" && !available) {
+      // Статус «Скоро» уже подготовлен Excel -> Supabase. Он имеет приоритет
+      // даже над старой локальной историей чтения, если у книги больше нет
+      // доступных источников контента.
+      state = "soon";
+      visualProgress = 0;
+      progressLabel = "0 / 0";
+    } else if (isCompletedByUser && hasLockedOrPaidChapters) {
       state = "waiting_new";
       visualProgress = 100;
       progressLabel = available ? `${available} / ${available}` : `${totalKnownChapters || 0} / ${totalKnownChapters || 0}`;

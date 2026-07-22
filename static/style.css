@@ -13100,7 +13100,7 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
 /* current marker: v179-fast-library-novel-navigation */
 
 
-/* current marker: v182-release-schedule-keeper-access */
+/* current marker: v184-soon-status-card-colors */
 
 /* v180 — make spoiler tags and HE tag readable instead of confusing "НЕ" */
 .novel-toc-tags .tag,
@@ -13127,4 +13127,154 @@ body.dark .page-novel .novel-toc-access-summary .novel-toc-counter {
   max-width: 100% !important;
 }
 
-/* current marker: v182-release-schedule-keeper-access */
+/* current marker: v184-soon-status-card-colors */
+
+
+/* v182.1 — chapter title vertical alignment + compact Boosty subline */
+.chapter-row-v2.chapter-row-no-access-label {
+  align-items: stretch !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-icon,
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-arrow {
+  align-self: center !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+  align-self: stretch !important;
+  min-height: 54px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 0 !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-title {
+  flex: 0 1 auto !important;
+  transform: none !important;
+  margin: 0 !important;
+}
+
+.chapter-row-v2.chapter-row-boosty .chapter-row-main {
+  align-self: stretch !important;
+  min-height: 54px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 0 !important;
+}
+
+.chapter-row-v2.chapter-row-boosty .chapter-title {
+  flex: 0 1 auto !important;
+  margin: 0 !important;
+}
+
+.chapter-row-v2.chapter-row-boosty .chapter-access-boosty {
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  font-weight: 600 !important;
+}
+
+@media (max-width: 560px) {
+  .chapter-row-v2.chapter-row-no-access-label .chapter-row-main,
+  .chapter-row-v2.chapter-row-boosty .chapter-row-main {
+    min-height: 58px !important;
+    padding: 0 !important;
+  }
+}
+
+/* current marker: v182-chapter-title-boosty-layout-fix */
+
+/* =====================================================================
+   v184-soon-status-card-colors
+   Статус карточки приходит из Supabase. Если Excel не нашёл ни одной
+   Telegraph-ссылки/кода, sync сохраняет status="Скоро".
+   ===================================================================== */
+
+.library-v4 .library-book-card-v4[data-status="completed"] {
+  border-color: rgba(59, 151, 82, 0.28) !important;
+  background: linear-gradient(105deg, rgba(242, 253, 244, 0.99), rgba(207, 241, 216, 0.92)) !important;
+  box-shadow: 0 14px 32px rgba(49, 135, 72, 0.11) !important;
+}
+
+.library-v4 .library-book-card-v4[data-status="in_progress"] {
+  border-color: rgba(224, 139, 27, 0.30) !important;
+  background: linear-gradient(105deg, rgba(255, 251, 232, 0.99), rgba(255, 224, 157, 0.92)) !important;
+  box-shadow: 0 14px 32px rgba(202, 122, 17, 0.11) !important;
+}
+
+.library-v4 .library-book-card-v4[data-status="soon"] {
+  border-color: rgba(63, 145, 207, 0.29) !important;
+  background: linear-gradient(105deg, rgba(241, 250, 255, 0.99), rgba(204, 233, 252, 0.93)) !important;
+  box-shadow: 0 14px 32px rgba(48, 126, 185, 0.11) !important;
+}
+
+.library-v4 .library-book-card-v4[data-status="paused"] {
+  border-color: rgba(145, 128, 178, 0.25) !important;
+  background: linear-gradient(105deg, rgba(250, 247, 255, 0.99), rgba(229, 220, 244, 0.91)) !important;
+  box-shadow: 0 14px 32px rgba(117, 93, 154, 0.09) !important;
+}
+
+.library-v4 .library-book-card-v4 .library-stat-status.status-completed {
+  color: #205f34 !important;
+  border-color: rgba(45, 135, 69, 0.23) !important;
+  background: rgba(199, 238, 209, 0.98) !important;
+}
+
+.library-v4 .library-book-card-v4 .library-stat-status.status-in_progress {
+  color: #7b4600 !important;
+  border-color: rgba(199, 118, 11, 0.24) !important;
+  background: rgba(255, 218, 137, 0.98) !important;
+}
+
+.library-v4 .library-book-card-v4 .library-stat-status.status-soon {
+  color: #175d90 !important;
+  border-color: rgba(49, 128, 188, 0.23) !important;
+  background: rgba(199, 230, 250, 0.98) !important;
+}
+
+.library-v4 .library-book-card-v4 .library-stat-status.status-paused {
+  color: #584276 !important;
+  border-color: rgba(112, 88, 151, 0.21) !important;
+  background: rgba(226, 216, 242, 0.98) !important;
+}
+
+body[data-site-theme="dark"] .library-v4 .library-book-card-v4[data-status="completed"],
+body[data-resolved-theme="dark"] .library-v4 .library-book-card-v4[data-status="completed"],
+body[data-theme="dark"] .library-v4 .library-book-card-v4[data-status="completed"] {
+  border-color: rgba(101, 196, 124, 0.26) !important;
+  background: linear-gradient(105deg, rgba(34, 72, 44, 0.97), rgba(28, 58, 37, 0.96)) !important;
+}
+
+body[data-site-theme="dark"] .library-v4 .library-book-card-v4[data-status="in_progress"],
+body[data-resolved-theme="dark"] .library-v4 .library-book-card-v4[data-status="in_progress"],
+body[data-theme="dark"] .library-v4 .library-book-card-v4[data-status="in_progress"] {
+  border-color: rgba(239, 174, 70, 0.27) !important;
+  background: linear-gradient(105deg, rgba(82, 59, 25, 0.97), rgba(66, 47, 22, 0.96)) !important;
+}
+
+body[data-site-theme="dark"] .library-v4 .library-book-card-v4[data-status="soon"],
+body[data-resolved-theme="dark"] .library-v4 .library-book-card-v4[data-status="soon"],
+body[data-theme="dark"] .library-v4 .library-book-card-v4[data-status="soon"] {
+  border-color: rgba(104, 184, 237, 0.26) !important;
+  background: linear-gradient(105deg, rgba(31, 65, 89, 0.97), rgba(25, 52, 73, 0.96)) !important;
+}
+
+body[data-site-theme="dark"] .library-v4 .library-book-card-v4[data-status="paused"],
+body[data-resolved-theme="dark"] .library-v4 .library-book-card-v4[data-status="paused"],
+body[data-theme="dark"] .library-v4 .library-book-card-v4[data-status="paused"] {
+  border-color: rgba(177, 153, 213, 0.23) !important;
+  background: linear-gradient(105deg, rgba(59, 47, 75, 0.97), rgba(47, 39, 61, 0.96)) !important;
+}

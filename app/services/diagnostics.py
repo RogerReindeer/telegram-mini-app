@@ -181,8 +181,6 @@ def build_content_audit() -> dict[str, Any]:
             _add_problem(problems, severity="warning", code="premium_date_without_content_url", message="Есть PremiumReleaseDate, но нет URL главы.", novel_id=novel_id, chapter_id=chapter_id, field="telegraph_premium_url")
         if free_url and not free_date:
             _add_problem(problems, severity="warning", code="free_url_without_free_date", message="Есть TelegraphFreeURL, но нет FreeReleaseDate.", novel_id=novel_id, chapter_id=chapter_id, field="free_release_date")
-        if premium_url and not premium_date:
-            _add_problem(problems, severity="warning", code="premium_url_without_premium_date", message="Есть TelegraphPremiumURL, но нет PremiumReleaseDate.", novel_id=novel_id, chapter_id=chapter_id, field="premium_release_date")
         if free_date and premium_date and free_date < premium_date:
             _add_problem(problems, severity="warning", code="free_before_premium", message="FreeReleaseDate раньше PremiumReleaseDate. Проверь расписание доступа.", novel_id=novel_id, chapter_id=chapter_id)
         for field_name, url in (("telegraph_free_url", free_url), ("telegraph_premium_url", premium_url)):

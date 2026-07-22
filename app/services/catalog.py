@@ -318,14 +318,10 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     free_url = clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_free_code"))
     premium_url = clean_value(chapter.get("telegraph_premium_url")) or clean_value(chapter.get("telegraph_premium_code"))
 
-    if translated and (free_url or premium_url) and not free_date and not premium_date:
-        issues.append(f"{chapter_id}: переведена и имеет ссылку, но нет ни FreeReleaseDate, ни PremiumReleaseDate; в MiniApp закрыта")
-
+    # PremiumReleaseDate необязательна: ранний доступ Хранителя уже
+    # синхронизирован из ReleaseSchedule в поле keeper_access.
     if free_url and not free_date:
         issues.append(f"{chapter_id}: есть бесплатная ссылка, но нет FreeReleaseDate; бесплатный доступ закрыт")
-
-    if premium_url and not premium_date:
-        issues.append(f"{chapter_id}: есть премиальная ссылка, но нет PremiumReleaseDate; доступ Хранителя закрыт")
 
     if free_date and not free_url:
         issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет бесплатной ссылки/кода")

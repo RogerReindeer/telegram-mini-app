@@ -679,6 +679,26 @@ def count_available_chapter_units_for_access(
 ) -> int:
     return count_available_chapter_units_for_profile(chapters, novel, profile)
 
+def chapter_is_boosty_toc_row(chapter: dict, novel: dict, decision: Any) -> bool:
+    """Return whether the TOC row should show the compact "Бусти" line.
+
+    This is display-only. Access itself is still decided from the fields synced
+    from Excel to Supabase. Publicly opened chapters never keep a Boosty label.
+    """
+    if decision.status in {"public_open", "not_translated", "no_content_source", "hidden"}:
+        return False
+    if chapter_public_ready(chapter):
+        return False
+
+    required_role = normalize_required_role(chapter.get("access_level"))
+    return bool(
+        novel_is_gift(novel)
+        or chapter_premium_url(chapter)
+        or to_bool(chapter.get("keeper_access"), False)
+        or required_role in {"traveler", "keeper"}
+    )
+
+
 def prepare_chapter_for_access_template(
     chapter: dict, novel: dict, profile: dict[str, Any]
 ) -> dict:
@@ -697,9 +717,17 @@ def prepare_chapter_for_access_template(
     item["access_severity"] = decision.severity
     item["required_role"] = decision.required_role
     toc_notice = chapter_toc_notice(decision)
+    item["is_boosty_chapter"] = chapter_is_boosty_toc_row(chapter, novel, decision)
+    if item["is_boosty_chapter"]:
+        toc_notice = {
+            "label": "Бусти",
+            "hint": "Глава относится к платному доступу Boosty",
+            "class_name": "chapter-access-boosty",
+        }
     item["toc_access_label"] = toc_notice.get("label", "")
     item["toc_access_hint"] = toc_notice.get("hint", "")
     item["toc_access_class"] = toc_notice.get("class_name", decision.class_name)
+    item["has_toc_access_label"] = bool(item["toc_access_label"])
     return item
 
 def build_chapter_display_list_for_access(
