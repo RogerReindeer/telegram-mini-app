@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 
 from ..config import settings
 
-from ..services.access import AccessDecision, access_copy, access_paywall_copy, chapter_preview_url, decide_chapter_access
+from ..services.access import access_copy, access_paywall_copy, chapter_preview_url, decide_chapter_access
 from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request
 from ..services.catalog import get_all_chapters, get_all_novels, get_chapter_by_id, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
 from ..services.reader import (
@@ -16,8 +16,6 @@ from ..services.reader import (
     prepare_chapter_for_access_template,
     prepare_library_novels_for_access,
     prepare_novel_for_template,
-    keeper_extra_chapter_limit_ids,
-    chapter_is_keeper_extra_blocked,
 )
 from ..services.telegraph import fetch_locked_preview, fetch_telegraph_content
 
@@ -79,29 +77,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         profile = viewer_fast_access_profile(viewer, int(raw_chapter.get("novel_id") or 0) or None)
         access_decision = decide_chapter_access(raw_chapter, raw_novel, profile)
         decision = access_decision
-        keeper_allowed_ids = keeper_extra_chapter_limit_ids(raw_chapters, raw_novel)
-        if chapter_is_keeper_extra_blocked(raw_chapter, profile, keeper_allowed_ids, raw_novel):
-            decision = AccessDecision(
-                allowed=False,
-                status="premium_scheduled",
-                label="📜 Следующий ранний релиз",
-                class_name="chapter-access-keeper",
-                reason="keeper_two_chapter_limit",
-                required_role="keeper",
-                viewer_role="keeper",
-                title="Глава пока за пределом раннего доступа",
-                description="Хранителю доступно две главы после последней бесплатной. Эта глава откроется позже, когда бесплатная очередь продвинется.",
-                action_hint="Можно вернуться к оглавлению или проверить доступ после следующего релиза.",
-                primary_action="back_to_toc",
-                secondary_action="refresh",
-                severity="scheduled",
-            )
         prepared_chapter = prepare_chapter_for_access_template(raw_chapter, raw_novel, profile)
-        if decision.reason == "keeper_two_chapter_limit":
-            prepared_chapter["is_available"] = False
-            prepared_chapter["url"] = ""
-            prepared_chapter["access_label"] = decision.label
-            prepared_chapter["access_class"] = decision.class_name
         prepared_novel = prepare_novel_for_template(raw_novel)
         info = get_chapter_index_info_for_access(raw_chapters, chapter_id, raw_novel, profile)
         previous_chapter, next_chapter = get_neighbor_chapters_for_access(raw_chapters, chapter_id, raw_novel, profile)

@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any
 
-from ..utils import clean_value, is_date_open, parse_date, to_int, today_iso
+from ..utils import clean_value, is_date_open, parse_date, to_bool, to_int, today_iso
 from .auth import role_rank, viewer_access_profile
 
 
@@ -153,14 +153,35 @@ def chapter_public_ready(chapter: dict) -> bool:
     return bool(chapter_public_url(chapter))
 
 
+def chapter_keeper_access_enabled(chapter: dict) -> bool:
+    """Read the Keeper decision prepared by Excel sync and stored in Supabase.
+
+    Old fixtures without the new column keep the legacy PremiumReleaseDate
+    behaviour. Production rows always contain keeper_access after migration.
+    """
+    if "keeper_access" in chapter:
+        return to_bool(chapter.get("keeper_access"), False)
+    release = clean_value(chapter.get("premium_release_date"))
+    return bool(release and is_date_open(release) and chapter_premium_url(chapter))
+
+
+def chapter_keeper_url(chapter: dict) -> str:
+    """Return the source approved for Keeper by the synced access marker.
+
+    A ReleaseSchedule-approved chapter may use its free Telegraph source before
+    FreeReleaseDate when no separate premium source exists. Guests still cannot
+    receive that source until chapter_public_ready() becomes true.
+    """
+    if not chapter_keeper_access_enabled(chapter):
+        return ""
+    return chapter_premium_url(chapter) or chapter_public_url(chapter)
+
+
 def chapter_premium_ready(chapter: dict) -> bool:
-    """Fail-closed check for a Keeper scheduled release."""
+    """Fail-closed check for a Keeper release prepared by Excel sync."""
     if not chapter_is_translated(chapter):
         return False
-    release = clean_value(chapter.get("premium_release_date"))
-    if not release or not is_date_open(release):
-        return False
-    return bool(chapter_premium_url(chapter))
+    return bool(chapter_keeper_url(chapter))
 
 
 def chapter_subscription_url(chapter: dict) -> str:
@@ -195,7 +216,7 @@ def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
     if chapter.get("is_visible") is not True:
         return ""
     if viewer_role == "keeper" and chapter_premium_ready(chapter):
-        return chapter_premium_url(chapter)
+        return chapter_keeper_url(chapter)
     if chapter_public_ready(chapter):
         return chapter_public_url(chapter)
     return ""
@@ -549,7 +570,7 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
         return AccessDecision(
             allowed=True,
             status="premium_open",
-            url=chapter_premium_url(chapter),
+            url=chapter_keeper_url(chapter),
             label="🔓 По подписке",
             class_name="chapter-access-subscription",
             reason="premium_release_open",
