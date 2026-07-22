@@ -16,7 +16,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from ..cache import clear_catalog_cache, clear_image_cache, clear_telegraph_cache
-from ..database import db_insert, db_update, db_upsert, supabase_ready
+from ..database import db_delete, db_insert, db_select, db_update, db_upsert, supabase_ready
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
 
 EXPECTED_SCHEMA_VERSION = 17
@@ -603,6 +603,62 @@ def _finish_sync_run(sync_id: int | None, patch: dict[str, Any]) -> None:
         print("Could not update sync_runs row:", error)
 
 
+def _delete_stale_chapters_for_snapshot(novels: list[dict[str, Any]], chapters: list[dict[str, Any]]) -> int:
+    """Make synced novels in Supabase match the Excel Chapters snapshot exactly."""
+    synced_novel_ids = {to_int(row.get("novel_id"), 0) for row in novels}
+    synced_novel_ids.discard(0)
+    if not synced_novel_ids:
+        return 0
+
+    incoming_ids = {clean_value(row.get("chapter_id")) for row in chapters if clean_value(row.get("chapter_id"))}
+    existing = db_select("chapters", select="chapter_id,novel_id")
+    stale_ids = [
+        clean_value(row.get("chapter_id"))
+        for row in existing
+        if to_int(row.get("novel_id"), 0) in synced_novel_ids
+        and clean_value(row.get("chapter_id"))
+        and clean_value(row.get("chapter_id")) not in incoming_ids
+    ]
+
+    deleted = 0
+    for start in range(0, len(stale_ids), 100):
+        batch = stale_ids[start:start + 100]
+        # ChapterID consists only of digits and hyphens, so PostgREST in.(...) is safe here.
+        db_delete("chapters", {"chapter_id": f"in.({','.join(batch)})"})
+        deleted += len(batch)
+    return deleted
+
+
+def _delete_stale_novels_for_snapshot(novels: list[dict[str, Any]]) -> int:
+    incoming_ids = {to_int(row.get("novel_id"), 0) for row in novels}
+    incoming_ids.discard(0)
+    if not incoming_ids:
+        return 0
+    existing = db_select("novels", select="novel_id")
+    stale_ids = [str(to_int(row.get("novel_id"), 0)) for row in existing if to_int(row.get("novel_id"), 0) not in incoming_ids]
+    stale_ids = [value for value in stale_ids if value != "0"]
+    deleted = 0
+    for start in range(0, len(stale_ids), 100):
+        batch = stale_ids[start:start + 100]
+        db_delete("novels", {"novel_id": f"in.({','.join(batch)})"})
+        deleted += len(batch)
+    return deleted
+
+
+def _delete_stale_fox_for_snapshot(fox_rows: list[dict[str, Any]]) -> int:
+    incoming_names = {clean_value(row.get("name")) for row in fox_rows if clean_value(row.get("name"))}
+    if not incoming_names:
+        return 0
+    existing = db_select("fox", select="name")
+    stale_names = [clean_value(row.get("name")) for row in existing if clean_value(row.get("name")) not in incoming_names]
+    deleted = 0
+    for start in range(0, len(stale_names), 100):
+        batch = stale_names[start:start + 100]
+        db_delete("fox", {"name": f"in.({','.join(batch)})"})
+        deleted += len(batch)
+    return deleted
+
+
 async def run_sync(payload: dict[str, Any]) -> JSONResponse:
     """Normalize sync payload, record sync_runs, and upsert it into Supabase."""
     if not supabase_ready():
@@ -667,6 +723,9 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
             "novels_upserted": 0,
             "chapters_upserted": 0,
             "fox_upserted": 0,
+            "stale_chapters_deleted": 0,
+            "stale_novels_deleted": 0,
+            "stale_fox_deleted": 0,
             "warnings_count": len(warnings),
             "warnings": warnings[:100],
         }
@@ -681,9 +740,16 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
             result["chapters_upserted"] = db_upsert("chapters", chapters, "chapter_id", batch_size=100)
             _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "warnings": warnings[:100]})
 
+        stage = "prune_stale_chapters"
+        if payload.get("full_snapshot") is True:
+            result["stale_chapters_deleted"] = _delete_stale_chapters_for_snapshot(novels, chapters)
+            result["stale_novels_deleted"] = _delete_stale_novels_for_snapshot(novels)
+
         stage = "fox"
         if fox_rows:
             result["fox_upserted"] = db_upsert("fox", fox_rows, "name", batch_size=50)
+            if payload.get("full_snapshot") is True:
+                result["stale_fox_deleted"] = _delete_stale_fox_for_snapshot(fox_rows)
             _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "fox_count": result["fox_upserted"], "warnings": warnings[:100]})
 
         result["cache_cleared"] = {

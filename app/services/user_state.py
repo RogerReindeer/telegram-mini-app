@@ -222,7 +222,7 @@ def get_user_state_rows(telegram_user_id: int) -> dict[str, Any]:
                 "chapter_id": last_chapter_id,
                 "chapter_title": clean_value(chapter.get("chapter_title")),
                 "chapter_index": chapter_index,
-                "available_chapters": len(ordered_chapters),
+                "available_chapters": max(0, to_int(novel.get("translated_chapters"), 0)),
                 "scroll_position": to_float(latest_progress.get("progress_percent"), 0.0),
                 "scroll_position_px": max(0, to_int(latest_progress.get("scroll_position"), 0)),
                 "read_chapter_ids": read_ids,

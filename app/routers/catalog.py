@@ -39,9 +39,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         fast_viewer = dict(viewer)
         fast_viewer["__fast_access_profile"] = page_profile
         try:
-            novels = get_all_novels(include_hidden=True)
-            chapters = get_all_chapters()
-            prepared = prepare_library_novels_for_access(novels, chapters, fast_viewer)
+            novels = get_all_novels(include_hidden=False)
+            prepared = prepare_library_novels_for_access(novels, [], fast_viewer)
         except Exception:
             prepared = []
         return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
@@ -49,7 +48,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/novel/{slug}")
     def novel(request: Request, slug: str):
         viewer = public_viewer(viewer_from_request(request))
-        raw_novel = get_novel_by_slug(slug, include_hidden=True)
+        raw_novel = get_novel_by_slug(slug, include_hidden=False)
         if not raw_novel:
             raise HTTPException(status_code=404, detail="Novel not found")
         novel_id = int(raw_novel.get("novel_id") or raw_novel.get("id") or 0) or None
@@ -97,15 +96,15 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
                 secondary_action="refresh",
                 severity="scheduled",
             )
-        prepared_chapter = prepare_chapter_for_access_template(raw_chapter, raw_novel, viewer)
+        prepared_chapter = prepare_chapter_for_access_template(raw_chapter, raw_novel, profile)
         if decision.reason == "keeper_two_chapter_limit":
             prepared_chapter["is_available"] = False
             prepared_chapter["url"] = ""
             prepared_chapter["access_label"] = decision.label
             prepared_chapter["access_class"] = decision.class_name
         prepared_novel = prepare_novel_for_template(raw_novel)
-        info = get_chapter_index_info_for_access(raw_chapters, chapter_id, raw_novel, viewer)
-        previous_chapter, next_chapter = get_neighbor_chapters_for_access(raw_chapters, chapter_id, raw_novel, viewer)
+        info = get_chapter_index_info_for_access(raw_chapters, chapter_id, raw_novel, profile)
+        previous_chapter, next_chapter = get_neighbor_chapters_for_access(raw_chapters, chapter_id, raw_novel, profile)
         telegraph_content, telegraph_error = (None, "")
         preview_text, preview_error = ("", "")
         if decision.allowed and decision.url:
@@ -139,7 +138,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/api/library")
     def api_library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
-        novels = prepare_library_novels_for_access(get_all_novels(include_hidden=True), get_all_chapters(), viewer)
+        novels = prepare_library_novels_for_access(get_all_novels(include_hidden=False), [], viewer)
         return {"items": novels}
 
     return router

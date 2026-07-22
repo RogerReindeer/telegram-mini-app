@@ -255,3 +255,7 @@ def db_insert(table: str, row: dict[str, Any], prefer: str = "return=representat
 
 def db_update(table: str, filters: dict[str, str], patch: dict[str, Any], prefer: str = "return=minimal") -> Any:
     return supabase.request("PATCH", table, params=filters, payload=patch, prefer=prefer)
+
+
+def db_delete(table: str, filters: dict[str, str], prefer: str = "return=minimal") -> Any:
+    return supabase.request("DELETE", table, params=filters, prefer=prefer)

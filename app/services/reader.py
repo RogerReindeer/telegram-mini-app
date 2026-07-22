@@ -585,6 +585,9 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "age_rating": clean_value(novel.get("age_rating")) or get_age_rating_from_tags(tags),
         "total_chapters": to_int(novel.get("total_chapters"), 0),
         "translated_chapters": to_int(novel.get("translated_chapters"), 0),
+        "free_chapters_count": to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0),
+        "traveler_chapters_count": to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0),
+        "keeper_chapters_count": to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0),
         "progress_percent": progress_percent,
         "normalized_progress_percent": progress_percent,
         "translation_status": translation_status,
@@ -607,6 +610,23 @@ def prepare_novel_for_template(novel: dict) -> dict:
     prepared["display_chapters_count"] = to_int(novel.get("display_chapters_count"), prepared["total_chapters"])
     prepared["available_chapters_count"] = to_int(novel.get("available_chapters_count"), 0)
     return prepared
+
+
+def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] | None) -> int:
+    """Map a viewer role to the counters already stored in Supabase.
+
+    The MiniApp must never recount chapter rows for library/TOC counters. Those
+    values are prepared by MiniAppSync.gs from the Excel Chapters sheet.
+    """
+    profile = profile or {}
+    if profile.get("has_full_book_access"):
+        return max(0, to_int(novel.get("translated_chapters"), 0))
+    role = clean_value(profile.get("role")) or "guest"
+    if role == "keeper":
+        return max(0, to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0))
+    if role == "traveler":
+        return max(0, to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0))
+    return max(0, to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0))
 
 def finalize_novel_access_summary(prepared: dict) -> dict:
     """Подготавливает только значимые показатели доступа."""
@@ -645,22 +665,14 @@ def finalize_novel_access_summary(prepared: dict) -> dict:
     return prepared
 
 def attach_chapter_counts_to_novels(novels: list[dict], chapters: list[dict], viewer_role: str = "guest") -> list[dict]:
-    chapters_by_novel: dict[str, list[dict]] = {}
-    for chapter in chapters:
-        novel_id = clean_value(chapter.get("novel_id"))
-        if novel_id:
-            chapters_by_novel.setdefault(novel_id, []).append(chapter)
+    """Backward-compatible wrapper that uses only Supabase novel counters."""
     result = []
+    profile = {"role": viewer_role, "has_full_book_access": False}
     for novel in novels:
         prepared = prepare_novel_for_template(novel)
-        novel_chapters = chapters_by_novel.get(clean_value(prepared.get("id")), [])
         prepared["is_gift"] = novel_is_gift(novel)
         prepared["required_role"] = "traveler" if prepared["is_gift"] else novel_required_role(novel)
-        prepared["display_chapters_count"] = count_chapter_units_for_card(novel_chapters) or prepared["total_chapters"] or 0
-        prepared["free_chapters_count"] = count_available_chapter_units(novel_chapters, "guest")
-        prepared["traveler_chapters_count"] = count_available_chapter_units(novel_chapters, "traveler")
-        prepared["keeper_chapters_count"] = count_available_chapter_units(novel_chapters, "keeper")
-        prepared["available_chapters_count"] = count_available_chapter_units(novel_chapters, viewer_role)
+        prepared["available_chapters_count"] = stored_available_chapters_for_profile(prepared, profile)
         prepared["viewer_has_book_access"] = viewer_can_access_required_role(viewer_role, prepared["required_role"])
         finalize_novel_access_summary(prepared)
         result.append(prepared)
@@ -766,7 +778,10 @@ def get_chapter_index_info_for_access(
             })
     current_index = next((i for i, unit in enumerate(units, 1)
                           if clean_value(unit.get("chapter_id")) == clean_value(current_chapter_id)), 0)
-    return {"chapter_index": current_index, "available_chapters": len(units)}
+    return {
+        "chapter_index": current_index,
+        "available_chapters": stored_available_chapters_for_profile(novel, profile),
+    }
 
 def get_neighbor_chapters_for_access(
     chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
@@ -788,50 +803,28 @@ def get_neighbor_chapters_for_access(
 def prepare_library_novels_for_access(
     novels: list[dict], chapters: list[dict], viewer: dict[str, Any] | None
 ) -> list[dict]:
+    """Prepare cards from Supabase novel rows without recounting chapters."""
     viewer = viewer or {}
-    chapters_by_novel: dict[str, list[dict]] = {}
-    for chapter in chapters:
-        key = clean_value(chapter.get("novel_id"))
-        if key:
-            chapters_by_novel.setdefault(key, []).append(chapter)
-
     result = []
     for novel in novels:
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
         if viewer.get("__fast_access_profile"):
-            # HTML page rendering uses the signed-cookie role and must not make
-            # Telegram getChatMember requests during navigation. Explicit refresh
-            # endpoints still use viewer_access_profile().
             profile = dict(viewer.get("__fast_access_profile") or {})
             profile["novel_id"] = novel_id
         elif (clean_value(viewer.get("role")) in {"traveler", "keeper"}
                 and not viewer.get("authenticated")
                 and not viewer.get("user_id")):
-            # Contract-test and server-internal fallback: when a trusted prepared
-            # viewer already carries a role, do not downgrade it to guest just
-            # because there is no Telegram cookie in the test context. Real
-            # browser requests still go through viewer_access_profile().
             profile = {"role": clean_value(viewer.get("role")), "has_full_book_access": False}
         else:
             profile = viewer_access_profile(viewer, novel_id)
         if not can_view_novel_for_profile(novel, profile):
             continue
 
-        novel_chapters = chapters_by_novel.get(novel_id_text, [])
         prepared = prepare_novel_for_template(novel)
         prepared["is_gift"] = novel_is_gift(novel)
         prepared["required_role"] = "traveler" if prepared["is_gift"] else "guest"
-        prepared["display_chapters_count"] = count_chapter_units_for_card(novel_chapters) or prepared["total_chapters"] or 0
-
-        guest_profile = {"role": "guest", "has_full_book_access": False}
-        keeper_profile = {"role": "keeper", "has_full_book_access": False}
-        keeper_allowed_ids = keeper_extra_chapter_limit_ids(novel_chapters, novel)
-        prepared["free_chapters_count"] = count_available_chapter_units_for_access(novel_chapters, novel, guest_profile)
-        traveler_profile = {"role": "traveler", "has_full_book_access": False}
-        prepared["traveler_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, traveler_profile, keeper_allowed_ids)
-        prepared["keeper_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, keeper_profile, keeper_allowed_ids)
-        prepared["available_chapters_count"] = count_available_chapter_units_for_profile(novel_chapters, novel, profile, keeper_allowed_ids)
+        prepared["available_chapters_count"] = stored_available_chapters_for_profile(prepared, profile)
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
         prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))
         finalize_novel_access_summary(prepared)

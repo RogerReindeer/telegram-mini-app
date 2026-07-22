@@ -9,14 +9,7 @@
 </head>
 <body class="page-index">
   {% set page_fox = fox.fox_sitting_front or fox.fox_pic or fox.fox_peek or fox.fox_side if fox is defined else '' %}
-  <main class="page index-page">
-    <section class="empty empty-with-fox">
-      {% if page_fox %}<img class="library-empty-fox-img" src="{{ page_fox }}" alt="Лисичка" data-fox>{% endif %}
-      <h1>{{ app_title }}</h1>
-      {% if error %}<p>{{ error }}</p>{% else %}<p>Библиотека временно недоступна — попробуйте обновить страницу</p>{% endif %}
-      <a class="primary-read-button" href="/library">Перейти в библиотеку</a>
-    </section>
-  </main>
+  <main class="page index-page"><section class="empty empty-with-fox">{% if page_fox %}<img class="library-empty-fox-img" src="{{ page_fox }}" alt="Лисичка" data-fox>{% endif %}<h1>{{ app_title }}</h1>{% if error %}<p>{{ error }}</p>{% else %}<p>Библиотека временно недоступна — попробуйте обновить страницу</p>{% endif %}<a class="primary-read-button" href="/library">Перейти в библиотеку</a></section></main>
   <script>window.ZEFIRKI_FOX = {{ fox | default({}) | tojson }};</script>
   <script src="{{ static_url('settings.js') }}"></script>
 </body>

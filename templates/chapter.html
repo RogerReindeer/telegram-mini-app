@@ -12,103 +12,49 @@
   {% if not is_locked %}
     <aside class="reader-floating-controls" data-reader-floating-controls aria-label="Быстрая навигация по главе">
       <a class="reader-floating-button reader-floating-toc" href="/novel/{{ novel.slug }}" aria-label="Вернуться к оглавлению" title="К оглавлению">📖</a>
-      {% if previous_chapter %}
-        <a class="reader-floating-button reader-floating-prev" href="/chapter/{{ previous_chapter.chapter_id }}" aria-label="Прошлая глава" title="Прошлая глава">‹</a>
-      {% endif %}
+      {% if previous_chapter %}<a class="reader-floating-button reader-floating-prev" href="/chapter/{{ previous_chapter.chapter_id }}" aria-label="Прошлая глава" title="Прошлая глава">‹</a>{% endif %}
       <button class="reader-floating-button" type="button" data-scroll-up aria-label="Прокрутить выше" title="Выше">↑</button>
       <button class="reader-floating-button" type="button" data-scroll-down aria-label="Прокрутить ниже" title="Ниже">↓</button>
-      {% if next_chapter %}
-        <a class="reader-floating-button reader-floating-next is-primary" href="/chapter/{{ next_chapter.chapter_id }}" aria-label="Следующая глава" title="Следующая глава">›</a>
-      {% endif %}
+      {% if next_chapter %}<a class="reader-floating-button reader-floating-next is-primary" href="/chapter/{{ next_chapter.chapter_id }}" aria-label="Следующая глава" title="Следующая глава">›</a>{% endif %}
     </aside>
   {% endif %}
   {% set reader_fox = fox.fox_side or fox.fox_laying_paws or fox.fox_peek_left or fox.fox_pic %}
   {% set footer_fox = fox.fox_sitting_front or fox.fox_sleeping or fox.fox_heart or fox.fox_pic %}
   <main class="page reader-layout chapter-layout" data-chapter-page data-novel-id="{{ novel.id }}" data-novel-slug="{{ novel.slug }}" data-novel-title="{{ novel.display_title }}" data-novel-short-title="{{ novel.library_short_title or novel.display_title }}" data-chapter-id="{{ chapter.chapter_id }}" data-chapter-title="{{ chapter.display_title }}" data-chapter-index="{{ chapter_index }}" data-available-chapters="{{ available_chapters }}" data-is-locked="{{ 'true' if is_locked else 'false' }}">
-    <div class="page-top-row chapter-top-row">
-      <a class="novel-back-button chapter-back-button" href="/novel/{{ novel.slug }}"><span class="novel-back-button-icon" aria-hidden="true">←</span><span>К оглавлению</span></a>
-    </div>
-    <header class="chapter-header">
-      <h1>{{ chapter.display_title }}</h1>
-      <div class="chapter-subtitle"><span class="meta-pill">{{ novel.display_title }}</span><span class="meta-pill">{{ chapter.access_label }}</span></div>
-    </header>
+    <div class="page-top-row chapter-top-row"><a class="novel-back-button chapter-back-button" href="/novel/{{ novel.slug }}"><span class="novel-back-button-icon" aria-hidden="true">←</span><span>К оглавлению</span></a></div>
+    <header class="chapter-header"><h1>{{ chapter.display_title }}</h1><div class="chapter-subtitle"><span class="meta-pill">{{ novel.display_title }}</span><span class="meta-pill">{{ chapter.access_label }}</span></div></header>
     <section class="chapter-content-shell {% if is_locked %}chapter-content-shell-preview{% endif %}">
       {% if reader_fox %}<img class="chapter-side-fox" src="{{ reader_fox }}" alt="Лисичка" data-fox>{% endif %}
       {% if not is_locked %}
         <article class="chapter-content" data-chapter-content-source="server" data-cache-chapter-content>
-          {% if telegraph_content and telegraph_content.content_html %}{{ telegraph_content.content_html | safe }}{% else %}
-            <div class="chapter-loading-placeholder" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-            <p class="chapter-empty-text">Текст главы пока не загрузился</p>
-          {% endif %}
+          {% if telegraph_content and telegraph_content.content_html %}{{ telegraph_content.content_html | safe }}{% else %}<div class="chapter-loading-placeholder" aria-hidden="true"><span></span><span></span><span></span><span></span></div><p class="chapter-empty-text">Текст главы пока не загрузился</p>{% endif %}
         </article>
-        <section class="chapter-offline-copy" data-chapter-offline-copy hidden>
-          <div class="chapter-offline-copy-head"><span>Сохранённая копия</span><small data-chapter-offline-copy-time></small></div>
-          <article class="chapter-content chapter-content-cached" data-chapter-offline-copy-content></article>
-        </section>
+        <section class="chapter-offline-copy" data-chapter-offline-copy hidden><div class="chapter-offline-copy-head"><span>Сохранённая копия</span><small data-chapter-offline-copy-time></small></div><article class="chapter-content chapter-content-cached" data-chapter-offline-copy-content></article></section>
       {% else %}
         <article class="chapter-content chapter-preview-card">
           {% if preview_text %}<p class="chapter-preview-text">{{ preview_text }}</p>{% else %}<p class="chapter-preview-text">Начало этой главы доступно для ознакомления, а продолжение открывается после проверки подписки</p>{% endif %}
           <div class="chapter-blurred-preview" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
           <section class="chapter-paywall chapter-paywall-v54 chapter-paywall-{{ access_paywall.severity }}">
             {% if footer_fox %}<img class="chapter-paywall-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>{% endif %}
-            <div class="chapter-paywall-copy">
-              <div class="chapter-paywall-meta"><span class="chapter-paywall-status">{{ chapter.access_label }}</span>{% if access_paywall.release_label %}<span class="chapter-paywall-date">{{ access_paywall.release_label }}</span>{% endif %}</div>
-              <h2>{{ access_paywall.title or access_copy.title }}</h2>
-              <p>{{ access_paywall.description or access_copy.description }}</p>
-              {% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}
-            </div>
+            <div class="chapter-paywall-copy"><div class="chapter-paywall-meta"><span class="chapter-paywall-status">{{ chapter.access_label }}</span>{% if access_paywall.release_label %}<span class="chapter-paywall-date">{{ access_paywall.release_label }}</span>{% endif %}</div><h2>{{ access_paywall.title or access_copy.title }}</h2><p>{{ access_paywall.description or access_copy.description }}</p>{% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}</div>
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
               {% if access_paywall.show_tribute %}
                 <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>Разблокировать главу</button>
-                <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden>
-                  <div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="Разблокировать главу">
-                    <button class="chapter-unlock-close" type="button" data-paywall-unlock-close aria-label="Закрыть">×</button>
-                    <h3>Как открыть доступ</h3>
-                    <p>Оформите подписку в Tribute. После оплаты Tribute добавит вас в нужную приватную Telegram-группу. Затем вернитесь сюда и нажмите «Проверить доступ».</p>
-                    <div class="chapter-unlock-options">
-                      {% if tribute_traveler_url %}
-                        {% if access_paywall.show_traveler_purchase %}
-                          <a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>🌱 Странствующий читатель</a>
-                        {% elif access_paywall.traveler_already_owned %}
-                          <button class="chapter-access-owned-button" type="button" data-access-already-owned>🌱 Уже есть доступ</button>
-                        {% endif %}
-                      {% endif %}
-                      {% if tribute_keeper_url %}
-                        {% if access_paywall.show_keeper_purchase %}
-                          <a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>📜 Хранитель свитков</a>
-                        {% elif access_paywall.keeper_already_owned %}
-                          <button class="chapter-access-owned-button" type="button" data-access-already-owned>📜 Уже есть доступ</button>
-                        {% endif %}
-                      {% endif %}
-                      {% if access_paywall.already_owned_message %}<p class="chapter-access-owned-note">{{ access_paywall.already_owned_message }}</p>{% endif %}
-                      {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
-                    </div>
-                  </div>
-                </div>
-              {% elif access_paywall.show_boosty and boosty_access_url %}
-                <a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Открыть доступ на Boosty</a>
-                {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
-              {% elif access_paywall.show_refresh %}
-                <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>
-              {% endif %}
+                <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden><div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="Разблокировать главу"><button class="chapter-unlock-close" type="button" data-paywall-unlock-close aria-label="Закрыть">×</button><h3>Как открыть доступ</h3><p>Оформите подписку в Tribute. После оплаты Tribute добавит вас в нужную приватную Telegram-группу. Затем вернитесь сюда и нажмите «Проверить доступ».</p><div class="chapter-unlock-options">
+                  {% if tribute_traveler_url %}{% if access_paywall.show_traveler_purchase %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>🌱 Странствующий читатель</a>{% elif access_paywall.traveler_already_owned %}<button class="chapter-access-owned-button" type="button" data-access-already-owned>🌱 Уже есть доступ</button>{% endif %}{% endif %}
+                  {% if tribute_keeper_url %}{% if access_paywall.show_keeper_purchase %}<a class="chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>📜 Хранитель свитков</a>{% elif access_paywall.keeper_already_owned %}<button class="chapter-access-owned-button" type="button" data-access-already-owned>📜 Уже есть доступ</button>{% endif %}{% endif %}
+                  {% if access_paywall.already_owned_message %}<p class="chapter-access-owned-note">{{ access_paywall.already_owned_message }}</p>{% endif %}{% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
+                </div></div></div>
+              {% elif access_paywall.show_boosty and boosty_access_url %}<a class="chapter-access-purchase-button chapter-access-purchase-boosty" href="{{ boosty_access_url }}" target="_blank" rel="noopener noreferrer">Открыть доступ на Boosty</a>{% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
+              {% elif access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
               <a class="chapter-access-secondary-button" href="/novel/{{ novel.slug }}">К оглавлению</a>
             </div>
           </section>
         </article>
       {% endif %}
     </section>
-    {% if telegraph_error %}
-      <section class="locked-chapter-notice chapter-load-error" role="status" data-chapter-load-error>
-        <div class="locked-title">Не удалось загрузить текст</div><p>{{ telegraph_error }}</p>
-        <p class="chapter-load-error-cached-note" data-chapter-cached-note hidden>Показываю сохранённую копию, пока источник главы недоступен</p>
-        <div class="chapter-load-error-actions"><button type="button" class="chapter-retry-button" data-chapter-retry>Попробовать ещё раз</button><a class="chapter-load-error-link" href="/novel/{{ novel.slug }}">К оглавлению</a></div>
-      </section>
-    {% endif %}
-    <nav class="chapter-navigation" aria-label="Навигация по главам">
-      {% if previous_chapter %}<a class="chapter-nav-button" href="/chapter/{{ previous_chapter.chapter_id }}">← Прошлая</a>{% else %}<span class="chapter-nav-placeholder"></span>{% endif %}
-      <a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К оглавлению</a>
-      {% if next_chapter %}<a class="chapter-nav-button" href="/chapter/{{ next_chapter.chapter_id }}">Следующая →</a>{% else %}<span class="chapter-nav-placeholder"></span>{% endif %}
-    </nav>
+    {% if telegraph_error %}<section class="locked-chapter-notice chapter-load-error" role="status" data-chapter-load-error><div class="locked-title">Не удалось загрузить текст</div><p>{{ telegraph_error }}</p><p class="chapter-load-error-cached-note" data-chapter-cached-note hidden>Показываю сохранённую копию, пока источник главы недоступен</p><div class="chapter-load-error-actions"><button type="button" class="chapter-retry-button" data-chapter-retry>Попробовать ещё раз</button><a class="chapter-load-error-link" href="/novel/{{ novel.slug }}">К оглавлению</a></div></section>{% endif %}
+    <nav class="chapter-navigation" aria-label="Навигация по главам">{% if previous_chapter %}<a class="chapter-nav-button" href="/chapter/{{ previous_chapter.chapter_id }}">← Прошлая</a>{% else %}<span class="chapter-nav-placeholder"></span>{% endif %}<a class="chapter-nav-button chapter-nav-main" href="/novel/{{ novel.slug }}">К оглавлению</a>{% if next_chapter %}<a class="chapter-nav-button" href="/chapter/{{ next_chapter.chapter_id }}">Следующая →</a>{% else %}<span class="chapter-nav-placeholder"></span>{% endif %}</nav>
     {% if footer_fox and not is_locked %}<div class="chapter-footer-fox-wrap"><img class="chapter-footer-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox></div>{% endif %}
   </main>
   <script>window.ZEFIRKI_FOX = {{ fox | tojson }}; window.ZEFIRKI_VIEWER = {{ viewer | tojson }};</script>
