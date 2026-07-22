@@ -1327,7 +1327,11 @@
         return;
       }
 
-      if (favoriteNovels.includes(novelId)) {
+      if (state === "soon") {
+        // «Скоро» — самостоятельный раздел. Не дублируем такие карточки
+        // в «Избранное», «Читаю» или «Можно начать».
+        buckets.waiting.push(card);
+      } else if (favoriteNovels.includes(novelId)) {
         buckets.favorite.push(card);
       } else if (state === "new" || state === "reading" || state === "waiting_new") {
         buckets.reading.push(card);
@@ -1335,7 +1339,7 @@
         buckets.start.push(card);
       } else if (state === "subscription") {
         buckets.subscription.push(card);
-      } else if (state === "locked" || state === "soon") {
+      } else if (state === "locked") {
         buckets.waiting.push(card);
       } else {
         buckets.finished.push(card);
@@ -1423,10 +1427,10 @@
     let visualProgress = 0;
     let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
-    if (projectStatus === "soon" && !available) {
-      // Статус «Скоро» уже подготовлен Excel -> Supabase. Он имеет приоритет
-      // даже над старой локальной историей чтения, если у книги больше нет
-      // доступных источников контента.
+    if (projectStatus === "soon") {
+      // Статус «Скоро» приходит из Legend через Excel -> Supabase и всегда
+      // имеет приоритет над локальной историей, избранным и старыми счётчиками.
+      // Такая новелла показывается только в отдельном разделе «Скоро».
       state = "soon";
       visualProgress = 0;
       progressLabel = "0 / 0";
