@@ -19,6 +19,7 @@ from .reader import (
 )
 from .sync import parse_iso_datetime
 from .telegraph import resolve_external_image_url
+from .access import normalize_readable_telegraph_source
 
 NOVEL_TABLE_COLUMNS = {
     "novel_id", "code", "novel_short", "title_ru", "title_en", "title_original",
@@ -276,8 +277,8 @@ def adapt_chapter_from_db(row: dict) -> dict:
     premium_url = clean_value(row.get("telegraph_premium_url"))
     free_code = clean_value(row.get("telegraph_free_code"))
     premium_code = clean_value(row.get("telegraph_premium_code"))
-    free_source = free_url or free_code
-    premium_source = premium_url or premium_code
+    free_source = normalize_readable_telegraph_source(free_url) or normalize_readable_telegraph_source(free_code)
+    premium_source = normalize_readable_telegraph_source(premium_url) or normalize_readable_telegraph_source(premium_code)
     free_release_date = clean_value(row.get("free_release_date"))
     premium_release_date = clean_value(row.get("premium_release_date"))
     free_ready = bool(
@@ -315,8 +316,16 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     translated = bool(clean_value(chapter.get("translation_date")))
     free_date = clean_value(chapter.get("free_release_date"))
     premium_date = clean_value(chapter.get("premium_release_date"))
-    free_url = clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_free_code"))
-    premium_url = clean_value(chapter.get("telegraph_premium_url")) or clean_value(chapter.get("telegraph_premium_code"))
+    free_url = (
+        normalize_readable_telegraph_source(chapter.get("telegraph_free_url"))
+        or normalize_readable_telegraph_source(chapter.get("telegraph_free_code"))
+    )
+    premium_url = (
+        normalize_readable_telegraph_source(chapter.get("telegraph_premium_url"))
+        or normalize_readable_telegraph_source(chapter.get("telegraph_premium_code"))
+    )
+
+
 
     # PremiumReleaseDate необязательна: ранний доступ Хранителя уже
     # синхронизирован из ReleaseSchedule в поле keeper_access.

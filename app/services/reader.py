@@ -186,13 +186,28 @@ def build_card_tag_items(tag_items: list[dict]) -> list[dict]:
     return sorted(result, key=lambda item: (tag_priority_score(item), clean_value(item.get("text")).lower()))
 
 def normalize_translation_status(raw_status: Any, raw_label: Any = "") -> str:
-    text = f"{clean_value(raw_status)} {clean_value(raw_label)}".lower()
-    if any(marker in text for marker in ("completed", "complete", "done", "заверш", "✅", "готов")):
+    """Normalize only the editorial/project translation status.
+
+    ``Скоро`` is an availability section, not a translation status. A completed
+    project may therefore still appear in the library section ``Скоро`` when no
+    readable chapter source has been published yet.
+    """
+    text = f"{clean_value(raw_status)} {clean_value(raw_label)}".lower().replace("ё", "е")
+    if (
+        "✅" in text
+        or "заверш" in text
+        or "переведено полностью" in text
+        or re.search(r"(^|\s)(completed|complete|done)(\s|$)", text)
+    ):
         return "completed"
-    if any(marker in text for marker in ("paused", "pause", "hold", "передерж", "пауза", "⏳")):
+    if (
+        "⏳" in text
+        or "пауза" in text
+        or "приостанов" in text
+        or "передерж" in text
+        or re.search(r"(^|\s)(paused|pause|hold)(\s|$)", text)
+    ):
         return "paused"
-    if any(marker in text for marker in ("soon", "анонс", "скоро")):
-        return "soon"
     return "in_progress"
 
 def translation_status_label(status: str, fallback: Any = "") -> str:
@@ -558,14 +573,9 @@ def prepare_novel_for_template(novel: dict) -> dict:
         novel.get("translation_status") or novel.get("status"),
         novel.get("translation_status_label"),
     )
-    # Защита от устаревшего status="Скоро" в Supabase: если sync уже
-    # передал хотя бы одну выпущенную бесплатную или подписочную главу,
-    # книга должна быть читаемой/подписочной, а не находиться в «Скоро».
-    status_was_corrected_from_soon = translation_status == "soon" and stored_released_count > 0
-    if status_was_corrected_from_soon:
-        translation_status = "in_progress"
-
-    status_label_fallback = "" if status_was_corrected_from_soon else novel.get("translation_status_label")
+    status_label_fallback = novel.get("translation_status_label")
+    if clean_value(status_label_fallback).lower() in {"скоро", "soon"}:
+        status_label_fallback = ""
     progress_percent = normalize_progress_percent(novel.get("progress_percent"))
     prepared.update({
         "id": clean_value(novel.get("id")),
@@ -611,11 +621,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "progress_percent": progress_percent,
         "normalized_progress_percent": progress_percent,
         "translation_status": translation_status,
-        "translation_status_label": (
-            "Скоро"
-            if translation_status == "paused"
-            else translation_status_label(translation_status, status_label_fallback)
-        ),
+        "translation_status_label": translation_status_label(translation_status, status_label_fallback),
         "translation_status_color": translation_status_color(translation_status, novel.get("translation_status_color")),
         "access_badge": build_access_badge(novel.get("access_model"), novel.get("early_access_mode")),
         "relation_type": clean_value(novel.get("relation_type")),

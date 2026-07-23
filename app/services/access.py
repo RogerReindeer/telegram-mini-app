@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from datetime import datetime
+import re
 from typing import Any
 
 from ..utils import clean_value, is_date_open, parse_date, to_bool, to_int, today_iso
@@ -107,19 +108,42 @@ def novel_is_traveler_only(novel: dict) -> bool:
     return novel_is_gift(novel)
 
 
+_TELEGRAPH_URL_RE = re.compile(r"^https?://(?:www\.)?telegra\.ph/[^\s?#]+", re.IGNORECASE)
+_TELEGRAPH_PATH_RE = re.compile(r"^[^\s/]+-\d{2}-\d{2}(?:-\d+)?$", re.IGNORECASE)
+
+
+def normalize_readable_telegraph_source(value: Any) -> str:
+    """Return only a source that the Telegraph API can actually open.
+
+    A short CRM code such as ``96ZS0EQO`` is an internal identifier, not a
+    Telegraph page path. It must not make a chapter look readable. Full
+    ``telegra.ph`` URLs and complete Telegraph paths ending in ``-MM-DD`` are
+    accepted.
+    """
+    text = clean_value(value)
+    if not text:
+        return ""
+    if _TELEGRAPH_URL_RE.match(text) or _TELEGRAPH_PATH_RE.match(text):
+        return text
+    return ""
+
+
 def chapter_is_translated(chapter: dict) -> bool:
-    return bool(clean_value(chapter.get("translation_date")))
+    # A real readable source is stronger evidence than a missing legacy
+    # TranslationDate. Bare internal codes do not count as translated content.
+    return bool(
+        clean_value(chapter.get("translation_date"))
+        or chapter_content_source(chapter, "telegraph_free_url", "telegraph_free_code")
+        or chapter_content_source(chapter, "telegraph_premium_url", "telegraph_premium_code")
+    )
 
 
 def chapter_content_source(chapter: dict, url_key: str, code_key: str) -> str:
-    """Return a readable Telegraph source from either URL or code/path.
-
-    In the CRM some subscription-only rows are filled through Telegraph*Code
-    instead of Telegraph*URL. The Telegraph loader can read both a full URL and
-    a Telegraph path/code, so access checks must treat codes as real content
-    sources too.
-    """
-    return clean_value(chapter.get(url_key)) or clean_value(chapter.get(code_key))
+    """Return a genuinely readable Telegraph URL/path, failing closed."""
+    return (
+        normalize_readable_telegraph_source(chapter.get(url_key))
+        or normalize_readable_telegraph_source(chapter.get(code_key))
+    )
 
 
 def chapter_public_url(chapter: dict) -> str:
@@ -144,9 +168,7 @@ def chapter_premium_url(chapter: dict) -> str:
 
 
 def chapter_public_ready(chapter: dict) -> bool:
-    """Fail-closed check for an ordinary free release."""
-    if not chapter_is_translated(chapter):
-        return False
+    """Open only a released chapter with a genuinely readable source."""
     release = clean_value(chapter.get("free_release_date"))
     if not release or not is_date_open(release):
         return False
@@ -154,15 +176,15 @@ def chapter_public_ready(chapter: dict) -> bool:
 
 
 def chapter_keeper_access_enabled(chapter: dict) -> bool:
-    """Read the Keeper decision prepared by Excel sync and stored in Supabase.
+    """Allow every already released premium chapter to the Keeper.
 
-    Old fixtures without the new column keep the legacy PremiumReleaseDate
-    behaviour. Production rows always contain keeper_access after migration.
+    ``keeper_access`` additionally opens the current ReleaseSchedule window,
+    but a stale false marker must never close a PremiumReleaseDate that is
+    already in the past.
     """
-    if "keeper_access" in chapter:
-        return to_bool(chapter.get("keeper_access"), False)
     release = clean_value(chapter.get("premium_release_date"))
-    return bool(release and is_date_open(release) and chapter_premium_url(chapter))
+    released_by_date = bool(release and is_date_open(release) and chapter_premium_url(chapter))
+    return released_by_date or to_bool(chapter.get("keeper_access"), False)
 
 
 def chapter_keeper_url(chapter: dict) -> str:
@@ -178,9 +200,7 @@ def chapter_keeper_url(chapter: dict) -> str:
 
 
 def chapter_premium_ready(chapter: dict) -> bool:
-    """Fail-closed check for a Keeper release prepared by Excel sync."""
-    if not chapter_is_translated(chapter):
-        return False
+    """Fail closed unless Keeper has a readable released/scheduled source."""
     return bool(chapter_keeper_url(chapter))
 
 
@@ -195,14 +215,7 @@ def chapter_subscription_url(chapter: dict) -> str:
 
 
 def chapter_subscription_ready(chapter: dict) -> bool:
-    """Open a gift-novel chapter for any subscriber when it is actually ready.
-
-    If a PremiumReleaseDate is set, respect it. If it is empty, the presence of
-    TranslationDate plus a Telegraph source means the chapter is already posted
-    for subscription access.
-    """
-    if not chapter_is_translated(chapter):
-        return False
+    """Open a gift chapter only when its real source is already released."""
     if not chapter_subscription_url(chapter):
         return False
     premium_release = clean_value(chapter.get("premium_release_date"))

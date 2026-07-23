@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from ..cache import clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..database import db_delete, db_insert, db_select, db_update, db_upsert, supabase_ready
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
+from .access import normalize_readable_telegraph_source
 
 EXPECTED_SCHEMA_VERSION = 18
 SUPPORTED_SCHEMA_VERSIONS = frozenset({17, 18})
@@ -344,8 +345,16 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     translated = bool(clean_value(chapter.get("translation_date")))
     free_date = clean_value(chapter.get("free_release_date"))
     premium_date = clean_value(chapter.get("premium_release_date"))
-    free_url = clean_value(chapter.get("telegraph_free_url")) or clean_value(chapter.get("telegraph_free_code"))
-    premium_url = clean_value(chapter.get("telegraph_premium_url")) or clean_value(chapter.get("telegraph_premium_code"))
+    free_url = (
+        normalize_readable_telegraph_source(chapter.get("telegraph_free_url"))
+        or normalize_readable_telegraph_source(chapter.get("telegraph_free_code"))
+    )
+    premium_url = (
+        normalize_readable_telegraph_source(chapter.get("telegraph_premium_url"))
+        or normalize_readable_telegraph_source(chapter.get("telegraph_premium_code"))
+    )
+
+
 
     # PremiumReleaseDate необязательна: ранний доступ Хранителя приходит
     # готовым флагом keeper_access из Excel/ReleaseSchedule. Пустая дата у

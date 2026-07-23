@@ -79,8 +79,8 @@ class Settings:
     rate_limit_public_max_requests: int = int(_env("RATE_LIMIT_PUBLIC_MAX_REQUESTS", "240") or "240")
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
-    # compatibility marker: v188-locked-preview-off-readable-soon
-    app_version: str = _env("APP_VERSION", "v191-gift-only-subscription-section")
+    # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader
+    app_version: str = _env("APP_VERSION", "v193-source-validity-keeper-history-status")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 

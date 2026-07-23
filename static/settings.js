@@ -1382,6 +1382,7 @@
     const available = Number(card.dataset.availableChapters || 0);
     const freeChapters = Number(card.dataset.freeChapters || 0);
     const keeperChapters = Number(card.dataset.keeperChapters || 0);
+    const releasedSubscriptionChapters = Number(card.dataset.releasedSubscriptionChapters || 0);
     const projectStatus = String(card.dataset.status || "");
     // Раздел «По подписке» — только для подарочных новелл,
     // которые явно помечены 🎁 в PostIcons листа Legend.
@@ -1461,16 +1462,15 @@
         visualProgress = 0;
         progressLabel = `0 / ${available}`;
       }
-    } else if (isGiftSubscriptionNovel) {
+    } else if (isGiftSubscriptionNovel && releasedSubscriptionChapters > 0) {
       state = "subscription";
       visualProgress = 0;
       progressLabel = "0 / 0";
-    } else if (projectStatus === "soon") {
-      state = "soon";
-      visualProgress = 0;
-      progressLabel = "0 / 0";
     } else {
-      state = "locked";
+      // Нет ни одной реально читаемой главы для текущего пользователя.
+      // Проектный статус (завершено/переводится/пауза) остаётся отдельным,
+      // а карточка по доступности отправляется в самостоятельный раздел «Скоро».
+      state = "soon";
       visualProgress = 0;
       progressLabel = "0 / 0";
     }
@@ -3308,80 +3308,241 @@
     const page = document.querySelector('[data-chapter-page]');
     const source = document.querySelector('[data-cache-chapter-content]');
     if (!page || !source || page.dataset.isLocked === "true") return;
-    let nav = document.querySelector('.chapter-navigation');
-    let next = nav ? Array.from(nav.querySelectorAll('a[href*="/chapter/"]')).find(function (a) { return /Следующая/i.test(a.textContent || ""); }) : null;
-    let nextUrl = next ? next.href : "";
-    if (!nextUrl) return;
-    let loading = false;
-    let stopped = false;
-    const status = document.createElement("div");
-    status.className = "chapter-infinite-status";
-    status.textContent = "";
-    if (nav && nav.parentNode) nav.parentNode.insertBefore(status, nav);
-    function extractNext(doc) {
-      const nextLink = Array.from(doc.querySelectorAll('.chapter-navigation a[href*="/chapter/"]')).find(function (a) { return /Следующая/i.test(a.textContent || ""); });
-      return nextLink ? new URL(nextLink.getAttribute('href'), window.location.origin).href : "";
+
+    function absoluteUrl(value) {
+      if (!value) return "";
+      try { return new URL(value, window.location.origin).href; }
+      catch (error) { return ""; }
     }
-    function appendChapter(doc, url) {
+
+    function escapeChapterHeading(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    let previousUrl = absoluteUrl(page.dataset.previousUrl || document.querySelector('.reader-floating-prev')?.getAttribute('href'));
+    let nextUrl = absoluteUrl(page.dataset.nextUrl || document.querySelector('.reader-floating-next')?.getAttribute('href'));
+    let loadingPrevious = false;
+    let loadingNext = false;
+    let stoppedPrevious = !previousUrl;
+    let stoppedNext = !nextUrl;
+
+    const loadedChapterIds = new Set();
+    if (page.dataset.chapterId) loadedChapterIds.add(String(page.dataset.chapterId));
+
+    const topRow = page.querySelector('.chapter-top-row');
+    const currentHeader = page.querySelector('.chapter-header');
+    const footerFox = page.querySelector('.chapter-footer-fox-wrap');
+
+    const topStatus = document.createElement('div');
+    topStatus.className = 'chapter-infinite-status chapter-infinite-status-top';
+    topStatus.dataset.chapterInfiniteTopStatus = 'true';
+    topStatus.hidden = true;
+
+    const bottomStatus = document.createElement('div');
+    bottomStatus.className = 'chapter-infinite-status chapter-infinite-status-bottom';
+    bottomStatus.dataset.chapterInfiniteBottomStatus = 'true';
+    bottomStatus.hidden = true;
+
+    if (currentHeader && currentHeader.parentNode) {
+      currentHeader.parentNode.insertBefore(topStatus, currentHeader);
+    } else if (topRow && topRow.parentNode) {
+      topRow.insertAdjacentElement('afterend', topStatus);
+    }
+
+    if (footerFox && footerFox.parentNode) {
+      footerFox.parentNode.insertBefore(bottomStatus, footerFox);
+    } else {
+      page.appendChild(bottomStatus);
+    }
+
+    function setStatus(status, html, preservePosition) {
+      const mutate = function () {
+        status.innerHTML = html || '';
+        status.hidden = !html;
+      };
+      if (preservePosition) mutateAbovePreservingScroll(mutate);
+      else mutate();
+    }
+
+    function mutateAbovePreservingScroll(mutate) {
+      const root = document.documentElement;
+      const oldHeight = root.scrollHeight;
+      const oldY = window.scrollY;
+      const previousOverflowAnchor = root.style.overflowAnchor;
+      root.style.overflowAnchor = 'none';
+      mutate();
+      window.requestAnimationFrame(function () {
+        const delta = root.scrollHeight - oldHeight;
+        window.scrollTo(0, Math.max(0, oldY + delta));
+        root.style.overflowAnchor = previousOverflowAnchor;
+      });
+    }
+
+    function extractDirectionUrl(doc, direction) {
       const nextPage = doc.querySelector('[data-chapter-page]');
-      if (!nextPage || nextPage.dataset.isLocked === "true") {
-        stopped = true;
-        status.innerHTML = '<span class="chapter-loading-stop" aria-hidden="true">🔒</span><span>Дальше начинается закрытая или платная глава</span>';
-        return;
+      if (nextPage) {
+        const value = direction === 'previous' ? nextPage.dataset.previousUrl : nextPage.dataset.nextUrl;
+        if (value) return absoluteUrl(value);
       }
+      const selector = direction === 'previous' ? '.reader-floating-prev' : '.reader-floating-next';
+      const link = doc.querySelector(selector);
+      return link ? absoluteUrl(link.getAttribute('href')) : '';
+    }
+
+    function buildChapterSection(doc, url, direction) {
+      const nextPage = doc.querySelector('[data-chapter-page]');
+      if (!nextPage) return { invalid: true, page: null };
+      if (nextPage.dataset.isLocked === 'true') return { locked: true, page: nextPage };
+
       const content = doc.querySelector('[data-cache-chapter-content]');
       const title = doc.querySelector('.chapter-header h1');
-      if (!content) { stopped = true; return; }
-      const wrap = document.createElement("section");
-      wrap.className = "chapter-infinite-item";
-      wrap.dataset.chapterInfiniteItem = "true";
-      wrap.dataset.novelId = nextPage.dataset.novelId || page.dataset.novelId || "";
-      wrap.dataset.novelSlug = nextPage.dataset.novelSlug || page.dataset.novelSlug || "";
-      wrap.dataset.novelTitle = nextPage.dataset.novelTitle || page.dataset.novelTitle || "";
-      wrap.dataset.chapterId = nextPage.dataset.chapterId || "";
-      wrap.dataset.chapterTitle = nextPage.dataset.chapterTitle || (title ? title.textContent : "");
-      wrap.dataset.chapterIndex = nextPage.dataset.chapterIndex || "0";
-      wrap.dataset.availableChapters = nextPage.dataset.availableChapters || page.dataset.availableChapters || "0";
+      if (!content) return { invalid: true, page: nextPage };
+
+      const chapterId = String(nextPage.dataset.chapterId || '');
+      if (chapterId && loadedChapterIds.has(chapterId)) return { duplicate: true, page: nextPage };
+
+      const wrap = document.createElement('section');
+      wrap.className = `chapter-infinite-item chapter-infinite-item-${direction}`;
+      wrap.dataset.chapterInfiniteItem = 'true';
+      wrap.dataset.chapterInfiniteDirection = direction;
+      wrap.dataset.novelId = nextPage.dataset.novelId || page.dataset.novelId || '';
+      wrap.dataset.novelSlug = nextPage.dataset.novelSlug || page.dataset.novelSlug || '';
+      wrap.dataset.novelTitle = nextPage.dataset.novelTitle || page.dataset.novelTitle || '';
+      wrap.dataset.chapterId = chapterId;
+      wrap.dataset.chapterTitle = nextPage.dataset.chapterTitle || (title ? title.textContent : '');
+      wrap.dataset.chapterIndex = nextPage.dataset.chapterIndex || '0';
+      wrap.dataset.availableChapters = nextPage.dataset.availableChapters || page.dataset.availableChapters || '0';
       wrap.dataset.chapterUrl = url;
-      wrap.innerHTML = `<header class="chapter-infinite-head"><span>Следующая глава</span><h2>${title ? title.textContent : "Глава"}</h2></header><article class="chapter-content chapter-content-infinite">${content.innerHTML}</article>`;
-      if (nav && nav.parentNode) nav.parentNode.insertBefore(wrap, nav);
+      wrap.dataset.previousUrl = extractDirectionUrl(doc, 'previous');
+      wrap.dataset.nextUrl = extractDirectionUrl(doc, 'next');
+      const heading = escapeChapterHeading(title ? title.textContent : 'Глава');
+      wrap.innerHTML = `<header class="chapter-infinite-head"><span>${direction === 'previous' ? 'Предыдущая глава' : 'Следующая глава'}</span><h2>${heading}</h2></header><article class="chapter-content chapter-content-infinite">${content.innerHTML}</article>`;
+
+      if (chapterId) loadedChapterIds.add(chapterId);
+      return { wrap: wrap, page: nextPage };
+    }
+
+    function dispatchChapterAdded(wrap, direction) {
       try {
-        document.dispatchEvent(new CustomEvent("zefirki:chapter-appended", { detail: {
+        document.dispatchEvent(new CustomEvent('zefirki:chapter-appended', { detail: {
           novelId: wrap.dataset.novelId,
           chapterId: wrap.dataset.chapterId,
           chapterTitle: wrap.dataset.chapterTitle,
           chapterIndex: wrap.dataset.chapterIndex,
           availableChapters: wrap.dataset.availableChapters,
+          direction: direction,
           element: wrap
         }}));
       } catch (error) {}
-      nextUrl = extractNext(doc);
-      if (!nextUrl || nextUrl === url) {
-        stopped = true;
-        status.innerHTML = '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Доступные главы закончились</span>';
-      } else {
-        status.textContent = "";
-      }
     }
-    function loadNext() {
-      if (loading || stopped || !nextUrl) return;
-      loading = true;
-      status.innerHTML = '<span class="chapter-loading-spinner" aria-hidden="true"></span><span>Загружаю следующую главу…</span>';
-      const currentUrl = nextUrl;
-      fetch(currentUrl, { credentials: "same-origin" })
+
+    function insertPrevious(result, finalStatusHtml) {
+      const wrap = result.wrap;
+      if (!wrap) return;
+      mutateAbovePreservingScroll(function () {
+        setStatus(topStatus, finalStatusHtml || '', false);
+        const firstPrevious = page.querySelector('.chapter-infinite-item-previous');
+        if (firstPrevious && firstPrevious.parentNode) firstPrevious.parentNode.insertBefore(wrap, firstPrevious);
+        else if (currentHeader && currentHeader.parentNode) currentHeader.parentNode.insertBefore(wrap, currentHeader);
+        else page.insertBefore(wrap, page.firstChild);
+      });
+      dispatchChapterAdded(wrap, 'previous');
+    }
+
+    function insertNext(result) {
+      const wrap = result.wrap;
+      if (!wrap) return;
+      if (bottomStatus.parentNode) bottomStatus.parentNode.insertBefore(wrap, bottomStatus);
+      else page.appendChild(wrap);
+      setStatus(bottomStatus, '', false);
+      dispatchChapterAdded(wrap, 'next');
+    }
+
+    function loadPrevious() {
+      if (loadingPrevious || stoppedPrevious || !previousUrl) return;
+      loadingPrevious = true;
+      setStatus(topStatus, '<span class="chapter-loading-spinner" aria-hidden="true"></span><span>Загружаю предыдущую главу…</span>', true);
+      const currentUrl = previousUrl;
+      fetch(currentUrl, { credentials: 'same-origin' })
         .then(function (response) { if (!response.ok) throw new Error(String(response.status)); return response.text(); })
-        .then(function (html) { appendChapter(new DOMParser().parseFromString(html, "text/html"), currentUrl); })
-        .catch(function () { stopped = true; status.innerHTML = '<span class="chapter-loading-stop" aria-hidden="true">!</span><span>Не удалось автоматически загрузить следующую главу</span>'; })
-        .finally(function () { loading = false; });
+        .then(function (html) {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const result = buildChapterSection(doc, currentUrl, 'previous');
+          if (result.locked) {
+            stoppedPrevious = true;
+            setStatus(topStatus, '<span class="chapter-loading-stop" aria-hidden="true">🔒</span><span>Выше начинается закрытая глава</span>', true);
+            return;
+          }
+          if (result.invalid || result.duplicate) {
+            stoppedPrevious = true;
+            setStatus(topStatus, '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Это первая доступная глава</span>', true);
+            return;
+          }
+          previousUrl = extractDirectionUrl(doc, 'previous');
+          if (!previousUrl || previousUrl === currentUrl) stoppedPrevious = true;
+          insertPrevious(
+            result,
+            stoppedPrevious
+              ? '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Это первая доступная глава</span>'
+              : ''
+          );
+        })
+        .catch(function () {
+          stoppedPrevious = true;
+          setStatus(topStatus, '<span class="chapter-loading-stop" aria-hidden="true">!</span><span>Не удалось автоматически загрузить предыдущую главу</span>', true);
+        })
+        .finally(function () { loadingPrevious = false; });
     }
+
+    function loadNext() {
+      if (loadingNext || stoppedNext || !nextUrl) return;
+      loadingNext = true;
+      setStatus(bottomStatus, '<span class="chapter-loading-spinner" aria-hidden="true"></span><span>Загружаю следующую главу…</span>', false);
+      const currentUrl = nextUrl;
+      fetch(currentUrl, { credentials: 'same-origin' })
+        .then(function (response) { if (!response.ok) throw new Error(String(response.status)); return response.text(); })
+        .then(function (html) {
+          const doc = new DOMParser().parseFromString(html, 'text/html');
+          const result = buildChapterSection(doc, currentUrl, 'next');
+          if (result.locked) {
+            stoppedNext = true;
+            setStatus(bottomStatus, '<span class="chapter-loading-stop" aria-hidden="true">🔒</span><span>Дальше начинается закрытая или платная глава</span>', false);
+            return;
+          }
+          if (result.invalid || result.duplicate) {
+            stoppedNext = true;
+            setStatus(bottomStatus, '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Доступные главы закончились</span>', false);
+            return;
+          }
+          nextUrl = extractDirectionUrl(doc, 'next');
+          if (!nextUrl || nextUrl === currentUrl) stoppedNext = true;
+          insertNext(result);
+          if (stoppedNext) {
+            setStatus(bottomStatus, '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Доступные главы закончились</span>', false);
+          }
+        })
+        .catch(function () {
+          stoppedNext = true;
+          setStatus(bottomStatus, '<span class="chapter-loading-stop" aria-hidden="true">!</span><span>Не удалось автоматически загрузить следующую главу</span>', false);
+        })
+        .finally(function () { loadingNext = false; });
+    }
+
     function maybeLoad() {
-      if (stopped || loading) return;
-      const remaining = document.documentElement.scrollHeight - (window.scrollY + window.innerHeight);
-      if (remaining < 1000) loadNext();
+      const root = document.documentElement;
+      if (!loadingPrevious && !stoppedPrevious && window.scrollY < 1000) loadPrevious();
+      const remaining = root.scrollHeight - (window.scrollY + window.innerHeight);
+      if (!loadingNext && !stoppedNext && remaining < 1000) loadNext();
     }
-    window.addEventListener("scroll", maybeLoad, { passive: true });
-    window.addEventListener("resize", maybeLoad, { passive: true });
-    window.setTimeout(maybeLoad, 800);
+
+    window.addEventListener('scroll', maybeLoad, { passive: true });
+    window.addEventListener('resize', maybeLoad, { passive: true });
+    window.setTimeout(maybeLoad, 700);
   }
   function initV134() {
     initSystemThemeWatcher();
@@ -3561,7 +3722,46 @@
     }).catch(function () {});
   }
 
+  function updateFloatingChapterNavigation(element) {
+    if (!element) return;
+    const controls = document.querySelector('[data-reader-floating-controls]');
+    if (!controls) return;
+
+    let previous = controls.querySelector('.reader-floating-prev');
+    let next = controls.querySelector('.reader-floating-next');
+    const scrollUp = controls.querySelector('[data-scroll-up]');
+
+    if (!previous) {
+      previous = document.createElement('a');
+      previous.className = 'reader-floating-button reader-floating-prev';
+      previous.setAttribute('aria-label', 'Прошлая глава');
+      previous.setAttribute('title', 'Прошлая глава');
+      previous.textContent = '‹';
+      if (scrollUp) controls.insertBefore(previous, scrollUp);
+      else controls.appendChild(previous);
+    }
+
+    if (!next) {
+      next = document.createElement('a');
+      next.className = 'reader-floating-button reader-floating-next is-primary';
+      next.setAttribute('aria-label', 'Следующая глава');
+      next.setAttribute('title', 'Следующая глава');
+      next.textContent = '›';
+      controls.appendChild(next);
+    }
+
+    const previousUrl = element.dataset.previousUrl || '';
+    const nextUrl = element.dataset.nextUrl || '';
+    previous.hidden = !previousUrl;
+    next.hidden = !nextUrl;
+    if (previousUrl) previous.href = previousUrl;
+    else previous.removeAttribute('href');
+    if (nextUrl) next.href = nextUrl;
+    else next.removeAttribute('href');
+  }
+
   function saveVisibleProgress(element, options) {
+    updateFloatingChapterNavigation(element);
     const item = buildHistoryItemFromElement(element);
     if (!item) return;
     const readIds = saveReadChapterId(item.chapterId);
@@ -3600,13 +3800,20 @@
     original.dataset.chapterTitle = page.dataset.chapterTitle || "";
     original.dataset.chapterIndex = page.dataset.chapterIndex || "0";
     original.dataset.availableChapters = page.dataset.availableChapters || "0";
+    original.dataset.previousUrl = page.dataset.previousUrl || "";
+    original.dataset.nextUrl = page.dataset.nextUrl || "";
+    original.dataset.chapterUrl = window.location.href;
     return original;
   }
 
   function allChapterProgressElements() {
     const original = registerOriginalChapterElement();
     const items = Array.from(document.querySelectorAll("[data-chapter-infinite-item]"));
-    if (original && !items.includes(original)) items.unshift(original);
+    if (original && !items.includes(original)) items.push(original);
+    items.sort(function (a, b) {
+      if (a === b) return 0;
+      return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+    });
     items.forEach(function (element) { element.dataset.chapterProgressItem = "true"; });
     return items;
   }
@@ -3635,7 +3842,8 @@
   function initInfiniteProgressFix() {
     const page = document.querySelector("[data-chapter-page]");
     if (!page || page.dataset.isLocked === "true") return;
-    registerOriginalChapterElement();
+    const original = registerOriginalChapterElement();
+    updateFloatingChapterNavigation(original);
     let scrollTimer = null;
     const onScroll = function () {
       window.clearTimeout(scrollTimer);

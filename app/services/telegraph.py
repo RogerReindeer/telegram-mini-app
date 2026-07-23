@@ -12,15 +12,23 @@ from ..cache import cache_get_or_set, image_cache_ttl, telegraph_cache_ttl
 from .reader import clean_value, split_text_paragraphs
 
 def telegraph_path_from_url(url: str) -> str:
+    """Extract only a complete Telegraph page path.
+
+    Short CRM identifiers are not page paths and must fail closed instead of
+    producing a reader page with no content.
+    """
     text = clean_value(url)
     if not text:
         return ""
     text = text.split("?")[0].rstrip("/")
     if "telegra.ph/" in text:
-        return text.split("telegra.ph/", 1)[1]
+        path = text.split("telegra.ph/", 1)[1]
+        return path if path else ""
     if "teletype.in/" in text:
         return ""
-    return text
+    if re.fullmatch(r"[^\s/]+-\d{2}-\d{2}(?:-\d+)?", text):
+        return text
+    return ""
 
 
 def is_probably_direct_image_url(url: Any) -> bool:
