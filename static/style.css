@@ -13394,3 +13394,142 @@ body[data-reader-theme="dark"] .reader-floating-button {
 }
 
 /* v188-locked-preview-off-readable-soon */
+
+/* =====================================================================
+   v189-toc-title-subscription-state
+   - Free chapter title is vertically centered slightly lower in the row.
+   - Subscription label is green when readable and orange when locked.
+   ===================================================================== */
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+  justify-content: center !important;
+  padding-top: 8px !important;
+  padding-bottom: 0 !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-title {
+  transform: translateY(3px) !important;
+}
+
+.chapter-row-v2.chapter-row-subscription .chapter-row-main,
+.chapter-row-v2.chapter-row-boosty .chapter-row-main {
+  justify-content: center !important;
+  gap: 5px !important;
+}
+
+.chapter-access-subscription-open,
+.chapter-access.chapter-access-subscription-open,
+.chapter-access-subscription-locked,
+.chapter-access.chapter-access-subscription-locked {
+  display: inline-flex !important;
+  align-items: center !important;
+  width: fit-content !important;
+  min-height: 22px !important;
+  margin: 0 !important;
+  padding: 2px 9px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  font-weight: 850 !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: none !important;
+}
+
+.chapter-access-subscription-open,
+.chapter-access.chapter-access-subscription-open {
+  color: #dfffea !important;
+  background: rgba(38, 159, 86, 0.24) !important;
+  border: 1px solid rgba(74, 211, 125, 0.68) !important;
+}
+
+.chapter-access-subscription-locked,
+.chapter-access.chapter-access-subscription-locked {
+  color: #ffe8c9 !important;
+  background: rgba(231, 126, 27, 0.22) !important;
+  border: 1px solid rgba(255, 155, 55, 0.72) !important;
+}
+
+body:not([data-site-theme="dark"]):not([data-resolved-theme="dark"]) .chapter-access-subscription-open,
+body:not([data-site-theme="dark"]):not([data-resolved-theme="dark"]) .chapter-access.chapter-access-subscription-open {
+  color: #146832 !important;
+  background: rgba(49, 178, 94, 0.15) !important;
+  border-color: rgba(37, 148, 76, 0.48) !important;
+}
+
+body:not([data-site-theme="dark"]):not([data-resolved-theme="dark"]) .chapter-access-subscription-locked,
+body:not([data-site-theme="dark"]):not([data-resolved-theme="dark"]) .chapter-access.chapter-access-subscription-locked {
+  color: #9b4d00 !important;
+  background: rgba(255, 151, 45, 0.16) !important;
+  border-color: rgba(226, 113, 9, 0.54) !important;
+}
+
+@media (max-width: 560px) {
+  .chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+    padding-top: 9px !important;
+  }
+
+  .chapter-row-v2.chapter-row-no-access-label .chapter-title {
+    transform: translateY(4px) !important;
+  }
+}
+
+/* current marker: v189-toc-title-subscription-state */
+
+/* =====================================================================
+   v190-released-access-library-fix
+   Free chapter: title sits in the visual middle of the row, slightly lower.
+   Subscription chapter: title above, clear state badge below.
+   ===================================================================== */
+.chapter-row-v2.chapter-row-no-access-label {
+  min-height: 70px !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+  height: 100% !important;
+  min-height: 54px !important;
+  justify-content: center !important;
+  padding: 8px 0 0 !important;
+}
+
+.chapter-row-v2.chapter-row-no-access-label .chapter-title {
+  position: relative !important;
+  top: 3px !important;
+  transform: none !important;
+}
+
+.chapter-row-v2.chapter-row-subscription,
+.chapter-row-v2.chapter-row-boosty {
+  min-height: 72px !important;
+}
+
+.chapter-row-v2.chapter-row-subscription .chapter-row-main,
+.chapter-row-v2.chapter-row-boosty .chapter-row-main {
+  height: 100% !important;
+  justify-content: center !important;
+  align-items: flex-start !important;
+  gap: 6px !important;
+  padding: 0 !important;
+}
+
+.chapter-row-v2.chapter-row-subscription .chapter-title,
+.chapter-row-v2.chapter-row-boosty .chapter-title {
+  position: static !important;
+  transform: none !important;
+}
+
+@media (max-width: 560px) {
+  .chapter-row-v2.chapter-row-no-access-label {
+    min-height: 72px !important;
+  }
+
+  .chapter-row-v2.chapter-row-no-access-label .chapter-row-main {
+    min-height: 56px !important;
+    padding-top: 10px !important;
+  }
+
+  .chapter-row-v2.chapter-row-no-access-label .chapter-title {
+    top: 4px !important;
+  }
+}
+
+/* current marker: v190-released-access-library-fix */

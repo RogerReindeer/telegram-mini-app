@@ -1380,8 +1380,12 @@
     const chapters = Number(card.dataset.chapters || 0);
     const translated = Number(card.dataset.translatedChapters || 0);
     const available = Number(card.dataset.availableChapters || 0);
+    const freeChapters = Number(card.dataset.freeChapters || 0);
+    const keeperChapters = Number(card.dataset.keeperChapters || 0);
     const projectStatus = String(card.dataset.status || "");
-    const isGiftSubscriptionNovel = card.dataset.isGift === "true" || String(card.dataset.postIcons || "").includes("🎁") || card.dataset.requiredRole === "traveler";
+    // Раздел «По подписке» — только для подарочных новелл,
+    // которые явно помечены 🎁 в PostIcons листа Legend.
+    const isGiftSubscriptionNovel = String(card.dataset.postIcons || "").includes("🎁");
     const totalKnownChapters = Math.max(Number(translated || 0), Number(chapters || 0));
     const hasUnreleasedChapters = Number(chapters || 0) > 0 && Number(translated || 0) < Number(chapters || 0);
     const hasLockedOrPaidChapters = available > 0 && totalKnownChapters > available;
@@ -1427,41 +1431,48 @@
     let visualProgress = 0;
     let progressLabel = available ? `0 / ${available}` : "0 / 0";
 
-    if (projectStatus === "soon") {
-      // Статус «Скоро» приходит из Legend через Excel -> Supabase и всегда
-      // имеет приоритет над локальной историей, избранным и старыми счётчиками.
-      // Такая новелла показывается только в отдельном разделе «Скоро».
+    // Фактически доступные главы важнее сохранённого status="Скоро".
+    // Если текущий пользователь может читать хотя бы одну главу, карточка идёт
+    // в «Можно начать»/«Читаю». В «По подписке» попадают только книги с 🎁
+    // в PostIcons. Остальные недоступные книги остаются в «Скоро».
+    if (available > 0) {
+      if (isCompletedByUser && hasLockedOrPaidChapters) {
+        state = "waiting_new";
+        visualProgress = 100;
+        progressLabel = `${available} / ${available}`;
+      } else if (isCompletedByUser && canBeCompleted && !hasFutureChapters) {
+        state = "completed";
+        visualProgress = 100;
+        progressLabel = `${available} / ${available}`;
+      } else if (historyItem && newCount > 0) {
+        state = "new";
+        visualProgress = safeHistoryIndex ? clampNumber((safeHistoryIndex / available) * 100, 0, 100) : 0;
+        progressLabel = `${safeHistoryIndex || 0} / ${available}`;
+      } else if (historyItem && safeHistoryIndex >= available) {
+        state = canBeCompleted && !hasFutureChapters ? "completed" : "waiting_new";
+        visualProgress = 100;
+        progressLabel = `${available} / ${available}`;
+      } else if (historyItem) {
+        state = "reading";
+        visualProgress = safeHistoryIndex ? clampNumber((safeHistoryIndex / available) * 100, 0, 100) : 0;
+        progressLabel = `${safeHistoryIndex || 0} / ${available}`;
+      } else {
+        state = "start";
+        visualProgress = 0;
+        progressLabel = `0 / ${available}`;
+      }
+    } else if (isGiftSubscriptionNovel) {
+      state = "subscription";
+      visualProgress = 0;
+      progressLabel = "0 / 0";
+    } else if (projectStatus === "soon") {
       state = "soon";
       visualProgress = 0;
       progressLabel = "0 / 0";
-    } else if (isCompletedByUser && hasLockedOrPaidChapters) {
-      state = "waiting_new";
-      visualProgress = 100;
-      progressLabel = available ? `${available} / ${available}` : `${totalKnownChapters || 0} / ${totalKnownChapters || 0}`;
-    } else if (isCompletedByUser && canBeCompleted && !hasFutureChapters) {
-      state = "completed";
-      visualProgress = 100;
-      progressLabel = available ? `${available} / ${available}` : `${chapters || translated || 0} / ${chapters || translated || 0}`;
-    } else if (!historyItem && !available) {
-      state = isGiftSubscriptionNovel ? "subscription" : (projectStatus === "soon" ? "soon" : "locked");
+    } else {
+      state = "locked";
       visualProgress = 0;
       progressLabel = "0 / 0";
-    } else if (historyItem && newCount > 0) {
-      state = "new";
-      visualProgress = safeHistoryIndex && available ? clampNumber((safeHistoryIndex / available) * 100, 0, 100) : 0;
-      progressLabel = `${safeHistoryIndex || 0} / ${available || 0}`;
-    } else if (historyItem && available && safeHistoryIndex >= available) {
-      state = canBeCompleted && !hasFutureChapters ? "completed" : "waiting_new";
-      visualProgress = 100;
-      progressLabel = `${available} / ${available}`;
-    } else if (historyItem) {
-      state = "reading";
-      visualProgress = safeHistoryIndex && available ? clampNumber((safeHistoryIndex / available) * 100, 0, 100) : 0;
-      progressLabel = `${safeHistoryIndex || 0} / ${available || 0}`;
-    } else {
-      state = "start";
-      visualProgress = 0;
-      progressLabel = available ? `0 / ${available}` : "0 / 0";
     }
 
     const isReadingSectionState = state === "new" || state === "reading" || state === "waiting_new";

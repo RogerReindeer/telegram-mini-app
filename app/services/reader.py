@@ -543,10 +543,29 @@ def prepare_novel_for_template(novel: dict) -> dict:
     library_card_tag_items = [item for item in card_tag_items if not is_country_tag_for_library(item.get("text"))]
     # Статус полностью готовится при синхронизации Excel -> Supabase.
     # Видимость и наличие каталожной ссылки не участвуют в вычислении на сайте.
+    stored_free_count = to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0)
+    stored_subscriber_count = to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0)
+    stored_keeper_count = to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0)
+    stored_early_count = to_int(novel.get("early_access_chapters"), 0)
+    stored_released_count = max(
+        stored_free_count,
+        stored_subscriber_count,
+        stored_keeper_count,
+        stored_early_count,
+    )
+
     translation_status = normalize_translation_status(
         novel.get("translation_status") or novel.get("status"),
         novel.get("translation_status_label"),
     )
+    # Защита от устаревшего status="Скоро" в Supabase: если sync уже
+    # передал хотя бы одну выпущенную бесплатную или подписочную главу,
+    # книга должна быть читаемой/подписочной, а не находиться в «Скоро».
+    status_was_corrected_from_soon = translation_status == "soon" and stored_released_count > 0
+    if status_was_corrected_from_soon:
+        translation_status = "in_progress"
+
+    status_label_fallback = "" if status_was_corrected_from_soon else novel.get("translation_status_label")
     progress_percent = normalize_progress_percent(novel.get("progress_percent"))
     prepared.update({
         "id": clean_value(novel.get("id")),
@@ -577,9 +596,14 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "age_rating": clean_value(novel.get("age_rating")) or get_age_rating_from_tags(tags),
         "total_chapters": to_int(novel.get("total_chapters"), 0),
         "translated_chapters": to_int(novel.get("translated_chapters"), 0),
-        "free_chapters_count": to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0),
-        "traveler_chapters_count": to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0),
-        "keeper_chapters_count": to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0),
+        "free_chapters_count": stored_free_count,
+        "traveler_chapters_count": stored_subscriber_count,
+        "keeper_chapters_count": stored_keeper_count,
+        "early_access_chapters_count": stored_early_count,
+        "released_subscription_chapters_count": max(
+            0,
+            max(stored_subscriber_count, stored_keeper_count, stored_early_count) - stored_free_count,
+        ),
         "release_free_count": to_int(novel.get("release_free_count"), 0),
         "premium_lead_weeks": to_int(novel.get("premium_lead_weeks"), 0),
         "premium_count": to_int(novel.get("premium_count"), 0),
@@ -590,7 +614,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "translation_status_label": (
             "Скоро"
             if translation_status == "paused"
-            else translation_status_label(translation_status, novel.get("translation_status_label"))
+            else translation_status_label(translation_status, status_label_fallback)
         ),
         "translation_status_color": translation_status_color(translation_status, novel.get("translation_status_color")),
         "access_badge": build_access_badge(novel.get("access_model"), novel.get("early_access_mode")),
@@ -722,11 +746,23 @@ def prepare_chapter_for_access_template(
     item["required_role"] = decision.required_role
     toc_notice = chapter_toc_notice(decision)
     item["is_boosty_chapter"] = chapter_is_boosty_toc_row(chapter, novel, decision)
-    if item["is_boosty_chapter"]:
+    # Пользовательский интерфейс больше не использует служебное название «Бусти».
+    # Для любой главы подписочного доступа показываем одну понятную пометку:
+    # зелёную, если текущий пользователь может читать, и оранжевую, если доступ закрыт.
+    item["is_subscription_chapter"] = item["is_boosty_chapter"]
+    if item["is_subscription_chapter"]:
         toc_notice = {
-            "label": "Бусти",
-            "hint": "Глава относится к платному доступу Boosty",
-            "class_name": "chapter-access-boosty",
+            "label": "Подписка",
+            "hint": (
+                "Глава доступна по вашей подписке"
+                if decision.allowed
+                else "Глава доступна по подписке"
+            ),
+            "class_name": (
+                "chapter-access-subscription-open"
+                if decision.allowed
+                else "chapter-access-subscription-locked"
+            ),
         }
     item["toc_access_label"] = toc_notice.get("label", "")
     item["toc_access_hint"] = toc_notice.get("hint", "")
