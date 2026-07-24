@@ -38,7 +38,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         fast_viewer["__fast_access_profile"] = page_profile
         try:
             novels = get_all_novels(include_hidden=False)
-            prepared = prepare_library_novels_for_access(novels, [], fast_viewer)
+            chapters = get_all_chapters()
+            prepared = prepare_library_novels_for_access(novels, chapters, fast_viewer)
         except Exception:
             prepared = []
         return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
@@ -110,7 +111,9 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/api/library")
     def api_library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
-        novels = prepare_library_novels_for_access(get_all_novels(include_hidden=False), [], viewer)
+        novels = prepare_library_novels_for_access(
+            get_all_novels(include_hidden=False), get_all_chapters(), viewer
+        )
         return {"items": novels}
 
     return router

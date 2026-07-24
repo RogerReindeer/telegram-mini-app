@@ -308,13 +308,8 @@ def chapter_unit_key(chapter: dict) -> str:
     return chapter_code_value(chapter) or f"{clean_value(chapter.get('novel_id'))}:{clean_value(chapter.get('chapter_no'))}"
 
 def chapter_has_readable_url(chapter: dict) -> bool:
-    return bool(
-        clean_value(chapter.get("telegraph_url"))
-        or clean_value(chapter.get("telegraph_free_url"))
-        or clean_value(chapter.get("telegraph_free_code"))
-        or clean_value(chapter.get("telegraph_premium_url"))
-        or clean_value(chapter.get("telegraph_premium_code"))
-    )
+    # Only real content URLs count. Telegraph*Code is CRM metadata.
+    return bool(chapter_public_url(chapter) or chapter_premium_url(chapter))
 
 def chapter_is_available(chapter: dict, viewer_role: str = "guest") -> bool:
     return bool(chapter_content_url_for_role(chapter, viewer_role))
@@ -558,9 +553,9 @@ def prepare_novel_for_template(novel: dict) -> dict:
     library_card_tag_items = [item for item in card_tag_items if not is_country_tag_for_library(item.get("text"))]
     # Статус полностью готовится при синхронизации Excel -> Supabase.
     # Видимость и наличие каталожной ссылки не участвуют в вычислении на сайте.
-    stored_free_count = to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0)
-    stored_subscriber_count = to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0)
-    stored_keeper_count = to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0)
+    stored_free_count = stored_counter_value(novel, "free_chapters_count", "free_chapters")
+    stored_subscriber_count = stored_counter_value(novel, "traveler_chapters_count", "subscriber_chapters")
+    stored_keeper_count = stored_counter_value(novel, "keeper_chapters_count", "keeper_chapters")
     stored_early_count = to_int(novel.get("early_access_chapters"), 0)
     stored_released_count = max(
         stored_free_count,
@@ -642,6 +637,13 @@ def prepare_novel_for_template(novel: dict) -> dict:
     return prepared
 
 
+def stored_counter_value(novel: dict, primary_key: str, legacy_key: str) -> int:
+    """Read an explicit zero without falling back to a stale legacy value."""
+    if primary_key in novel and novel.get(primary_key) is not None:
+        return max(0, to_int(novel.get(primary_key), 0))
+    return max(0, to_int(novel.get(legacy_key), 0))
+
+
 def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] | None) -> int:
     """Map a viewer role to the counters already stored in Supabase.
 
@@ -657,7 +659,7 @@ def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] |
     # subscription uses the subscriber counter prepared by Excel/Supabase.
     if is_gift:
         if profile.get("has_full_book_access") or role in {"traveler", "keeper"}:
-            return max(0, to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0))
+            return max(0, stored_counter_value(novel, "traveler_chapters_count", "subscriber_chapters"))
         return 0
 
     if profile.get("has_full_book_access"):
@@ -665,15 +667,15 @@ def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] |
         # Use only source-backed counters already prepared by sync.
         return max(
             0,
-            to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0),
-            to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0),
-            to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0),
+            stored_counter_value(novel, "keeper_chapters_count", "keeper_chapters"),
+            stored_counter_value(novel, "traveler_chapters_count", "subscriber_chapters"),
+            stored_counter_value(novel, "free_chapters_count", "free_chapters"),
         )
     if role == "keeper":
-        return max(0, to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0))
+        return max(0, stored_counter_value(novel, "keeper_chapters_count", "keeper_chapters"))
     if role == "traveler":
-        return max(0, to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0))
-    return max(0, to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0))
+        return max(0, stored_counter_value(novel, "traveler_chapters_count", "subscriber_chapters"))
+    return max(0, stored_counter_value(novel, "free_chapters_count", "free_chapters"))
 
 def finalize_novel_access_summary(prepared: dict) -> dict:
     """Подготавливает только значимые показатели доступа."""
@@ -871,12 +873,48 @@ def get_neighbor_chapters_for_access(
     return (available[index - 1] if index > 0 else None,
             available[index + 1] if index + 1 < len(available) else None)
 
+def source_backed_access_counts(
+    chapters: list[dict], novel: dict
+) -> dict[str, int]:
+    """Verify stored counters against actual Supabase chapter URLs.
+
+    This is a defensive render-time check for stale ``novels`` rows. It uses
+    the same access service as the chapter route, so a technical code or a
+    release date without a real URL can never produce a readable count.
+    """
+    role_profiles = {
+        "guest": {"role": "guest", "has_full_book_access": False},
+        "traveler": {"role": "traveler", "has_full_book_access": False},
+        "keeper": {"role": "keeper", "has_full_book_access": False},
+    }
+    opened: dict[str, set[str]] = {role: set() for role in role_profiles}
+    for chapter in chapters:
+        chapter_id = clean_value(chapter.get("chapter_id") or chapter.get("id"))
+        if not chapter_id:
+            continue
+        for role, profile in role_profiles.items():
+            decision = decide_chapter_access(chapter, novel, profile)
+            if decision.allowed and clean_value(decision.url):
+                opened[role].add(chapter_id)
+    return {
+        "free_chapters_count": len(opened["guest"]),
+        "traveler_chapters_count": len(opened["traveler"]),
+        "keeper_chapters_count": len(opened["keeper"]),
+    }
+
+
 def prepare_library_novels_for_access(
     novels: list[dict], chapters: list[dict], viewer: dict[str, Any] | None
 ) -> list[dict]:
     """Prepare cards from Supabase novel rows without recounting chapters."""
     viewer = viewer or {}
     result = []
+    chapters_by_novel: dict[str, list[dict]] = {}
+    for chapter in chapters or []:
+        key = clean_value(chapter.get("novel_id"))
+        if key:
+            chapters_by_novel.setdefault(key, []).append(chapter)
+
     for novel in novels:
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
@@ -895,6 +933,23 @@ def prepare_library_novels_for_access(
         prepared = prepare_novel_for_template(novel)
         prepared["is_gift"] = novel_is_gift(novel)
         prepared["required_role"] = "traveler" if prepared["is_gift"] else "guest"
+
+        novel_chapters = chapters_by_novel.get(novel_id_text, [])
+        if novel_chapters:
+            verified = source_backed_access_counts(novel_chapters, novel)
+            prepared.update(verified)
+            prepared["early_access_chapters_count"] = max(
+                0, verified["keeper_chapters_count"] - verified["free_chapters_count"]
+            )
+            prepared["released_subscription_chapters_count"] = (
+                verified["traveler_chapters_count"]
+                if prepared["is_gift"]
+                else max(
+                    0,
+                    max(verified["traveler_chapters_count"], verified["keeper_chapters_count"])
+                    - verified["free_chapters_count"],
+                )
+            )
         prepared["available_chapters_count"] = stored_available_chapters_for_profile(prepared, profile)
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
         prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))

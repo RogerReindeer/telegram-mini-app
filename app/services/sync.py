@@ -338,6 +338,106 @@ def normalize_fox_row(row: dict) -> dict:
     return filter_columns(normalized, FOX_TABLE_COLUMNS)
 
 
+def _chapter_has_real_free_url(chapter: dict[str, Any]) -> bool:
+    """Only TelegraphFreeURL can make a chapter readable.
+
+    TelegraphFreeCode is CRM metadata and must not affect access counters.
+    """
+    return bool(normalize_readable_telegraph_source(chapter.get("telegraph_free_url")))
+
+
+def _chapter_has_real_premium_url(chapter: dict[str, Any]) -> bool:
+    """Only TelegraphPremiumURL can make a chapter readable."""
+    return bool(normalize_readable_telegraph_source(chapter.get("telegraph_premium_url")))
+
+
+def reconcile_novel_access_counters(
+    novels: list[dict[str, Any]], chapters: list[dict[str, Any]]
+) -> list[str]:
+    """Rebuild source-backed counters from the Excel chapter snapshot.
+
+    Apps Script normally sends these counters ready-made. This server-side
+    integrity pass protects production from an older script or stale formulas:
+    technical Telegraph codes and release dates without a real URL never create
+    readable chapters. The result is persisted to Supabase with the novel row.
+    """
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for chapter in chapters:
+        grouped.setdefault(to_int(chapter.get("novel_id"), 0), []).append(chapter)
+
+    warnings: list[str] = []
+    for novel in novels:
+        novel_id = to_int(novel.get("novel_id"), 0)
+        rows = grouped.get(novel_id, [])
+        is_gift = "🎁" in clean_value(novel.get("post_icons"))
+
+        free_ids: set[str] = set()
+        subscriber_ids: set[str] = set()
+        keeper_ids: set[str] = set()
+
+        for chapter in rows:
+            chapter_id = clean_value(chapter.get("chapter_id"))
+            if not chapter_id:
+                continue
+            has_free_url = _chapter_has_real_free_url(chapter)
+            has_premium_url = _chapter_has_real_premium_url(chapter)
+            has_any_url = has_free_url or has_premium_url
+            free_open = bool(
+                has_free_url
+                and clean_value(chapter.get("free_release_date"))
+                and is_date_open(chapter.get("free_release_date"))
+            )
+            premium_open = bool(
+                has_premium_url
+                and (
+                    (clean_value(chapter.get("premium_release_date")) and is_date_open(chapter.get("premium_release_date")))
+                    or to_bool(chapter.get("keeper_access"), False)
+                )
+            )
+
+            if is_gift:
+                # A gift novel is completely closed for guests. Any active
+                # subscription opens a source-backed chapter once its own
+                # release date is not in the future.
+                subscription_open = bool(
+                    (has_premium_url and (
+                        not clean_value(chapter.get("premium_release_date"))
+                        or is_date_open(chapter.get("premium_release_date"))
+                    ))
+                    or (has_free_url and (
+                        not clean_value(chapter.get("free_release_date"))
+                        or is_date_open(chapter.get("free_release_date"))
+                    ))
+                )
+                if subscription_open:
+                    subscriber_ids.add(chapter_id)
+                    keeper_ids.add(chapter_id)
+            else:
+                if free_open:
+                    free_ids.add(chapter_id)
+                    subscriber_ids.add(chapter_id)
+                    keeper_ids.add(chapter_id)
+                if premium_open:
+                    keeper_ids.add(chapter_id)
+
+        calculated = {
+            "free_chapters": 0 if is_gift else len(free_ids),
+            "subscriber_chapters": len(subscriber_ids),
+            "keeper_chapters": len(keeper_ids),
+            "early_access_chapters": max(0, len(keeper_ids) - len(free_ids)),
+            "keeper_extra_chapters": max(0, len(keeper_ids) - len(free_ids)),
+        }
+        before = {key: max(0, to_int(novel.get(key), 0)) for key in calculated}
+        novel.update(calculated)
+        if before != calculated:
+            warnings.append(
+                f"NovelID {novel_id}: счётчики доступа исправлены по реальным Telegraph URL "
+                f"({before} -> {calculated})."
+            )
+
+    return warnings
+
+
 def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     """Return sync-time warnings for dangerous or inconsistent release rows."""
     issues: list[str] = []
@@ -345,14 +445,8 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     translated = bool(clean_value(chapter.get("translation_date")))
     free_date = clean_value(chapter.get("free_release_date"))
     premium_date = clean_value(chapter.get("premium_release_date"))
-    free_url = (
-        normalize_readable_telegraph_source(chapter.get("telegraph_free_url"))
-        or normalize_readable_telegraph_source(chapter.get("telegraph_free_code"))
-    )
-    premium_url = (
-        normalize_readable_telegraph_source(chapter.get("telegraph_premium_url"))
-        or normalize_readable_telegraph_source(chapter.get("telegraph_premium_code"))
-    )
+    free_url = normalize_readable_telegraph_source(chapter.get("telegraph_free_url"))
+    premium_url = normalize_readable_telegraph_source(chapter.get("telegraph_premium_url"))
 
 
 
@@ -362,9 +456,9 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     if free_url and not free_date:
         issues.append(f"{chapter_id}: есть бесплатная ссылка, но нет FreeReleaseDate; бесплатный доступ закрыт")
     if free_date and not free_url:
-        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет бесплатной ссылки/кода")
+        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет реального TelegraphFreeURL")
     if premium_date and not premium_url:
-        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет премиальной ссылки/кода")
+        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет реального TelegraphPremiumURL")
     if free_date and premium_date:
         try:
             premium_dt = parse_iso_datetime(premium_date)
@@ -546,6 +640,7 @@ def validate_sync_payload(payload: dict[str, Any]) -> dict[str, Any]:
         seen_fox_names.add(name)
         fox_rows.append(row)
 
+    warnings.extend(reconcile_novel_access_counters(novels, chapters))
     release_warnings = [issue for chapter in chapters for issue in chapter_release_integrity_issues(chapter)]
     warnings.extend(release_warnings)
 

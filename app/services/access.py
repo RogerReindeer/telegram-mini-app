@@ -138,11 +138,15 @@ def chapter_is_translated(chapter: dict) -> bool:
 
 
 def chapter_content_source(chapter: dict, url_key: str, code_key: str) -> str:
-    """Return a genuinely readable Telegraph URL/path, failing closed."""
-    return (
-        normalize_readable_telegraph_source(chapter.get(url_key))
-        or normalize_readable_telegraph_source(chapter.get(code_key))
-    )
+    """Return a genuinely readable Telegraph URL/path, failing closed.
+
+    ``Telegraph*Code`` in Translation CRM is only a technical identifier. It
+    must never make a chapter readable or increase library counters without a
+    real value in ``Telegraph*URL``. ``code_key`` stays in the signature only
+    for compatibility with older callers.
+    """
+    del code_key
+    return normalize_readable_telegraph_source(chapter.get(url_key))
 
 
 def chapter_public_url(chapter: dict) -> str:
@@ -204,12 +208,11 @@ def chapter_premium_ready(chapter: dict) -> bool:
 
 
 def chapter_subscription_url(chapter: dict) -> str:
-    """Return the released source for a 🎁 subscription-only chapter.
+    """Return an opened real source for a 🎁 subscription-only chapter.
 
-    The result mirrors counters prepared by Excel: an opened premium release
-    uses the premium source; otherwise an opened free release may still be read
-    by a subscriber, while remaining closed for guests because the whole novel
-    is subscription-only.
+    Any active subscription unlocks the book, but a future premium release is
+    not used while an already released free source exists. Bare
+    ``Telegraph*Code`` values are never accepted as content.
     """
     premium_release = clean_value(chapter.get("premium_release_date"))
     premium_url = chapter_premium_url(chapter)
