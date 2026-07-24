@@ -1331,14 +1331,16 @@
         // «Скоро» — самостоятельный раздел. Не дублируем такие карточки
         // в «Избранное», «Читаю» или «Можно начать».
         buckets.waiting.push(card);
+      } else if (state === "subscription") {
+        // 🎁 книга без активной подписки всегда остаётся в отдельном разделе
+        // «Подписчикам», даже если раньше была добавлена в избранное.
+        buckets.subscription.push(card);
       } else if (favoriteNovels.includes(novelId)) {
         buckets.favorite.push(card);
       } else if (state === "new" || state === "reading" || state === "waiting_new") {
         buckets.reading.push(card);
       } else if (state === "start") {
         buckets.start.push(card);
-      } else if (state === "subscription") {
-        buckets.subscription.push(card);
       } else if (state === "locked") {
         buckets.waiting.push(card);
       } else {
@@ -1384,9 +1386,11 @@
     const keeperChapters = Number(card.dataset.keeperChapters || 0);
     const releasedSubscriptionChapters = Number(card.dataset.releasedSubscriptionChapters || 0);
     const projectStatus = String(card.dataset.status || "");
-    // Раздел «По подписке» — только для подарочных новелл,
-    // которые явно помечены 🎁 в PostIcons листа Legend.
-    const isGiftSubscriptionNovel = String(card.dataset.postIcons || "").includes("🎁");
+    // Раздел «Подписчикам» — только для новелл с 🎁 в Legend.PostIcons.
+    // Backend уже принудительно отдаёт гостю available=0 для таких книг.
+    const isGiftSubscriptionNovel = card.dataset.isGift === "true";
+    const viewerRole = String((window.ZEFIRKI_VIEWER || {}).role || "guest").toLowerCase();
+    const viewerHasSubscription = viewerRole === "traveler" || viewerRole === "keeper";
     const totalKnownChapters = Math.max(Number(translated || 0), Number(chapters || 0));
     const hasUnreleasedChapters = Number(chapters || 0) > 0 && Number(translated || 0) < Number(chapters || 0);
     const hasLockedOrPaidChapters = available > 0 && totalKnownChapters > available;
@@ -1434,7 +1438,7 @@
 
     // Фактически доступные главы важнее сохранённого status="Скоро".
     // Если текущий пользователь может читать хотя бы одну главу, карточка идёт
-    // в «Можно начать»/«Читаю». В «По подписке» попадают только книги с 🎁
+    // в «Можно начать»/«Читаю». В «Подписчикам» попадают только книги с 🎁
     // в PostIcons. Остальные недоступные книги остаются в «Скоро».
     if (available > 0) {
       if (isCompletedByUser && hasLockedOrPaidChapters) {
@@ -1462,10 +1466,12 @@
         visualProgress = 0;
         progressLabel = `0 / ${available}`;
       }
-    } else if (isGiftSubscriptionNovel && releasedSubscriptionChapters > 0) {
+    } else if (isGiftSubscriptionNovel && !viewerHasSubscription) {
+      // Гость всегда видит 🎁 книгу только в разделе «Подписчикам», даже
+      // если в Excel у неё были отмечены бесплатные главы.
       state = "subscription";
       visualProgress = 0;
-      progressLabel = "0 / 0";
+      progressLabel = releasedSubscriptionChapters > 0 ? "По подписке" : "Ожидает глав";
     } else {
       // Нет ни одной реально читаемой главы для текущего пользователя.
       // Проектный статус (завершено/переводится/пауза) остаётся отдельным,
@@ -1501,7 +1507,7 @@
       waiting_new: ["is-reading is-waiting", "", "Жду главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
       locked: ["is-locked", "", "", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      subscription: ["is-locked is-subscription", "", "🎁 По подписке", "state-subscription", "Открыть", `/novel/${card.dataset.novelSlug || ""}`],
+      subscription: ["is-locked is-subscription", "", "🎁 Подписчикам", "state-subscription", "Открыть", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "", "", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
       start: [
         "is-start",
@@ -1529,7 +1535,7 @@
     if (projectStatusPill) {
       const originalStatus = projectStatusPill.dataset.projectStatus || projectStatus || "in_progress";
       const originalLabel = projectStatusPill.dataset.projectStatusLabel || "Переводится";
-      projectStatusPill.textContent = state === "subscription" ? "По подписке" : (isSoonState ? "Скоро" : originalLabel);
+      projectStatusPill.textContent = state === "subscription" ? "Подписчикам" : (isSoonState ? "Скоро" : originalLabel);
       projectStatusPill.className = `library-stat-status status-${state === "subscription" ? "subscription" : (isSoonState ? "soon" : originalStatus)}`;
     }
 

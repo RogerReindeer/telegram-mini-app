@@ -93,14 +93,13 @@ def viewer_can_access_required_role(viewer_role: str, required_role: str) -> boo
 
 
 def novel_is_gift(novel: dict) -> bool:
-    """A gift novel is visible only to Traveler, Keeper or a book owner.
+    """Return whether the novel is subscription-only.
 
-    The source of truth is the 🎁 marker in Legend.PostIcons. AccessModel is
-    accepted only as a backward-compatible fallback.
+    The only source of truth is the 🎁 marker from Legend.PostIcons. Legacy
+    AccessModel values must not move an ordinary novel to the subscriber-only
+    section.
     """
-    icons = clean_value(novel.get("post_icons"))
-    model = clean_value(novel.get("access_model")).lower()
-    return "🎁" in icons or "boostyonly" in model or "boosty only" in model
+    return "🎁" in clean_value(novel.get("post_icons"))
 
 
 def novel_is_traveler_only(novel: dict) -> bool:
@@ -205,23 +204,28 @@ def chapter_premium_ready(chapter: dict) -> bool:
 
 
 def chapter_subscription_url(chapter: dict) -> str:
-    """Source for 🎁 subscription-only novels.
+    """Return the released source for a 🎁 subscription-only chapter.
 
-    Gift novels are not ordinary free/early-access rows: any paid subscriber
-    (Traveler or Keeper) may read translated gift chapters when a source exists.
-    Prefer the premium/closed source, then fall back to the free source.
+    The result mirrors counters prepared by Excel: an opened premium release
+    uses the premium source; otherwise an opened free release may still be read
+    by a subscriber, while remaining closed for guests because the whole novel
+    is subscription-only.
     """
-    return chapter_premium_url(chapter) or chapter_public_url(chapter)
+    premium_release = clean_value(chapter.get("premium_release_date"))
+    premium_url = chapter_premium_url(chapter)
+    if premium_url and (not premium_release or is_date_open(premium_release)):
+        return premium_url
+
+    free_release = clean_value(chapter.get("free_release_date"))
+    free_url = chapter_public_url(chapter)
+    if free_url and (not free_release or is_date_open(free_release)):
+        return free_url
+    return ""
 
 
 def chapter_subscription_ready(chapter: dict) -> bool:
-    """Open a gift chapter only when its real source is already released."""
-    if not chapter_subscription_url(chapter):
-        return False
-    premium_release = clean_value(chapter.get("premium_release_date"))
-    if premium_release and not is_date_open(premium_release):
-        return False
-    return True
+    """Open a gift chapter only when Excel counted a released real source."""
+    return bool(chapter_subscription_url(chapter))
 
 
 def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
@@ -502,20 +506,9 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             viewer_role=role,
         )
 
-    if profile.get("has_full_book_access"):
-        url = chapter_premium_url(chapter) or chapter_public_url(chapter)
-        if url:
-            return AccessDecision(
-                allowed=True,
-                status="full_book_entitlement",
-                url=url,
-                label="Открыта",
-                class_name="chapter-access-public",
-                reason="full_book_entitlement",
-                required_role=required_role,
-                viewer_role=role,
-            )
-
+    # 🎁 новеллы полностью отделены от обычного бесплатного доступа.
+    # Гость не может открыть их даже по FreeReleaseDate или отдельному
+    # full-book entitlement: требуется любая активная подписка.
     if is_gift_novel and role == "guest":
         release = clean_value(parse_date(chapter.get("premium_release_date")) or chapter.get("premium_release_date"))
         if release and is_date_open(release):
@@ -529,21 +522,6 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             required_role="traveler",
             viewer_role=role,
             release_date=release,
-        )
-
-    # Бесплатный релиз всегда побеждает подписочную метку для пользователя,
-    # который уже может видеть книгу: если глава стала бесплатной, она больше
-    # не считается «разблокированной подпиской».
-    if chapter_public_ready(chapter):
-        return AccessDecision(
-            allowed=True,
-            status="public_open",
-            url=chapter_public_url(chapter),
-            label="Открыта",
-            class_name="chapter-access-public",
-            reason="free_release_open",
-            required_role=required_role,
-            viewer_role=role,
         )
 
     if is_gift_novel and viewer_can_access_required_role(role, "traveler"):
@@ -571,6 +549,32 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
                 viewer_role=role,
                 release_date=release,
             )
+
+    if profile.get("has_full_book_access"):
+        url = chapter_premium_url(chapter) or chapter_public_url(chapter)
+        if url:
+            return AccessDecision(
+                allowed=True,
+                status="full_book_entitlement",
+                url=url,
+                label="Открыта",
+                class_name="chapter-access-public",
+                reason="full_book_entitlement",
+                required_role=required_role,
+                viewer_role=role,
+            )
+
+    if chapter_public_ready(chapter):
+        return AccessDecision(
+            allowed=True,
+            status="public_open",
+            url=chapter_public_url(chapter),
+            label="Открыта",
+            class_name="chapter-access-public",
+            reason="free_release_open",
+            required_role=required_role,
+            viewer_role=role,
+        )
 
     if role == "keeper" and chapter_premium_ready(chapter):
         return AccessDecision(

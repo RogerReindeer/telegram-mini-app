@@ -610,9 +610,13 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "traveler_chapters_count": stored_subscriber_count,
         "keeper_chapters_count": stored_keeper_count,
         "early_access_chapters_count": stored_early_count,
-        "released_subscription_chapters_count": max(
-            0,
-            max(stored_subscriber_count, stored_keeper_count, stored_early_count) - stored_free_count,
+        "released_subscription_chapters_count": (
+            max(0, stored_subscriber_count)
+            if novel_is_gift(novel)
+            else max(
+                0,
+                max(stored_subscriber_count, stored_keeper_count, stored_early_count) - stored_free_count,
+            )
         ),
         "release_free_count": to_int(novel.get("release_free_count"), 0),
         "premium_lead_weeks": to_int(novel.get("premium_lead_weeks"), 0),
@@ -645,9 +649,26 @@ def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] |
     values are prepared by MiniAppSync.gs from the Excel Chapters sheet.
     """
     profile = profile or {}
-    if profile.get("has_full_book_access"):
-        return max(0, to_int(novel.get("translated_chapters"), 0))
     role = clean_value(profile.get("role")) or "guest"
+    is_gift = novel_is_gift(novel)
+
+    # 🎁 books are subscription-only even when their chapter rows contain a
+    # FreeReleaseDate. Guests always see zero readable chapters. Any paid
+    # subscription uses the subscriber counter prepared by Excel/Supabase.
+    if is_gift:
+        if profile.get("has_full_book_access") or role in {"traveler", "keeper"}:
+            return max(0, to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0))
+        return 0
+
+    if profile.get("has_full_book_access"):
+        # A translated row without a real Telegraph source is not readable.
+        # Use only source-backed counters already prepared by sync.
+        return max(
+            0,
+            to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0),
+            to_int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters"), 0),
+            to_int(novel.get("free_chapters_count") or novel.get("free_chapters"), 0),
+        )
     if role == "keeper":
         return max(0, to_int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters"), 0))
     if role == "traveler":
