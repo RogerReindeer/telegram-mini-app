@@ -1400,6 +1400,7 @@
     const button = card.querySelector("[data-card-main-button]");
     const statePill = card.querySelector("[data-card-state-pill]");
     const projectStatusPill = card.querySelector("[data-project-status-pill]");
+    const accessRow = card.querySelector("[data-card-access-row]");
     const progressRow = card.querySelector("[data-card-progress-row]");
     const progressFill = card.querySelector("[data-card-progress-fill]");
     const progressText = card.querySelector("[data-card-progress-text]");
@@ -1479,6 +1480,13 @@
       state = "soon";
       visualProgress = 0;
       progressLabel = "0 / 0";
+    }
+
+    if (accessRow) {
+      // Для книг без реально читаемых глав счётчики вводят в заблуждение:
+      // технические строки Chapters ещё не означают, что книгу можно открыть.
+      accessRow.hidden = state === "soon";
+      accessRow.setAttribute("aria-hidden", state === "soon" ? "true" : "false");
     }
 
     const isReadingSectionState = state === "new" || state === "reading" || state === "waiting_new";
