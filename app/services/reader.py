@@ -873,6 +873,39 @@ def get_neighbor_chapters_for_access(
     return (available[index - 1] if index > 0 else None,
             available[index + 1] if index + 1 < len(available) else None)
 
+def get_next_locked_chapter_for_access(
+    chapters: list[dict], current_chapter_id: str, novel: dict, profile: dict[str, Any]
+) -> dict | None:
+    """Return the first real chapter after the current one when it is locked.
+
+    The regular next/previous navigation intentionally contains only chapters
+    the current viewer may read.  The reader end card needs one additional
+    piece of information: whether the very next real chapter exists but is
+    behind subscription/date access.  The returned row contains display data
+    only; opening it still goes through the normal chapter route and paywall.
+    """
+    readable = [
+        chapter
+        for chapter in sort_chapters(chapters)
+        if chapter_has_readable_url(chapter)
+    ]
+    current_index = next(
+        (
+            index
+            for index, chapter in enumerate(readable)
+            if clean_value(chapter_code_value(chapter)) == clean_value(current_chapter_id)
+        ),
+        None,
+    )
+    if current_index is None or current_index + 1 >= len(readable):
+        return None
+
+    prepared = prepare_chapter_for_access_template(
+        readable[current_index + 1], novel, profile
+    )
+    return None if prepared.get("is_available") else prepared
+
+
 def source_backed_access_counts(
     chapters: list[dict], novel: dict
 ) -> dict[str, int]:

@@ -3415,6 +3415,7 @@
 
       const content = doc.querySelector('[data-cache-chapter-content]');
       const title = doc.querySelector('.chapter-header h1');
+      const endGate = doc.querySelector('[data-reader-end-gate]');
       if (!content) return { invalid: true, page: nextPage };
 
       const chapterId = String(nextPage.dataset.chapterId || '');
@@ -3435,10 +3436,11 @@
       wrap.dataset.previousUrl = extractDirectionUrl(doc, 'previous');
       wrap.dataset.nextUrl = extractDirectionUrl(doc, 'next');
       const heading = escapeChapterHeading(title ? title.textContent : 'Глава');
-      wrap.innerHTML = `<header class="chapter-infinite-head"><span>${direction === 'previous' ? 'Предыдущая глава' : 'Следующая глава'}</span><h2>${heading}</h2></header><article class="chapter-content chapter-content-infinite">${content.innerHTML}</article>`;
+      const endGateHtml = endGate ? endGate.outerHTML : '';
+      wrap.innerHTML = `<header class="chapter-infinite-head"><span>${direction === 'previous' ? 'Предыдущая глава' : 'Следующая глава'}</span><h2>${heading}</h2></header><article class="chapter-content chapter-content-infinite">${content.innerHTML}</article>${endGateHtml}`;
 
       if (chapterId) loadedChapterIds.add(chapterId);
-      return { wrap: wrap, page: nextPage };
+      return { wrap: wrap, page: nextPage, hasEndGate: Boolean(endGate) };
     }
 
     function dispatchChapterAdded(wrap, direction) {
@@ -3536,7 +3538,7 @@
           nextUrl = extractDirectionUrl(doc, 'next');
           if (!nextUrl || nextUrl === currentUrl) stoppedNext = true;
           insertNext(result);
-          if (stoppedNext) {
+          if (stoppedNext && !result.hasEndGate) {
             setStatus(bottomStatus, '<span class="chapter-loading-done" aria-hidden="true">✓</span><span>Доступные главы закончились</span>', false);
           }
         })

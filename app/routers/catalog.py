@@ -13,6 +13,7 @@ from ..services.reader import (
     build_chapter_display_list_for_access,
     get_chapter_index_info_for_access,
     get_neighbor_chapters_for_access,
+    get_next_locked_chapter_for_access,
     prepare_chapter_for_access_template,
     prepare_library_novels_for_access,
     prepare_novel_for_template,
@@ -82,6 +83,11 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         prepared_novel = prepare_novel_for_template(raw_novel)
         info = get_chapter_index_info_for_access(raw_chapters, chapter_id, raw_novel, profile)
         previous_chapter, next_chapter = get_neighbor_chapters_for_access(raw_chapters, chapter_id, raw_novel, profile)
+        next_locked_chapter = (
+            get_next_locked_chapter_for_access(raw_chapters, chapter_id, raw_novel, profile)
+            if decision.allowed
+            else None
+        )
         telegraph_content, telegraph_error = (None, "")
         if decision.allowed and decision.url:
             telegraph_content, telegraph_error = fetch_telegraph_content(decision.url)
@@ -106,6 +112,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "keeper_chat_id": settings.normalized_keeper_chat_id,
             "previous_chapter": previous_chapter,
             "next_chapter": next_chapter,
+            "next_locked_chapter": next_locked_chapter,
         })
 
     @router.get("/api/library")
