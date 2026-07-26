@@ -737,20 +737,25 @@ def count_available_chapter_units_for_access(
     return count_available_chapter_units_for_profile(chapters, novel, profile)
 
 def chapter_is_boosty_toc_row(chapter: dict, novel: dict, decision: Any) -> bool:
-    """Return whether the TOC row should show the compact "Бусти" line.
+    """Return whether the TOC row should show the subscription marker.
 
-    This is display-only. Access itself is still decided from the fields synced
-    from Excel to Supabase. Publicly opened chapters never keep a Boosty label.
+    Gift novels are subscription-only at book level. Therefore every readable
+    chapter in such a novel must keep the ``Подписка`` marker even when its
+    FreeReleaseDate has already opened. The chapter is not public for this book:
+    guests are still blocked, while Traveler and Keeper can read it.
     """
-    if decision.status in {"public_open", "not_translated", "no_content_source", "hidden"}:
+    if decision.status in {"not_translated", "no_content_source", "hidden"}:
         return False
-    if chapter_public_ready(chapter):
+
+    if novel_is_gift(novel):
+        return True
+
+    if decision.status == "public_open" or chapter_public_ready(chapter):
         return False
 
     required_role = normalize_required_role(chapter.get("access_level"))
     return bool(
-        novel_is_gift(novel)
-        or chapter_premium_url(chapter)
+        chapter_premium_url(chapter)
         or to_bool(chapter.get("keeper_access"), False)
         or required_role in {"traveler", "keeper"}
     )
