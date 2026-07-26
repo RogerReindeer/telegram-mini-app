@@ -3375,9 +3375,12 @@
     }
 
     function setStatus(status, html, preservePosition) {
+      const hasContent = Boolean(String(html || '').trim());
       const mutate = function () {
-        status.innerHTML = html || '';
-        status.hidden = !html;
+        status.innerHTML = hasContent ? html : '';
+        status.hidden = !hasContent;
+        status.classList.toggle('is-empty', !hasContent);
+        status.setAttribute('aria-hidden', hasContent ? 'false' : 'true');
       };
       if (preservePosition) mutateAbovePreservingScroll(mutate);
       else mutate();
@@ -4128,4 +4131,185 @@
   } else {
     initDockedReaderSettingsButton();
   }
+})();
+
+
+/* =====================================================================
+   v200 — remove legacy chapter arrows and add horizontal navigation gestures
+   ===================================================================== */
+(function () {
+  "use strict";
+
+  const READING_HISTORY_KEY = "zefirki_reading_history";
+  const LEGACY_CHAPTER_NAV_RE = /^[\s〰~\-—–_=]*🦊[\s〰~\-—–_=]*(?:глава|chapter)\s*\d+(?:[.,\-–—/]\d+)?(?:\s*(?:-?>|→|➡|⟶|⇢))?[\s〰~\-—–_=]*$/i;
+
+  function normalizeServiceText(value) {
+    return String(value == null ? "" : value)
+      .replace(/\uFE0F/g, "")
+      .replace(/\u200D/g, "")
+      .replace(/\u00A0/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function removeLegacyChapterNavigation(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    const articles = [];
+    if (scope.matches && scope.matches(".chapter-content")) articles.push(scope);
+    scope.querySelectorAll(".chapter-content").forEach(function (article) { articles.push(article); });
+
+    articles.forEach(function (article) {
+      article.querySelectorAll("p, div, h1, h2, h3, h4, blockquote, li, a").forEach(function (node) {
+        const text = normalizeServiceText(node.textContent);
+        if (text.length <= 120 && LEGACY_CHAPTER_NAV_RE.test(text)) node.remove();
+      });
+    });
+  }
+
+  function readHistory() {
+    try {
+      const value = JSON.parse(window.localStorage.getItem(READING_HISTORY_KEY) || "[]");
+      return Array.isArray(value) ? value : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function sameOriginPath(href) {
+    if (!href) return "";
+    try {
+      const url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) return "";
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function novelForwardDestination(page) {
+    if (!page) return "";
+    const novelId = String(page.dataset.novelId || "");
+    const availableRows = Array.from(document.querySelectorAll("[data-chapter-row]:not(.chapter-row-locked)"));
+    if (!availableRows.length) return "";
+
+    const historyItem = readHistory().find(function (item) {
+      return String(item && item.novelId || "") === novelId;
+    });
+
+    if (historyItem && historyItem.chapterId) {
+      const currentIndex = availableRows.findIndex(function (row) {
+        return String(row.dataset.chapterId || "") === String(historyItem.chapterId);
+      });
+      if (currentIndex >= 0 && currentIndex + 1 < availableRows.length) {
+        const nextUnread = availableRows.slice(currentIndex + 1).find(function (row) {
+          return !row.classList.contains("chapter-row-read");
+        });
+        if (nextUnread) return sameOriginPath(nextUnread.getAttribute("href"));
+      }
+      const currentRow = currentIndex >= 0 ? availableRows[currentIndex] : null;
+      if (currentRow) return sameOriginPath(currentRow.getAttribute("href"));
+    }
+
+    const readButton = document.getElementById("novelReadButton");
+    const buttonPath = readButton ? sameOriginPath(readButton.getAttribute("href")) : "";
+    if (buttonPath) return buttonPath;
+    return sameOriginPath(availableRows[0].getAttribute("href"));
+  }
+
+  function navigateWithGesture(path) {
+    if (!path) return;
+    document.body.classList.add("gesture-navigation-active");
+    window.location.assign(path);
+  }
+
+  function initHorizontalPageGestures() {
+    const chapterPage = document.querySelector("[data-chapter-page]");
+    const novelPage = document.querySelector("[data-novel-page]");
+    if (!chapterPage && !novelPage) return;
+
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let tracking = false;
+    let blocked = false;
+    let horizontalIntent = false;
+
+    document.addEventListener("touchstart", function (event) {
+      if (event.touches.length !== 1) {
+        tracking = false;
+        return;
+      }
+      const target = event.target;
+      blocked = Boolean(target && target.closest && target.closest("input, textarea, select, button, [contenteditable='true'], [data-no-page-swipe]"));
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startTime = Date.now();
+      horizontalIntent = false;
+      tracking = true;
+    }, { passive: true });
+
+    document.addEventListener("touchmove", function (event) {
+      if (!tracking || blocked || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      if (Math.abs(deltaX) > 24 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+        horizontalIntent = true;
+        event.preventDefault();
+      }
+    }, { passive: false });
+
+    document.addEventListener("touchend", function (event) {
+      if (!tracking || blocked || !event.changedTouches.length) {
+        tracking = false;
+        return;
+      }
+      tracking = false;
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const duration = Date.now() - startTime;
+
+      if (!horizontalIntent || duration > 850 || Math.abs(deltaX) < 90 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+
+      if (deltaX > 0) {
+        if (chapterPage) {
+          const slug = chapterPage.dataset.novelSlug || "";
+          if (slug) navigateWithGesture(`/novel/${encodeURIComponent(slug)}`);
+        } else if (novelPage) {
+          navigateWithGesture("/library");
+        }
+        return;
+      }
+
+      if (deltaX < 0 && novelPage) {
+        navigateWithGesture(novelForwardDestination(novelPage));
+      }
+    }, { passive: true });
+  }
+
+  function initV200() {
+    removeLegacyChapterNavigation(document);
+    initHorizontalPageGestures();
+
+    document.addEventListener("zefirki:chapter-appended", function (event) {
+      removeLegacyChapterNavigation(event.detail && event.detail.element ? event.detail.element : document);
+    });
+
+    const chapterPage = document.querySelector("[data-chapter-page]");
+    if (chapterPage && window.MutationObserver) {
+      const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          mutation.addedNodes.forEach(function (node) {
+            if (node && node.nodeType === 1) removeLegacyChapterNavigation(node);
+          });
+        });
+      });
+      observer.observe(chapterPage, { childList: true, subtree: true });
+    }
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV200);
+  else initV200();
 })();

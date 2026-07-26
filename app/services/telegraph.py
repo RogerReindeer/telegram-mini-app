@@ -131,9 +131,23 @@ def html_to_plain_text(fragment: str) -> str:
 
 def is_chapter_service_block(fragment: str) -> bool:
     text = html_to_plain_text(fragment)
-    normalized = text.lower().replace("ё", "е")
+    normalized = (
+        text.lower()
+        .replace("ё", "е")
+        .replace("\ufe0f", "")
+        .replace("\u200d", "")
+        .strip()
+    )
 
     if not normalized:
+        return True
+
+    # Служебные переходы, которые были встроены в старые Telegraph-главы:
+    # «〰️🦊〰️ Глава 20 ->». Они не являются частью текста новеллы.
+    if len(normalized) <= 120 and re.fullmatch(
+        r"[\s〰~\-—–_=]*🦊[\s〰~\-—–_=]*(?:глава|chapter)\s*\d+(?:[.,\-–—/]\d+)?(?:\s*(?:-?>|→|➡|⟶|⇢))?[\s〰~\-—–_=]*",
+        normalized,
+    ):
         return True
 
     if normalized in ("--", "—", "–", "***", "* * *"):
@@ -214,6 +228,7 @@ def clean_chapter_content_html(html_content: str) -> str:
         r"(?is)<p[^>]*>\s*перевод\s+зефиркины\s+бао[цз]ы.*?</p>\s*",
         r"(?is)<p[^>]*>.*?купить\s+полный\s+перевод.*?</p>\s*",
         r"(?is)<a[^>]*>.*?купить\s+полный\s+перевод.*?</a>\s*",
+        r"(?is)<(?:p|div|h[1-4]|blockquote|a)[^>]*>\s*(?:〰(?:️)?|[~\-—–_=]\s*)*🦊(?:️)?\s*(?:〰(?:️)?|[~\-—–_=]\s*)*(?:глава|chapter)\s*\d+(?:[.,\-–—/]\d+)?\s*(?:-?>|→|➡(?:️)?|⟶|⇢)?\s*</(?:p|div|h[1-4]|blockquote|a)>\s*",
     )
 
     changed = True
@@ -279,7 +294,7 @@ def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
     if not text:
         return None, ""
     return cache_get_or_set(
-        f"telegraph:content:{text}",
+        f"telegraph:content:v200:{text}",
         telegraph_cache_ttl(),
         lambda: _fetch_telegraph_content_uncached(text),
         namespace="telegraph",

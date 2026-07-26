@@ -13676,3 +13676,29 @@ body[data-reader-theme="dark"] .chapter-end-gate-secondary {
     grid-template-columns: 1fr;
   }
 }
+
+/* =====================================================================
+   v200 — no empty infinite-scroll placeholders; horizontal page gestures
+   ===================================================================== */
+.chapter-infinite-status:empty,
+.chapter-infinite-status.is-empty,
+.chapter-infinite-status[aria-hidden="true"] {
+  display: none !important;
+  min-height: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.page-chapter,
+.page-novel {
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+}
+
+.gesture-navigation-active {
+  pointer-events: none;
+}
