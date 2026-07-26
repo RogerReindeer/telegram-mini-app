@@ -4216,10 +4216,112 @@
     return sameOriginPath(availableRows[0].getAttribute("href"));
   }
 
-  function navigateWithGesture(path) {
+  function pageGestureHaptic(kind) {
+    try {
+      const haptic = window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback;
+      if (!haptic) return;
+      if (kind === "ready" && typeof haptic.selectionChanged === "function") haptic.selectionChanged();
+      if (kind === "commit" && typeof haptic.impactOccurred === "function") haptic.impactOccurred("light");
+      if (kind === "cancel" && typeof haptic.notificationOccurred === "function") haptic.notificationOccurred("warning");
+    } catch (error) {}
+  }
+
+  function ensurePageSwipeHint() {
+    let hint = document.querySelector("[data-page-swipe-hint]");
+    if (hint) return hint;
+
+    hint = document.createElement("div");
+    hint.className = "page-swipe-hint";
+    hint.setAttribute("data-page-swipe-hint", "");
+    hint.setAttribute("aria-hidden", "true");
+    hint.innerHTML = `
+      <span class="page-swipe-hint-icon" data-page-swipe-icon aria-hidden="true">→</span>
+      <span class="page-swipe-hint-copy">
+        <strong data-page-swipe-title>Переход</strong>
+        <small data-page-swipe-state>Потяните дальше</small>
+      </span>
+      <span class="page-swipe-hint-track" aria-hidden="true"><span></span></span>
+    `;
+    document.body.appendChild(hint);
+    return hint;
+  }
+
+  function showPageSwipeCoach(chapterPage, novelPage) {
+    if (!("ontouchstart" in window) && Number(navigator.maxTouchPoints || 0) <= 0) return;
+    let alreadyShown = false;
+    try {
+      alreadyShown = window.sessionStorage.getItem("zefirki_swipe_coach_v202") === "1";
+      if (!alreadyShown) window.sessionStorage.setItem("zefirki_swipe_coach_v202", "1");
+    } catch (error) {}
+    if (alreadyShown) return;
+
+    const coach = document.createElement("div");
+    coach.className = "page-swipe-coach";
+    coach.setAttribute("aria-live", "polite");
+    coach.innerHTML = chapterPage
+      ? '<span aria-hidden="true">👉</span><span>Свайп вправо — к оглавлению</span>'
+      : '<span aria-hidden="true">↔</span><span>Вправо — библиотека, влево — продолжить чтение</span>';
+    document.body.appendChild(coach);
+    window.setTimeout(function () { coach.classList.add("is-visible"); }, 120);
+    window.setTimeout(function () {
+      coach.classList.remove("is-visible");
+      window.setTimeout(function () { coach.remove(); }, 260);
+    }, novelPage ? 3200 : 2600);
+  }
+
+  function pageGestureDestination(chapterPage, novelPage, deltaX) {
+    if (deltaX > 0 && chapterPage) {
+      const slug = chapterPage.dataset.novelSlug || "";
+      return {
+        path: slug ? `/novel/${encodeURIComponent(slug)}` : "",
+        title: "К оглавлению",
+        icon: "📖",
+        side: "left",
+      };
+    }
+
+    if (deltaX > 0 && novelPage) {
+      return {
+        path: "/library",
+        title: "В библиотеку",
+        icon: "←",
+        side: "left",
+      };
+    }
+
+    if (deltaX < 0 && novelPage) {
+      const path = novelForwardDestination(novelPage);
+      return {
+        path: path,
+        title: path ? "Продолжить чтение" : "Нет доступной главы",
+        icon: path ? "→" : "⛔",
+        side: "right",
+      };
+    }
+
+    return {
+      path: "",
+      title: chapterPage ? "В читалке свайпните вправо" : "Переход недоступен",
+      icon: "↩",
+      side: deltaX < 0 ? "right" : "left",
+    };
+  }
+
+  function navigateWithGesture(path, surface, hint, direction) {
     if (!path) return;
-    document.body.classList.add("gesture-navigation-active");
-    window.location.assign(path);
+    pageGestureHaptic("commit");
+    document.body.classList.remove("page-swipe-dragging", "page-swipe-resetting");
+    document.body.classList.add("gesture-navigation-active", "page-swipe-committing");
+    if (hint) {
+      hint.classList.add("is-visible", "is-ready", "is-committing");
+      const state = hint.querySelector("[data-page-swipe-state]");
+      if (state) state.textContent = "Переходим…";
+    }
+    if (surface) {
+      const offscreen = (direction > 0 ? 1 : -1) * (window.innerWidth + 80);
+      surface.style.setProperty("--page-swipe-x", `${offscreen}px`);
+    }
+    window.setTimeout(function () { window.location.assign(path); }, 185);
   }
 
   function initHorizontalPageGestures() {
@@ -4227,15 +4329,69 @@
     const novelPage = document.querySelector("[data-novel-page]");
     if (!chapterPage && !novelPage) return;
 
+    const surface = chapterPage || novelPage;
+    const hint = ensurePageSwipeHint();
+    surface.classList.add("page-swipe-surface");
+    showPageSwipeCoach(chapterPage, novelPage);
+
     let startX = 0;
     let startY = 0;
+    let lastX = 0;
     let startTime = 0;
     let tracking = false;
     let blocked = false;
     let horizontalIntent = false;
+    let readyTriggered = false;
+    let suppressClickUntil = 0;
+    let activeDestination = null;
+
+    function updateHint(destination, progress, ready) {
+      if (!hint || !destination) return;
+      hint.classList.toggle("is-from-left", destination.side === "left");
+      hint.classList.toggle("is-from-right", destination.side === "right");
+      hint.classList.toggle("is-disabled", !destination.path);
+      hint.classList.toggle("is-ready", Boolean(destination.path && ready));
+      hint.classList.add("is-visible");
+      hint.style.setProperty("--swipe-progress", String(Math.max(0, Math.min(1, progress))));
+
+      const icon = hint.querySelector("[data-page-swipe-icon]");
+      const title = hint.querySelector("[data-page-swipe-title]");
+      const state = hint.querySelector("[data-page-swipe-state]");
+      if (icon) icon.textContent = destination.icon;
+      if (title) title.textContent = destination.title;
+      if (state) {
+        state.textContent = !destination.path
+          ? "Этот переход здесь недоступен"
+          : (ready ? "Отпустите, чтобы перейти" : "Потяните дальше");
+      }
+    }
+
+    function clearSwipeVisuals(cancelled) {
+      document.body.classList.remove("page-swipe-dragging");
+      document.body.classList.add("page-swipe-resetting");
+      surface.style.setProperty("--page-swipe-x", "0px");
+      if (hint) {
+        hint.classList.remove("is-ready", "is-committing");
+        hint.classList.toggle("is-cancelled", Boolean(cancelled));
+      }
+      window.setTimeout(function () {
+        document.body.classList.remove("page-swipe-resetting");
+        if (hint) {
+          hint.classList.remove("is-visible", "is-from-left", "is-from-right", "is-disabled", "is-cancelled");
+          hint.style.setProperty("--swipe-progress", "0");
+        }
+      }, 250);
+    }
+
+    document.addEventListener("click", function (event) {
+      if (Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
 
     document.addEventListener("touchstart", function (event) {
-      if (event.touches.length !== 1) {
+      if (event.touches.length !== 1 || document.body.classList.contains("page-swipe-committing")) {
         tracking = false;
         return;
       }
@@ -4244,9 +4400,13 @@
       const touch = event.touches[0];
       startX = touch.clientX;
       startY = touch.clientY;
+      lastX = startX;
       startTime = Date.now();
       horizontalIntent = false;
+      readyTriggered = false;
+      activeDestination = null;
       tracking = true;
+      surface.style.setProperty("--page-swipe-x", "0px");
     }, { passive: true });
 
     document.addEventListener("touchmove", function (event) {
@@ -4254,38 +4414,77 @@
       const touch = event.touches[0];
       const deltaX = touch.clientX - startX;
       const deltaY = touch.clientY - startY;
-      if (Math.abs(deltaX) > 24 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
-        horizontalIntent = true;
-        event.preventDefault();
+      lastX = touch.clientX;
+
+      if (!horizontalIntent) {
+        if (Math.abs(deltaY) > 18 && Math.abs(deltaY) > Math.abs(deltaX)) {
+          tracking = false;
+          return;
+        }
+        if (Math.abs(deltaX) > 18 && Math.abs(deltaX) > Math.abs(deltaY) * 1.15) horizontalIntent = true;
+      }
+
+      if (!horizontalIntent) return;
+      event.preventDefault();
+      document.body.classList.add("page-swipe-dragging");
+
+      activeDestination = pageGestureDestination(chapterPage, novelPage, deltaX);
+      const threshold = Math.max(82, Math.min(118, window.innerWidth * 0.24));
+      const progress = Math.min(1, Math.abs(deltaX) / threshold);
+      const maxShift = Math.min(190, window.innerWidth * 0.38);
+      const resistance = activeDestination.path ? 0.72 : 0.28;
+      const shift = Math.sign(deltaX || 1) * Math.min(maxShift, Math.abs(deltaX) * resistance);
+      const ready = Boolean(activeDestination.path && Math.abs(deltaX) >= threshold);
+
+      surface.style.setProperty("--page-swipe-x", `${shift}px`);
+      surface.classList.toggle("is-swipe-right", deltaX > 0);
+      surface.classList.toggle("is-swipe-left", deltaX < 0);
+      updateHint(activeDestination, progress, ready);
+
+      if (ready && !readyTriggered) {
+        readyTriggered = true;
+        pageGestureHaptic("ready");
+      } else if (!ready) {
+        readyTriggered = false;
       }
     }, { passive: false });
 
     document.addEventListener("touchend", function (event) {
       if (!tracking || blocked || !event.changedTouches.length) {
         tracking = false;
+        if (horizontalIntent) clearSwipeVisuals(true);
         return;
       }
+
       tracking = false;
       const touch = event.changedTouches[0];
       const deltaX = touch.clientX - startX;
       const deltaY = touch.clientY - startY;
-      const duration = Date.now() - startTime;
+      const duration = Math.max(1, Date.now() - startTime);
+      const velocity = Math.abs(deltaX) / duration;
+      const threshold = Math.max(82, Math.min(118, window.innerWidth * 0.24));
+      const destination = activeDestination || pageGestureDestination(chapterPage, novelPage, deltaX);
+      const directional = Math.abs(deltaX) > Math.abs(deltaY) * 1.2;
+      const passedDistance = Math.abs(deltaX) >= threshold;
+      const passedFlick = Math.abs(deltaX) >= 58 && velocity >= 0.35;
+      const shouldNavigate = horizontalIntent && directional && duration <= 1100 && destination.path && (passedDistance || passedFlick);
 
-      if (!horizontalIntent || duration > 850 || Math.abs(deltaX) < 90 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+      surface.classList.remove("is-swipe-right", "is-swipe-left");
+      suppressClickUntil = horizontalIntent ? Date.now() + 360 : 0;
 
-      if (deltaX > 0) {
-        if (chapterPage) {
-          const slug = chapterPage.dataset.novelSlug || "";
-          if (slug) navigateWithGesture(`/novel/${encodeURIComponent(slug)}`);
-        } else if (novelPage) {
-          navigateWithGesture("/library");
-        }
-        return;
+      if (shouldNavigate) {
+        navigateWithGesture(destination.path, surface, hint, deltaX);
+      } else {
+        if (horizontalIntent && destination.path && Math.abs(deltaX) > 42) pageGestureHaptic("cancel");
+        clearSwipeVisuals(horizontalIntent);
       }
+    }, { passive: true });
 
-      if (deltaX < 0 && novelPage) {
-        navigateWithGesture(novelForwardDestination(novelPage));
-      }
+    document.addEventListener("touchcancel", function () {
+      if (!tracking && !horizontalIntent) return;
+      tracking = false;
+      surface.classList.remove("is-swipe-right", "is-swipe-left");
+      clearSwipeVisuals(true);
     }, { passive: true });
   }
 

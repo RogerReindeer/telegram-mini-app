@@ -276,7 +276,7 @@
 
                   <div class="library-card-access-row" data-card-access-row aria-label="Количество глав по уровням доступа"{% if novel.translation_status == 'soon' %} hidden{% endif %}>
                     <span class="library-access-count library-access-free" title="Главы, открытые бесплатно">
-                      🌱 {{ novel.free_chapters_count or 0 }}
+                      🌱 {{ novel.traveler_display_count or 0 }}
                     </span>
                     <span class="library-access-count library-access-keeper" title="Главы, доступные Хранителю по расписанию">
                       📜 {{ novel.keeper_chapters_count or 0 }}

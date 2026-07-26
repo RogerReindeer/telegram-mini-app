@@ -30,7 +30,8 @@ NOVEL_TABLE_COLUMNS = {
     "tags_app_catalog", "miniapp_visible", "total_chapters", "translated_chapters",
     "free_chapters", "subscriber_chapters", "keeper_chapters",
     "early_access_chapters", "release_free_count", "premium_lead_weeks",
-    "premium_count", "keeper_extra_chapters", "progress_percent", "source_url_novelupdates",
+    "premium_count", "keeper_extra_chapters", "traveler_access_through",
+    "keeper_access_through", "progress_percent", "source_url_novelupdates",
     "source_url_official", "source_chapter_url", "telegram_post_url", "boosty_url",
     "boosty_premium_url", "telegraph_catalog_url",
 }
@@ -41,7 +42,8 @@ CHAPTER_TABLE_COLUMNS = {
     "free_release_date", "premium_release_date", "prepared_platforms",
     "scheduled_platforms", "publishing_platforms", "telegraph_premium_url",
     "telegraph_premium_code", "telegraph_free_url", "telegraph_free_code",
-    "keeper_access", "keeper_access_order", "keeper_access_source", "qa_status",
+    "traveler_access", "traveler_access_source", "keeper_access",
+    "keeper_access_order", "keeper_access_source", "qa_status",
 }
 
 FOX_TABLE_COLUMNS = {"name", "url"}
@@ -64,6 +66,8 @@ KEY_MAP_NOVEL = {
     "EarlyAccessChapters": "early_access_chapters",
     "ReleaseFreeCount": "release_free_count", "PremiumLeadWeeks": "premium_lead_weeks",
     "PremiumCount": "premium_count", "KeeperExtraChapters": "keeper_extra_chapters",
+    "TravelerAccessThrough": "traveler_access_through",
+    "KeeperAccessThrough": "keeper_access_through",
     "ProgressPercent": "progress_percent",
     "SourceURLNovelupdates": "source_url_novelupdates", "SourceURLOfficial": "source_url_official",
     "SourceChapterURL": "source_chapter_url", "TelegramPostURL": "telegram_post_url",
@@ -82,6 +86,7 @@ KEY_MAP_CHAPTER = {
     "TelegraphPremiumURL": "telegraph_premium_url",
     "TelegraphPremiumCode": "telegraph_premium_code", "TelegraphFreeURL": "telegraph_free_url",
     "TelegraphFreeCode": "telegraph_free_code",
+    "TravelerAccess": "traveler_access", "TravelerAccessSource": "traveler_access_source",
     "KeeperAccess": "keeper_access", "KeeperAccessOrder": "keeper_access_order",
     "KeeperAccessSource": "keeper_access_source", "QAStatus": "qa_status",
 }
@@ -169,6 +174,8 @@ def normalize_novel_row(row: dict) -> dict:
         "premium_lead_weeks": max(0, to_int(row.get("premium_lead_weeks"), 0)),
         "premium_count": max(0, to_int(row.get("premium_count"), 0)),
         "keeper_extra_chapters": max(0, to_int(row.get("keeper_extra_chapters"), 0)),
+        "traveler_access_through": clean_value(row.get("traveler_access_through")) or None,
+        "keeper_access_through": clean_value(row.get("keeper_access_through")) or None,
         "progress_percent": max(0.0, min(1.0, to_float(row.get("progress_percent"), 0.0))),
         "source_url_novelupdates": clean_value(row.get("source_url_novelupdates")) or None,
         "source_url_official": clean_value(row.get("source_url_official")) or None,
@@ -228,6 +235,8 @@ def normalize_chapter_row(row: dict) -> dict:
         "telegraph_premium_code": clean_value(row.get("telegraph_premium_code")) or None,
         "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or None,
         "telegraph_free_code": clean_value(row.get("telegraph_free_code")) or None,
+        "traveler_access": to_bool(row.get("traveler_access"), False),
+        "traveler_access_source": clean_value(row.get("traveler_access_source")) or None,
         "keeper_access": to_bool(row.get("keeper_access"), False),
         "keeper_access_order": to_int(row.get("keeper_access_order"), 0) or None,
         "keeper_access_source": clean_value(row.get("keeper_access_source")) or None,
@@ -278,17 +287,10 @@ def adapt_chapter_from_db(row: dict) -> dict:
     # Telegraph*Code is CRM metadata, not a page URL.
     free_source = normalize_readable_telegraph_source(free_url)
     premium_source = normalize_readable_telegraph_source(premium_url)
-    free_release_date = clean_value(row.get("free_release_date"))
-    premium_release_date = clean_value(row.get("premium_release_date"))
-    free_ready = bool(
-        free_source
-        and free_release_date
-        and is_date_open(free_release_date)
-    )
+    traveler_access = to_bool(row.get("traveler_access"), False)
     keeper_access = to_bool(row.get("keeper_access"), False)
-    # ReleaseSchedule has already decided the Keeper window during Excel sync.
-    # The website never derives the number of early chapters from dates or rows.
-    access_level = "guest" if free_ready else "keeper"
+    # NovelStatus has already decided both role boundaries during Excel sync.
+    access_level = "guest" if traveler_access else "keeper"
     adapted.update({
         "chapter_code": chapter_id,
         "chapter_id": chapter_id,
@@ -298,6 +300,8 @@ def adapt_chapter_from_db(row: dict) -> dict:
         "sort_order": parse_chapter_no_number(row.get("chapter_no")),
         "is_visible": bool(free_source or premium_source),
         "access_level": access_level,
+        "traveler_access": traveler_access,
+        "traveler_access_source": clean_value(row.get("traveler_access_source")),
         "keeper_access": keeper_access,
         "telegraph_url": premium_source or free_source,
     })

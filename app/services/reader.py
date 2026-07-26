@@ -454,30 +454,62 @@ def get_neighbor_chapters(chapters: list[dict], current_chapter_id: str, viewer_
     next_chapter = available[index + 1] if index + 1 < len(available) else None
     return previous_chapter, next_chapter
 
-def split_text_paragraphs(value: Any) -> list[str]:
-    """Preserve paragraph breaks from the sheet instead of rendering a wall of text."""
+def _normalize_multiline_description(value: Any) -> str:
     text = clean_value(value)
+    if not text:
+        return ""
+    text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
+    text = re.sub(r"<br\s*/?\s*>", "\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"</p>\s*<p[^>]*>", "\n\n", text, flags=re.IGNORECASE)
+    text = re.sub(r"</?p[^>]*>", "", text, flags=re.IGNORECASE)
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n[ \t]+", "\n", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
+
+def _split_legacy_description_wall(text: str) -> list[str]:
+    """Break only very long legacy cells when all paragraph separators were lost."""
+    if len(text) < 620:
+        return [text] if text else []
+    sentences = re.split(r"(?<=[.!?…])\s+(?=[А-ЯЁ«—])", text)
+    if len(sentences) < 3:
+        return [text]
+    paragraphs: list[str] = []
+    current = ""
+    for sentence in sentences:
+        candidate = f"{current} {sentence}".strip()
+        if current and len(candidate) > 520 and len(current) >= 220:
+            paragraphs.append(current)
+            current = sentence
+        else:
+            current = candidate
+    if current:
+        paragraphs.append(current)
+    return paragraphs or [text]
+
+
+def split_text_paragraphs(value: Any) -> list[str]:
+    """Preserve Excel paragraphs and repair escaped/legacy separators."""
+    text = _normalize_multiline_description(value)
     if not text:
         return []
-
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"\n{3,}", "\n\n", text)
-
-    if "\n\n" in text:
-        parts = re.split(r"\n\s*\n", text)
-    else:
-        parts = text.split("\n")
-
-    paragraphs = []
-
-    for part in parts:
-        paragraph = re.sub(r"[ \t]+", " ", clean_value(part))
-
-        if paragraph:
-            paragraphs.append(paragraph)
-
+    explicit_parts = re.split(r"\n\s*\n|\n", text) if "\n" in text else [text]
+    paragraphs = [re.sub(r"[ \t]+", " ", part).strip() for part in explicit_parts if part.strip()]
+    if len(paragraphs) == 1:
+        return _split_legacy_description_wall(paragraphs[0])
     return paragraphs
+
+
+def format_toc_date(value: Any) -> str:
+    date_text = parse_date(value)
+    if not date_text:
+        return ""
+    try:
+        year, month, day = date_text.split("-")
+    except ValueError:
+        return clean_value(value)
+    return f"{day}.{month}.{year[-2:]}"
 
 def normalize_title_for_compare(value: Any) -> str:
     """Сравнивает названия без регистра, кавычек и декоративной пунктуации."""
@@ -590,7 +622,9 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "description": clean_value(novel.get("description")),
         "description_paragraphs": split_text_paragraphs(novel.get("description")),
         "top_description": clean_value(novel.get("top_description")),
+        "top_description_paragraphs": split_text_paragraphs(novel.get("top_description")),
         "bottom_description": clean_value(novel.get("bottom_description")),
+        "bottom_description_paragraphs": split_text_paragraphs(novel.get("bottom_description")),
         "tags": tags,
         "tag_items": tag_items,
         "toc_tag_items": toc_tag_items,
@@ -658,7 +692,9 @@ def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] |
     # FreeReleaseDate. Guests always see zero readable chapters. Any paid
     # subscription uses the subscriber counter prepared by Excel/Supabase.
     if is_gift:
-        if profile.get("has_full_book_access") or role in {"traveler", "keeper"}:
+        if profile.get("has_full_book_access") or role == "keeper":
+            return max(0, stored_counter_value(novel, "keeper_chapters_count", "keeper_chapters"))
+        if role == "traveler":
             return max(0, stored_counter_value(novel, "traveler_chapters_count", "subscriber_chapters"))
         return 0
 
@@ -691,6 +727,7 @@ def finalize_novel_access_summary(prepared: dict) -> dict:
     if not is_gift:
         traveler_count = free_count
     prepared["traveler_chapters_count"] = traveler_count
+    prepared["traveler_display_count"] = traveler_count if is_gift else free_count
 
     all_free = total > 0 and free_count >= total
     show_free = free_count > 0
@@ -778,30 +815,27 @@ def prepare_chapter_for_access_template(
     item["access_description"] = decision.description
     item["access_severity"] = decision.severity
     item["required_role"] = decision.required_role
-    toc_notice = chapter_toc_notice(decision)
-    item["is_boosty_chapter"] = chapter_is_boosty_toc_row(chapter, novel, decision)
-    # Пользовательский интерфейс больше не использует служебное название «Бусти».
-    # Для любой главы подписочного доступа показываем одну понятную пометку:
-    # зелёную, если текущий пользователь может читать, и оранжевую, если доступ закрыт.
-    item["is_subscription_chapter"] = item["is_boosty_chapter"]
-    if item["is_subscription_chapter"]:
-        toc_notice = {
-            "label": "Подписка",
-            "hint": (
-                "Глава доступна по вашей подписке"
-                if decision.allowed
-                else "Глава доступна по подписке"
-            ),
-            "class_name": (
-                "chapter-access-subscription-open"
-                if decision.allowed
-                else "chapter-access-subscription-locked"
-            ),
-        }
-    item["toc_access_label"] = toc_notice.get("label", "")
-    item["toc_access_hint"] = toc_notice.get("hint", "")
-    item["toc_access_class"] = toc_notice.get("class_name", decision.class_name)
-    item["has_toc_access_label"] = bool(item["toc_access_label"])
+
+    # В оглавлении больше нет текстовых статусов «Подписка/Не подписка».
+    # Показываем только короткую дату из Excel и замок у закрытой главы.
+    date_label = format_toc_date(decision.release_date)
+    item["toc_date_label"] = date_label
+    item["toc_date_icon"] = "" if decision.allowed else "🔒"
+    item["toc_date_class"] = (
+        "chapter-access-date-open" if decision.allowed else "chapter-access-date-locked"
+    )
+    item["toc_date_hint"] = (
+        f"Доступна с {date_label}" if decision.allowed and date_label
+        else f"Откроется {date_label}" if date_label
+        else "Глава доступна" if decision.allowed
+        else "Глава пока закрыта"
+    )
+    item["toc_access_label"] = ""
+    item["toc_access_hint"] = item["toc_date_hint"]
+    item["toc_access_class"] = item["toc_date_class"]
+    item["has_toc_access_label"] = bool(date_label or not decision.allowed)
+    item["is_boosty_chapter"] = False
+    item["is_subscription_chapter"] = False
     return item
 
 def build_chapter_display_list_for_access(
@@ -972,22 +1006,6 @@ def prepare_library_novels_for_access(
         prepared["is_gift"] = novel_is_gift(novel)
         prepared["required_role"] = "traveler" if prepared["is_gift"] else "guest"
 
-        novel_chapters = chapters_by_novel.get(novel_id_text, [])
-        if novel_chapters:
-            verified = source_backed_access_counts(novel_chapters, novel)
-            prepared.update(verified)
-            prepared["early_access_chapters_count"] = max(
-                0, verified["keeper_chapters_count"] - verified["free_chapters_count"]
-            )
-            prepared["released_subscription_chapters_count"] = (
-                verified["traveler_chapters_count"]
-                if prepared["is_gift"]
-                else max(
-                    0,
-                    max(verified["traveler_chapters_count"], verified["keeper_chapters_count"])
-                    - verified["free_chapters_count"],
-                )
-            )
         prepared["available_chapters_count"] = stored_available_chapters_for_profile(prepared, profile)
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
         prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))

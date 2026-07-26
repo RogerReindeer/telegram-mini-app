@@ -20,8 +20,8 @@ from ..database import db_delete, db_insert, db_select, db_update, db_upsert, su
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
 from .access import normalize_readable_telegraph_source
 
-EXPECTED_SCHEMA_VERSION = 18
-SUPPORTED_SCHEMA_VERSIONS = frozenset({17, 18})
+EXPECTED_SCHEMA_VERSION = 19
+SUPPORTED_SCHEMA_VERSIONS = frozenset({18, 19})
 
 # Columns introduced by recent patches. The SQL migration remains the proper
 # fix, but production sync must not crash with HTTP 500 while PostgREST still
@@ -33,8 +33,12 @@ SYNC_SCHEMA_COMPAT_COLUMNS: dict[str, frozenset[str]] = {
         "premium_lead_weeks",
         "premium_count",
         "keeper_extra_chapters",
+        "traveler_access_through",
+        "keeper_access_through",
     }),
     "chapters": frozenset({
+        "traveler_access",
+        "traveler_access_source",
         "keeper_access",
         "keeper_access_order",
         "keeper_access_source",
@@ -55,7 +59,8 @@ NOVEL_TABLE_COLUMNS = {
     "tags_app_catalog", "miniapp_visible", "total_chapters", "translated_chapters",
     "free_chapters", "subscriber_chapters", "keeper_chapters",
     "early_access_chapters", "release_free_count", "premium_lead_weeks",
-    "premium_count", "keeper_extra_chapters", "progress_percent", "source_url_novelupdates",
+    "premium_count", "keeper_extra_chapters", "traveler_access_through",
+    "keeper_access_through", "progress_percent", "source_url_novelupdates",
     "source_url_official", "source_chapter_url", "telegram_post_url", "boosty_url",
     "boosty_premium_url", "telegraph_catalog_url",
 }
@@ -66,7 +71,8 @@ CHAPTER_TABLE_COLUMNS = {
     "free_release_date", "premium_release_date", "prepared_platforms",
     "scheduled_platforms", "publishing_platforms", "telegraph_premium_url",
     "telegraph_premium_code", "telegraph_free_url", "telegraph_free_code",
-    "keeper_access", "keeper_access_order", "keeper_access_source", "qa_status",
+    "traveler_access", "traveler_access_source", "keeper_access",
+    "keeper_access_order", "keeper_access_source", "qa_status",
 }
 
 FOX_TABLE_COLUMNS = {"name", "url"}
@@ -89,6 +95,8 @@ KEY_MAP_NOVEL = {
     "EarlyAccessChapters": "early_access_chapters",
     "ReleaseFreeCount": "release_free_count", "PremiumLeadWeeks": "premium_lead_weeks",
     "PremiumCount": "premium_count", "KeeperExtraChapters": "keeper_extra_chapters",
+    "TravelerAccessThrough": "traveler_access_through",
+    "KeeperAccessThrough": "keeper_access_through",
     "ProgressPercent": "progress_percent",
     "SourceURLNovelupdates": "source_url_novelupdates", "SourceURLOfficial": "source_url_official",
     "SourceChapterURL": "source_chapter_url", "TelegramPostURL": "telegram_post_url",
@@ -107,6 +115,7 @@ KEY_MAP_CHAPTER = {
     "TelegraphPremiumURL": "telegraph_premium_url",
     "TelegraphPremiumCode": "telegraph_premium_code", "TelegraphFreeURL": "telegraph_free_url",
     "TelegraphFreeCode": "telegraph_free_code",
+    "TravelerAccess": "traveler_access", "TravelerAccessSource": "traveler_access_source",
     "KeeperAccess": "keeper_access", "KeeperAccessOrder": "keeper_access_order",
     "KeeperAccessSource": "keeper_access_source", "QAStatus": "qa_status",
 }
@@ -221,6 +230,8 @@ def normalize_novel_row(row: dict) -> dict:
         "premium_lead_weeks": max(0, to_int(row.get("premium_lead_weeks"), 0)),
         "premium_count": max(0, to_int(row.get("premium_count"), 0)),
         "keeper_extra_chapters": max(0, to_int(row.get("keeper_extra_chapters"), 0)),
+        "traveler_access_through": clean_value(row.get("traveler_access_through")) or None,
+        "keeper_access_through": clean_value(row.get("keeper_access_through")) or None,
         "progress_percent": max(0.0, min(1.0, to_float(row.get("progress_percent"), 0.0))),
         "source_url_novelupdates": clean_value(row.get("source_url_novelupdates")) or None,
         "source_url_official": clean_value(row.get("source_url_official")) or None,
@@ -282,6 +293,8 @@ def normalize_chapter_row(row: dict) -> dict:
         "telegraph_premium_code": clean_value(row.get("telegraph_premium_code")) or None,
         "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or None,
         "telegraph_free_code": clean_value(row.get("telegraph_free_code")) or None,
+        "traveler_access": to_bool(row.get("traveler_access"), False),
+        "traveler_access_source": clean_value(row.get("traveler_access_source")) or None,
         "keeper_access": to_bool(row.get("keeper_access"), False),
         "keeper_access_order": to_int(row.get("keeper_access_order"), 0) or None,
         "keeper_access_source": clean_value(row.get("keeper_access_source")) or None,
@@ -354,12 +367,12 @@ def _chapter_has_real_premium_url(chapter: dict[str, Any]) -> bool:
 def reconcile_novel_access_counters(
     novels: list[dict[str, Any]], chapters: list[dict[str, Any]]
 ) -> list[str]:
-    """Rebuild source-backed counters from the Excel chapter snapshot.
+    """Verify NovelStatus flags against real sources and persist matching counters.
 
-    Apps Script normally sends these counters ready-made. This server-side
-    integrity pass protects production from an older script or stale formulas:
-    technical Telegraph codes and release dates without a real URL never create
-    readable chapters. The result is persisted to Supabase with the novel row.
+    The chapter boundaries are calculated in ``MiniAppSync.gs`` only from the
+    🌱 and 📜 columns of ``NovelStatus``.  The server never derives access from
+    release dates or ``ReleaseSchedule``.  It only rejects flagged rows that do
+    not contain a real Telegraph source.
     """
     grouped: dict[int, list[dict[str, Any]]] = {}
     for chapter in chapters:
@@ -370,73 +383,37 @@ def reconcile_novel_access_counters(
         novel_id = to_int(novel.get("novel_id"), 0)
         rows = grouped.get(novel_id, [])
         is_gift = "🎁" in clean_value(novel.get("post_icons"))
-
-        free_ids: set[str] = set()
-        subscriber_ids: set[str] = set()
+        traveler_ids: set[str] = set()
         keeper_ids: set[str] = set()
 
         for chapter in rows:
             chapter_id = clean_value(chapter.get("chapter_id"))
-            if not chapter_id:
+            has_any_url = _chapter_has_real_free_url(chapter) or _chapter_has_real_premium_url(chapter)
+            if not chapter_id or not has_any_url:
                 continue
-            has_free_url = _chapter_has_real_free_url(chapter)
-            has_premium_url = _chapter_has_real_premium_url(chapter)
-            has_any_url = has_free_url or has_premium_url
-            free_open = bool(
-                has_free_url
-                and clean_value(chapter.get("free_release_date"))
-                and is_date_open(chapter.get("free_release_date"))
-            )
-            premium_open = bool(
-                has_premium_url
-                and (
-                    (clean_value(chapter.get("premium_release_date")) and is_date_open(chapter.get("premium_release_date")))
-                    or to_bool(chapter.get("keeper_access"), False)
-                )
-            )
+            if to_bool(chapter.get("traveler_access"), False):
+                traveler_ids.add(chapter_id)
+                keeper_ids.add(chapter_id)
+            if to_bool(chapter.get("keeper_access"), False):
+                keeper_ids.add(chapter_id)
 
-            if is_gift:
-                # A gift novel is completely closed for guests. Any active
-                # subscription opens a source-backed chapter once its own
-                # release date is not in the future.
-                subscription_open = bool(
-                    (has_premium_url and (
-                        not clean_value(chapter.get("premium_release_date"))
-                        or is_date_open(chapter.get("premium_release_date"))
-                    ))
-                    or (has_free_url and (
-                        not clean_value(chapter.get("free_release_date"))
-                        or is_date_open(chapter.get("free_release_date"))
-                    ))
-                )
-                if subscription_open:
-                    subscriber_ids.add(chapter_id)
-                    keeper_ids.add(chapter_id)
-            else:
-                if free_open:
-                    free_ids.add(chapter_id)
-                    subscriber_ids.add(chapter_id)
-                    keeper_ids.add(chapter_id)
-                if premium_open:
-                    keeper_ids.add(chapter_id)
-
+        traveler_count = len(traveler_ids)
+        keeper_count = len(keeper_ids)
         calculated = {
-            "free_chapters": 0 if is_gift else len(free_ids),
-            "subscriber_chapters": len(subscriber_ids),
-            "keeper_chapters": len(keeper_ids),
-            "early_access_chapters": max(0, len(keeper_ids) - len(free_ids)),
-            "keeper_extra_chapters": max(0, len(keeper_ids) - len(free_ids)),
+            "free_chapters": 0 if is_gift else traveler_count,
+            "subscriber_chapters": traveler_count,
+            "keeper_chapters": keeper_count,
+            "early_access_chapters": max(0, keeper_count - traveler_count),
+            "keeper_extra_chapters": max(0, keeper_count - traveler_count),
         }
         before = {key: max(0, to_int(novel.get(key), 0)) for key in calculated}
         novel.update(calculated)
         if before != calculated:
             warnings.append(
-                f"NovelID {novel_id}: счётчики доступа исправлены по реальным Telegraph URL "
+                f"NovelID {novel_id}: счётчики приведены к флагам NovelStatus и реальным Telegraph URL "
                 f"({before} -> {calculated})."
             )
-
     return warnings
-
 
 def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     """Return sync-time warnings for dangerous or inconsistent release rows."""

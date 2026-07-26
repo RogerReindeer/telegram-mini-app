@@ -170,77 +170,79 @@ def chapter_premium_url(chapter: dict) -> str:
     return chapter_content_source(chapter, "telegraph_premium_url", "telegraph_premium_code")
 
 
-def chapter_public_ready(chapter: dict) -> bool:
-    """Open only a released chapter with a genuinely readable source."""
+def chapter_has_real_source(chapter: dict) -> bool:
+    return bool(chapter_public_url(chapter) or chapter_premium_url(chapter))
+
+
+def chapter_traveler_access_enabled(chapter: dict) -> bool:
+    """Read the 🌱 boundary prepared from NovelStatus.
+
+    A missing key is accepted only for legacy schema-18 rows during deployment;
+    schema 19 always sends an explicit boolean from NovelStatus.
+    """
+    if "traveler_access" in chapter:
+        return to_bool(chapter.get("traveler_access"), False)
     release = clean_value(chapter.get("free_release_date"))
-    if not release or not is_date_open(release):
-        return False
-    return bool(chapter_public_url(chapter))
+    return bool(release and is_date_open(release) and chapter_public_url(chapter))
+
+
+def chapter_traveler_url(chapter: dict) -> str:
+    """Return the source opened by the 🌱 NovelStatus boundary."""
+    if not chapter_traveler_access_enabled(chapter):
+        return ""
+    return chapter_public_url(chapter) or chapter_premium_url(chapter)
+
+
+def chapter_public_ready(chapter: dict) -> bool:
+    """Public/Traveler access is controlled only by NovelStatus 🌱."""
+    return bool(chapter_traveler_url(chapter))
 
 
 def chapter_keeper_access_enabled(chapter: dict) -> bool:
-    """Allow every already released premium chapter to the Keeper.
+    """Read the 📜 boundary prepared from NovelStatus.
 
-    ``keeper_access`` additionally opens the current ReleaseSchedule window,
-    but a stale false marker must never close a PremiumReleaseDate that is
-    already in the past.
+    Keeper always inherits the 🌱 range. Dates and ReleaseSchedule never expand
+    this range on the website.
     """
+    if "traveler_access" in chapter:
+        return chapter_traveler_access_enabled(chapter) or to_bool(chapter.get("keeper_access"), False)
     release = clean_value(chapter.get("premium_release_date"))
-    released_by_date = bool(release and is_date_open(release) and chapter_premium_url(chapter))
-    return released_by_date or to_bool(chapter.get("keeper_access"), False)
+    legacy_released = bool(release and is_date_open(release) and chapter_premium_url(chapter))
+    return chapter_traveler_access_enabled(chapter) or legacy_released or to_bool(chapter.get("keeper_access"), False)
 
 
 def chapter_keeper_url(chapter: dict) -> str:
-    """Return the source approved for Keeper by the synced access marker.
-
-    A ReleaseSchedule-approved chapter may use its free Telegraph source before
-    FreeReleaseDate when no separate premium source exists. Guests still cannot
-    receive that source until chapter_public_ready() becomes true.
-    """
     if not chapter_keeper_access_enabled(chapter):
         return ""
+    # В диапазоне 🌱 Хранитель читает ту же бесплатную версию. Premium URL
+    # используется только для дополнительного диапазона 📜.
+    if chapter_traveler_access_enabled(chapter):
+        return chapter_public_url(chapter) or chapter_premium_url(chapter)
     return chapter_premium_url(chapter) or chapter_public_url(chapter)
 
 
 def chapter_premium_ready(chapter: dict) -> bool:
-    """Fail closed unless Keeper has a readable released/scheduled source."""
     return bool(chapter_keeper_url(chapter))
 
 
-def chapter_subscription_url(chapter: dict) -> str:
-    """Return an opened real source for a 🎁 subscription-only chapter.
-
-    Any active subscription unlocks the book, but a future premium release is
-    not used while an already released free source exists. Bare
-    ``Telegraph*Code`` values are never accepted as content.
-    """
-    premium_release = clean_value(chapter.get("premium_release_date"))
-    premium_url = chapter_premium_url(chapter)
-    if premium_url and (not premium_release or is_date_open(premium_release)):
-        return premium_url
-
-    free_release = clean_value(chapter.get("free_release_date"))
-    free_url = chapter_public_url(chapter)
-    if free_url and (not free_release or is_date_open(free_release)):
-        return free_url
-    return ""
+def chapter_subscription_url(chapter: dict, viewer_role: str = "traveler") -> str:
+    """Return a gift-book source approved by NovelStatus for the viewer role."""
+    if clean_value(viewer_role).lower() == "keeper":
+        return chapter_keeper_url(chapter)
+    return chapter_traveler_url(chapter)
 
 
-def chapter_subscription_ready(chapter: dict) -> bool:
-    """Open a gift chapter only when Excel counted a released real source."""
-    return bool(chapter_subscription_url(chapter))
+def chapter_subscription_ready(chapter: dict, viewer_role: str = "traveler") -> bool:
+    return bool(chapter_subscription_url(chapter, viewer_role))
 
 
 def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
     """Legacy helper kept for older code paths."""
     if chapter.get("is_visible") is not True:
         return ""
-    if viewer_role == "keeper" and chapter_premium_ready(chapter):
+    if clean_value(viewer_role).lower() == "keeper":
         return chapter_keeper_url(chapter)
-    if chapter_public_ready(chapter):
-        return chapter_public_url(chapter)
-    return ""
-
+    return chapter_traveler_url(chapter)
 
 def chapter_preview_url(chapter: dict) -> str:
     """Locked chapter previews are disabled.
@@ -462,25 +464,25 @@ def effective_role_for_novel(viewer: dict[str, Any], novel: dict) -> tuple[str, 
 
 
 def _scheduled_date_for_role(chapter: dict, role: str) -> str:
+    """Choose the date shown in the TOC; it does not grant access."""
+    role = clean_value(role).lower()
     if role == "keeper":
-        return clean_value(parse_date(chapter.get("premium_release_date")) or chapter.get("premium_release_date"))
-    return clean_value(parse_date(chapter.get("free_release_date")) or chapter.get("free_release_date"))
+        value = chapter.get("premium_release_date") or chapter.get("free_release_date")
+    else:
+        value = chapter.get("free_release_date") or chapter.get("premium_release_date")
+    return clean_value(parse_date(value) or value)
 
 
 def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, Any]) -> AccessDecision:
-    """Return a precise access decision for a chapter.
+    """Decide access strictly from the NovelStatus role flags.
 
-    Rules:
-    - Traveler only gains visibility of 🎁 novels; premium dates do not open chapters.
-    - Keeper reads chapters after PremiumReleaseDate.
-    - A full-book entitlement reads every translated chapter of that novel.
-    - Everyone may read chapters after FreeReleaseDate.
-    - Hidden chapter rows fail closed for ordinary users.
+    ``FreeReleaseDate`` and ``PremiumReleaseDate`` are display metadata only.
+    The 🌱 boundary opens ordinary novels to guests/Traveler and gift novels to
+    Traveler. The 📜 boundary opens the Keeper range.
     """
-    role = clean_value(profile.get("role")) or "guest"
-    required_role = normalize_required_role(chapter.get("access_level"))
-
+    role = clean_value(profile.get("role")).lower() or "guest"
     is_gift_novel = novel_is_gift(novel)
+    required_role = "traveler" if is_gift_novel else "guest"
 
     if (
         chapter.get("is_visible") is not True
@@ -489,142 +491,102 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
         and not profile.get("has_full_book_access")
     ):
         return AccessDecision(
-            allowed=False,
-            status="hidden",
-            label="Глава скрыта",
-            class_name="chapter-access-hidden",
-            reason="chapter_is_hidden",
-            required_role=required_role,
-            viewer_role=role,
+            allowed=False, status="hidden", label="Глава скрыта",
+            class_name="chapter-access-hidden", reason="chapter_is_hidden",
+            required_role=required_role, viewer_role=role,
         )
 
     if not chapter_is_translated(chapter):
         return AccessDecision(
-            allowed=False,
-            status="not_translated",
-            label="Ещё не переведена",
-            class_name="chapter-access-hidden",
-            reason="missing_translation_date",
-            required_role=required_role,
-            viewer_role=role,
+            allowed=False, status="not_translated", label="Ещё не переведена",
+            class_name="chapter-access-hidden", reason="missing_translation_date",
+            required_role=required_role, viewer_role=role,
         )
 
-    # 🎁 новеллы полностью отделены от обычного бесплатного доступа.
-    # Гость не может открыть их даже по FreeReleaseDate или отдельному
-    # full-book entitlement: требуется любая активная подписка.
-    if is_gift_novel and role == "guest":
-        release = clean_value(parse_date(chapter.get("premium_release_date")) or chapter.get("premium_release_date"))
-        if release and is_date_open(release):
-            release = ""
+    if not chapter_has_real_source(chapter):
         return AccessDecision(
-            allowed=False,
-            status="book_access_denied",
-            label="Нужна 🌱 подписка",
-            class_name="chapter-access-locked",
-            reason="gift_novel_requires_subscription",
-            required_role="traveler",
-            viewer_role=role,
-            release_date=release,
+            allowed=False, status="no_content_source", label="Глава пока недоступна",
+            class_name="chapter-access-hidden", reason="missing_telegraph_source",
+            required_role=required_role, viewer_role=role,
         )
 
-    if is_gift_novel and viewer_can_access_required_role(role, "traveler"):
-        url = chapter_subscription_url(chapter)
-        if chapter_subscription_ready(chapter) and url:
-            return AccessDecision(
-                allowed=True,
-                status="subscription_open",
-                url=url,
-                label="🔓 По подписке",
-                class_name="chapter-access-subscription",
-                reason="gift_subscription_open",
-                required_role="traveler",
-                viewer_role=role,
-            )
-        release = clean_value(parse_date(chapter.get("premium_release_date")) or chapter.get("premium_release_date"))
-        if release and not is_date_open(release):
-            return AccessDecision(
-                allowed=False,
-                status="premium_scheduled",
-                label="Откроется по подписке позже",
-                class_name="chapter-access-keeper",
-                reason="gift_subscription_release_not_open",
-                required_role="traveler",
-                viewer_role=role,
-                release_date=release,
-            )
+    traveler_url = chapter_traveler_url(chapter)
+    keeper_url = chapter_keeper_url(chapter)
+    traveler_date = _scheduled_date_for_role(chapter, "traveler")
+    keeper_date = _scheduled_date_for_role(chapter, "keeper")
 
-    if profile.get("has_full_book_access"):
+    # 🎁-новелла видна гостю, но читать её можно только с активной подпиской.
+    if is_gift_novel and role == "guest":
+        return AccessDecision(
+            allowed=False, status="book_access_denied", label="Нужна 🌱 подписка",
+            class_name="chapter-access-locked", reason="gift_novel_requires_subscription",
+            required_role="traveler", viewer_role=role, release_date=traveler_date,
+        )
+
+    if profile.get("has_full_book_access") and not is_gift_novel:
         url = chapter_premium_url(chapter) or chapter_public_url(chapter)
         if url:
             return AccessDecision(
-                allowed=True,
-                status="full_book_entitlement",
-                url=url,
-                label="Открыта",
-                class_name="chapter-access-public",
-                reason="full_book_entitlement",
-                required_role=required_role,
-                viewer_role=role,
+                allowed=True, status="full_book_entitlement", url=url, label="Открыта",
+                class_name="chapter-access-public", reason="full_book_entitlement",
+                required_role=required_role, viewer_role=role,
+                release_date=keeper_date or traveler_date,
             )
 
-    if chapter_public_ready(chapter):
+    if is_gift_novel:
+        if role == "keeper" and keeper_url:
+            return AccessDecision(
+                allowed=True, status="subscription_open", url=keeper_url,
+                label="Открыта", class_name="chapter-access-subscription",
+                reason="gift_keeper_novel_status", required_role="keeper",
+                viewer_role=role, release_date=(keeper_date if not traveler_url else traveler_date),
+            )
+        if role in {"traveler", "keeper"} and traveler_url:
+            return AccessDecision(
+                allowed=True, status="subscription_open", url=traveler_url,
+                label="Открыта", class_name="chapter-access-subscription",
+                reason="gift_traveler_novel_status", required_role="traveler",
+                viewer_role=role, release_date=traveler_date,
+            )
+        return AccessDecision(
+            allowed=False, status="premium_scheduled", label="Закрыта",
+            class_name="chapter-access-locked", reason="outside_novel_status_boundary",
+            required_role=("keeper" if role == "keeper" else "traveler"),
+            viewer_role=role, release_date=(keeper_date if role == "keeper" else traveler_date),
+        )
+
+    # Для обычной новеллы 🌱 совпадает с бесплатным диапазоном.
+    if role == "keeper" and keeper_url:
+        keeper_only = not bool(traveler_url)
         return AccessDecision(
             allowed=True,
-            status="public_open",
-            url=chapter_public_url(chapter),
+            status=("premium_open" if keeper_only else "public_open"),
+            url=keeper_url,
             label="Открыта",
-            class_name="chapter-access-public",
-            reason="free_release_open",
-            required_role=required_role,
+            class_name=("chapter-access-subscription" if keeper_only else "chapter-access-public"),
+            reason=("keeper_novel_status" if keeper_only else "traveler_novel_status"),
+            required_role=("keeper" if keeper_only else "guest"),
             viewer_role=role,
+            release_date=(keeper_date if keeper_only else traveler_date),
         )
 
-    if role == "keeper" and chapter_premium_ready(chapter):
+    if role in {"guest", "traveler"} and traveler_url:
         return AccessDecision(
-            allowed=True,
-            status="premium_open",
-            url=chapter_keeper_url(chapter),
-            label="🔓 По подписке",
-            class_name="chapter-access-subscription",
-            reason="premium_release_open",
-            required_role=required_role,
-            viewer_role=role,
-        )
-
-    if role == "keeper":
-        return AccessDecision(
-            allowed=False,
-            status="premium_scheduled",
-            label="Откроется по расписанию",
-            class_name="chapter-access-keeper",
-            reason="premium_release_not_open",
-            required_role=required_role,
-            viewer_role=role,
-            release_date=_scheduled_date_for_role(chapter, role),
-        )
-
-    if not chapter_public_url(chapter) and not chapter_premium_url(chapter):
-        return AccessDecision(
-            allowed=False,
-            status="no_content_source",
-            label="Глава пока недоступна",
-            class_name="chapter-access-hidden",
-            reason="missing_telegraph_source",
-            required_role=required_role,
-            viewer_role=role,
+            allowed=True, status="public_open", url=traveler_url, label="Открыта",
+            class_name="chapter-access-public", reason="traveler_novel_status",
+            required_role="guest", viewer_role=role, release_date=traveler_date,
         )
 
     return AccessDecision(
         allowed=False,
-        status="free_scheduled",
-        label="Откроется бесплатно позже",
+        status=("premium_scheduled" if role == "keeper" else "free_scheduled"),
+        label="Закрыта",
         class_name="chapter-access-locked",
-        reason="free_release_not_open",
-        required_role=required_role,
+        reason="outside_novel_status_boundary",
+        required_role=("keeper" if role == "keeper" else "guest"),
         viewer_role=role,
-        release_date=_scheduled_date_for_role(chapter, role),
+        release_date=(keeper_date if role == "keeper" else traveler_date),
     )
-
 
 def decide_chapter_access(chapter: dict, novel: dict, profile: dict[str, Any]) -> AccessDecision:
     return enrich_access_decision(_decide_chapter_access_raw(chapter, novel, profile), chapter, novel, profile)
