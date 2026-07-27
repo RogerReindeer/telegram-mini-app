@@ -12,7 +12,7 @@ from datetime import datetime
 import re
 from typing import Any
 
-from ..utils import clean_value, is_date_open, parse_date, to_bool, to_int, today_iso
+from ..utils import clean_value, is_date_open, parse_chapter_id, parse_date, to_bool, to_int, today_iso
 from .auth import role_rank, viewer_access_profile
 
 
@@ -174,75 +174,155 @@ def chapter_has_real_source(chapter: dict) -> bool:
     return bool(chapter_public_url(chapter) or chapter_premium_url(chapter))
 
 
-def chapter_traveler_access_enabled(chapter: dict) -> bool:
-    """Read the 🌱 boundary prepared from NovelStatus.
+_NOVEL_STATUS_BOUNDARY_RE = re.compile(r"^(\d+)(?:[-./](\d+))?$")
 
-    A missing key is accepted only for legacy schema-18 rows during deployment;
-    schema 19 always sends an explicit boolean from NovelStatus.
+
+def parse_novel_status_boundary(value: Any) -> tuple[int, int | None] | None:
+    """Parse a NovelStatus boundary such as ``20`` or ``12-1``."""
+    text = clean_value(value)
+    if not text:
+        return None
+    normalized = re.sub(r"(?:часть|part)", "-", text, flags=re.IGNORECASE)
+    normalized = re.sub(r"[–—−]", "-", normalized)
+    normalized = re.sub(r"\s+", "", normalized)
+    match = _NOVEL_STATUS_BOUNDARY_RE.fullmatch(normalized)
+    if not match:
+        return None
+    return int(match.group(1)), (int(match.group(2)) if match.group(2) else None)
+
+
+def chapter_semantic_position(chapter: dict) -> tuple[int, int]:
+    """Return SourceChapterNo/PartNo without assuming a ChapterID formula."""
+    parsed = parse_chapter_id(chapter.get("chapter_id") or chapter.get("chapter_code")) or {}
+    source_text = clean_value(chapter.get("source_chapter_no"))
+    source_no = to_int(source_text, -1) if source_text else to_int(parsed.get("chapter_no"), -1)
+    if source_no < 0:
+        source_no = max(0, to_int(chapter.get("chapter_no"), 0))
+    part_text = clean_value(chapter.get("part_no"))
+    part_no = to_int(part_text, 0) if part_text else to_int(parsed.get("part_no"), 0)
+    return source_no, max(0, part_no)
+
+
+def chapter_within_novel_status_boundary(chapter: dict, value: Any) -> bool:
+    boundary = parse_novel_status_boundary(value)
+    if not boundary:
+        return False
+    source_no, part_no = chapter_semantic_position(chapter)
+    boundary_no, boundary_part = boundary
+    if source_no < boundary_no:
+        return True
+    if source_no > boundary_no:
+        return False
+    return boundary_part is None or part_no <= boundary_part
+
+
+def _has_explicit_novel_status_marker(chapter: dict, role: str) -> bool:
+    source_key = "keeper_access_source" if role == "keeper" else "traveler_access_source"
+    return clean_value(chapter.get(source_key)).lower() == "novel_status"
+
+
+def _access_field_present(chapter: dict, role: str) -> bool:
+    marker_key = "_keeper_access_field_present" if role == "keeper" else "_traveler_access_field_present"
+    field_key = "keeper_access" if role == "keeper" else "traveler_access"
+    if marker_key in chapter:
+        return bool(chapter.get(marker_key))
+    return field_key in chapter
+
+
+def chapter_traveler_access_enabled(chapter: dict, novel: dict | None = None) -> bool:
+    """Resolve the 🌱 boundary with safe recovery for an incomplete deployment.
+
+    Preferred order:
+    1. explicit per-chapter flag produced by MiniAppSync schema 19;
+    2. the novel-level ``traveler_access_through`` value from NovelStatus;
+    3. legacy released public URL only when NovelStatus data is not present yet.
+
+    The fallback prevents a schema/cache mismatch from closing the whole reader,
+    while the next successful schema-19 sync restores the strict source of truth.
     """
-    if "traveler_access" in chapter:
+    if _has_explicit_novel_status_marker(chapter, "traveler"):
         return to_bool(chapter.get("traveler_access"), False)
+    if to_bool(chapter.get("traveler_access"), False):
+        return True
+
+    boundary = clean_value((novel or {}).get("traveler_access_through"))
+    if boundary:
+        return chapter_within_novel_status_boundary(chapter, boundary)
+    if _access_field_present(chapter, "traveler"):
+        return False
+
     release = clean_value(chapter.get("free_release_date"))
     return bool(release and is_date_open(release) and chapter_public_url(chapter))
 
 
-def chapter_traveler_url(chapter: dict) -> str:
+def chapter_traveler_url(chapter: dict, novel: dict | None = None) -> str:
     """Return the source opened by the 🌱 NovelStatus boundary."""
-    if not chapter_traveler_access_enabled(chapter):
+    if not chapter_traveler_access_enabled(chapter, novel):
         return ""
     return chapter_public_url(chapter) or chapter_premium_url(chapter)
 
 
-def chapter_public_ready(chapter: dict) -> bool:
-    """Public/Traveler access is controlled only by NovelStatus 🌱."""
-    return bool(chapter_traveler_url(chapter))
+def chapter_public_ready(chapter: dict, novel: dict | None = None) -> bool:
+    return bool(chapter_traveler_url(chapter, novel))
 
 
-def chapter_keeper_access_enabled(chapter: dict) -> bool:
-    """Read the 📜 boundary prepared from NovelStatus.
+def chapter_keeper_access_enabled(chapter: dict, novel: dict | None = None) -> bool:
+    """Resolve the 📜 boundary, with Keeper inheriting the full 🌱 range."""
+    if chapter_traveler_access_enabled(chapter, novel):
+        return True
+    if _has_explicit_novel_status_marker(chapter, "keeper"):
+        return to_bool(chapter.get("keeper_access"), False)
+    if to_bool(chapter.get("keeper_access"), False):
+        return True
 
-    Keeper always inherits the 🌱 range. Dates and ReleaseSchedule never expand
-    this range on the website.
-    """
-    if "traveler_access" in chapter:
-        return chapter_traveler_access_enabled(chapter) or to_bool(chapter.get("keeper_access"), False)
+    boundary = clean_value((novel or {}).get("keeper_access_through")) or clean_value(
+        (novel or {}).get("traveler_access_through")
+    )
+    if boundary:
+        return chapter_within_novel_status_boundary(chapter, boundary)
+    if _access_field_present(chapter, "keeper"):
+        return False
+
     release = clean_value(chapter.get("premium_release_date"))
     legacy_released = bool(release and is_date_open(release) and chapter_premium_url(chapter))
-    return chapter_traveler_access_enabled(chapter) or legacy_released or to_bool(chapter.get("keeper_access"), False)
+    return legacy_released
 
 
-def chapter_keeper_url(chapter: dict) -> str:
-    if not chapter_keeper_access_enabled(chapter):
+def chapter_keeper_url(chapter: dict, novel: dict | None = None) -> str:
+    if not chapter_keeper_access_enabled(chapter, novel):
         return ""
-    # В диапазоне 🌱 Хранитель читает ту же бесплатную версию. Premium URL
-    # используется только для дополнительного диапазона 📜.
-    if chapter_traveler_access_enabled(chapter):
+    if chapter_traveler_access_enabled(chapter, novel):
         return chapter_public_url(chapter) or chapter_premium_url(chapter)
     return chapter_premium_url(chapter) or chapter_public_url(chapter)
 
 
-def chapter_premium_ready(chapter: dict) -> bool:
-    return bool(chapter_keeper_url(chapter))
+def chapter_premium_ready(chapter: dict, novel: dict | None = None) -> bool:
+    return bool(chapter_keeper_url(chapter, novel))
 
 
-def chapter_subscription_url(chapter: dict, viewer_role: str = "traveler") -> str:
-    """Return a gift-book source approved by NovelStatus for the viewer role."""
+def chapter_subscription_url(
+    chapter: dict, viewer_role: str = "traveler", novel: dict | None = None
+) -> str:
     if clean_value(viewer_role).lower() == "keeper":
-        return chapter_keeper_url(chapter)
-    return chapter_traveler_url(chapter)
+        return chapter_keeper_url(chapter, novel)
+    return chapter_traveler_url(chapter, novel)
 
 
-def chapter_subscription_ready(chapter: dict, viewer_role: str = "traveler") -> bool:
-    return bool(chapter_subscription_url(chapter, viewer_role))
+def chapter_subscription_ready(
+    chapter: dict, viewer_role: str = "traveler", novel: dict | None = None
+) -> bool:
+    return bool(chapter_subscription_url(chapter, viewer_role, novel))
 
 
-def chapter_content_url_for_role(chapter: dict, viewer_role: str) -> str:
+def chapter_content_url_for_role(
+    chapter: dict, viewer_role: str, novel: dict | None = None
+) -> str:
     """Legacy helper kept for older code paths."""
     if chapter.get("is_visible") is not True:
         return ""
     if clean_value(viewer_role).lower() == "keeper":
-        return chapter_keeper_url(chapter)
-    return chapter_traveler_url(chapter)
+        return chapter_keeper_url(chapter, novel)
+    return chapter_traveler_url(chapter, novel)
 
 def chapter_preview_url(chapter: dict) -> str:
     """Locked chapter previews are disabled.
@@ -510,8 +590,8 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             required_role=required_role, viewer_role=role,
         )
 
-    traveler_url = chapter_traveler_url(chapter)
-    keeper_url = chapter_keeper_url(chapter)
+    traveler_url = chapter_traveler_url(chapter, novel)
+    keeper_url = chapter_keeper_url(chapter, novel)
     traveler_date = _scheduled_date_for_role(chapter, "traveler")
     keeper_date = _scheduled_date_for_role(chapter, "keeper")
 

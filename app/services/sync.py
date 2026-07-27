@@ -21,7 +21,7 @@ from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normali
 from .access import normalize_readable_telegraph_source
 
 EXPECTED_SCHEMA_VERSION = 19
-SUPPORTED_SCHEMA_VERSIONS = frozenset({18, 19})
+SUPPORTED_SCHEMA_VERSIONS = frozenset({19})
 
 # Columns introduced by recent patches. The SQL migration remains the proper
 # fix, but production sync must not crash with HTTP 500 while PostgREST still
@@ -33,16 +33,8 @@ SYNC_SCHEMA_COMPAT_COLUMNS: dict[str, frozenset[str]] = {
         "premium_lead_weeks",
         "premium_count",
         "keeper_extra_chapters",
-        "traveler_access_through",
-        "keeper_access_through",
     }),
-    "chapters": frozenset({
-        "traveler_access",
-        "traveler_access_source",
-        "keeper_access",
-        "keeper_access_order",
-        "keeper_access_source",
-    }),
+    "chapters": frozenset(),
 }
 
 _POSTGREST_MISSING_COLUMN_RE = re.compile(

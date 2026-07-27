@@ -189,18 +189,38 @@
   async function initTelegramAuth() {
     const initData = getTelegramInitData();
     const viewer = window.ZEFIRKI_VIEWER || {};
+    if (!initData) return false;
 
-    if (!initData || viewer.authenticated) return false;
+    const currentRole = String(viewer.role || "guest").toLowerCase();
+    const refreshKey = `zefirki_auth_refresh_${simpleHash(initData)}`;
+    let lastRefresh = 0;
+    try {
+      lastRefresh = Number(sessionStorage.getItem(refreshKey) || 0);
+    } catch (error) {
+      console.debug("Telegram auth refresh cache unavailable", error);
+    }
 
-    const attemptKey = `zefirki_auth_attempt_${simpleHash(initData)}`;
-    if (sessionStorage.getItem(attemptKey) === "done") return false;
+    const refreshInterval = currentRole === "guest" ? 60 * 1000 : 5 * 60 * 1000;
+    const needsRefresh = !viewer.authenticated || Date.now() - lastRefresh >= refreshInterval;
+    if (!needsRefresh) return false;
 
-    sessionStorage.setItem(attemptKey, "done");
     showAuthOverlay();
     try {
-      await postTelegramAuth(initData);
-      window.location.reload();
-      return true;
+      const data = await postTelegramAuth(initData);
+      try {
+        sessionStorage.setItem(refreshKey, String(Date.now()));
+      } catch (error) {
+        console.debug("Telegram auth refresh cache unavailable", error);
+      }
+
+      const refreshedRole = String((data.viewer || {}).role || "guest").toLowerCase();
+      const roleChanged = refreshedRole !== currentRole;
+      if (!viewer.authenticated || roleChanged) {
+        window.location.reload();
+        return true;
+      }
+      hideAuthOverlay();
+      return false;
     } catch (error) {
       console.error(error);
       hideAuthOverlay();

@@ -287,6 +287,8 @@ def adapt_chapter_from_db(row: dict) -> dict:
     # Telegraph*Code is CRM metadata, not a page URL.
     free_source = normalize_readable_telegraph_source(free_url)
     premium_source = normalize_readable_telegraph_source(premium_url)
+    traveler_access_present = "traveler_access" in row
+    keeper_access_present = "keeper_access" in row
     traveler_access = to_bool(row.get("traveler_access"), False)
     keeper_access = to_bool(row.get("keeper_access"), False)
     # NovelStatus has already decided both role boundaries during Excel sync.
@@ -302,7 +304,9 @@ def adapt_chapter_from_db(row: dict) -> dict:
         "access_level": access_level,
         "traveler_access": traveler_access,
         "traveler_access_source": clean_value(row.get("traveler_access_source")),
+        "_traveler_access_field_present": traveler_access_present,
         "keeper_access": keeper_access,
+        "_keeper_access_field_present": keeper_access_present,
         "telegraph_url": premium_source or free_source,
     })
     return adapted
