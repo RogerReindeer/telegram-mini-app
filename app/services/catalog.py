@@ -551,6 +551,44 @@ def get_novel_chapters(novel_id: str) -> list[dict]:
     )
 
 
+def _normalize_novel_id_list(novel_ids: list[str | int]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in novel_ids:
+        normalized = str(to_int(value, 0))
+        if normalized != "0" and normalized not in seen:
+            seen.add(normalized)
+            result.append(normalized)
+    return sorted(result, key=int)
+
+
+def _load_chapters_for_novel_ids_uncached(novel_ids: list[str]) -> list[dict]:
+    if not supabase_ready() or not novel_ids:
+        return []
+    filter_value = "in.(" + ",".join(novel_ids) + ")"
+    rows = db_select(
+        "chapters",
+        select="*",
+        filters={"novel_id": filter_value},
+        order="novel_id.asc,chapter_no.asc",
+    )
+    return [adapt_chapter_from_db(row) for row in rows]
+
+
+def get_chapters_for_novel_ids(novel_ids: list[str | int]) -> list[dict]:
+    """Load chapter rows only for novels whose synchronized counters are stale."""
+    normalized = _normalize_novel_id_list(novel_ids)
+    if not normalized:
+        return []
+    key = ",".join(normalized)
+    return cache_get_or_set(
+        f"catalog:chapters_for_novels:{key}",
+        catalog_cache_ttl(),
+        lambda: _load_chapters_for_novel_ids_uncached(normalized),
+        namespace="catalog",
+    )
+
+
 def _load_chapter_by_id_uncached(chapter_id: str) -> dict | None:
     if not supabase_ready():
         return None

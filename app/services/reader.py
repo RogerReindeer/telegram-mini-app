@@ -679,18 +679,16 @@ def stored_counter_value(novel: dict, primary_key: str, legacy_key: str) -> int:
 
 
 def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] | None) -> int:
-    """Map a viewer role to the counters already stored in Supabase.
+    """Map a viewer role to counters synchronized from NovelStatus.
 
-    The MiniApp must never recount chapter rows for library/TOC counters. Those
-    values are prepared by MiniAppSync.gs from the Excel Chapters sheet.
+    The library uses stored counters first.  A separate guarded fallback in
+    ``prepare_library_novels_for_access`` may verify a stale zero against real
+    chapter rows, but a boundary such as ``12-1`` is never treated as a count.
     """
     profile = profile or {}
-    role = clean_value(profile.get("role")) or "guest"
+    role = normalize_required_role(profile.get("role") or "guest")
     is_gift = novel_is_gift(novel)
 
-    # 🎁 books are subscription-only even when their chapter rows contain a
-    # FreeReleaseDate. Guests always see zero readable chapters. Any paid
-    # subscription uses the subscriber counter prepared by Excel/Supabase.
     if is_gift:
         if profile.get("has_full_book_access") or role == "keeper":
             return max(0, stored_counter_value(novel, "keeper_chapters_count", "keeper_chapters"))
@@ -699,8 +697,6 @@ def stored_available_chapters_for_profile(novel: dict, profile: dict[str, Any] |
         return 0
 
     if profile.get("has_full_book_access"):
-        # A translated row without a real Telegraph source is not readable.
-        # Use only source-backed counters already prepared by sync.
         return max(
             0,
             stored_counter_value(novel, "keeper_chapters_count", "keeper_chapters"),
@@ -975,15 +971,38 @@ def source_backed_access_counts(
     }
 
 
+def source_backed_access_counts_for_profile(
+    chapters: list[dict], novel: dict, profile: dict[str, Any]
+) -> dict[str, int]:
+    """Count only genuinely readable chapter rows for the current profile."""
+    counts = source_backed_access_counts(chapters, novel)
+    role = normalize_required_role(profile.get("role") or "guest")
+    if profile.get("has_full_book_access"):
+        available = max(
+            counts["free_chapters_count"],
+            counts["traveler_chapters_count"],
+            counts["keeper_chapters_count"],
+        )
+    elif role == "keeper":
+        available = counts["keeper_chapters_count"]
+    elif role == "traveler":
+        available = counts["traveler_chapters_count"]
+    else:
+        available = counts["free_chapters_count"]
+    counts["available_chapters_count"] = max(0, available)
+    return counts
+
+
 def prepare_library_novels_for_access(
     novels: list[dict], chapters: list[dict], viewer: dict[str, Any] | None
 ) -> list[dict]:
-    """Prepare cards from Supabase novel rows without recounting chapters."""
+    """Prepare cards and repair only stale zero counters from real sources."""
     viewer = viewer or {}
-    # Library cards use the already synchronized counters stored in ``novels``.
-    # Do not scan thousands of chapter rows on every library request.  The
-    # parameter is retained for backward compatibility with older callers.
-    del chapters
+    grouped_chapters: dict[str, list[dict]] = {}
+    for chapter in chapters or []:
+        key = clean_value(chapter.get("novel_id"))
+        if key:
+            grouped_chapters.setdefault(key, []).append(chapter)
     result = []
 
     for novel in novels:
@@ -1006,6 +1025,32 @@ def prepare_library_novels_for_access(
         prepared["required_role"] = "traveler" if prepared["is_gift"] else "guest"
 
         prepared["available_chapters_count"] = stored_available_chapters_for_profile(prepared, profile)
+
+        # A zero in ``novels`` may be stale after an incomplete sync.  Only for
+        # those suspect rows the router supplies a small cached subset of chapter
+        # rows.  Recount from actual Telegraph/Teletype sources and NovelStatus
+        # boundaries; never infer a count directly from boundary text.
+        novel_chapters = grouped_chapters.get(novel_id_text, [])
+        traveler_stored = max(0, to_int(prepared.get("traveler_chapters_count"), 0))
+        keeper_stored = max(0, to_int(prepared.get("keeper_chapters_count"), 0))
+        needs_recovery = bool(
+            (prepared.get("traveler_access_through") and traveler_stored <= 0)
+            or (prepared.get("keeper_access_through") and keeper_stored <= 0)
+        )
+        if novel_chapters and needs_recovery:
+            recovered = source_backed_access_counts_for_profile(novel_chapters, prepared, profile)
+            if max(recovered.values(), default=0) > 0:
+                prepared.update(recovered)
+                prepared["released_subscription_chapters_count"] = (
+                    recovered["traveler_chapters_count"]
+                    if prepared["is_gift"]
+                    else max(
+                        0,
+                        max(recovered["traveler_chapters_count"], recovered["keeper_chapters_count"])
+                        - recovered["free_chapters_count"],
+                    )
+                )
+
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
         prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))
         finalize_novel_access_summary(prepared)

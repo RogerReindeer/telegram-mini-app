@@ -25,7 +25,7 @@ from ..config import settings
 from ..database import db_select, db_upsert, supabase_ready
 from ..utils import clean_value, to_int, utc_now
 
-ROLE_RANK = {"guest": 0, "traveler": 1, "keeper": 2}
+ROLE_RANK = {"guest": 0, "traveler": 1, "subscriber": 1, "subscription": 1, "boosty": 1, "reader": 1, "keeper": 2, "premium": 2, "paid": 2, "early": 2}
 AUTH_COOKIE_NAME = "zefirki_access"
 AUTH_SESSION_TTL_SECONDS = int(os.getenv("AUTH_SESSION_TTL_SECONDS") or "900")
 TELEGRAM_INIT_DATA_MAX_AGE_SECONDS = int(os.getenv("TELEGRAM_INIT_DATA_MAX_AGE_SECONDS") or "86400")
@@ -68,7 +68,16 @@ def normalize_telegram_chat_id(value: Any) -> str:
 
 
 def role_rank(role: Any) -> int:
-    return ROLE_RANK.get(str(role or "guest").lower(), 0)
+    text = str(role or "guest").strip().lower()
+    if not text:
+        return 0
+    if text in ROLE_RANK:
+        return ROLE_RANK[text]
+    if any(marker in text for marker in ("подпис", "boosty", "traveler", "reader", "subscriber")):
+        return ROLE_RANK["traveler"]
+    if any(marker in text for marker in ("keeper", "хранител", "premium", "paid", "early")):
+        return ROLE_RANK["keeper"]
+    return 0
 
 
 def public_viewer(viewer: dict[str, Any]) -> dict[str, Any]:

@@ -8,7 +8,7 @@ from ..config import settings
 
 from ..services.access import access_copy, access_paywall_copy, decide_chapter_access
 from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request
-from ..services.catalog import get_all_novels, get_chapter_by_id, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
+from ..services.catalog import get_all_novels, get_chapter_by_id, get_chapters_for_novel_ids, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
 from ..services.reader import (
     build_chapter_display_list_for_access,
     get_chapter_index_info_for_access,
@@ -19,6 +19,28 @@ from ..services.reader import (
     prepare_novel_for_template,
 )
 from ..services.telegraph import fetch_chapter_content
+
+
+def _counter_recovery_novel_ids(novels: list[dict]) -> list[str]:
+    """Return only novels that claim NovelStatus access but store all counters as zero."""
+    result: list[str] = []
+    for novel in novels:
+        traveler_boundary = novel.get("traveler_access_through")
+        keeper_boundary = novel.get("keeper_access_through") or traveler_boundary
+        traveler_stored = int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters") or 0)
+        keeper_stored = int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters") or 0)
+        novel_id = str(novel.get("novel_id") or novel.get("id") or "").strip()
+        needs_recovery = bool(
+            (traveler_boundary and traveler_stored <= 0)
+            or (keeper_boundary and keeper_stored <= 0)
+        )
+        if novel_id and needs_recovery:
+            result.append(novel_id)
+    return result
+
+
+def _library_recovery_chapters(novels: list[dict]) -> list[dict]:
+    return get_chapters_for_novel_ids(_counter_recovery_novel_ids(novels))
 
 
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
@@ -39,7 +61,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         fast_viewer["__fast_access_profile"] = page_profile
         try:
             novels = get_all_novels(include_hidden=False)
-            prepared = prepare_library_novels_for_access(novels, [], fast_viewer)
+            prepared = prepare_library_novels_for_access(novels, _library_recovery_chapters(novels), fast_viewer)
         except Exception:
             prepared = []
         return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
@@ -117,8 +139,9 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/api/library")
     def api_library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
+        raw_novels = get_all_novels(include_hidden=False)
         novels = prepare_library_novels_for_access(
-            get_all_novels(include_hidden=False), [], viewer
+            raw_novels, _library_recovery_chapters(raw_novels), viewer
         )
         return {"items": novels}
 

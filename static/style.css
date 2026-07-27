@@ -14040,7 +14040,7 @@ html body[class][class][class] :is(
 }
 
 
-/* v210 — крестики без фоновых кружков */
+/* v210 — крестики без фоновых кружков; v212 — усилено для всех состояний */
 #librarySearchClear,
 .library-update-close,
 .page-library .library-update-close,
@@ -14053,42 +14053,87 @@ html body[class][class][class] :is(
 .settings-close-v2,
 .zb-settings-close,
 .chapter-unlock-close {
+  appearance: none !important;
+  -webkit-appearance: none !important;
   background: transparent !important;
   background-image: none !important;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  outline: none !important;
   backdrop-filter: none !important;
 }
 
+#librarySearchClear::before,
+#librarySearchClear::after,
+.library-update-close::before,
+.library-update-close::after,
+.page-library .library-update-close::before,
+.page-library .library-update-close::after,
+.library-continue-clear::before,
+.library-continue-clear::after,
+.page-library .library-continue-clear::before,
+.page-library .library-continue-clear::after,
+.library-filter-header button[data-filter-close]::before,
+.library-filter-header button[data-filter-close]::after,
+.reader-quick-close::before,
+.reader-quick-close::after,
+.reader-settings-close-v2::before,
+.reader-settings-close-v2::after,
+.settings-close::before,
+.settings-close::after,
+.settings-close-v2::before,
+.settings-close-v2::after,
+.zb-settings-close::before,
+.zb-settings-close::after,
+.chapter-unlock-close::before,
+.chapter-unlock-close::after {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
 #librarySearchClear:hover,
+#librarySearchClear:focus,
 #librarySearchClear:focus-visible,
 .library-update-close:hover,
+.library-update-close:focus,
 .library-update-close:focus-visible,
 .page-library .library-update-close:hover,
+.page-library .library-update-close:focus,
 .page-library .library-update-close:focus-visible,
 .library-continue-clear:hover,
+.library-continue-clear:focus,
 .library-continue-clear:focus-visible,
 .page-library .library-continue-clear:hover,
+.page-library .library-continue-clear:focus,
 .page-library .library-continue-clear:focus-visible,
 .library-filter-header button[data-filter-close]:hover,
+.library-filter-header button[data-filter-close]:focus,
 .library-filter-header button[data-filter-close]:focus-visible,
 .reader-quick-close:hover,
+.reader-quick-close:focus,
 .reader-quick-close:focus-visible,
 .reader-settings-close-v2:hover,
+.reader-settings-close-v2:focus,
 .reader-settings-close-v2:focus-visible,
 .settings-close:hover,
+.settings-close:focus,
 .settings-close:focus-visible,
 .settings-close-v2:hover,
+.settings-close-v2:focus,
 .settings-close-v2:focus-visible,
 .zb-settings-close:hover,
+.zb-settings-close:focus,
 .zb-settings-close:focus-visible,
 .chapter-unlock-close:hover,
+.chapter-unlock-close:focus,
 .chapter-unlock-close:focus-visible {
   background: transparent !important;
   background-image: none !important;
   border: 0 !important;
   box-shadow: none !important;
+  outline: none !important;
 }
 
 .reader-controls-visibility-toggle.is-cross-icon,
@@ -14100,3 +14145,117 @@ html body[class][class][class] :is(
   box-shadow: none !important;
   backdrop-filter: none !important;
 }
+
+
+/* v212 — запрет старых hover-подложек у крестиков */
+.page-library .library-continue-clear:hover,
+.page-library .library-continue-clear:focus,
+.page-library .library-continue-clear:focus-visible,
+.page-library .library-update-close:hover,
+.page-library .library-update-close:focus,
+.page-library .library-update-close:focus-visible,
+body[data-site-theme="dark"] .page-library .library-continue-clear:hover,
+body[data-resolved-theme="dark"] .page-library .library-continue-clear:hover,
+body[data-site-theme="dark"] .library-update-banner .library-update-close:hover,
+body[data-resolved-theme="dark"] .library-update-banner .library-update-close:hover {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+/* v212 final — любой крестик остаётся без фоновой подложки */
+html body button:is(
+  #librarySearchClear,
+  #libraryUpdateClose,
+  #libraryContinueClear,
+  .library-update-close,
+  .library-continue-clear,
+  .reader-quick-close,
+  .reader-settings-close-v2,
+  .settings-close,
+  .settings-close-v2,
+  .zb-settings-close,
+  .chapter-unlock-close,
+  [data-filter-close],
+  [data-settings-close],
+  [data-zb-settings-close],
+  [data-paywall-unlock-close],
+  [aria-label*="Закры"],
+  [aria-label*="Скры"]
+),
+html body button:is(
+  #librarySearchClear,
+  #libraryUpdateClose,
+  #libraryContinueClear,
+  .library-update-close,
+  .library-continue-clear,
+  .reader-quick-close,
+  .reader-settings-close-v2,
+  .settings-close,
+  .settings-close-v2,
+  .zb-settings-close,
+  .chapter-unlock-close,
+  [data-filter-close],
+  [data-settings-close],
+  [data-zb-settings-close],
+  [data-paywall-unlock-close],
+  [aria-label*="Закры"],
+  [aria-label*="Скры"]
+):is(:hover, :focus, :focus-visible, :active) {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html body button:is(
+  #librarySearchClear,
+  #libraryUpdateClose,
+  #libraryContinueClear,
+  .library-update-close,
+  .library-continue-clear,
+  .reader-quick-close,
+  .reader-settings-close-v2,
+  .settings-close,
+  .settings-close-v2,
+  .zb-settings-close,
+  .chapter-unlock-close,
+  [data-filter-close],
+  [data-settings-close],
+  [data-zb-settings-close],
+  [data-paywall-unlock-close],
+  [aria-label*="Закры"],
+  [aria-label*="Скры"]
+)::before,
+html body button:is(
+  #librarySearchClear,
+  #libraryUpdateClose,
+  #libraryContinueClear,
+  .library-update-close,
+  .library-continue-clear,
+  .reader-quick-close,
+  .reader-settings-close-v2,
+  .settings-close,
+  .settings-close-v2,
+  .zb-settings-close,
+  .chapter-unlock-close,
+  [data-filter-close],
+  [data-settings-close],
+  [data-zb-settings-close],
+  [data-paywall-unlock-close],
+  [aria-label*="Закры"],
+  [aria-label*="Скры"]
+)::after {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+

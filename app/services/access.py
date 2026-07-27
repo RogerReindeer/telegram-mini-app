@@ -573,7 +573,7 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
     The 🌱 boundary opens ordinary novels to guests/Traveler and gift novels to
     Traveler. The 📜 boundary opens the Keeper range.
     """
-    role = clean_value(profile.get("role")).lower() or "guest"
+    role = normalize_required_role(profile.get("role") or "guest")
     is_gift_novel = novel_is_gift(novel)
     required_role = "traveler" if is_gift_novel else "guest"
 
