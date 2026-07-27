@@ -6,7 +6,13 @@ from fastapi.templating import Jinja2Templates
 
 from ..config import settings
 
-from ..services.access import access_copy, access_paywall_copy, decide_chapter_access
+from ..services.access import (
+    access_copy,
+    access_paywall_copy,
+    apply_novel_status_access_boundaries,
+    decide_chapter_access,
+    novel_status_boundary_count_hint,
+)
 from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request
 from ..services.catalog import get_all_novels, get_chapter_by_id, get_chapters_for_novel_ids, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
 from ..services.reader import (
@@ -22,17 +28,19 @@ from ..services.telegraph import fetch_chapter_content
 
 
 def _counter_recovery_novel_ids(novels: list[dict]) -> list[str]:
-    """Return only novels that claim NovelStatus access but store all counters as zero."""
+    """Return novels whose stored counters disagree with NovelStatus endpoints."""
     result: list[str] = []
     for novel in novels:
         traveler_boundary = novel.get("traveler_access_through")
         keeper_boundary = novel.get("keeper_access_through") or traveler_boundary
         traveler_stored = int(novel.get("traveler_chapters_count") or novel.get("subscriber_chapters") or 0)
         keeper_stored = int(novel.get("keeper_chapters_count") or novel.get("keeper_chapters") or 0)
+        traveler_hint = novel_status_boundary_count_hint(traveler_boundary)
+        keeper_hint = novel_status_boundary_count_hint(keeper_boundary)
         novel_id = str(novel.get("novel_id") or novel.get("id") or "").strip()
         needs_recovery = bool(
-            (traveler_boundary and traveler_stored <= 0)
-            or (keeper_boundary and keeper_stored <= 0)
+            (traveler_boundary and traveler_stored != traveler_hint)
+            or (keeper_boundary and keeper_stored != keeper_hint)
         )
         if novel_id and needs_recovery:
             result.append(novel_id)
@@ -77,6 +85,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         fast_viewer = dict(viewer)
         fast_viewer["__fast_access_profile"] = page_profile
         raw_chapters = get_novel_chapters(str(raw_novel.get("novel_id") or raw_novel.get("id")))
+        raw_chapters = apply_novel_status_access_boundaries(raw_chapters, raw_novel)
         prepared_novels = prepare_library_novels_for_access([raw_novel], raw_chapters, fast_viewer)
         novel_prepared = prepared_novels[0] if prepared_novels else prepare_novel_for_template(raw_novel)
         chapters, hidden_subscriber_count = build_chapter_display_list_for_access(raw_chapters, raw_novel, page_profile)
@@ -97,6 +106,15 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             raise HTTPException(status_code=404, detail="Chapter not found")
         raw_novel = get_novel_by_id(str(raw_chapter.get("novel_id"))) or {}
         raw_chapters = get_novel_chapters(str(raw_chapter.get("novel_id")))
+        raw_chapters = apply_novel_status_access_boundaries(raw_chapters, raw_novel)
+        raw_chapter = next(
+            (
+                chapter
+                for chapter in raw_chapters
+                if str(chapter.get("chapter_id") or chapter.get("id") or "") == chapter_id
+            ),
+            raw_chapter,
+        )
         profile = viewer_fast_access_profile(viewer, int(raw_chapter.get("novel_id") or 0) or None)
         access_decision = decide_chapter_access(raw_chapter, raw_novel, profile)
         decision = access_decision

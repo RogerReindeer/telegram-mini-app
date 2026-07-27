@@ -216,7 +216,57 @@ def chapter_semantic_position(chapter: dict) -> tuple[int, int]:
     return source_no, max(0, part_no)
 
 
+def chapter_technical_order(chapter: dict) -> tuple[int, int, int, str]:
+    """Return stable reading order; ChapterNo is the technical sequence."""
+    source_no, part_no = chapter_semantic_position(chapter)
+    chapter_no = to_int(chapter.get("chapter_no"), 0)
+    if chapter_no <= 0:
+        chapter_no = 1_000_000 + max(0, source_no) * 100 + max(0, part_no)
+    return (
+        chapter_no,
+        max(0, source_no),
+        max(0, part_no),
+        clean_value(chapter.get("chapter_id") or chapter.get("id")),
+    )
+
+
+def novel_status_boundary_count_hint(value: Any) -> int:
+    """Return the minimum technical-row count encoded by a boundary.
+
+    ``12-1`` is the thirteenth reading unit when the old CRM row lost its
+    SourceChapterNo/PartNo split.  The value is only a query/recovery hint; the
+    full list resolver below still prefers a real semantic endpoint.
+    """
+    boundary = parse_novel_status_boundary(value)
+    if not boundary:
+        return 0
+    chapter_no, part_no = boundary
+    return max(0, chapter_no + (part_no or 0))
+
+
+def chapter_matches_novel_status_endpoint(chapter: dict, value: Any) -> bool:
+    boundary = parse_novel_status_boundary(value)
+    if not boundary:
+        return False
+    source_no, part_no = chapter_semantic_position(chapter)
+    boundary_no, boundary_part = boundary
+    if source_no != boundary_no:
+        return False
+    if boundary_part is None:
+        # A bare chapter number means the first reading unit of that source
+        # chapter.  Later split parts require an explicit ``N-P`` endpoint.
+        return part_no in {0, 1}
+    return part_no == boundary_part
+
+
 def chapter_within_novel_status_boundary(chapter: dict, value: Any) -> bool:
+    """Compatibility check for callers that only have one chapter row.
+
+    Exact access is resolved by ``resolve_novel_status_access_ids`` because a
+    boundary is an endpoint in the technical chapter order, not a numeric
+    count.  This helper deliberately excludes later split parts for a bare
+    boundary such as ``1``.
+    """
     boundary = parse_novel_status_boundary(value)
     if not boundary:
         return False
@@ -226,7 +276,94 @@ def chapter_within_novel_status_boundary(chapter: dict, value: Any) -> bool:
         return True
     if source_no > boundary_no:
         return False
-    return boundary_part is None or part_no <= boundary_part
+    if boundary_part is None:
+        return part_no in {0, 1}
+    return part_no <= boundary_part
+
+
+def resolve_novel_status_access_ids(
+    chapters: list[dict], value: Any, declared_count: Any = None
+) -> set[str]:
+    """Resolve a NovelStatus endpoint to concrete readable chapter rows.
+
+    NovelStatus stores the last available chapter label (for example ``12-1``),
+    while ``ChapterNo`` stores the technical reading order.  The resolver:
+    1. sorts by ChapterNo;
+    2. finds the exact SourceChapterNo/PartNo endpoint;
+    3. falls back to the encoded ordinal only when old rows lost split metadata;
+    4. optionally trusts the explicit ``[🌱N из M]`` count from NovelStatus.
+
+    Rows without a real Telegraph/Teletype source never become readable.
+    """
+    boundary = parse_novel_status_boundary(value)
+    if not boundary:
+        return set()
+
+    ordered = sorted((dict(chapter) for chapter in chapters or []), key=chapter_technical_order)
+    source_backed = [chapter for chapter in ordered if chapter_has_real_source(chapter)]
+    declared = to_int(declared_count, 0)
+    if declared > 0:
+        return {
+            clean_value(chapter.get("chapter_id") or chapter.get("id"))
+            for chapter in source_backed[:declared]
+            if clean_value(chapter.get("chapter_id") or chapter.get("id"))
+        }
+
+    endpoint_index: int | None = None
+    boundary_no, boundary_part = boundary
+    for index, chapter in enumerate(ordered):
+        source_no, part_no = chapter_semantic_position(chapter)
+        if source_no != boundary_no:
+            continue
+        if boundary_part is None:
+            endpoint_index = index
+            break
+        if part_no == boundary_part:
+            endpoint_index = index
+            break
+
+    if endpoint_index is None:
+        ordinal = novel_status_boundary_count_hint(value)
+        if ordinal <= 0 or not ordered:
+            return set()
+        endpoint_index = min(len(ordered), ordinal) - 1
+
+    return {
+        clean_value(chapter.get("chapter_id") or chapter.get("id"))
+        for chapter in ordered[: endpoint_index + 1]
+        if chapter_has_real_source(chapter)
+        and clean_value(chapter.get("chapter_id") or chapter.get("id"))
+    }
+
+
+def apply_novel_status_access_boundaries(chapters: list[dict], novel: dict) -> list[dict]:
+    """Rebuild per-chapter 🌱/📜 flags from the current NovelStatus endpoints."""
+    traveler_boundary = clean_value(novel.get("traveler_access_through"))
+    keeper_boundary = clean_value(novel.get("keeper_access_through")) or traveler_boundary
+    if not traveler_boundary and not keeper_boundary:
+        return [dict(chapter) for chapter in chapters or []]
+
+    traveler_ids = resolve_novel_status_access_ids(chapters, traveler_boundary)
+    if keeper_boundary and keeper_boundary == traveler_boundary:
+        keeper_ids = set(traveler_ids)
+    else:
+        keeper_ids = resolve_novel_status_access_ids(chapters, keeper_boundary)
+    keeper_ids.update(traveler_ids)
+
+    result: list[dict] = []
+    for chapter in chapters or []:
+        prepared = dict(chapter)
+        chapter_id = clean_value(prepared.get("chapter_id") or prepared.get("id"))
+        if traveler_boundary:
+            traveler_allowed = bool(chapter_id and chapter_id in traveler_ids)
+            prepared["traveler_access"] = traveler_allowed
+            prepared["traveler_access_source"] = "novel_status" if traveler_allowed else None
+        if keeper_boundary:
+            keeper_allowed = bool(chapter_id and chapter_id in keeper_ids)
+            prepared["keeper_access"] = keeper_allowed
+            prepared["keeper_access_source"] = "novel_status" if keeper_allowed else None
+        result.append(prepared)
+    return result
 
 
 def _has_explicit_novel_status_marker(chapter: dict, role: str) -> bool:

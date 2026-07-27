@@ -16,6 +16,7 @@ from ..utils import (
 from .access import (
     access_copy,
     access_paywall_copy,
+    apply_novel_status_access_boundaries,
     can_view_novel_for_profile,
     chapter_toc_notice,
     chapter_content_url_for_access,
@@ -950,6 +951,7 @@ def source_backed_access_counts(
     the same access service as the chapter route, so a technical code or a
     release date without a real URL can never produce a readable count.
     """
+    chapters = apply_novel_status_access_boundaries(chapters, novel)
     role_profiles = {
         "guest": {"role": "guest", "has_full_book_access": False},
         "traveler": {"role": "traveler", "has_full_book_access": False},
@@ -1026,30 +1028,23 @@ def prepare_library_novels_for_access(
 
         prepared["available_chapters_count"] = stored_available_chapters_for_profile(prepared, profile)
 
-        # A zero in ``novels`` may be stale after an incomplete sync.  Only for
-        # those suspect rows the router supplies a small cached subset of chapter
-        # rows.  Recount from actual Telegraph/Teletype sources and NovelStatus
-        # boundaries; never infer a count directly from boundary text.
+        # The router supplies chapter rows only for counters that disagree with
+        # the NovelStatus endpoint hint. Recount those rows from real sources so
+        # split endpoints such as ``12-1`` and bare endpoints such as ``1`` are
+        # represented by the correct number of technical reading units.
         novel_chapters = grouped_chapters.get(novel_id_text, [])
-        traveler_stored = max(0, to_int(prepared.get("traveler_chapters_count"), 0))
-        keeper_stored = max(0, to_int(prepared.get("keeper_chapters_count"), 0))
-        needs_recovery = bool(
-            (prepared.get("traveler_access_through") and traveler_stored <= 0)
-            or (prepared.get("keeper_access_through") and keeper_stored <= 0)
-        )
-        if novel_chapters and needs_recovery:
+        if novel_chapters:
             recovered = source_backed_access_counts_for_profile(novel_chapters, prepared, profile)
-            if max(recovered.values(), default=0) > 0:
-                prepared.update(recovered)
-                prepared["released_subscription_chapters_count"] = (
-                    recovered["traveler_chapters_count"]
-                    if prepared["is_gift"]
-                    else max(
-                        0,
-                        max(recovered["traveler_chapters_count"], recovered["keeper_chapters_count"])
-                        - recovered["free_chapters_count"],
-                    )
+            prepared.update(recovered)
+            prepared["released_subscription_chapters_count"] = (
+                recovered["traveler_chapters_count"]
+                if prepared["is_gift"]
+                else max(
+                    0,
+                    max(recovered["traveler_chapters_count"], recovered["keeper_chapters_count"])
+                    - recovered["free_chapters_count"],
                 )
+            )
 
         prepared["viewer_has_book_access"] = can_view_novel_for_profile(novel, profile)
         prepared["viewer_has_full_book_access"] = bool(profile.get("has_full_book_access"))
