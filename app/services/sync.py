@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from ..cache import clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..database import db_delete, db_insert, db_select, db_update, db_upsert, supabase_ready
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
-from .access import normalize_readable_telegraph_source
+from .access import normalize_readable_chapter_source
 
 EXPECTED_SCHEMA_VERSION = 19
 SUPPORTED_SCHEMA_VERSIONS = frozenset({19})
@@ -105,8 +105,12 @@ KEY_MAP_CHAPTER = {
     "PremiumReleaseDate": "premium_release_date", "PreparedPlatforms": "prepared_platforms",
     "ScheduledPlatforms": "scheduled_platforms", "PublishingPlatforms": "publishing_platforms",
     "TelegraphPremiumURL": "telegraph_premium_url",
+    "TeletypePremiumLink": "_teletype_premium_link",
+    "TeletypePremiumURL": "_teletype_premium_link",
     "TelegraphPremiumCode": "telegraph_premium_code", "TelegraphFreeURL": "telegraph_free_url",
     "TelegraphFreeCode": "telegraph_free_code",
+    "TeletypeFreeLink": "_teletype_free_link",
+    "TeletypeFreeURL": "_teletype_free_link",
     "TravelerAccess": "traveler_access", "TravelerAccessSource": "traveler_access_source",
     "KeeperAccess": "keeper_access", "KeeperAccessOrder": "keeper_access_order",
     "KeeperAccessSource": "keeper_access_source", "QAStatus": "qa_status",
@@ -281,9 +285,9 @@ def normalize_chapter_row(row: dict) -> dict:
         "prepared_platforms": clean_value(row.get("prepared_platforms")) or None,
         "scheduled_platforms": clean_value(row.get("scheduled_platforms")) or None,
         "publishing_platforms": clean_value(row.get("publishing_platforms")) or None,
-        "telegraph_premium_url": clean_value(row.get("telegraph_premium_url")) or None,
+        "telegraph_premium_url": clean_value(row.get("telegraph_premium_url")) or clean_value(row.get("_teletype_premium_link")) or None,
         "telegraph_premium_code": clean_value(row.get("telegraph_premium_code")) or None,
-        "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or None,
+        "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or clean_value(row.get("_teletype_free_link")) or None,
         "telegraph_free_code": clean_value(row.get("telegraph_free_code")) or None,
         "traveler_access": to_bool(row.get("traveler_access"), False),
         "traveler_access_source": clean_value(row.get("traveler_access_source")) or None,
@@ -344,16 +348,16 @@ def normalize_fox_row(row: dict) -> dict:
 
 
 def _chapter_has_real_free_url(chapter: dict[str, Any]) -> bool:
-    """Only TelegraphFreeURL can make a chapter readable.
+    """Only a real Telegraph/Teletype free source can make a chapter readable.
 
     TelegraphFreeCode is CRM metadata and must not affect access counters.
     """
-    return bool(normalize_readable_telegraph_source(chapter.get("telegraph_free_url")))
+    return bool(normalize_readable_chapter_source(chapter.get("telegraph_free_url")))
 
 
 def _chapter_has_real_premium_url(chapter: dict[str, Any]) -> bool:
-    """Only TelegraphPremiumURL can make a chapter readable."""
-    return bool(normalize_readable_telegraph_source(chapter.get("telegraph_premium_url")))
+    """Only a real Telegraph/Teletype premium source can make a chapter readable."""
+    return bool(normalize_readable_chapter_source(chapter.get("telegraph_premium_url")))
 
 
 def reconcile_novel_access_counters(
@@ -364,7 +368,7 @@ def reconcile_novel_access_counters(
     The chapter boundaries are calculated in ``MiniAppSync.gs`` only from the
     🌱 and 📜 columns of ``NovelStatus``.  The server never derives access from
     release dates or ``ReleaseSchedule``.  It only rejects flagged rows that do
-    not contain a real Telegraph source.
+    not contain a real Telegraph/Teletype source.
     """
     grouped: dict[int, list[dict[str, Any]]] = {}
     for chapter in chapters:
@@ -402,7 +406,7 @@ def reconcile_novel_access_counters(
         novel.update(calculated)
         if before != calculated:
             warnings.append(
-                f"NovelID {novel_id}: счётчики приведены к флагам NovelStatus и реальным Telegraph URL "
+                f"NovelID {novel_id}: счётчики приведены к флагам NovelStatus и реальным Telegraph/Teletype URL "
                 f"({before} -> {calculated})."
             )
     return warnings
@@ -414,8 +418,8 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     translated = bool(clean_value(chapter.get("translation_date")))
     free_date = clean_value(chapter.get("free_release_date"))
     premium_date = clean_value(chapter.get("premium_release_date"))
-    free_url = normalize_readable_telegraph_source(chapter.get("telegraph_free_url"))
-    premium_url = normalize_readable_telegraph_source(chapter.get("telegraph_premium_url"))
+    free_url = normalize_readable_chapter_source(chapter.get("telegraph_free_url"))
+    premium_url = normalize_readable_chapter_source(chapter.get("telegraph_premium_url"))
 
 
 
@@ -425,9 +429,9 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     if free_url and not free_date:
         issues.append(f"{chapter_id}: есть бесплатная ссылка, но нет FreeReleaseDate; бесплатный доступ закрыт")
     if free_date and not free_url:
-        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет реального TelegraphFreeURL")
+        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет реального Telegraph/Teletype free URL")
     if premium_date and not premium_url:
-        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет реального TelegraphPremiumURL")
+        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет реального Telegraph/Teletype premium URL")
     if free_date and premium_date:
         try:
             premium_dt = parse_iso_datetime(premium_date)

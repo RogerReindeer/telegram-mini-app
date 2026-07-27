@@ -8,7 +8,7 @@ from ..config import settings
 
 from ..services.access import access_copy, access_paywall_copy, decide_chapter_access
 from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request
-from ..services.catalog import get_all_chapters, get_all_novels, get_chapter_by_id, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
+from ..services.catalog import get_all_novels, get_chapter_by_id, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
 from ..services.reader import (
     build_chapter_display_list_for_access,
     get_chapter_index_info_for_access,
@@ -18,7 +18,7 @@ from ..services.reader import (
     prepare_library_novels_for_access,
     prepare_novel_for_template,
 )
-from ..services.telegraph import fetch_telegraph_content
+from ..services.telegraph import fetch_chapter_content
 
 
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
@@ -39,8 +39,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         fast_viewer["__fast_access_profile"] = page_profile
         try:
             novels = get_all_novels(include_hidden=False)
-            chapters = get_all_chapters()
-            prepared = prepare_library_novels_for_access(novels, chapters, fast_viewer)
+            prepared = prepare_library_novels_for_access(novels, [], fast_viewer)
         except Exception:
             prepared = []
         return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
@@ -90,7 +89,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         )
         telegraph_content, telegraph_error = (None, "")
         if decision.allowed and decision.url:
-            telegraph_content, telegraph_error = fetch_telegraph_content(decision.url)
+            telegraph_content, telegraph_error = fetch_chapter_content(decision.url)
         return templates.TemplateResponse(request, "chapter.html", {
             "app_title": app_title,
             "fox": get_fox(),
@@ -119,7 +118,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     def api_library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
         novels = prepare_library_novels_for_access(
-            get_all_novels(include_hidden=False), get_all_chapters(), viewer
+            get_all_novels(include_hidden=False), [], viewer
         )
         return {"items": novels}
 

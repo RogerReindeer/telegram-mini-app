@@ -24,6 +24,9 @@ class SupabaseClient:
         self.url = (url or "").rstrip("/")
         self.service_key = service_key or ""
         self.timeout_seconds = max(1, int(timeout_seconds or 30))
+        # Reuse TLS connections to Supabase instead of opening a new socket for
+        # every catalog/auth/sync request. This is especially noticeable on Render.
+        self.session = requests.Session()
 
     def ready(self) -> bool:
         return bool(self.url and self.service_key)
@@ -53,7 +56,7 @@ class SupabaseClient:
         if not self.ready():
             raise SupabaseError("Supabase env vars are not configured")
 
-        response = requests.request(
+        response = self.session.request(
             method=method,
             url=f"{self.url}/rest/v1/{table}",
             headers=self.headers(prefer=prefer, range_header=range_header),

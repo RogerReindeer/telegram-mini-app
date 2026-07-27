@@ -19,7 +19,7 @@ from .reader import (
 )
 from .sync import parse_iso_datetime
 from .telegraph import resolve_external_image_url
-from .access import normalize_readable_telegraph_source
+from .access import normalize_readable_chapter_source
 
 NOVEL_TABLE_COLUMNS = {
     "novel_id", "code", "novel_short", "title_ru", "title_en", "title_original",
@@ -84,8 +84,12 @@ KEY_MAP_CHAPTER = {
     "PremiumReleaseDate": "premium_release_date", "PreparedPlatforms": "prepared_platforms",
     "ScheduledPlatforms": "scheduled_platforms", "PublishingPlatforms": "publishing_platforms",
     "TelegraphPremiumURL": "telegraph_premium_url",
+    "TeletypePremiumLink": "_teletype_premium_link",
+    "TeletypePremiumURL": "_teletype_premium_link",
     "TelegraphPremiumCode": "telegraph_premium_code", "TelegraphFreeURL": "telegraph_free_url",
     "TelegraphFreeCode": "telegraph_free_code",
+    "TeletypeFreeLink": "_teletype_free_link",
+    "TeletypeFreeURL": "_teletype_free_link",
     "TravelerAccess": "traveler_access", "TravelerAccessSource": "traveler_access_source",
     "KeeperAccess": "keeper_access", "KeeperAccessOrder": "keeper_access_order",
     "KeeperAccessSource": "keeper_access_source", "QAStatus": "qa_status",
@@ -231,9 +235,9 @@ def normalize_chapter_row(row: dict) -> dict:
         "prepared_platforms": clean_value(row.get("prepared_platforms")) or None,
         "scheduled_platforms": clean_value(row.get("scheduled_platforms")) or None,
         "publishing_platforms": clean_value(row.get("publishing_platforms")) or None,
-        "telegraph_premium_url": clean_value(row.get("telegraph_premium_url")) or None,
+        "telegraph_premium_url": clean_value(row.get("telegraph_premium_url")) or clean_value(row.get("_teletype_premium_link")) or None,
         "telegraph_premium_code": clean_value(row.get("telegraph_premium_code")) or None,
-        "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or None,
+        "telegraph_free_url": clean_value(row.get("telegraph_free_url")) or clean_value(row.get("_teletype_free_link")) or None,
         "telegraph_free_code": clean_value(row.get("telegraph_free_code")) or None,
         "traveler_access": to_bool(row.get("traveler_access"), False),
         "traveler_access_source": clean_value(row.get("traveler_access_source")) or None,
@@ -285,8 +289,8 @@ def adapt_chapter_from_db(row: dict) -> dict:
     free_url = clean_value(row.get("telegraph_free_url"))
     premium_url = clean_value(row.get("telegraph_premium_url"))
     # Telegraph*Code is CRM metadata, not a page URL.
-    free_source = normalize_readable_telegraph_source(free_url)
-    premium_source = normalize_readable_telegraph_source(premium_url)
+    free_source = normalize_readable_chapter_source(free_url)
+    premium_source = normalize_readable_chapter_source(premium_url)
     traveler_access_present = "traveler_access" in row
     keeper_access_present = "keeper_access" in row
     traveler_access = to_bool(row.get("traveler_access"), False)
@@ -323,8 +327,8 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
     translated = bool(clean_value(chapter.get("translation_date")))
     free_date = clean_value(chapter.get("free_release_date"))
     premium_date = clean_value(chapter.get("premium_release_date"))
-    free_url = normalize_readable_telegraph_source(chapter.get("telegraph_free_url"))
-    premium_url = normalize_readable_telegraph_source(chapter.get("telegraph_premium_url"))
+    free_url = normalize_readable_chapter_source(chapter.get("telegraph_free_url"))
+    premium_url = normalize_readable_chapter_source(chapter.get("telegraph_premium_url"))
 
 
 
@@ -334,10 +338,10 @@ def chapter_release_integrity_issues(chapter: dict) -> list[str]:
         issues.append(f"{chapter_id}: есть бесплатная ссылка, но нет FreeReleaseDate; бесплатный доступ закрыт")
 
     if free_date and not free_url:
-        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет реального TelegraphFreeURL")
+        issues.append(f"{chapter_id}: назначена FreeReleaseDate, но нет реального Telegraph/Teletype free URL")
 
     if premium_date and not premium_url:
-        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет реального TelegraphPremiumURL")
+        issues.append(f"{chapter_id}: назначена PremiumReleaseDate, но нет реального Telegraph/Teletype premium URL")
 
     if free_date and premium_date:
         try:

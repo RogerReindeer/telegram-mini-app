@@ -11,6 +11,13 @@ from bs4 import BeautifulSoup
 from ..cache import cache_get_or_set, image_cache_ttl, telegraph_cache_ttl
 from .reader import clean_value, split_text_paragraphs
 
+
+_HTTP_SESSION = requests.Session()
+_HTTP_SESSION.headers.update({
+    "User-Agent": "Mozilla/5.0 (compatible; ZefirkinyBaozyMiniApp/1.0)",
+    "Accept": "text/html,application/json;q=0.9,*/*;q=0.8",
+})
+
 def telegraph_path_from_url(url: str) -> str:
     """Extract only a complete Telegraph page path.
 
@@ -95,11 +102,7 @@ def _resolve_external_image_url_uncached(url: Any) -> str:
         return text
 
     try:
-        response = requests.get(
-            text,
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=15,
-        )
+        response = _HTTP_SESSION.get(text, timeout=15)
         response.raise_for_status()
     except Exception:
         return text
@@ -276,7 +279,7 @@ def _fetch_telegraph_content_uncached(url: str) -> tuple[dict | None, str]:
         return None, ""
     api_url = f"https://api.telegra.ph/getPage/{quote(path)}"
     try:
-        response = requests.get(api_url, params={"return_content": "true"}, timeout=20)
+        response = _HTTP_SESSION.get(api_url, params={"return_content": "true"}, timeout=20)
         response.raise_for_status()
         data = response.json()
     except Exception as error:
@@ -289,13 +292,143 @@ def _fetch_telegraph_content_uncached(url: str) -> tuple[dict | None, str]:
     return {"title": result.get("title") or "", "content_html": html_content}, ""
 
 
-def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
+_TELETYPE_CONTENT_SELECTORS = (
+    "[itemprop='articleBody']",
+    ".article__content",
+    ".article-content",
+    ".article__body",
+    ".article-body",
+    ".markup",
+    "article",
+)
+_TELETYPE_DROP_SELECTORS = (
+    "script", "style", "noscript", "template", "iframe", "form", "button",
+    "nav", "header", "footer", "aside", ".article__header", ".article__footer",
+    ".article__meta", ".article__author", ".article__actions", ".reactions",
+    ".comments", ".share", "[data-testid='comments']",
+)
+_TELETYPE_ALLOWED_TAGS = {
+    "p", "br", "strong", "b", "em", "i", "u", "s", "blockquote",
+    "h2", "h3", "h4", "ul", "ol", "li", "a", "img", "figure", "figcaption",
+} 
+
+
+def chapter_source_kind(url: str) -> str:
+    text = clean_value(url)
+    host = urlparse(text if "://" in text else "").netloc.lower()
+    if host == "teletype.in" or host.endswith(".teletype.in"):
+        return "teletype"
+    if host == "telegra.ph" or host.endswith(".telegra.ph") or telegraph_path_from_url(text):
+        return "telegraph"
+    return ""
+
+
+def _safe_content_url(base_url: str, value: Any) -> str:
+    text = clean_value(value)
+    if not text:
+        return ""
+    absolute = urljoin(base_url, text)
+    parsed = urlparse(absolute)
+    return absolute if parsed.scheme in {"http", "https"} else ""
+
+
+def sanitize_teletype_fragment(page_url: str, fragment: Any) -> str:
+    """Keep chapter markup only and remove Teletype page chrome/scripts."""
+    soup = BeautifulSoup(str(fragment or ""), "html.parser")
+    for selector in _TELETYPE_DROP_SELECTORS:
+        for node in soup.select(selector):
+            node.decompose()
+
+    for node in list(soup.find_all(True)):
+        if node.name not in _TELETYPE_ALLOWED_TAGS:
+            node.unwrap()
+            continue
+        attrs: dict[str, str] = {}
+        if node.name == "a":
+            href = _safe_content_url(page_url, node.get("href"))
+            if href:
+                attrs = {"href": href, "target": "_blank", "rel": "noopener noreferrer"}
+        elif node.name == "img":
+            src = _safe_content_url(page_url, node.get("src") or node.get("data-src"))
+            if src:
+                attrs = {"src": src, "loading": "lazy", "alt": clean_value(node.get("alt"))}
+        node.attrs = attrs
+
+    return "".join(str(child) for child in soup.contents).strip()
+
+
+def extract_teletype_article(page_url: str, html_text: str) -> tuple[str, str]:
+    soup = BeautifulSoup(html_text or "", "html.parser")
+    title_node = soup.select_one("meta[property='og:title']")
+    title = clean_value(title_node.get("content") if title_node else "")
+    if not title:
+        heading = soup.find("h1")
+        title = heading.get_text(" ", strip=True) if heading else ""
+
+    candidates = []
+    seen: set[int] = set()
+    for selector in _TELETYPE_CONTENT_SELECTORS:
+        for node in soup.select(selector):
+            marker = id(node)
+            if marker in seen:
+                continue
+            seen.add(marker)
+            text_length = len(node.get_text(" ", strip=True))
+            paragraph_count = len(node.find_all(["p", "blockquote", "li"]))
+            score = text_length + paragraph_count * 120
+            if text_length >= 120 or paragraph_count >= 2:
+                candidates.append((score, node))
+
+    if not candidates:
+        return title, ""
+
+    _, selected = max(candidates, key=lambda item: item[0])
+    selected_soup = BeautifulSoup(str(selected), "html.parser")
+    for selector in _TELETYPE_DROP_SELECTORS:
+        for node in selected_soup.select(selector):
+            node.decompose()
+    first_h1 = selected_soup.find("h1")
+    if first_h1:
+        first_h1.decompose()
+
+    sanitized = sanitize_teletype_fragment(page_url, selected_soup)
+    return title, clean_chapter_content_html(sanitized)
+
+
+def _fetch_teletype_content_uncached(url: str) -> tuple[dict | None, str]:
+    text = clean_value(url)
+    if chapter_source_kind(text) != "teletype":
+        return None, ""
+    try:
+        response = _HTTP_SESSION.get(text, timeout=20)
+        response.raise_for_status()
+    except Exception as error:
+        return None, f"Ошибка загрузки Teletype: {error}"
+
+    title, html_content = extract_teletype_article(text, response.text)
+    if not html_content:
+        return None, "Teletype не вернул текст главы."
+    return {"title": title, "content_html": html_content}, ""
+
+
+def _fetch_chapter_content_uncached(url: str) -> tuple[dict | None, str]:
+    if chapter_source_kind(url) == "teletype":
+        return _fetch_teletype_content_uncached(url)
+    return _fetch_telegraph_content_uncached(url)
+
+
+def fetch_chapter_content(url: str) -> tuple[dict | None, str]:
     text = clean_value(url)
     if not text:
         return None, ""
     return cache_get_or_set(
-        f"telegraph:content:v200:{text}",
+        f"chapter:content:v206:{text}",
         telegraph_cache_ttl(),
-        lambda: _fetch_telegraph_content_uncached(text),
+        lambda: _fetch_chapter_content_uncached(text),
         namespace="telegraph",
     )
+
+
+def fetch_telegraph_content(url: str) -> tuple[dict | None, str]:
+    """Backward-compatible reader entry point for Telegraph and Teletype."""
+    return fetch_chapter_content(url)

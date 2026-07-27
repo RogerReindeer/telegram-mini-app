@@ -70,7 +70,7 @@ class Settings:
     tribute_traveler_url: str = _env("TRIBUTE_TRAVELER_URL", "https://t.me/tribute/app?startapp=sZmh")
     tribute_keeper_url: str = _env("TRIBUTE_KEEPER_URL", "https://t.me/tribute/app?startapp=sZLB")
     access_debug_enabled: bool = _env("ACCESS_DEBUG_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
-    catalog_cache_seconds: int = int(_env("CATALOG_CACHE_SECONDS", "60") or "60")
+    catalog_cache_seconds: int = int(_env("CATALOG_CACHE_SECONDS", "300") or "300")
     telegraph_cache_seconds: int = int(_env("TELEGRAPH_CACHE_SECONDS", "1800") or "1800")
     image_cache_seconds: int = int(_env("IMAGE_CACHE_SECONDS", "1800") or "1800")
 
@@ -80,7 +80,7 @@ class Settings:
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
     # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader
-    app_version: str = _env("APP_VERSION", "v205-access-recovery-guard")
+    app_version: str = _env("APP_VERSION", "v206-teletype-source-audit-speed")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 

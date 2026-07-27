@@ -108,23 +108,36 @@ def novel_is_traveler_only(novel: dict) -> bool:
 
 
 _TELEGRAPH_URL_RE = re.compile(r"^https?://(?:www\.)?telegra\.ph/[^\s?#]+", re.IGNORECASE)
+_TELETYPE_URL_RE = re.compile(
+    r"^https?://(?:www\.)?teletype\.in/(?!files/)[^\s?#]+", re.IGNORECASE
+)
 _TELEGRAPH_PATH_RE = re.compile(r"^[^\s/]+-\d{2}-\d{2}(?:-\d+)?$", re.IGNORECASE)
 
 
-def normalize_readable_telegraph_source(value: Any) -> str:
-    """Return only a source that the Telegraph API can actually open.
+def normalize_readable_chapter_source(value: Any) -> str:
+    """Return a real chapter page supported by the reader.
 
-    A short CRM code such as ``96ZS0EQO`` is an internal identifier, not a
-    Telegraph page path. It must not make a chapter look readable. Full
-    ``telegra.ph`` URLs and complete Telegraph paths ending in ``-MM-DD`` are
-    accepted.
+    Accepted sources are full Telegraph pages, complete Telegraph paths and
+    full Teletype article URLs. Short CRM codes such as ``96ZS0EQO`` remain
+    metadata and never make a chapter readable on their own.
     """
     text = clean_value(value)
     if not text:
         return ""
-    if _TELEGRAPH_URL_RE.match(text) or _TELEGRAPH_PATH_RE.match(text):
+    if text.startswith("http://"):
+        text = "https://" + text[len("http://"):]
+    if (
+        _TELEGRAPH_URL_RE.match(text)
+        or _TELETYPE_URL_RE.match(text)
+        or _TELEGRAPH_PATH_RE.match(text)
+    ):
         return text
     return ""
+
+
+def normalize_readable_telegraph_source(value: Any) -> str:
+    """Backward-compatible alias for the generic chapter source validator."""
+    return normalize_readable_chapter_source(value)
 
 
 def chapter_is_translated(chapter: dict) -> bool:
@@ -146,7 +159,7 @@ def chapter_content_source(chapter: dict, url_key: str, code_key: str) -> str:
     for compatibility with older callers.
     """
     del code_key
-    return normalize_readable_telegraph_source(chapter.get(url_key))
+    return normalize_readable_chapter_source(chapter.get(url_key))
 
 
 def chapter_public_url(chapter: dict) -> str:

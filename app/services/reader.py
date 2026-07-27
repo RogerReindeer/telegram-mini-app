@@ -980,12 +980,11 @@ def prepare_library_novels_for_access(
 ) -> list[dict]:
     """Prepare cards from Supabase novel rows without recounting chapters."""
     viewer = viewer or {}
+    # Library cards use the already synchronized counters stored in ``novels``.
+    # Do not scan thousands of chapter rows on every library request.  The
+    # parameter is retained for backward compatibility with older callers.
+    del chapters
     result = []
-    chapters_by_novel: dict[str, list[dict]] = {}
-    for chapter in chapters or []:
-        key = clean_value(chapter.get("novel_id"))
-        if key:
-            chapters_by_novel.setdefault(key, []).append(chapter)
 
     for novel in novels:
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
