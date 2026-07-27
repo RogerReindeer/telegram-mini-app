@@ -13960,3 +13960,81 @@ body:not([data-site-theme="dark"]) .chapter-access-date-locked {
   background: #fff1d8;
   color: #8a5008;
 }
+
+/* v208 — доступная глава без даты, название по центру строки слева */
+.chapter-row-available .chapter-row-main {
+  min-height: 34px !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+
+.chapter-row-available .chapter-title {
+  flex: 1 1 auto !important;
+  align-self: center !important;
+  margin: 0 !important;
+}
+
+/* =====================================================================
+   v209 — единая система скруглений для всех элементов интерфейса
+   Любые новые карточки, панели, строки, кнопки и метки должны использовать
+   --zb-ui-radius вместо локальных числовых значений.
+   ===================================================================== */
+:root {
+  --zb-ui-radius: 8px;
+  --app-radius: var(--zb-ui-radius);
+  --zb-card-radius: var(--zb-ui-radius);
+  --zb-card-radius-small: var(--zb-ui-radius);
+  --zb-card-radius-v151: var(--zb-ui-radius);
+  --zb-chip-radius-v151: var(--zb-ui-radius);
+}
+
+/*
+ * Высокая специфичность нужна, потому что старые версии интерфейса содержат
+ * точечные !important-правила с разными радиусами. Этот финальный слой
+ * является единым источником истины для скруглений.
+ */
+html body[class][class][class] :is(
+  button,
+  select,
+  textarea,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  [class*="card"],
+  [class*="panel"],
+  [class*="section"],
+  [class*="row"],
+  [class*="table"],
+  [class*="banner"],
+  [class*="notice"],
+  [class*="modal"],
+  [class*="sheet"],
+  [class*="popover"],
+  [class*="gate"],
+  [class*="button"],
+  [class*="action"],
+  [class*="toggle"],
+  [class*="pill"],
+  [class*="tag"],
+  [class*="badge"],
+  [class*="option"],
+  [class*="choice"],
+  [class*="field"],
+  [class*="wrap"],
+  [class*="header"],
+  [class*="navigation"],
+  [class*="controls"],
+  [class*="summary"],
+  [class*="empty"],
+  [class*="hint"],
+  [class*="coach"],
+  [class*="legend"],
+  [class*="cover"],
+  [class*="icon"],
+  [class*="fab"],
+  [class*="progress"],
+  .chapter-content,
+  .chapter-content-shell,
+  .volume-header
+) {
+  border-radius: var(--zb-ui-radius) !important;
+}

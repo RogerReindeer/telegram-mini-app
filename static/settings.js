@@ -1530,7 +1530,7 @@
       : "";
 
     const configs = {
-      new: ["is-new is-reading", "", `✨ ${newCount === 1 ? "Новая глава" : `${newCount} новые главы`}`, "state-new", "Читать новое", `/novel/${card.dataset.novelSlug || ""}`],
+      new: ["is-new is-reading", "", `🔔 Новых глав · ${newCount}`, "state-new", "Читать новое", `/novel/${card.dataset.novelSlug || ""}`],
       reading: ["is-reading", "", currentChapterLabel, "state-reading", "Продолжить", `/chapter/${historyItem ? historyItem.chapterId : ""}`],
       waiting_new: ["is-reading is-waiting", "", "Жду главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
@@ -1844,14 +1844,11 @@
     }
 
     const firstCard = newCards[0];
-    const novelCountText = newCards.length === 1 ? "1 новелле" : `${newCards.length} новеллах`;
 
     if (title) {
-      title.textContent = totalNewChapters === 1 ? "Новая глава" : `${totalNewChapters} новые главы`;
+      title.textContent = `Новых глав · ${totalNewChapters} · Новелл · ${newCards.length}`;
     }
-    text.textContent = newCards.length === 1
-      ? `${firstCard.dataset.novelShort || firstCard.dataset.novelTitle || "Новелла"} — можно продолжить чтение`
-      : `Новые главы доступны в ${novelCountText}`;
+    text.textContent = "";
     link.href = firstCard.dataset.cardActionHref || `/novel/${firstCard.dataset.novelSlug || ""}`;
     banner.hidden = false;
 
