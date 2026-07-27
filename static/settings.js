@@ -2373,6 +2373,7 @@
           visibilityToggle.setAttribute("aria-pressed", hidden ? "true" : "false");
           visibilityToggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
           visibilityToggle.textContent = hidden ? "☰" : "×";
+          visibilityToggle.classList.toggle("is-cross-icon", !hidden);
         }
         try { window.localStorage.setItem(STORAGE_KEYS.readerControlsHidden, hidden ? "1" : "0"); } catch (error) {}
         updateReaderQuickSettingsState();
@@ -2438,6 +2439,7 @@
       toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
       toggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
       toggle.textContent = hidden ? "☰" : "×";
+      toggle.classList.toggle("is-cross-icon", !hidden);
       try {
         window.localStorage.setItem(STORAGE_KEYS.readerControlsHidden, hidden ? "1" : "0");
       } catch (error) {}
@@ -4016,6 +4018,7 @@
     if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false");
     if (toggle) {
       toggle.textContent = hidden ? "☰" : "×";
+      toggle.classList.toggle("is-cross-icon", !hidden);
       toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
       toggle.setAttribute("aria-label", hidden ? "Показать кнопки оглавления" : "Скрыть кнопки оглавления");
     }
@@ -4028,6 +4031,7 @@
     if (controls) controls.setAttribute("aria-hidden", hidden ? "true" : "false");
     if (toggle) {
       toggle.textContent = hidden ? "☰" : "×";
+      toggle.classList.toggle("is-cross-icon", !hidden);
       toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
       toggle.setAttribute("aria-label", hidden ? "Показать кнопки читалки" : "Скрыть кнопки читалки");
     }

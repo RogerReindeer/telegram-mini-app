@@ -123,7 +123,7 @@ def get_user_state_rows(telegram_user_id: int) -> dict[str, Any]:
 
     novel_ids = sorted({
         to_int(row.get("novel_id"), 0)
-        for row in state_rows
+        for row in [*state_rows, *chapter_progress_rows]
         if to_int(row.get("novel_id"), 0) > 0
     })
 
@@ -173,10 +173,8 @@ def get_user_state_rows(telegram_user_id: int) -> dict[str, Any]:
 
     progress_by_novel: dict[int, list[dict]] = {}
     for progress in chapter_progress_rows:
-        chapter = chapter_by_id.get(clean_value(progress.get("chapter_id")))
-        if not chapter:
-            continue
-        novel_id = to_int(chapter.get("novel_id"), 0)
+        chapter = chapter_by_id.get(clean_value(progress.get("chapter_id")), {})
+        novel_id = to_int(progress.get("novel_id"), 0) or to_int(chapter.get("novel_id"), 0)
         if novel_id > 0:
             progress_by_novel.setdefault(novel_id, []).append(progress)
 
@@ -271,6 +269,7 @@ def save_user_progress(telegram_user_id: int, payload: dict[str, Any]) -> dict[s
 
     progress_row = {
         "telegram_user_id": telegram_user_id,
+        "novel_id": novel_id,
         "chapter_id": chapter_id,
         "progress_percent": progress_percent,
         "scroll_position": scroll_position_px,

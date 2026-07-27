@@ -14038,3 +14038,65 @@ html body[class][class][class] :is(
 ) {
   border-radius: var(--zb-ui-radius) !important;
 }
+
+
+/* v210 — крестики без фоновых кружков */
+#librarySearchClear,
+.library-update-close,
+.page-library .library-update-close,
+.library-continue-clear,
+.page-library .library-continue-clear,
+.library-filter-header button[data-filter-close],
+.reader-quick-close,
+.reader-settings-close-v2,
+.settings-close,
+.settings-close-v2,
+.zb-settings-close,
+.chapter-unlock-close {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+#librarySearchClear:hover,
+#librarySearchClear:focus-visible,
+.library-update-close:hover,
+.library-update-close:focus-visible,
+.page-library .library-update-close:hover,
+.page-library .library-update-close:focus-visible,
+.library-continue-clear:hover,
+.library-continue-clear:focus-visible,
+.page-library .library-continue-clear:hover,
+.page-library .library-continue-clear:focus-visible,
+.library-filter-header button[data-filter-close]:hover,
+.library-filter-header button[data-filter-close]:focus-visible,
+.reader-quick-close:hover,
+.reader-quick-close:focus-visible,
+.reader-settings-close-v2:hover,
+.reader-settings-close-v2:focus-visible,
+.settings-close:hover,
+.settings-close:focus-visible,
+.settings-close-v2:hover,
+.settings-close-v2:focus-visible,
+.zb-settings-close:hover,
+.zb-settings-close:focus-visible,
+.chapter-unlock-close:hover,
+.chapter-unlock-close:focus-visible {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.reader-controls-visibility-toggle.is-cross-icon,
+.toc-controls-visibility-toggle.is-cross-icon {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
