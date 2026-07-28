@@ -138,12 +138,22 @@
         <section class="library-section library-section-subscription" data-library-section="subscription">
           <button class="library-section-header" type="button" data-section-toggle="subscription" aria-expanded="true">
             <span>
-              Подписчикам
+              По подписке
               <span class="library-section-count" data-section-count="subscription">0</span>
             </span>
             <span class="library-section-arrow">⌃</span>
           </button>
-          <div class="library-section-helper">Новеллы 🎁 доступны только при любой активной подписке</div>
+          <div class="library-section-helper library-subscription-helper">
+            <span>Новеллы с 🎁 можно читать с 🌱 или 📜 подпиской.</span>
+            <details class="subscription-help subscription-help-library">
+              <summary aria-label="Что дают подписки?" title="Что дают подписки?">?</summary>
+              <div class="subscription-help-popover" role="note">
+                <strong>Что дают уровни?</strong>
+                <p><b>🌱 Странствующий читатель</b> открывает для чтения новеллы с 🎁.</p>
+                <p><b>📜 Хранитель свитков</b> включает доступ к новеллам с 🎁 и дополнительные ранние главы во всех новеллах в пределах уровня 📜.</p>
+              </div>
+            </details>
+          </div>
           <div class="library-section-list" data-section-list="subscription"></div>
         </section>
 
@@ -278,7 +288,7 @@
                     <span class="library-access-count library-access-free" title="Главы, открытые бесплатно">
                       🌱 {{ novel.traveler_display_count or 0 }}
                     </span>
-                    <span class="library-access-count library-access-keeper" title="Главы, доступные Хранителю по расписанию">
+                    <span class="library-access-count library-access-keeper" title="Главы в пределах уровня 📜 Хранителя свитков">
                       📜 {{ novel.keeper_chapters_count or 0 }}
                     </span>
                     <span class="library-access-count library-access-translated" title="Переведённые главы из общего количества">

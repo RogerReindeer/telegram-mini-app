@@ -14259,3 +14259,432 @@ html body button:is(
   box-shadow: none !important;
 }
 
+
+/* =====================================================================
+   v214 — subscription copy, mobile title wrapping and readable paywalls
+   ===================================================================== */
+
+:root {
+  --reader-font-size: 17px;
+  --reader-line-height: 1.72;
+}
+
+/* Compact, accessible explanation for the two subscription levels. */
+.subscription-help {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  vertical-align: middle;
+}
+
+.subscription-help > summary {
+  display: inline-grid;
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 42%, transparent);
+  border-radius: 50% !important;
+  background: color-mix(in srgb, var(--accent, #ff6a00) 10%, transparent);
+  color: var(--accent, #ff6a00);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.subscription-help > summary::-webkit-details-marker {
+  display: none;
+}
+
+.subscription-help[open] > summary {
+  background: var(--accent, #ff6a00);
+  color: #fff;
+}
+
+.subscription-help-popover {
+  position: absolute;
+  z-index: 2147482500;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(310px, calc(100vw - 28px));
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 25%, var(--border, #e5d4c7));
+  border-radius: var(--zb-ui-radius, 8px) !important;
+  background: var(--card-bg-solid, #fffaf3);
+  color: var(--text, #241711);
+  text-align: left;
+  box-shadow: 0 18px 48px rgba(45, 27, 16, .20);
+}
+
+.subscription-help-popover strong {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 14px;
+}
+
+.subscription-help-popover p {
+  margin: 0 0 7px !important;
+  color: var(--muted, #75665c) !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.subscription-help-popover p:last-child {
+  margin-bottom: 0 !important;
+}
+
+.library-subscription-helper {
+  display: flex !important;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.library-subscription-helper > span {
+  min-width: 0;
+}
+
+.subscription-help-library .subscription-help-popover {
+  top: calc(100% + 7px);
+  right: 0;
+}
+
+.chapter-paywall-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+}
+
+.subscription-help-paywall .subscription-help-popover {
+  right: 0;
+}
+
+/* Subscription choices explain what the user is actually buying. */
+.chapter-access-purchase-button {
+  display: flex !important;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 3px;
+  padding: 11px 13px !important;
+  text-align: left !important;
+  white-space: normal !important;
+}
+
+.chapter-access-purchase-button strong {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.chapter-access-purchase-button small {
+  color: currentColor;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+  opacity: .82;
+}
+
+.chapter-access-owned-note,
+.chapter-access-owned-note-standalone {
+  width: 100%;
+  margin: 0 !important;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 18%, transparent);
+  border-radius: var(--zb-ui-radius, 8px) !important;
+  background: color-mix(in srgb, var(--accent, #ff6a00) 7%, transparent);
+  color: var(--muted, #75665c);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+/* The reading-end card stays compact and never gets covered by floating controls. */
+.reader-floating-controls {
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.reader-floating-controls.is-end-gate-visible {
+  opacity: 0;
+  transform: translateX(calc(100% + 18px));
+  pointer-events: none;
+}
+
+.chapter-end-gate {
+  width: min(100%, 700px);
+}
+
+.chapter-end-gate h2 {
+  font-size: clamp(19px, 2.6vw, 23px);
+}
+
+.chapter-end-gate p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Locked chapter: comfortable scale instead of a narrow card with oversized text. */
+.chapter-content-shell-preview {
+  width: min(100%, 720px) !important;
+  max-width: 720px !important;
+}
+
+.chapter-locked-card {
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.chapter-content-shell-preview .chapter-paywall {
+  position: static !important;
+  width: min(100%, 560px) !important;
+  max-width: 560px !important;
+  margin: 0 auto !important;
+  padding: 18px !important;
+  gap: 12px !important;
+  border-radius: var(--zb-ui-radius, 8px) !important;
+}
+
+.chapter-content-shell-preview .chapter-paywall-copy h2 {
+  margin: 3px 0 8px !important;
+  font-size: clamp(21px, 3.3vw, 27px) !important;
+  line-height: 1.18 !important;
+}
+
+.chapter-content-shell-preview .chapter-paywall-copy > p {
+  font-size: 15px !important;
+  line-height: 1.55 !important;
+}
+
+.chapter-paywall-hint {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.chapter-paywall-actions,
+.chapter-unlock-options {
+  width: 100%;
+}
+
+.chapter-unlock-panel-card {
+  width: min(100%, 520px) !important;
+  max-width: 520px !important;
+  border-radius: var(--zb-ui-radius, 8px) !important;
+}
+
+.chapter-unlock-panel-card h3 {
+  padding-right: 28px;
+  font-size: 20px !important;
+  line-height: 1.2 !important;
+}
+
+.chapter-unlock-panel-card > p {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* Library titles must wrap naturally and never lose top/bottom pixels. */
+.library-v4 .library-book-card-v4,
+.library-book-card-v4 {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.library-v4 .library-book-card-v4 .library-book-body,
+.library-book-card-v4 .library-book-body {
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.library-v4 .library-book-card-v4 .library-book-topline,
+.library-book-card-v4 .library-book-topline {
+  grid-template-columns: minmax(0, 1fr) 40px !important;
+  gap: 7px !important;
+  min-height: 0 !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+  align-items: start !important;
+  overflow: visible !important;
+}
+
+.library-v4 .library-book-card-v4 .library-book-title,
+.library-book-card-v4 .library-book-title {
+  display: block !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 2px 0 3px !important;
+  font-size: clamp(16px, 2.25vw, 21px) !important;
+  line-height: 1.24 !important;
+  text-wrap: pretty;
+  white-space: normal !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  -webkit-line-clamp: unset !important;
+  -webkit-box-orient: initial !important;
+}
+
+.library-v4 .library-book-card-v4 .library-book-subtitle,
+.library-book-card-v4 .library-book-subtitle {
+  max-height: none !important;
+  margin: 0 0 4px !important;
+  padding: 0 !important;
+  line-height: 1.32 !important;
+}
+
+@media (max-width: 640px) {
+  .library-v4 .library-section-header {
+    font-size: 19px !important;
+    line-height: 1.2 !important;
+  }
+
+  .library-v4 .library-section-helper {
+    margin: 0 4px 10px !important;
+    font-size: 12.5px !important;
+    line-height: 1.4 !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-topline,
+  .library-book-card-v4 .library-book-topline {
+    grid-template-columns: minmax(0, 1fr) 36px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(15px, 4.25vw, 18px) !important;
+    line-height: 1.26 !important;
+    padding-block: 2px 4px !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle,
+  .library-book-card-v4 .library-book-subtitle {
+    display: -webkit-box !important;
+    font-size: 11.5px !important;
+    line-height: 1.3 !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 3 !important;
+    overflow: hidden !important;
+  }
+
+  .chapter-content {
+    font-size: var(--reader-font-size, 17px) !important;
+    line-height: var(--reader-line-height, 1.72) !important;
+  }
+
+  .chapter-content-shell-preview .chapter-paywall {
+    padding: 15px 13px !important;
+  }
+
+  .chapter-content-shell-preview .chapter-paywall-fox {
+    width: 62px !important;
+    max-height: 68px !important;
+  }
+
+  .chapter-content-shell-preview .chapter-paywall-copy h2 {
+    font-size: 21px !important;
+    line-height: 1.2 !important;
+  }
+
+  .chapter-content-shell-preview .chapter-paywall-copy > p {
+    font-size: 14.5px !important;
+    line-height: 1.5 !important;
+  }
+
+  .chapter-unlock-button,
+  .subscription-refresh-button,
+  .chapter-access-secondary-button,
+  .chapter-end-gate-primary,
+  .chapter-end-gate-secondary {
+    min-height: 48px !important;
+    padding: 10px 13px !important;
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+  }
+
+  .chapter-end-gate {
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    gap: 10px 12px !important;
+    width: min(100%, 700px) !important;
+    margin: 18px auto 8px !important;
+    padding: 14px !important;
+    border-radius: var(--zb-ui-radius, 8px) !important;
+  }
+
+  .chapter-end-gate-icon {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: var(--zb-ui-radius, 8px) !important;
+    font-size: 17px !important;
+  }
+
+  .chapter-end-gate-kicker {
+    font-size: 10.5px !important;
+    line-height: 1.25 !important;
+  }
+
+  .chapter-end-gate h2 {
+    font-size: 19px !important;
+    line-height: 1.22 !important;
+  }
+
+  .chapter-end-gate p {
+    margin-top: 6px !important;
+    font-size: 13.5px !important;
+    line-height: 1.45 !important;
+  }
+
+  .chapter-end-gate-actions {
+    grid-column: 1 / -1 !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .subscription-help-paywall .subscription-help-popover {
+    right: -34px;
+  }
+}
+
+@media (max-width: 430px) {
+  .library-v4 .library-book-card-v4 .library-book-title,
+  .library-book-card-v4 .library-book-title {
+    font-size: clamp(14px, 4.15vw, 17px) !important;
+    line-height: 1.28 !important;
+    -webkit-line-clamp: unset !important;
+  }
+
+  .library-v4 .library-book-card-v4 .library-book-subtitle,
+  .library-book-card-v4 .library-book-subtitle {
+    display: -webkit-box !important;
+    font-size: 11px !important;
+    -webkit-line-clamp: 3 !important;
+  }
+
+  .subscription-help-popover {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    max-height: min(60vh, 420px);
+    overflow: auto;
+  }
+}
+
+body[data-site-theme="dark"] .subscription-help-popover,
+body[data-resolved-theme="dark"] .subscription-help-popover,
+body[data-reader-theme="dark"] .subscription-help-popover {
+  border-color: rgba(255, 185, 103, .28);
+  background: #211a17;
+  color: #fff4e8;
+}

@@ -1535,7 +1535,7 @@
       waiting_new: ["is-reading is-waiting", "", "Жду главу", "state-waiting-new", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
       completed: ["is-finished", "", "Прочитано", "state-completed", "Перечитать", historyItem ? `/chapter/${historyItem.chapterId}` : `/novel/${card.dataset.novelSlug || ""}`],
       locked: ["is-locked", "", "", "state-locked", "К оглавлению", `/novel/${card.dataset.novelSlug || ""}`],
-      subscription: ["is-locked is-subscription", "", "🎁 Подписчикам", "state-subscription", "Открыть", `/novel/${card.dataset.novelSlug || ""}`],
+      subscription: ["is-locked is-subscription", "", "🎁 Доступ по подписке", "state-subscription", "Открыть", `/novel/${card.dataset.novelSlug || ""}`],
       soon: ["is-soon", "", "", "state-soon", "Скоро", `/novel/${card.dataset.novelSlug || ""}`],
       start: [
         "is-start",
@@ -1563,7 +1563,7 @@
     if (projectStatusPill) {
       const originalStatus = projectStatusPill.dataset.projectStatus || projectStatus || "in_progress";
       const originalLabel = projectStatusPill.dataset.projectStatusLabel || "Переводится";
-      projectStatusPill.textContent = state === "subscription" ? "Подписчикам" : (isSoonState ? "Скоро" : originalLabel);
+      projectStatusPill.textContent = state === "subscription" ? "По подписке" : (isSoonState ? "Скоро" : originalLabel);
       projectStatusPill.className = `library-stat-status status-${state === "subscription" ? "subscription" : (isSoonState ? "soon" : originalStatus)}`;
     }
 
@@ -2882,16 +2882,16 @@
         <div><span>Итоговые права</span><strong>${escapeHtml(roleLabels[rights.role] || rights.role || "Гость")}</strong></div>
       </div>
       <h4>Что разрешено</h4>
-      <div class="access-debug-row"><span>Обычные книги</span><strong class="is-ok">Видит</strong><small>Чтение только после FreeReleaseDate.</small></div>
-      <div class="access-debug-row"><span>Книги с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Видит" : "Не видит"}</strong><small>Странствующий получает только видимость книги, не премиальные главы.</small></div>
-      <div class="access-debug-row"><span>Премиальные релизы</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>Открываются только Хранителю по PremiumReleaseDate.</small></div>
+      <div class="access-debug-row"><span>Обычные новеллы</span><strong class="is-ok">Видит</strong><small>Гости и 🌱 читают главы в пределах границы 🌱 из NovelStatus.</small></div>
+      <div class="access-debug-row"><span>Новеллы с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Читает" : "Не читает"}</strong><small>🌱 Странствующий и 📜 Хранитель открывают эти новеллы для чтения.</small></div>
+      <div class="access-debug-row"><span>Ранние главы 📜</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>📜 Хранитель читает дополнительные главы в пределах границы 📜 из NovelStatus.</small></div>
       <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>
       ${groupRows()}
       <h4>Оплата Tribute</h4>
       <div class="access-debug-pay-actions">
-        ${payLink("Оформить Странствующего", travelerConfig.payment_url, "traveler")}
-        ${payLink("Оформить Хранителя", keeperConfig.payment_url, "keeper")}
+        ${payLink("Оформить 🌱 Странствующего", travelerConfig.payment_url, "traveler")}
+        ${payLink("Оформить 📜 Хранителя", keeperConfig.payment_url, "keeper")}
       </div>
       <h4>Подписки Tribute</h4><ul>${subscriptionsHtml}</ul>
       <h4>Книжные доступы</h4><ul>${entitlementsHtml}</ul>
@@ -4532,4 +4532,22 @@
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV200);
   else initV200();
+})();
+
+
+/* v214 — hide floating reader controls while the end-of-chapter access card is visible. */
+(function initV214EndGateControls() {
+  function start() {
+    const gate = document.querySelector("[data-reader-end-gate]");
+    const controls = document.querySelector("[data-reader-floating-controls]");
+    if (!gate || !controls || !window.IntersectionObserver) return;
+    const observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        controls.classList.toggle("is-end-gate-visible", entry.isIntersecting && entry.intersectionRatio > 0.18);
+      });
+    }, { threshold: [0, 0.18, 0.45] });
+    observer.observe(gate);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
+  else start();
 })();
