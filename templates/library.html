@@ -291,8 +291,8 @@
                     <span class="library-access-count library-access-keeper" title="Главы в пределах уровня 📜 Хранителя свитков">
                       📜 {{ novel.keeper_chapters_count or 0 }}
                     </span>
-                    <span class="library-access-count library-access-translated" title="Переведённые главы из общего количества">
-                      🕘 {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}
+                    <span class="library-access-count library-access-translated" title="{% if novel.translation_status == 'completed' %}Перевод завершён{% else %}Переведённые главы из общего количества{% endif %}">
+                      {% if novel.translation_status == 'completed' %}✅{{ novel.display_chapters_count or novel.total_chapters or novel.translated_chapters or 0 }}{% else %}🕘 {{ novel.translated_chapters or 0 }} из {{ novel.display_chapters_count or novel.total_chapters or 0 }}{% endif %}
                     </span>
                   </div>
 
