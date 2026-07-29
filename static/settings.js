@@ -2883,14 +2883,13 @@
       </div>
       <h4>Что разрешено</h4>
       <div class="access-debug-row"><span>Обычные новеллы</span><strong class="is-ok">Видит</strong><small>Гости и 🌱 читают главы в пределах границы 🌱 из NovelStatus.</small></div>
-      <div class="access-debug-row"><span>Новеллы с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Читает" : "Не читает"}</strong><small>🌱 Странствующий и 📜 Хранитель открывают эти новеллы для чтения.</small></div>
+      <div class="access-debug-row"><span>Новеллы с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Читает" : "Не читает"}</strong><small>🌱 Странствующий открывает новеллы с 🎁; 📜 Хранитель включает те же права и ранние главы.</small></div>
       <div class="access-debug-row"><span>Ранние главы 📜</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>📜 Хранитель читает дополнительные главы в пределах границы 📜 из NovelStatus.</small></div>
       <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>
       ${groupRows()}
       <h4>Оплата Tribute</h4>
       <div class="access-debug-pay-actions">
-        ${payLink("Оформить 🌱 Странствующего", travelerConfig.payment_url, "traveler")}
         ${payLink("Оформить 📜 Хранителя", keeperConfig.payment_url, "keeper")}
       </div>
       <h4>Подписки Tribute</h4><ul>${subscriptionsHtml}</ul>

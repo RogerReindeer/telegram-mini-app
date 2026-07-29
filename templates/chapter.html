@@ -43,8 +43,8 @@
                     <summary aria-label="Что дают подписки?" title="Что дают подписки?">?</summary>
                     <div class="subscription-help-popover" role="note">
                       <strong>Что дают уровни?</strong>
-                      <p><b>🌱 Странствующий читатель</b> открывает новеллы с 🎁.</p>
-                      <p><b>📜 Хранитель свитков</b> включает новеллы с 🎁 и дополнительные ранние главы во всех новеллах.</p>
+                      <p><b>🌱 Странствующий читатель</b> нужен только для чтения новелл с 🎁. В обычных новеллах бесплатный диапазон не меняется.</p>
+                      <p><b>📜 Хранитель свитков</b> открывает ближайшие ранние главы во всех новеллах. Количество задаётся отдельно для каждой новеллы — обычно одна или две главы.</p>
                     </div>
                   </details>
                 {% endif %}
@@ -55,11 +55,11 @@
             </div>
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
               {% if access_paywall.show_tribute %}
-                <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>{{ access_paywall.unlock_button_label or 'Оформить подписку' }}</button>
+                <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>{{ access_paywall.unlock_button_label or 'Получить доступ' }}</button>
                 <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden>
-                  <div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="{{ access_paywall.panel_title or 'Оформить подписку' }}">
+                  <div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="{{ access_paywall.panel_title or 'Доступ к главе' }}">
                     <button class="chapter-unlock-close" type="button" data-paywall-unlock-close aria-label="Закрыть">×</button>
-                    <h3>{{ access_paywall.panel_title or 'Выберите подписку' }}</h3>
+                    <h3>{{ access_paywall.panel_title or 'Доступ к главе' }}</h3>
                     <p>{{ access_paywall.panel_description }}</p>
                     <div class="chapter-unlock-options">
                       {% if tribute_traveler_url and access_paywall.show_traveler_purchase %}
@@ -95,8 +95,8 @@
         <div class="chapter-end-gate-copy">
           <div class="chapter-end-gate-kicker">Последняя доступная глава</div>
           {% if next_locked_chapter.is_subscription_chapter %}
-            <h2>Следующая глава доступна по уровню 📜</h2>
-            <p>Откройте её страницу, чтобы оформить Хранителя свитков или проверить уже активный доступ.</p>
+            <h2>Упс… следующая глава по платной подписке</h2>
+            <p>Она входит в ранний доступ 📜. Для чтения оформите «Хранителя свитков» или проверьте уже активный доступ.</p>
           {% else %}
             <h2>Следующая глава пока закрыта</h2>
             <p>На странице главы можно увидеть дату открытия и проверить текущий доступ.</p>
@@ -104,7 +104,7 @@
         </div>
         <div class="chapter-end-gate-actions">
           <a class="chapter-end-gate-primary" href="/chapter/{{ next_locked_chapter.chapter_id }}">
-            {% if next_locked_chapter.is_subscription_chapter %}Посмотреть условия доступа{% else %}Посмотреть следующую главу{% endif %}
+            {% if next_locked_chapter.is_subscription_chapter %}Условия подписки Хранителя{% else %}Посмотреть следующую главу{% endif %}
           </a>
           <a class="chapter-end-gate-secondary" href="/novel/{{ novel.slug }}">К оглавлению</a>
         </div>

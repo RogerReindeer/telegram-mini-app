@@ -488,17 +488,23 @@ def access_copy(required_role: str) -> dict[str, str]:
     """Backward-compatible generic copy for older templates."""
     if required_role == "keeper":
         return {
-            "title": "Эта глава доступна Хранителю свитков",
-            "description": "📜 Хранитель свитков открывает дополнительные ранние главы во всех новеллах в пределах уровня 📜.",
+            "title": "Упс… эта глава по платной подписке",
+            "description": (
+                "Для чтения оформите 📜 «Хранителя свитков». Этот уровень открывает "
+                "ближайшие ранние главы в пределах границы 📜, заданной для новеллы."
+            ),
         }
     if required_role == "traveler":
         return {
-            "title": "Для чтения нужна подписка",
-            "description": "Новеллы с 🎁 можно читать с любой активной подпиской: 🌱 Странствующий читатель или 📜 Хранитель свитков.",
+            "title": "Эта новелла доступна по подписке",
+            "description": (
+                "Для чтения новеллы с 🎁 оформите 🌱 «Странствующего читателя». "
+                "Этот уровень нужен только для новелл с подарком."
+            ),
         }
     return {
         "title": "Глава пока закрыта",
-        "description": "Она откроется бесплатно по расписанию. Если доступ уже должен быть открыт, попробуйте проверить его ещё раз.",
+        "description": "Она ещё не вошла в доступ. Если глава должна быть открыта, проверьте доступ ещё раз.",
     }
 
 
@@ -520,51 +526,54 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
         primary_action = primary_action or "read"
         severity = "open"
     elif status == "book_access_denied":
-        title = title or "Для чтения нужна подписка"
+        title = title or "Эта новелла доступна по подписке"
         description = description or (
-            "Эта новелла отмечена 🎁. Её можно читать с любой активной подпиской: "
-            "🌱 Странствующий читатель или 📜 Хранитель свитков."
+            "Новелла отмечена 🎁. Для чтения оформите 🌱 «Странствующего читателя». "
+            "В обычных новеллах этот уровень не расширяет бесплатный доступ."
         )
         action_hint = action_hint or (
             "После оформления вернитесь в Mini App и нажмите «Проверить доступ»."
         )
-        primary_action = primary_action or "choose_subscription"
+        primary_action = primary_action or "buy_traveler"
         secondary_action = secondary_action or "refresh"
         severity = "subscription"
     elif status == "premium_scheduled":
-        title = title or "Глава пока закрыта"
-        if viewer_role in {"traveler", "keeper"}:
+        title = title or "Упс… эта глава пока закрыта"
+        if viewer_role == "keeper":
             description = description or (
-                f"Ваша подписка активна, но эта глава откроется {release_label}."
+                f"📜 «Хранитель свитков» активен, но эта глава откроется {release_label}."
                 if release_label
-                else "Ваша подписка активна, но эта глава ещё не вошла в доступ вашего уровня."
+                else "📜 «Хранитель свитков» активен, но эта глава пока не вошла в границу 📜 этой новеллы."
             )
+            action_hint = action_hint or "Покупать другую подписку не нужно — дождитесь расширения доступа."
         else:
             description = description or (
-                f"Глава откроется {release_label}."
+                f"Глава пока не входит ни в бесплатный, ни в платный диапазон и откроется {release_label}."
                 if release_label
-                else "Глава ещё не вошла в доступ и пока недоступна для чтения."
+                else "Глава пока не входит ни в бесплатный, ни в платный диапазон доступа."
             )
-        action_hint = action_hint or "Доплачивать за уже активный уровень не нужно."
+            action_hint = action_hint or "Подписка не откроет эту главу раньше, пока она не войдёт в доступ."
         primary_action = primary_action or "wait"
         secondary_action = secondary_action or "refresh"
         severity = "scheduled"
     elif status == "free_scheduled":
         keeper_available = bool(chapter_keeper_url(chapter, novel))
         if keeper_available:
-            title = title or "Эта глава доступна Хранителю свитков"
-            if viewer_role == "traveler":
+            title = title or "Упс… эта глава по платной подписке"
+            if novel_is_gift(novel):
                 description = description or (
-                    "Ваша 🌱 подписка активна и открывает новеллы с 🎁. "
-                    "Эта ранняя глава входит в уровень 📜 Хранитель свитков."
+                    "Основные главы этой новеллы с 🎁 открывает 🌱 «Странствующий читатель», "
+                    "но эта глава относится к раннему доступу 📜. Для чтения оформите "
+                    "«Хранителя свитков»."
                 )
             else:
                 description = description or (
-                    "Бесплатно глава пока закрыта. 📜 Хранитель свитков открывает "
-                    "дополнительные ранние главы во всех новеллах в пределах уровня 📜."
+                    "Эта глава входит в ранний доступ 📜. Для чтения оформите "
+                    "подписку «Хранитель свитков»."
                 )
             action_hint = action_hint or (
-                "После оформления или повышения уровня вернитесь сюда и нажмите «Проверить доступ»."
+                "Количество ранних глав задаётся отдельно для каждой новеллы — обычно это одна или две главы. "
+                "После оформления вернитесь сюда и нажмите «Проверить доступ»."
             )
             primary_action = primary_action or "upgrade_keeper"
         else:
@@ -574,7 +583,7 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
                 if release_label
                 else "Глава ещё не вошла ни в бесплатный, ни в подписочный диапазон доступа."
             )
-            action_hint = action_hint or "Оформлять подписку ради этой главы пока не нужно."
+            action_hint = action_hint or "Покупать подписку ради этой главы пока не нужно."
             primary_action = primary_action or "wait"
         secondary_action = secondary_action or "refresh"
         severity = "scheduled"
@@ -625,54 +634,59 @@ def access_paywall_copy(
     profile: dict[str, Any],
     chapter: dict | None = None,
 ) -> dict[str, Any]:
-    """Return clear, role-aware paywall copy and purchase controls.
+    """Return role-aware paywall copy and only the purchase that unlocks this page.
 
-    🌱 opens gift novels marked with 🎁. 📜 includes the same gift access and
-    additionally opens the Keeper range in every novel. A reader is never
-    offered a level that cannot unlock the current chapter.
+    🌱 is sold only inside a 🎁 novel and only to unlock that novel. It never
+    expands the free range of an ordinary novel. 📜 is offered for Keeper-only
+    early chapters in any novel. The current chapter therefore never shows two
+    competing subscription offers.
     """
     release_label = format_release_date(decision.release_date)
     viewer_role = clean_value(profile.get("role") or decision.viewer_role) or "guest"
     viewer_rank = role_rank(viewer_role)
+    is_gift_novel = novel_is_gift(novel)
 
-    choose_subscription = decision.primary_action == "choose_subscription"
+    buy_traveler = (
+        decision.primary_action in {"buy_traveler", "choose_subscription"}
+        and is_gift_novel
+    )
     upgrade_keeper = decision.primary_action == "upgrade_keeper"
     can_refresh = decision.status in {
         "book_access_denied", "free_scheduled", "premium_scheduled", "locked"
     }
 
-    show_traveler_purchase = choose_subscription and viewer_rank < role_rank("traveler")
-    show_keeper_purchase = (choose_subscription or upgrade_keeper) and viewer_rank < role_rank("keeper")
+    show_traveler_purchase = buy_traveler and viewer_rank < role_rank("traveler")
+    show_keeper_purchase = upgrade_keeper and viewer_rank < role_rank("keeper")
     traveler_already_owned = viewer_rank >= role_rank("traveler")
     keeper_already_owned = viewer_rank >= role_rank("keeper")
     show_subscription_choices = show_traveler_purchase or show_keeper_purchase
 
     if viewer_role == "keeper":
         owned_message = (
-            "📜 Хранитель свитков активен. Вам доступны новеллы с 🎁 и ранние "
-            "главы в пределах уровня 📜."
+            "📜 «Хранитель свитков» активен. Вам доступны новеллы с 🎁 и ранние "
+            "главы в пределах границы 📜 каждой новеллы."
         )
     elif viewer_role == "traveler":
         owned_message = (
-            "🌱 Странствующий читатель активен. Вам доступны новеллы с 🎁; "
-            "дополнительные ранние главы открывает уровень 📜."
+            "🌱 «Странствующий читатель» активен. Вы можете читать новеллы с 🎁. "
+            "Ранние закрытые главы открывает 📜 «Хранитель свитков»."
         )
     else:
         owned_message = ""
 
-    if choose_subscription:
-        unlock_button_label = "Оформить подписку"
-        panel_title = "Выберите подписку"
+    if buy_traveler:
+        unlock_button_label = "Оформить Странствующего читателя"
+        panel_title = "Подписка для новеллы с 🎁"
         panel_description = (
-            "🌱 открывает для чтения новеллы с 🎁. 📜 включает тот же доступ "
-            "и дополнительно открывает ранние главы во всех новеллах."
+            "🌱 «Странствующий читатель» открывает доступ к чтению этой новеллы с 🎁. "
+            "В обычных новеллах он не добавляет платные главы."
         )
     elif upgrade_keeper:
-        unlock_button_label = "Открыть ранний доступ"
-        panel_title = "Перейти на Хранителя свитков"
+        unlock_button_label = "Оформить Хранителя свитков"
+        panel_title = "Ранний доступ к главам"
         panel_description = (
-            "Ваша 🌱 подписка продолжит действовать, а 📜 добавит ранние главы "
-            "в пределах уровня Хранителя."
+            "📜 «Хранитель свитков» открывает ближайшие закрытые главы в пределах "
+            "уровня 📜, установленного для этой новеллы. Обычно это одна или две главы."
         )
     else:
         unlock_button_label = ""
@@ -712,9 +726,13 @@ def access_paywall_copy(
         "panel_title": panel_title,
         "panel_description": panel_description,
         "traveler_option_title": "🌱 Странствующий читатель",
-        "traveler_option_description": "Чтение всех доступных глав в новеллах с 🎁.",
+        "traveler_option_description": (
+            "Только чтение новелл с 🎁. Бесплатный диапазон обычных новелл не меняется."
+        ),
         "keeper_option_title": "📜 Хранитель свитков",
-        "keeper_option_description": "Новеллы с 🎁 и дополнительные ранние главы во всех новеллах.",
+        "keeper_option_description": (
+            "Ближайшие ранние главы по границе 📜 каждой новеллы; обычно одна или две."
+        ),
     }
 
 
@@ -735,7 +753,7 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
     if status == "free_scheduled":
         return {
             "label": f"Откроется {release_label}" if release_label else "Откроется позже",
-            "hint": "Ранний доступ — через 📜",
+            "hint": "Ранний доступ по 📜 «Хранителю свитков»",
             "class_name": "chapter-access-locked",
         }
     if status == "premium_scheduled":
@@ -753,7 +771,7 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
     if status == "book_access_denied":
         return {
             "label": f"🔒 {release_label}" if release_label else "🔒 По подписке",
-            "hint": "Глава разблокируется по подписке",
+            "hint": "Новелла с 🎁: нужен 🌱 «Странствующий читатель»",
             "class_name": "chapter-access-boosty",
         }
     if status == "not_translated":
@@ -834,11 +852,24 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
     traveler_date = _scheduled_date_for_role(chapter, "traveler")
     keeper_date = _scheduled_date_for_role(chapter, "keeper")
 
-    # 🎁-новелла видна гостю, но читать её можно только с активной подпиской.
+    # В 🎁-новелле гостю продаётся только тот уровень, который открывает
+    # выбранную главу: 🌱 для основного диапазона, 📜 для ранней Keeper-главы.
     if is_gift_novel and role == "guest":
+        if traveler_url:
+            return AccessDecision(
+                allowed=False, status="book_access_denied", label="Нужен 🌱",
+                class_name="chapter-access-locked", reason="gift_novel_requires_traveler",
+                required_role="traveler", viewer_role=role, release_date=traveler_date,
+            )
+        if keeper_url:
+            return AccessDecision(
+                allowed=False, status="free_scheduled", label="Доступ по 📜",
+                class_name="chapter-access-locked", reason="gift_keeper_subscription_required",
+                required_role="keeper", viewer_role=role, release_date=keeper_date,
+            )
         return AccessDecision(
-            allowed=False, status="book_access_denied", label="Доступ по подписке",
-            class_name="chapter-access-locked", reason="gift_novel_requires_subscription",
+            allowed=False, status="premium_scheduled", label="Пока закрыта",
+            class_name="chapter-access-locked", reason="outside_novel_status_boundary",
             required_role="traveler", viewer_role=role, release_date=traveler_date,
         )
 
