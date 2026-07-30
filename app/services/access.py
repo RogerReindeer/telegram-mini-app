@@ -77,7 +77,7 @@ def novel_required_role(novel: dict) -> str:
 
 def normalize_required_role(access_level: Any) -> str:
     text = clean_value(access_level).lower()
-    if text in {"", "public", "free", "open", "guest"}:
+    if text in {"", "public", "free", "open", "guest", "none", "anonymous", "unsubscribed", "no_subscription", "без подписки"}:
         return "guest"
     if text in {"subscriber", "subscription", "boosty", "traveler", "reader", "stranger"}:
         return "traveler"
@@ -410,6 +410,28 @@ def chapter_traveler_url(chapter: dict, novel: dict | None = None) -> str:
     if not chapter_traveler_access_enabled(chapter, novel):
         return ""
     return chapter_public_url(chapter) or chapter_premium_url(chapter)
+
+
+def chapter_guest_free_url(chapter: dict, novel: dict | None = None) -> str:
+    """Return a genuinely free source for a viewer without subscriptions.
+
+    NovelStatus 🌱 remains the primary boundary.  The released free-link
+    fallback protects public chapters when an older or partially applied sync
+    left an explicit ``traveler_access=false`` flag in Supabase.  Gift novels
+    never use this fallback: their 🌱 range still requires the Traveler role.
+    """
+    if novel_is_gift(novel or {}):
+        return ""
+
+    traveler_url = chapter_traveler_url(chapter, novel)
+    if traveler_url:
+        return traveler_url
+
+    public_url = chapter_public_url(chapter)
+    free_release_date = clean_value(chapter.get("free_release_date"))
+    if public_url and free_release_date and is_date_open(free_release_date):
+        return public_url
+    return ""
 
 
 def chapter_public_ready(chapter: dict, novel: dict | None = None) -> bool:
@@ -848,6 +870,7 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
         )
 
     traveler_url = chapter_traveler_url(chapter, novel)
+    guest_free_url = chapter_guest_free_url(chapter, novel)
     keeper_url = chapter_keeper_url(chapter, novel)
     traveler_date = _scheduled_date_for_role(chapter, "traveler")
     keeper_date = _scheduled_date_for_role(chapter, "keeper")
@@ -909,6 +932,16 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             class_name="chapter-access-locked", reason="outside_novel_status_boundary",
             required_role=("keeper" if role == "keeper" else "traveler"),
             viewer_role=role, release_date=(keeper_date if role == "keeper" else traveler_date),
+        )
+
+    # У обычной новеллы бесплатный диапазон доступен всем, включая гостя
+    # без единой подписки.  Проверяем его раньше Keeper-ветки, чтобы более
+    # высокий уровень подписки не менял публичный источник главы.
+    if guest_free_url:
+        return AccessDecision(
+            allowed=True, status="public_open", url=guest_free_url, label="Открыта",
+            class_name="chapter-access-public", reason="free_chapter_for_everyone",
+            required_role="guest", viewer_role=role, release_date=traveler_date,
         )
 
     # Для обычной новеллы 🌱 совпадает с бесплатным диапазоном.

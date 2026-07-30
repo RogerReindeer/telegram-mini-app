@@ -773,28 +773,67 @@ def _finish_sync_run(sync_id: int | None, patch: dict[str, Any]) -> None:
 
 
 def _delete_stale_chapters_for_snapshot(novels: list[dict[str, Any]], chapters: list[dict[str, Any]]) -> int:
-    """Make synced novels in Supabase match the Excel Chapters snapshot exactly."""
-    synced_novel_ids = {to_int(row.get("novel_id"), 0) for row in novels}
-    synced_novel_ids.discard(0)
-    if not synced_novel_ids:
+    """Make ``chapters`` match the complete visible Excel snapshot.
+
+    Hidden novels are intentionally absent from a full snapshot. Their chapter
+    rows must therefore be removed *before* the parent novel rows, otherwise
+    PostgreSQL rejects the novel deletion with ``chapters_novel_id_fkey``.
+    """
+    incoming_novel_ids = {to_int(row.get("novel_id"), 0) for row in novels}
+    incoming_novel_ids.discard(0)
+    if not incoming_novel_ids:
+        # Fail closed: an accidentally empty snapshot must never wipe production.
         return 0
 
-    incoming_ids = {clean_value(row.get("chapter_id")) for row in chapters if clean_value(row.get("chapter_id"))}
+    incoming_chapter_ids = {
+        clean_value(row.get("chapter_id"))
+        for row in chapters
+        if clean_value(row.get("chapter_id"))
+    }
     existing = db_select("chapters", select="chapter_id,novel_id")
+
+    removed_novel_ids = sorted({
+        to_int(row.get("novel_id"), 0)
+        for row in existing
+        if to_int(row.get("novel_id"), 0)
+        and to_int(row.get("novel_id"), 0) not in incoming_novel_ids
+    })
+    removed_novel_id_set = set(removed_novel_ids)
+    removed_row_count = sum(
+        1
+        for row in existing
+        if to_int(row.get("novel_id"), 0) in removed_novel_id_set
+    )
+
+    deleted = 0
+    for start in range(0, len(removed_novel_ids), 100):
+        batch = removed_novel_ids[start:start + 100]
+        db_delete("chapters", {"novel_id": f"in.({','.join(str(value) for value in batch)})"})
+    deleted += removed_row_count
+
     stale_ids = [
         clean_value(row.get("chapter_id"))
         for row in existing
-        if to_int(row.get("novel_id"), 0) in synced_novel_ids
+        if to_int(row.get("novel_id"), 0) in incoming_novel_ids
         and clean_value(row.get("chapter_id"))
-        and clean_value(row.get("chapter_id")) not in incoming_ids
+        and clean_value(row.get("chapter_id")) not in incoming_chapter_ids
     ]
 
-    deleted = 0
-    for start in range(0, len(stale_ids), 100):
-        batch = stale_ids[start:start + 100]
-        # ChapterID consists only of digits and hyphens, so PostgREST in.(...) is safe here.
+    # Most ChapterID values are simple tokens and can be deleted in batches.
+    # Opaque IDs with punctuation are deleted one-by-one so the PostgREST
+    # ``in.(...)`` grammar can never misparse them.
+    safe_ids = [value for value in stale_ids if re.fullmatch(r"[A-Za-z0-9_-]+", value)]
+    opaque_ids = [value for value in stale_ids if value not in safe_ids]
+
+    for start in range(0, len(safe_ids), 100):
+        batch = safe_ids[start:start + 100]
         db_delete("chapters", {"chapter_id": f"in.({','.join(batch)})"})
         deleted += len(batch)
+
+    for chapter_id in opaque_ids:
+        db_delete("chapters", {"chapter_id": f"eq.{chapter_id}"})
+        deleted += 1
+
     return deleted
 
 
@@ -921,7 +960,10 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
 
         stage = "prune_stale_chapters"
         if payload.get("full_snapshot") is True:
+            # Children first, parents second. Hidden novels are absent from the
+            # snapshot, so their chapters must be removed before deleting novels.
             result["stale_chapters_deleted"] = _delete_stale_chapters_for_snapshot(novels, chapters)
+            stage = "prune_stale_novels"
             result["stale_novels_deleted"] = _delete_stale_novels_for_snapshot(novels)
 
         stage = "fox"
