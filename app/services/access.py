@@ -284,30 +284,26 @@ def chapter_within_novel_status_boundary(chapter: dict, value: Any) -> bool:
 def resolve_novel_status_access_ids(
     chapters: list[dict], value: Any, declared_count: Any = None
 ) -> set[str]:
-    """Resolve a NovelStatus endpoint to concrete readable chapter rows.
+    """Resolve a NovelStatus endpoint or stored count to readable chapter rows.
 
-    NovelStatus stores the last available chapter label (for example ``12-1``),
-    while ``ChapterNo`` stores the technical reading order.  The resolver:
-    1. sorts by ChapterNo;
-    2. finds the exact SourceChapterNo/PartNo endpoint;
-    3. falls back to the encoded ordinal only when old rows lost split metadata;
-    4. optionally trusts the explicit ``[🌱N из M]`` count from NovelStatus.
-
-    Rows without a real Telegraph/Teletype source never become readable.
+    Production may temporarily contain a mixed snapshot: chapter URLs are
+    current, while the endpoint columns or per-row access flags are stale.  The
+    stored novel counters are therefore a supported recovery source, not merely
+    a UI number. Rows without a real Telegraph/Teletype source never open.
     """
     boundary = parse_novel_status_boundary(value)
-    if not boundary:
-        return set()
+    declared = max(0, to_int(declared_count, 0))
 
     ordered = sorted((dict(chapter) for chapter in chapters or []), key=chapter_technical_order)
     source_backed = [chapter for chapter in ordered if chapter_has_real_source(chapter)]
-    declared = to_int(declared_count, 0)
     if declared > 0:
         return {
             clean_value(chapter.get("chapter_id") or chapter.get("id"))
             for chapter in source_backed[:declared]
             if clean_value(chapter.get("chapter_id") or chapter.get("id"))
         }
+    if not boundary:
+        return set()
 
     endpoint_index: int | None = None
     boundary_no, boundary_part = boundary
@@ -336,32 +332,82 @@ def resolve_novel_status_access_ids(
     }
 
 
+def _novel_access_count(novel: dict, *keys: str) -> int:
+    return max((max(0, to_int(novel.get(key), 0)) for key in keys), default=0)
+
+
 def apply_novel_status_access_boundaries(chapters: list[dict], novel: dict) -> list[dict]:
-    """Rebuild per-chapter 🌱/📜 flags from the current NovelStatus endpoints."""
+    """Rebuild effective 🌱/📜 access from endpoints, counters and real URLs.
+
+    Endpoint columns remain preferred. Stored counters recover access when a
+    partial sync or an older Supabase schema lost those endpoint values. For an
+    ordinary novel, an already released free URL is also public even if stale
+    boolean flags say otherwise. Gift novels never receive that public fallback.
+    """
+    chapter_rows = [dict(chapter) for chapter in chapters or []]
     traveler_boundary = clean_value(novel.get("traveler_access_through"))
     keeper_boundary = clean_value(novel.get("keeper_access_through")) or traveler_boundary
-    if not traveler_boundary and not keeper_boundary:
-        return [dict(chapter) for chapter in chapters or []]
+    is_gift = novel_is_gift(novel)
 
-    traveler_ids = resolve_novel_status_access_ids(chapters, traveler_boundary)
-    if keeper_boundary and keeper_boundary == traveler_boundary:
-        keeper_ids = set(traveler_ids)
-    else:
-        keeper_ids = resolve_novel_status_access_ids(chapters, keeper_boundary)
+    traveler_count = _novel_access_count(
+        novel,
+        "traveler_chapters_count",
+        "subscriber_chapters",
+        "free_chapters_count",
+        "free_chapters",
+    )
+    keeper_count = max(
+        traveler_count,
+        _novel_access_count(novel, "keeper_chapters_count", "keeper_chapters"),
+    )
+
+    traveler_ids = resolve_novel_status_access_ids(
+        chapter_rows, traveler_boundary, traveler_count
+    )
+    keeper_ids = resolve_novel_status_access_ids(
+        chapter_rows, keeper_boundary, keeper_count
+    )
+
+    # Preserve positive flags from a successful schema-19 sync. False flags are
+    # not authoritative because they are exactly what stale snapshots produced.
+    for chapter in chapter_rows:
+        chapter_id = clean_value(chapter.get("chapter_id") or chapter.get("id"))
+        if not chapter_id or not chapter_has_real_source(chapter):
+            continue
+        if to_bool(chapter.get("traveler_access"), False):
+            traveler_ids.add(chapter_id)
+        if to_bool(chapter.get("keeper_access"), False):
+            keeper_ids.add(chapter_id)
+
+        if not is_gift:
+            free_url = chapter_public_url(chapter)
+            free_date = clean_value(chapter.get("free_release_date"))
+            if free_url and free_date and is_date_open(free_date):
+                traveler_ids.add(chapter_id)
+
     keeper_ids.update(traveler_ids)
 
     result: list[dict] = []
-    for chapter in chapters or []:
+    keeper_order = 0
+    for chapter in sorted(chapter_rows, key=chapter_technical_order):
         prepared = dict(chapter)
         chapter_id = clean_value(prepared.get("chapter_id") or prepared.get("id"))
-        if traveler_boundary:
-            traveler_allowed = bool(chapter_id and chapter_id in traveler_ids)
-            prepared["traveler_access"] = traveler_allowed
-            prepared["traveler_access_source"] = "novel_status" if traveler_allowed else None
-        if keeper_boundary:
-            keeper_allowed = bool(chapter_id and chapter_id in keeper_ids)
-            prepared["keeper_access"] = keeper_allowed
-            prepared["keeper_access_source"] = "novel_status" if keeper_allowed else None
+        traveler_allowed = bool(chapter_id and chapter_id in traveler_ids)
+        keeper_allowed = bool(chapter_id and chapter_id in keeper_ids)
+        if keeper_allowed and not traveler_allowed:
+            keeper_order += 1
+
+        prepared["traveler_access"] = traveler_allowed
+        prepared["traveler_access_source"] = (
+            "effective_snapshot" if traveler_allowed else None
+        )
+        prepared["keeper_access"] = keeper_allowed
+        prepared["keeper_access_order"] = (
+            keeper_order if keeper_allowed and not traveler_allowed else None
+        )
+        prepared["keeper_access_source"] = (
+            "effective_snapshot" if keeper_allowed else None
+        )
         result.append(prepared)
     return result
 
