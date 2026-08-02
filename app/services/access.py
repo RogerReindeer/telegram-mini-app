@@ -339,10 +339,8 @@ def _novel_access_count(novel: dict, *keys: str) -> int:
 def apply_novel_status_access_boundaries(chapters: list[dict], novel: dict) -> list[dict]:
     """Rebuild effective 🌱/📜 access from endpoints, counters and real URLs.
 
-    Endpoint columns remain preferred. Stored counters recover access when a
-    partial sync or an older Supabase schema lost those endpoint values. For an
-    ordinary novel, an already released free URL is also public even if stale
-    boolean flags say otherwise. Gift novels never receive that public fallback.
+    NovelStatus counters/endpoints and real chapter sources are authoritative.
+    Release dates are display metadata and never extend the synchronized range.
     """
     chapter_rows = [dict(chapter) for chapter in chapters or []]
     traveler_boundary = clean_value(novel.get("traveler_access_through"))
@@ -361,11 +359,16 @@ def apply_novel_status_access_boundaries(chapters: list[dict], novel: dict) -> l
         _novel_access_count(novel, "keeper_chapters_count", "keeper_chapters"),
     )
 
+    # Stored counters are the exact number from the NovelStatus summary.  If a
+    # partial deployment lost them, the endpoint itself provides the technical
+    # row-count fallback: 12-1 means 13 rows, 1 means one row.
+    traveler_declared = traveler_count or novel_status_boundary_count_hint(traveler_boundary)
+    keeper_declared = keeper_count or novel_status_boundary_count_hint(keeper_boundary)
     traveler_ids = resolve_novel_status_access_ids(
-        chapter_rows, traveler_boundary, traveler_count
+        chapter_rows, traveler_boundary, traveler_declared
     )
     keeper_ids = resolve_novel_status_access_ids(
-        chapter_rows, keeper_boundary, keeper_count
+        chapter_rows, keeper_boundary, keeper_declared
     )
 
     # Preserve positive flags from a successful schema-19 sync. False flags are
@@ -379,11 +382,6 @@ def apply_novel_status_access_boundaries(chapters: list[dict], novel: dict) -> l
         if to_bool(chapter.get("keeper_access"), False):
             keeper_ids.add(chapter_id)
 
-        if not is_gift:
-            free_url = chapter_public_url(chapter)
-            free_date = clean_value(chapter.get("free_release_date"))
-            if free_url and free_date and is_date_open(free_date):
-                traveler_ids.add(chapter_id)
 
     keeper_ids.update(traveler_ids)
 
@@ -398,23 +396,19 @@ def apply_novel_status_access_boundaries(chapters: list[dict], novel: dict) -> l
             keeper_order += 1
 
         prepared["traveler_access"] = traveler_allowed
-        prepared["traveler_access_source"] = (
-            "effective_snapshot" if traveler_allowed else None
-        )
+        prepared["traveler_access_source"] = "effective_snapshot"
         prepared["keeper_access"] = keeper_allowed
         prepared["keeper_access_order"] = (
             keeper_order if keeper_allowed and not traveler_allowed else None
         )
-        prepared["keeper_access_source"] = (
-            "effective_snapshot" if keeper_allowed else None
-        )
+        prepared["keeper_access_source"] = "effective_snapshot"
         result.append(prepared)
     return result
 
 
 def _has_explicit_novel_status_marker(chapter: dict, role: str) -> bool:
     source_key = "keeper_access_source" if role == "keeper" else "traveler_access_source"
-    return clean_value(chapter.get(source_key)).lower() == "novel_status"
+    return clean_value(chapter.get(source_key)).lower() in {"novel_status", "effective_snapshot"}
 
 
 def _access_field_present(chapter: dict, role: str) -> bool:
@@ -428,13 +422,8 @@ def _access_field_present(chapter: dict, role: str) -> bool:
 def chapter_traveler_access_enabled(chapter: dict, novel: dict | None = None) -> bool:
     """Resolve the 🌱 boundary with safe recovery for an incomplete deployment.
 
-    Preferred order:
-    1. explicit per-chapter flag produced by MiniAppSync schema 19;
-    2. the novel-level ``traveler_access_through`` value from NovelStatus;
-    3. legacy released public URL only when NovelStatus data is not present yet.
-
-    The fallback prevents a schema/cache mismatch from closing the whole reader,
-    while the next successful schema-19 sync restores the strict source of truth.
+    A per-request effective snapshot is authoritative for both true and false
+    values.  Raw database rows may still recover from the NovelStatus endpoint.
     """
     if _has_explicit_novel_status_marker(chapter, "traveler"):
         return to_bool(chapter.get("traveler_access"), False)
@@ -461,10 +450,8 @@ def chapter_traveler_url(chapter: dict, novel: dict | None = None) -> str:
 def chapter_guest_free_url(chapter: dict, novel: dict | None = None) -> str:
     """Return a genuinely free source for a viewer without subscriptions.
 
-    NovelStatus 🌱 remains the primary boundary.  The released free-link
-    fallback protects public chapters when an older or partially applied sync
-    left an explicit ``traveler_access=false`` flag in Supabase.  Gift novels
-    never use this fallback: their 🌱 range still requires the Traveler role.
+    NovelStatus 🌱 is the only free-access boundary. Gift novels still require
+    the Traveler role for that same range.
     """
     if novel_is_gift(novel or {}):
         return ""
@@ -473,10 +460,8 @@ def chapter_guest_free_url(chapter: dict, novel: dict | None = None) -> str:
     if traveler_url:
         return traveler_url
 
-    public_url = chapter_public_url(chapter)
-    free_release_date = clean_value(chapter.get("free_release_date"))
-    if public_url and free_release_date and is_date_open(free_release_date):
-        return public_url
+    # NovelStatus is the sole access source. Dates are display metadata and
+    # never open a chapter on their own.
     return ""
 
 

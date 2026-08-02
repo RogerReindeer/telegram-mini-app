@@ -80,7 +80,6 @@
                   </div>
                 </div>
               {% elif access_paywall.show_refresh %}
-                {% if access_paywall.already_owned_message %}<p class="chapter-access-owned-note chapter-access-owned-note-standalone">{{ access_paywall.already_owned_message }}</p>{% endif %}
                 <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>
               {% endif %}
               <a class="chapter-access-secondary-button" href="/novel/{{ novel.slug }}">К оглавлению</a>

@@ -254,11 +254,8 @@ def adapt_novel_from_db(row: dict) -> dict:
     novel_id = clean_value(row.get("novel_id"))
     short_title = clean_value(row.get("novel_short")) or clean_value(row.get("title_ru"))
     title_ru = clean_value(row.get("title_ru")) or short_title
-    tags = row.get("miniapp_tags") or row.get("tags_app_catalog") or []
-    if isinstance(tags, list):
-        tags_text = "\n".join(clean_value(item) for item in tags if clean_value(item))
-    else:
-        tags_text = clean_value(tags)
+    miniapp_tags_text = "\n".join(_normalize_text_list(row.get("miniapp_tags")))
+    app_catalog_tags_text = "\n".join(_normalize_text_list(row.get("tags_app_catalog")))
     adapted.update({
         "id": novel_id,
         "slug": clean_value(row.get("code")) or normalize_slug(short_title or novel_id),
@@ -268,7 +265,10 @@ def adapt_novel_from_db(row: dict) -> dict:
         "full_title": title_ru,
         "title_en_original": clean_value(row.get("title_en")),
         "title_en": clean_value(row.get("title_en")),
-        "tags": tags_text,
+        # MiniAppTags remains the detailed tag source for the novel/TOC page.
+        "tags": miniapp_tags_text,
+        # Library chips and library search use only MiniAppSettings.TagsForAppCatalog.
+        "library_tags": app_catalog_tags_text,
         "is_visible": to_bool(row.get("miniapp_visible"), True),
         "translation_status": clean_value(row.get("status")),
         "sort_order": to_float(row.get("novel_id"), 999999),

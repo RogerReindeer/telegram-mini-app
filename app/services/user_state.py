@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from ..database import db_select, db_upsert, supabase_request
+from ..database import SupabaseError, db_select, db_upsert, supabase_request
 from ..utils import clean_value, to_float, to_int, utc_now
 
 
@@ -246,6 +246,79 @@ def get_user_state_rows(telegram_user_id: int) -> dict[str, Any]:
     }
 
 
+def _patch_progress_row(filters: dict[str, str], row: dict[str, Any]) -> None:
+    supabase_request(
+        "PATCH",
+        "user_chapter_progress",
+        params=filters,
+        payload=row,
+        prefer="return=minimal",
+    )
+
+
+def _save_chapter_progress_compat(row: dict[str, Any]) -> None:
+    """Save progress across both the intended and legacy Supabase primary keys.
+
+    The intended key is (telegram_user_id, chapter_id).  Some early databases
+    were left with a different user_chapter_progress_pkey, which makes a normal
+    PostgREST upsert raise 23505.  Existing exact rows are patched directly;
+    the legacy fallback replaces the one row that old schema permits until the
+    v220 SQL migration is applied.
+    """
+    user_id = to_int(row.get("telegram_user_id"), 0)
+    novel_id = to_int(row.get("novel_id"), 0)
+    chapter_id = clean_value(row.get("chapter_id"))
+
+    try:
+        db_upsert(
+            "user_chapter_progress",
+            [row],
+            "telegram_user_id,chapter_id",
+            batch_size=1,
+        )
+        return
+    except SupabaseError as error:
+        message = str(error)
+        if "23505" not in message or "user_chapter_progress_pkey" not in message:
+            raise
+
+    # Compatibility with a legacy PK such as (telegram_user_id, novel_id) or
+    # telegram_user_id.  Prefer replacing progress inside the same novel.
+    legacy = db_select(
+        "user_chapter_progress",
+        select="telegram_user_id,novel_id,chapter_id",
+        filters={
+            "telegram_user_id": f"eq.{user_id}",
+            "novel_id": f"eq.{novel_id}",
+        },
+        order="last_read_at.desc",
+        limit=1,
+    )
+    if not legacy:
+        legacy = db_select(
+            "user_chapter_progress",
+            select="telegram_user_id,novel_id,chapter_id",
+            filters={"telegram_user_id": f"eq.{user_id}"},
+            order="last_read_at.desc",
+            limit=1,
+        )
+    if not legacy:
+        raise SupabaseError(
+            "Supabase user_chapter_progress_pkey не соответствует ключу приложения; "
+            "примените sql/migrations/v219_to_v220_progress_primary_key.sql"
+        )
+
+    current = legacy[0]
+    filters = {"telegram_user_id": f"eq.{user_id}"}
+    current_chapter_id = clean_value(current.get("chapter_id"))
+    if current_chapter_id:
+        filters["chapter_id"] = f"eq.{current_chapter_id}"
+    current_novel_id = to_int(current.get("novel_id"), 0)
+    if current_novel_id > 0:
+        filters["novel_id"] = f"eq.{current_novel_id}"
+    _patch_progress_row(filters, row)
+
+
 def save_user_progress(telegram_user_id: int, payload: dict[str, Any]) -> dict[str, Any]:
     novel_id = to_int(payload.get("novel_id"), 0)
     chapter_id = clean_value(payload.get("chapter_id"))
@@ -285,12 +358,7 @@ def save_user_progress(telegram_user_id: int, payload: dict[str, Any]) -> dict[s
         "last_read_at": now_iso,
     }
 
-    db_upsert(
-        "user_chapter_progress",
-        [progress_row],
-        "telegram_user_id,chapter_id",
-        batch_size=1,
-    )
+    _save_chapter_progress_compat(progress_row)
     db_upsert(
         "user_novel_state",
         [novel_state_row],

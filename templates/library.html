@@ -205,7 +205,7 @@
                 data-novel-cover="{{ novel.cover_url or '' }}"
                 data-title="{{ (novel.library_short_title ~ ' ' ~ novel.library_full_title)|lower }}"
                 data-description="{{ novel.description or '' }}"
-                data-tags="{{ novel.tags or '' }}"
+                data-tags="{{ novel.library_tags or '' }}"
                 data-sort-order="{{ novel.sort_order or novel.id }}"
                 data-status="{{ novel.translation_status or 'in_progress' }}"
                 data-status-label="{{ novel.translation_status_label or 'Переводится' }}"

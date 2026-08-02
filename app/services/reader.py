@@ -38,10 +38,22 @@ from .access import (
 
 
 def split_tags(tags: Any) -> list[str]:
-    text = clean_value(tags)
-    if not text:
+    if tags is None:
         return []
-    return [clean_value(part) for part in re.split(r"[;,\n]+", text) if clean_value(part)]
+    raw_items = tags if isinstance(tags, (list, tuple, set)) else re.split(r"[;,\n]+", clean_value(tags))
+    result: list[str] = []
+    seen: set[str] = set()
+    for item in raw_items:
+        text = clean_value(item)
+        key = text.casefold()
+        if text and key not in seen:
+            seen.add(key)
+            result.append(text)
+    return result
+
+
+def tags_as_text(tags: Any) -> str:
+    return "\n".join(split_tags(tags))
 
 def strip_leading_service_icons_from_title(title: Any) -> str:
     title_text = clean_value(title)
@@ -525,7 +537,16 @@ def prepare_novel_for_template(novel: dict) -> dict:
     title = clean_value(novel.get("title"))
     secondary_title = clean_value(novel.get("title_en"))
     post_icons = clean_value(novel.get("post_icons"))
-    tags = clean_value(novel.get("tags"))
+    tags = tags_as_text(novel.get("tags"))
+    # Production rows always carry library_tags from Supabase.tags_app_catalog,
+    # which is synchronized from MiniAppSettings.TagsForAppCatalog. The fallback
+    # is only for legacy fixtures/rows that predate the dedicated field.
+    if "library_tags" in novel:
+        library_tags = tags_as_text(novel.get("library_tags"))
+    elif "tags_app_catalog" in novel:
+        library_tags = tags_as_text(novel.get("tags_app_catalog"))
+    else:
+        library_tags = tags
 
     explicit_short_title = clean_value(
         novel.get("short_title")
@@ -577,7 +598,8 @@ def prepare_novel_for_template(novel: dict) -> dict:
         library_secondary_title = stored_secondary_title
 
     tag_items = prepare_tag_items(tags)
-    card_tag_items = build_card_tag_items(tag_items)
+    library_tag_items = prepare_tag_items(library_tags)
+    card_tag_items = build_card_tag_items(library_tag_items)
     toc_tag_items = [
         item
         for item in sorted(tag_items, key=lambda item: (tag_priority_score(item), clean_value(item.get("text")).lower()))
@@ -627,6 +649,7 @@ def prepare_novel_for_template(novel: dict) -> dict:
         "bottom_description": clean_value(novel.get("bottom_description")),
         "bottom_description_paragraphs": split_text_paragraphs(novel.get("bottom_description")),
         "tags": tags,
+        "library_tags": library_tags,
         "tag_items": tag_items,
         "toc_tag_items": toc_tag_items,
         "catalog_tag_items": card_tag_items[:6],
@@ -998,7 +1021,7 @@ def source_backed_access_counts_for_profile(
 def prepare_library_novels_for_access(
     novels: list[dict], chapters: list[dict], viewer: dict[str, Any] | None
 ) -> list[dict]:
-    """Prepare cards and repair only stale zero counters from real sources."""
+    """Prepare visible cards and rebuild access counters from real chapter sources."""
     viewer = viewer or {}
     grouped_chapters: dict[str, list[dict]] = {}
     for chapter in chapters or []:
@@ -1008,6 +1031,10 @@ def prepare_library_novels_for_access(
     result = []
 
     for novel in novels:
+        # MiniAppVisible is the sole catalogue-visibility switch.  Hidden rows
+        # may remain stored in Supabase, but they never reach the library.
+        if novel.get("miniapp_visible", novel.get("is_visible", True)) is False:
+            continue
         novel_id_text = clean_value(novel.get("novel_id") or novel.get("id"))
         novel_id = to_int(novel_id_text, 0) or None
         if viewer.get("__fast_access_profile"):

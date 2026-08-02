@@ -47,8 +47,27 @@ def _counter_recovery_novel_ids(novels: list[dict]) -> list[str]:
     return result
 
 
-def _library_recovery_chapters(novels: list[dict]) -> list[dict]:
-    return get_chapters_for_novel_ids(_counter_recovery_novel_ids(novels))
+def _visible_novel_ids(novels: list[dict]) -> list[str]:
+    """Return only MiniAppVisible novel IDs for the library access snapshot."""
+    result: list[str] = []
+    seen: set[str] = set()
+    for novel in novels:
+        novel_id = str(novel.get("novel_id") or novel.get("id") or "").strip()
+        is_visible = novel.get("miniapp_visible", novel.get("is_visible", True))
+        if novel_id and is_visible is not False and novel_id not in seen:
+            seen.add(novel_id)
+            result.append(novel_id)
+    return result
+
+
+def _library_access_chapters(novels: list[dict]) -> list[dict]:
+    """Load all chapter rows for visible cards and rebuild access from real URLs.
+
+    Stored counters can be stale after a partial sync or a schema-compatible
+    fallback.  MiniAppVisible decides whether a novel is present; it must not
+    turn a visible novel with readable chapters into the section “Скоро”.
+    """
+    return get_chapters_for_novel_ids(_visible_novel_ids(novels))
 
 
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
@@ -69,7 +88,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         fast_viewer["__fast_access_profile"] = page_profile
         try:
             novels = get_all_novels(include_hidden=False)
-            prepared = prepare_library_novels_for_access(novels, _library_recovery_chapters(novels), fast_viewer)
+            prepared = prepare_library_novels_for_access(novels, _library_access_chapters(novels), fast_viewer)
         except Exception:
             prepared = []
         return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
@@ -159,7 +178,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         viewer = public_viewer(viewer_from_request(request))
         raw_novels = get_all_novels(include_hidden=False)
         novels = prepare_library_novels_for_access(
-            raw_novels, _library_recovery_chapters(raw_novels), viewer
+            raw_novels, _library_access_chapters(raw_novels), viewer
         )
         return {"items": novels}
 
