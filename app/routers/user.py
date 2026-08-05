@@ -8,11 +8,11 @@ from ..schemas import ResetProgressPayload, SaveLibraryPayload, SaveProgressPayl
 from ..services.user_state import get_user_state_rows, reset_user_progress, save_user_library, save_user_progress
 
 
-def create_user_router(require_authenticated_viewer: Callable, public_viewer: Callable) -> APIRouter:
+def create_user_router(require_app_access_viewer: Callable, public_viewer: Callable) -> APIRouter:
     router = APIRouter(prefix="/api/user")
 
     def user_id(request: Request) -> int:
-        viewer = require_authenticated_viewer(request)
+        viewer = require_app_access_viewer(request)
         return int(viewer.get("user_id") or viewer.get("telegram_user_id") or 0)
 
     @router.get("/state")

@@ -36,6 +36,14 @@
     initTelegram();
     const reloading = await initTelegramAuth();
     if (reloading) return;
+
+    if (document.querySelector("[data-app-access-gate]")) {
+      try { applySettings(); } catch (error) { console.error("Не удалось применить тему", error); }
+      try { initAccessActions(); } catch (error) { console.error("Не удалось включить проверку доступа", error); }
+      try { initAppFullscreenButton(); } catch (error) { console.error("Не удалось включить полноэкранный режим", error); }
+      return;
+    }
+
     await loadServerUserState();
 
     // Каждый модуль запускается независимо: ошибка в библиотеке не должна
@@ -192,6 +200,8 @@
     if (!initData) return false;
 
     const currentRole = String(viewer.role || "guest").toLowerCase();
+    const currentAppAccess = Boolean(viewer.app_access);
+    const currentAuthVersion = Number(viewer.auth_version || 0);
     const refreshKey = `zefirki_auth_refresh_${simpleHash(initData)}`;
     let lastRefresh = 0;
     try {
@@ -200,8 +210,8 @@
       console.debug("Telegram auth refresh cache unavailable", error);
     }
 
-    const refreshInterval = currentRole === "guest" ? 60 * 1000 : 5 * 60 * 1000;
-    const needsRefresh = !viewer.authenticated || Date.now() - lastRefresh >= refreshInterval;
+    const refreshInterval = (!currentAppAccess || currentRole === "guest") ? 60 * 1000 : 5 * 60 * 1000;
+    const needsRefresh = !viewer.authenticated || currentAuthVersion < 2 || Date.now() - lastRefresh >= refreshInterval;
     if (!needsRefresh) return false;
 
     showAuthOverlay();
@@ -214,8 +224,12 @@
       }
 
       const refreshedRole = String((data.viewer || {}).role || "guest").toLowerCase();
+      const refreshedAppAccess = Boolean((data.viewer || {}).app_access);
+      const refreshedAuthVersion = Number((data.viewer || {}).auth_version || 0);
       const roleChanged = refreshedRole !== currentRole;
-      if (!viewer.authenticated || roleChanged) {
+      const appAccessChanged = refreshedAppAccess !== currentAppAccess;
+      const authVersionChanged = refreshedAuthVersion !== currentAuthVersion;
+      if (!viewer.authenticated || roleChanged || appAccessChanged || authVersionChanged) {
         window.location.reload();
         return true;
       }
@@ -687,7 +701,13 @@
     }
     body.classList.remove("hide-foxes");
 
-    document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULT_SETTINGS.accentColor);
+    const activeAccent = settings.accentColor || DEFAULT_SETTINGS.accentColor;
+    document.documentElement.style.setProperty("--accent", activeAccent);
+    document.documentElement.style.setProperty("--zb-accent", activeAccent);
+    document.documentElement.style.setProperty("--site-accent", activeAccent);
+    document.documentElement.style.setProperty("--app-accent", activeAccent);
+    document.documentElement.style.setProperty("--accent-color", activeAccent);
+    document.documentElement.style.setProperty("--accent-soft", `color-mix(in srgb, ${activeAccent} 12%, transparent)`);
     document.documentElement.style.setProperty("--reader-font-size", `${settings.fontSize || 16}px`);
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${settings.paragraphSpacing || 16}px`);
@@ -2837,6 +2857,7 @@
     const subscriptions = Array.isArray(data.tribute_subscriptions) ? data.tribute_subscriptions : [];
     const entitlements = Array.isArray(data.book_entitlements) ? data.book_entitlements : [];
     const config = data.configuration || {};
+    const mainConfig = config.main || {};
     const travelerConfig = config.traveler || {};
     const keeperConfig = config.keeper || {};
     const roleLabels = { guest: "Гость", traveler: "Странствующий читатель", keeper: "Хранитель свитков" };
@@ -2852,6 +2873,7 @@
     };
     const groupRows = function () {
       const rows = [];
+      rows.push(groupRow("Основная группа", groups.main, mainConfig));
       const travelerGroups = Array.isArray(groups.travelers) && groups.travelers.length ? groups.travelers : [groups.traveler];
       const keeperGroups = Array.isArray(groups.keepers) && groups.keepers.length ? groups.keepers : [groups.keeper];
       travelerGroups.forEach(function (group, index) { rows.push(groupRow(index === 0 ? "🌱 Tribute / Странствующий" : index === 1 ? "🌱 Boosty / Странствующий" : "🌱 Странствующий", group, travelerConfig)); });
@@ -2882,6 +2904,7 @@
         <div><span>Итоговые права</span><strong>${escapeHtml(roleLabels[rights.role] || rights.role || "Гость")}</strong></div>
       </div>
       <h4>Что разрешено</h4>
+      <div class="access-debug-row"><span>Вход в Mini App</span><strong class="${rights.can_use_app ? "is-ok" : "is-no"}">${rights.can_use_app ? "Разрешён" : "Закрыт"}</strong><small>Источник: ${escapeHtml(rights.app_access_source || "—")}. Нужна основная группа или любая активная подписка.</small></div>
       <div class="access-debug-row"><span>Обычные новеллы</span><strong class="is-ok">Видит</strong><small>Гости и 🌱 читают главы в пределах границы 🌱 из NovelStatus.</small></div>
       <div class="access-debug-row"><span>Новеллы с 🎁</span><strong class="${rights.can_view_gift_books ? "is-ok" : "is-no"}">${rights.can_view_gift_books ? "Читает" : "Не читает"}</strong><small>🌱 Странствующий открывает новеллы с 🎁; 📜 Хранитель включает те же права и ранние главы.</small></div>
       <div class="access-debug-row"><span>Ранние главы 📜</span><strong class="${rights.can_read_premium_releases ? "is-ok" : "is-no"}">${rights.can_read_premium_releases ? "Читает" : "Не читает"}</strong><small>📜 Хранитель читает дополнительные главы в пределах границы 📜 из NovelStatus.</small></div>
@@ -2994,8 +3017,13 @@
     body.dataset.readerWidth = settings.readerWidth || "comfort";
     body.dataset.textAlign = settings.textAlign || "left";
     body.dataset.appSize = settings.appSize || "normal";
-    document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULTS.accentColor);
-    document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
+    const activeAccent = settings.accentColor || DEFAULTS.accentColor;
+    document.documentElement.style.setProperty("--accent", activeAccent);
+    document.documentElement.style.setProperty("--zb-accent", activeAccent);
+    document.documentElement.style.setProperty("--site-accent", activeAccent);
+    document.documentElement.style.setProperty("--app-accent", activeAccent);
+    document.documentElement.style.setProperty("--accent-color", activeAccent);
+    document.documentElement.style.setProperty("--accent-soft", `color-mix(in srgb, ${activeAccent} 12%, transparent)`);
     document.documentElement.style.setProperty("--reader-font-size", `${clamp(settings.fontSize, 4, 24)}px`);
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${clamp(settings.paragraphSpacing, 0, 32)}px`);
@@ -3271,8 +3299,13 @@
     document.body.dataset.resolvedTheme = resolved;
     document.body.dataset.siteThemeChoice = settings.siteTheme || "system";
     document.body.classList.toggle("site-theme-system", (settings.siteTheme || "system") === "system");
-    document.documentElement.style.setProperty("--accent", settings.accentColor || DEFAULTS.accentColor);
-    document.documentElement.style.setProperty("--zb-accent", settings.accentColor || DEFAULTS.accentColor);
+    const activeAccent = settings.accentColor || DEFAULTS.accentColor;
+    document.documentElement.style.setProperty("--accent", activeAccent);
+    document.documentElement.style.setProperty("--zb-accent", activeAccent);
+    document.documentElement.style.setProperty("--site-accent", activeAccent);
+    document.documentElement.style.setProperty("--app-accent", activeAccent);
+    document.documentElement.style.setProperty("--accent-color", activeAccent);
+    document.documentElement.style.setProperty("--accent-soft", `color-mix(in srgb, ${activeAccent} 12%, transparent)`);
   }
   function ensurePreview() {
     const pane = document.querySelector('[data-zb-pane="reader"]');

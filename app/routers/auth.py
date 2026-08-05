@@ -38,6 +38,8 @@ def create_auth_router() -> APIRouter:
         role = profile.get("role") or "guest"
         rights = {
             "role": role,
+            "can_use_app": bool(profile.get("app_access")),
+            "app_access_source": profile.get("app_access_source") or "",
             "group_role": profile.get("group_role") or "guest",
             "tribute_role": profile.get("tribute_role") or "guest",
             "can_view_gift_books": role in {"traveler", "keeper"},
@@ -58,6 +60,12 @@ def create_auth_router() -> APIRouter:
             "tribute_subscriptions": subscriptions,
             "book_entitlements": entitlements,
             "configuration": {
+                "main": {
+                    "label": "Основная группа",
+                    "chat_id": settings.main_chat_id,
+                    "normalized_chat_id": settings.normalized_main_chat_id,
+                    "invite_url": settings.main_group_invite_url,
+                },
                 "traveler": {
                     "label": "🌱 Странствующий читатель",
                     "chat_id": settings.traveler_chat_id,

@@ -55,6 +55,8 @@ class Settings:
     telegram_bot_token: str = _env("TELEGRAM_BOT_TOKEN")
     sync_token: str = _env("SYNC_TOKEN")
     session_secret: str = _env("SESSION_SECRET")
+    main_chat_id: str = _env("MAIN_CHAT_ID", "2608069201")
+    main_group_invite_url: str = _env("MAIN_GROUP_INVITE_URL", "https://t.me/+Z5b3eeJjJTs0MTli")
     traveler_chat_id: str = _env("TRAVELER_CHAT_ID", "3769149961")
     keeper_chat_id: str = _env("KEEPER_CHAT_ID", "4366591335")
     traveler_chat_ids_raw: str = _env("TRAVELER_CHAT_IDS")
@@ -79,10 +81,14 @@ class Settings:
     rate_limit_public_max_requests: int = int(_env("RATE_LIMIT_PUBLIC_MAX_REQUESTS", "240") or "240")
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
-    # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader
-    app_version: str = _env("APP_VERSION", "v221-library-tags-paywall-dedup")
+    # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader; v221-library-tags-paywall-dedup
+    app_version: str = _env("APP_VERSION", "v222-main-group-gate-themed-buttons")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+
+    @property
+    def normalized_main_chat_id(self) -> str:
+        return normalize_telegram_chat_id(self.main_chat_id)
 
     @property
     def normalized_traveler_chat_id(self) -> str:

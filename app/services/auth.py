@@ -37,6 +37,7 @@ SYNC_TOKEN = settings.sync_token
 SESSION_SECRET_TEXT = settings.session_secret or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or "change-me"
 SESSION_SECRET = SESSION_SECRET_TEXT.encode("utf-8")
 
+MAIN_CHAT_ID = settings.normalized_main_chat_id
 TRAVELER_CHAT_ID = settings.normalized_traveler_chat_id
 KEEPER_CHAT_ID = settings.normalized_keeper_chat_id
 TRAVELER_CHAT_IDS = settings.traveler_chat_ids or tuple(filter(None, (TRAVELER_CHAT_ID,)))
@@ -88,6 +89,9 @@ def public_viewer(viewer: dict[str, Any]) -> dict[str, Any]:
         "first_name": viewer.get("first_name") or "",
         "username": viewer.get("username") or "",
         "role": role,
+        "app_access": bool(viewer.get("app_access")),
+        "app_access_source": str(viewer.get("app_access_source") or ""),
+        "auth_version": int(viewer.get("auth_version") or 0),
     }
 
 
@@ -106,6 +110,9 @@ def make_session_token(viewer: dict[str, Any]) -> str:
         "first_name": str(viewer.get("first_name") or "")[:120],
         "username": str(viewer.get("username") or "")[:120],
         "role": str(viewer.get("role") or "guest"),
+        "app_access": bool(viewer.get("app_access")),
+        "app_access_source": str(viewer.get("app_access_source") or ""),
+        "auth_version": 2,
         "exp": int(time.time()) + AUTH_SESSION_TTL_SECONDS,
     }
     body = b64url_encode(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
@@ -129,12 +136,17 @@ def parse_session_token(token: str) -> dict[str, Any] | None:
     role = str(payload.get("role") or "guest")
     if role not in ROLE_RANK:
         return None
+    app_access_payload = payload.get("app_access")
+    app_access = bool(app_access_payload) if app_access_payload is not None else role_rank(role) >= role_rank("traveler")
     return {
         "authenticated": True,
         "user_id": int(payload.get("user_id")),
         "first_name": str(payload.get("first_name") or ""),
         "username": str(payload.get("username") or ""),
         "role": role,
+        "app_access": app_access,
+        "app_access_source": str(payload.get("app_access_source") or ("subscription" if app_access else "")),
+        "auth_version": int(payload.get("auth_version") or 0),
     }
 
 
@@ -148,6 +160,9 @@ def viewer_from_request(request: Request) -> dict[str, Any]:
         "first_name": "",
         "username": "",
         "role": "guest",
+        "app_access": False,
+        "app_access_source": "",
+        "auth_version": 0,
     }
 
 
@@ -155,6 +170,17 @@ def require_authenticated_viewer(request: Request) -> dict[str, Any]:
     viewer = viewer_from_request(request)
     if not viewer.get("authenticated") or not viewer.get("user_id"):
         raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
+    return viewer
+
+
+def require_app_access_viewer(request: Request) -> dict[str, Any]:
+    """Require both Telegram authentication and admission to the Mini App."""
+    viewer = require_authenticated_viewer(request)
+    if not viewer.get("app_access"):
+        raise HTTPException(
+            status_code=403,
+            detail="Читалка доступна участникам основной группы или пользователям с активной подпиской",
+        )
     return viewer
 
 
@@ -330,6 +356,13 @@ def resolve_access_profile(
             cached_profile["novel_id"] = novel_id
         return cached_profile
 
+    main_group = telegram_membership_details(
+        MAIN_CHAT_ID,
+        user_id,
+        label="Основная группа",
+        source="main_group",
+        role="member",
+    )
     keeper_groups = telegram_memberships_for_role(KEEPER_CHAT_IDS, user_id, role="keeper")
     traveler_groups = telegram_memberships_for_role(TRAVELER_CHAT_IDS, user_id, role="traveler")
     keeper_group = first_active_group(keeper_groups) or (keeper_groups[0] if keeper_groups else telegram_membership_details("", user_id, label="📜 Хранитель свитков", role="keeper"))
@@ -338,6 +371,15 @@ def resolve_access_profile(
     tribute_role = tribute_role_from_rows(tribute_rows)
     group_role = "keeper" if any(group.get("active") for group in keeper_groups) else ("traveler" if any(group.get("active") for group in traveler_groups) else "guest")
     global_role = max((group_role, tribute_role), key=role_rank)
+    has_subscription = role_rank(global_role) >= role_rank("traveler")
+    main_group_active = bool(main_group.get("active"))
+    app_access = main_group_active or has_subscription
+    app_access_source = (
+        "main_group+subscription" if main_group_active and has_subscription
+        else "main_group" if main_group_active
+        else "subscription" if has_subscription
+        else ""
+    )
     entitlements = get_active_book_entitlements(user_id, novel_id)
     full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
     profile = {
@@ -345,7 +387,9 @@ def resolve_access_profile(
         "role": global_role,
         "group_role": group_role,
         "tribute_role": tribute_role,
-        "groups": {"traveler": traveler_group, "keeper": keeper_group, "travelers": traveler_groups, "keepers": keeper_groups},
+        "groups": {"main": main_group, "traveler": traveler_group, "keeper": keeper_group, "travelers": traveler_groups, "keepers": keeper_groups},
+        "app_access": app_access,
+        "app_access_source": app_access_source,
         "tribute_subscriptions": tribute_rows,
         "book_entitlements": entitlements,
         "has_full_book_access": full_book,
@@ -386,6 +430,8 @@ def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = No
     return {
         "user_id": user_id or None,
         "role": role if role in ROLE_RANK else "guest",
+        "app_access": bool(viewer.get("app_access")),
+        "app_access_source": clean_value(viewer.get("app_access_source")),
         "group_role": role if role in ROLE_RANK else "guest",
         "tribute_role": "guest",
         "groups": {},
@@ -401,6 +447,8 @@ def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None, f
         return {
             "user_id": None,
             "role": "guest",
+            "app_access": False,
+            "app_access_source": "",
             "group_role": "guest",
             "tribute_role": "guest",
             "groups": {},
@@ -415,11 +463,14 @@ def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None, f
 def authenticate_telegram_viewer(init_data: str, force_refresh: bool = True) -> dict[str, Any]:
     user = validate_telegram_init_data(init_data)
     user_id = int(user["id"])
-    role = resolve_telegram_role(user_id, force_refresh=force_refresh)
+    profile = resolve_access_profile(user_id, force_group_refresh=force_refresh)
     return {
         "authenticated": True,
         "user_id": user_id,
         "first_name": str(user.get("first_name") or ""),
         "username": str(user.get("username") or ""),
-        "role": role,
+        "role": clean_value(profile.get("role")) or "guest",
+        "app_access": bool(profile.get("app_access")),
+        "app_access_source": clean_value(profile.get("app_access_source")),
+        "auth_version": 2,
     }

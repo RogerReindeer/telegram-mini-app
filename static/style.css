@@ -14688,3 +14688,365 @@ body[data-reader-theme="dark"] .subscription-help-popover {
   background: #211a17;
   color: #fff4e8;
 }
+
+
+/* =====================================================================
+   v222 — main-group admission gate and theme-driven interactive controls
+   All interactive controls now follow the selected app accent and light/dark
+   theme instead of keeping old hard-coded orange or gold skins.
+   ===================================================================== */
+:root {
+  --zb-theme-accent: var(--accent, #ff6a00);
+  --zb-theme-on-accent: #ffffff;
+  --zb-theme-accent-soft: color-mix(in srgb, var(--zb-theme-accent) 13%, transparent);
+  --zb-theme-accent-soft-strong: color-mix(in srgb, var(--zb-theme-accent) 22%, transparent);
+  --zb-theme-accent-border: color-mix(in srgb, var(--zb-theme-accent) 48%, transparent);
+  --zb-theme-accent-shadow: color-mix(in srgb, var(--zb-theme-accent) 30%, transparent);
+  --zb-theme-accent-hover: color-mix(in srgb, var(--zb-theme-accent) 86%, #000000);
+  --zb-theme-control-surface: color-mix(in srgb, var(--card-bg-solid, #fffaf5) 90%, var(--zb-theme-accent) 10%);
+  --zb-theme-control-text: var(--text, #241713);
+}
+
+body[data-site-theme="dark"],
+body[data-resolved-theme="dark"] {
+  --zb-theme-control-surface: color-mix(in srgb, var(--card-bg-solid, #1c1c1c) 86%, var(--zb-theme-accent) 14%);
+  --zb-theme-control-text: var(--text, #f4f4f4);
+}
+
+/* Primary actions */
+.primary-read-button,
+.novel-continue-button,
+.novel-back-button,
+.library-card-button,
+.library-update-button,
+.library-filter-apply,
+.paid-chapters-toggle,
+.chapter-unlock-button,
+.subscription-refresh-button,
+.chapter-access-purchase-button,
+.chapter-end-gate-primary,
+.chapter-retry-button,
+.spoiler-warning-confirm,
+.access-gate-primary,
+.access-gate-refresh,
+.toc-floating-main-button,
+.toc-floating-nav-button,
+.reader-floating-button,
+.reader-floating-button.is-primary,
+.reader-floating-next,
+.reader-controls-visibility-toggle,
+.toc-controls-visibility-toggle,
+.app-size-fab {
+  background: var(--zb-theme-accent) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent-border) !important;
+  color: var(--zb-theme-on-accent) !important;
+  box-shadow: 0 10px 24px var(--zb-theme-accent-shadow) !important;
+}
+
+.primary-read-button:is(:hover, :focus-visible, :active),
+.novel-continue-button:is(:hover, :focus-visible, :active),
+.novel-back-button:is(:hover, :focus-visible, :active),
+.library-card-button:is(:hover, :focus-visible, :active),
+.library-update-button:is(:hover, :focus-visible, :active),
+.library-filter-apply:is(:hover, :focus-visible, :active),
+.paid-chapters-toggle:is(:hover, :focus-visible, :active),
+.chapter-unlock-button:is(:hover, :focus-visible, :active),
+.subscription-refresh-button:is(:hover, :focus-visible, :active),
+.chapter-access-purchase-button:is(:hover, :focus-visible, :active),
+.chapter-end-gate-primary:is(:hover, :focus-visible, :active),
+.chapter-retry-button:is(:hover, :focus-visible, :active),
+.spoiler-warning-confirm:is(:hover, :focus-visible, :active),
+.access-gate-primary:is(:hover, :focus-visible, :active),
+.access-gate-refresh:is(:hover, :focus-visible, :active),
+.toc-floating-main-button:is(:hover, :focus-visible, :active),
+.toc-floating-nav-button:is(:hover, :focus-visible, :active),
+.reader-floating-button:is(:hover, :focus-visible, :active),
+.reader-controls-visibility-toggle:is(:hover, :focus-visible, :active),
+.toc-controls-visibility-toggle:is(:hover, :focus-visible, :active) {
+  background: var(--zb-theme-accent-hover) !important;
+  background-image: none !important;
+  color: var(--zb-theme-on-accent) !important;
+  box-shadow: 0 14px 30px var(--zb-theme-accent-shadow) !important;
+}
+
+/* Secondary and neutral controls */
+.library-action-button,
+.library-sort-pill,
+.library-quick-tags button,
+.library-active-filters button,
+.library-filter-reset,
+.chapter-access-secondary-button,
+.chapter-end-gate-secondary,
+.chapter-jump-button,
+.chapter-sort-button,
+.description-toggle,
+.spoiler-warning-cancel,
+.settings-tab,
+.reader-quick-option,
+.reader-quick-reset,
+.zb-choice,
+.tag-spoiler-reveal {
+  background: var(--zb-theme-control-surface) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent-border) !important;
+  color: var(--zb-theme-control-text) !important;
+  box-shadow: none !important;
+}
+
+.library-action-button:is(:hover, :focus-visible, .is-active),
+.library-quick-tags button:is(:hover, :focus-visible, .active),
+.library-active-filters button:is(:hover, :focus-visible, .active),
+.library-filter-reset:is(:hover, :focus-visible),
+.chapter-access-secondary-button:is(:hover, :focus-visible),
+.chapter-end-gate-secondary:is(:hover, :focus-visible),
+.chapter-jump-button:is(:hover, :focus-visible),
+.chapter-sort-button:is(:hover, :focus-visible),
+.description-toggle:is(:hover, :focus-visible),
+.spoiler-warning-cancel:is(:hover, :focus-visible),
+.settings-tab.active,
+.reader-quick-option.is-active,
+.zb-choice.is-active,
+.tag-spoiler-reveal:is(:hover, :focus-visible) {
+  background: var(--zb-theme-accent-soft-strong) !important;
+  border-color: var(--zb-theme-accent) !important;
+  color: var(--zb-theme-accent) !important;
+}
+
+/* Floating navigation shell follows the same accent instead of the old gold skin. */
+.toc-floating-controls,
+.reader-floating-controls {
+  border-color: var(--zb-theme-accent-border) !important;
+  background: color-mix(in srgb, var(--card-bg-solid, #fffaf5) 92%, transparent) !important;
+  background-image: none !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .22), 0 0 0 1px var(--zb-theme-accent-soft) !important;
+}
+body[data-site-theme="dark"] .toc-floating-controls,
+body[data-site-theme="dark"] .reader-floating-controls,
+body[data-resolved-theme="dark"] .toc-floating-controls,
+body[data-resolved-theme="dark"] .reader-floating-controls {
+  background: color-mix(in srgb, var(--card-bg-solid, #1c1c1c) 94%, transparent) !important;
+}
+
+/* Transparent close/menu buttons stay visually light but inherit the theme. */
+.library-section-header,
+.library-book-menu,
+.library-update-close,
+.library-continue-clear,
+#librarySearchClear,
+[data-filter-close],
+.reader-quick-close,
+.reader-settings-close-v2,
+.settings-close,
+.settings-close-v2,
+.zb-settings-close,
+.chapter-unlock-close {
+  color: var(--zb-theme-accent) !important;
+}
+.library-section-header:is(:hover, :focus-visible),
+.library-book-menu:is(:hover, :focus-visible) {
+  color: var(--zb-theme-accent) !important;
+}
+
+/* Accent-linked progress indicators. */
+.library-progress-fill,
+.library-continue-progress > span,
+.novel-toc-progress-bar,
+[data-novel-reading-progress-bar],
+.chapter-scroll-progress > span,
+[data-chapter-scroll-progress-bar] {
+  background: var(--zb-theme-accent) !important;
+  background-image: none !important;
+}
+
+/* Admission screen */
+.page-access-gate {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 82% 8%, var(--zb-theme-accent-soft-strong), transparent 34%),
+    var(--page-bg);
+  color: var(--text);
+}
+.access-gate-shell {
+  width: min(100%, 560px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 16px;
+}
+.access-gate-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 900;
+}
+.access-gate-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.access-gate-fox { width: 92px; max-height: 104px; object-fit: contain; }
+.access-gate-kicker { margin: 0; color: var(--zb-theme-accent); font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.access-gate-card h1 { margin: 0; font-size: clamp(25px, 7vw, 38px); line-height: 1.08; letter-spacing: -.035em; }
+.access-gate-card > p:not(.access-gate-kicker) { margin: 0; color: var(--muted); line-height: 1.55; }
+.access-gate-actions { width: 100%; display: grid; gap: 10px; margin-top: 6px; }
+.access-gate-primary,
+.access-gate-refresh {
+  width: 100%;
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font: inherit;
+  font-weight: 900;
+  text-decoration: none;
+}
+.access-gate-note { font-size: 13px; }
+.access-gate-spinner { margin-bottom: 2px; }
+
+
+/* v222 specificity finish: controls that previously had stronger gold/orange selectors. */
+.reader-floating-controls .reader-settings-toggle,
+.reader-floating-controls [data-reader-settings-toggle],
+.reader-settings-toggle.reader-floating-button,
+[data-reader-settings-toggle].reader-floating-button,
+.toc-controls-visibility-toggle.is-cross-icon,
+.reader-controls-visibility-toggle.is-cross-icon {
+  background: var(--zb-theme-accent) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent-border) !important;
+  color: var(--zb-theme-on-accent) !important;
+  box-shadow: 0 10px 24px var(--zb-theme-accent-shadow) !important;
+}
+
+.novel-toc-tags .tag-spoiler-reveal,
+.novel-toc-tags-full .tag-spoiler-reveal,
+.tag.tag-spoiler.tag-spoiler-reveal {
+  background: var(--zb-theme-control-surface) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent-border) !important;
+  color: var(--zb-theme-control-text) !important;
+  box-shadow: none !important;
+}
+.novel-toc-tags .tag-spoiler-reveal:is(:hover, :focus-visible),
+.novel-toc-tags-full .tag-spoiler-reveal:is(:hover, :focus-visible),
+.tag.tag-spoiler.tag-spoiler-reveal:is(:hover, :focus-visible) {
+  background: var(--zb-theme-accent-soft-strong) !important;
+  border-color: var(--zb-theme-accent) !important;
+  color: var(--zb-theme-accent) !important;
+}
+
+.library-update-banner,
+.page-library .library-update-banner {
+  border-color: var(--zb-theme-accent-border) !important;
+  background: color-mix(in srgb, var(--zb-theme-accent) 14%, var(--card-bg-solid, #fffaf5)) !important;
+  background-image: none !important;
+}
+.library-update-banner .library-update-icon,
+.page-library .library-update-icon {
+  background: var(--zb-theme-accent-soft-strong) !important;
+}
+.library-update-banner .library-update-title,
+.page-library .library-update-title,
+.library-update-link .library-update-title {
+  color: var(--zb-theme-accent) !important;
+}
+.library-update-banner .library-update-close,
+.page-library .library-update-close {
+  color: var(--zb-theme-accent) !important;
+}
+
+/* v222 complete button inventory: settings, filters and dynamically-created controls. */
+.settings-access-refresh,
+.zb-global-settings-button,
+.zb-reader-settings-button,
+[data-zb-font-step],
+.sync-status-pill[data-sync-status="syncing"] {
+  background: var(--zb-theme-accent) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent-border) !important;
+  color: var(--zb-theme-on-accent) !important;
+  box-shadow: 0 10px 24px var(--zb-theme-accent-shadow) !important;
+}
+
+.settings-access-refresh:is(:hover, :focus-visible, :active),
+.zb-global-settings-button:is(:hover, :focus-visible, :active),
+.zb-reader-settings-button:is(:hover, :focus-visible, :active),
+[data-zb-font-step]:is(:hover, :focus-visible, :active),
+.sync-status-pill[data-sync-status="syncing"]:is(:hover, :focus-visible, :active) {
+  background: var(--zb-theme-accent-hover) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent) !important;
+  color: var(--zb-theme-on-accent) !important;
+}
+
+.chapter-back-button,
+.novel-description-toggle-v2,
+.paid-chapters-toggle-v2,
+.reader-settings-tab-v2,
+.settings-reset,
+.zb-reset-button,
+.access-debug-pay-link,
+.sync-status-pill,
+[data-quick-filter],
+[data-filter-chip],
+#librarySearchClear,
+[data-filter-close] {
+  background: var(--zb-theme-control-surface) !important;
+  background-image: none !important;
+  border-color: var(--zb-theme-accent-border) !important;
+  color: var(--zb-theme-control-text) !important;
+  box-shadow: none !important;
+}
+
+.chapter-back-button:is(:hover, :focus-visible, :active),
+.novel-description-toggle-v2:is(:hover, :focus-visible, :active),
+.paid-chapters-toggle-v2:is(:hover, :focus-visible, :active),
+.reader-settings-tab-v2:is(:hover, :focus-visible, .is-active),
+.settings-reset:is(:hover, :focus-visible, :active),
+.zb-reset-button:is(:hover, :focus-visible, :active),
+.access-debug-pay-link:is(:hover, :focus-visible, :active),
+.sync-status-pill:is(:hover, :focus-visible, :active),
+[data-quick-filter]:is(:hover, :focus-visible, .active, .is-active),
+[data-filter-chip]:is(:hover, :focus-visible, .active, .is-active),
+#librarySearchClear:is(:hover, :focus-visible, :active),
+[data-filter-close]:is(:hover, :focus-visible, :active) {
+  background: var(--zb-theme-accent-soft-strong) !important;
+  border-color: var(--zb-theme-accent) !important;
+  color: var(--zb-theme-accent) !important;
+}
+
+/* Disabled actions remain visibly disabled while retaining the chosen palette. */
+button:disabled,
+[aria-disabled="true"].primary-read-button,
+[aria-disabled="true"].novel-continue-button,
+[aria-disabled="true"].chapter-access-purchase-button {
+  filter: saturate(.55);
+  opacity: .58;
+  cursor: not-allowed;
+  box-shadow: none !important;
+}
+
+/* Keyboard focus is derived from the same selected accent on every control. */
+button:focus-visible,
+a[class*="button"]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--zb-theme-accent-soft-strong) !important;
+  outline-offset: 2px;
+}

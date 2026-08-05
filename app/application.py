@@ -17,7 +17,7 @@ from .routers.payments import router as payments_router
 from .routers.sync import router as sync_router
 from .routers.system import router as system_router
 from .routers.user import create_user_router
-from .services.auth import public_viewer, require_authenticated_viewer
+from .services.auth import public_viewer, require_app_access_viewer
 from .services.catalog import get_fox
 
 SITE_ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +35,7 @@ app.include_router(system_router)
 app.include_router(admin_router)
 app.include_router(create_admin_page_router(templates=templates, app_title=APP_TITLE))
 app.include_router(create_auth_router())
-app.include_router(create_user_router(require_authenticated_viewer, public_viewer))
+app.include_router(create_user_router(require_app_access_viewer, public_viewer))
 app.include_router(sync_router)
 app.include_router(payments_router)
 app.include_router(create_catalog_router(templates=templates, app_title=APP_TITLE))

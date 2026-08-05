@@ -70,8 +70,20 @@ def _library_access_chapters(novels: list[dict]) -> list[dict]:
     return get_chapters_for_novel_ids(_visible_novel_ids(novels))
 
 
+def _viewer_can_use_app(viewer: dict) -> bool:
+    return bool(viewer.get("authenticated") and viewer.get("user_id") and viewer.get("app_access"))
+
+
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
     router = APIRouter()
+
+    def access_gate(request: Request, viewer: dict):
+        return templates.TemplateResponse(request, "access_gate.html", {
+            "app_title": app_title,
+            "fox": get_fox(),
+            "viewer": viewer,
+            "main_group_invite_url": settings.main_group_invite_url,
+        })
 
     @router.get("/", include_in_schema=False)
     def index(request: Request):
@@ -83,6 +95,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/library")
     def library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
+        if not _viewer_can_use_app(viewer):
+            return access_gate(request, viewer)
         page_profile = viewer_fast_access_profile(viewer)
         fast_viewer = dict(viewer)
         fast_viewer["__fast_access_profile"] = page_profile
@@ -96,6 +110,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/novel/{slug}")
     def novel(request: Request, slug: str):
         viewer = public_viewer(viewer_from_request(request))
+        if not _viewer_can_use_app(viewer):
+            return access_gate(request, viewer)
         raw_novel = get_novel_by_slug(slug, include_hidden=False)
         if not raw_novel:
             raise HTTPException(status_code=404, detail="Novel not found")
@@ -120,6 +136,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/chapter/{chapter_id}")
     def chapter(request: Request, chapter_id: str):
         viewer = public_viewer(viewer_from_request(request))
+        if not _viewer_can_use_app(viewer):
+            return access_gate(request, viewer)
         raw_chapter = get_chapter_by_id(chapter_id)
         if not raw_chapter:
             raise HTTPException(status_code=404, detail="Chapter not found")
@@ -176,6 +194,10 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/api/library")
     def api_library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
+        if not viewer.get("authenticated") or not viewer.get("user_id"):
+            raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
+        if not viewer.get("app_access"):
+            raise HTTPException(status_code=403, detail="Доступ к читалке закрыт")
         raw_novels = get_all_novels(include_hidden=False)
         novels = prepare_library_novels_for_access(
             raw_novels, _library_access_chapters(raw_novels), viewer
