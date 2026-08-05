@@ -13,25 +13,17 @@
     <a class="access-gate-brand" href="/library"><span aria-hidden="true">🥟</span><span>Зефиркины баоцзы</span></a>
     <section class="access-gate-card" role="main">
       {% if gate_fox %}<img class="access-gate-fox" src="{{ gate_fox }}" alt="Лисичка" data-fox>{% endif %}
-      {% if viewer.authenticated %}
-        <p class="access-gate-kicker">Доступ к читалке</p>
-        <h1>Читалка доступна участникам нашей группы</h1>
-        <p>Пользоваться приложением могут участники основной группы и читатели с любой активной подпиской.</p>
-        <div class="access-gate-actions">
-          <a class="access-gate-primary" href="{{ main_group_invite_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>Вступить в основную группу</a>
-          <button class="access-gate-refresh" type="button" data-refresh-access>Проверить доступ</button>
-        </div>
-        <p class="access-gate-note">После вступления нажмите «Проверить доступ».</p>
-      {% else %}
-        <span class="auth-spinner access-gate-spinner" aria-hidden="true"></span>
-        <p class="access-gate-kicker">Telegram</p>
-        <h1>Проверяем доступ…</h1>
-        <p>Откройте читалку через кнопку Mini App в Telegram. Доступ получат участники основной группы и пользователи с активной подпиской.</p>
-        <div class="access-gate-actions">
-          <a class="access-gate-primary" href="{{ main_group_invite_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>Открыть основную группу</a>
-          <button class="access-gate-refresh" type="button" data-refresh-access>Проверить ещё раз</button>
-        </div>
-      {% endif %}
+      <p class="access-gate-kicker">Доступ к читалке</p>
+      <h1>Упс... Вы не подписаны на основную группу</h1>
+      <p>Для получения доступа подпишитесь на группу.</p>
+      <div class="access-gate-actions">
+        <button
+          class="access-gate-primary"
+          type="button"
+          data-subscribe-access
+          data-invite-url="{{ main_group_invite_url }}"
+        >Подписаться</button>
+      </div>
     </section>
   </main>
   <script>window.ZEFIRKI_FOX = {{ fox | tojson }}; window.ZEFIRKI_VIEWER = {{ viewer | tojson }};</script>
