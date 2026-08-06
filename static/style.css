@@ -15058,3 +15058,164 @@ body.page-library .subscription-help-library {
   display: none !important;
 }
 
+
+/* =====================================================================
+   v224 — compact subscription gate matching the approved layout
+   ===================================================================== */
+.page-access-gate {
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--page-bg, #fffaf5) 92%, var(--zb-theme-accent, #ff6a00) 8%),
+      color-mix(in srgb, var(--page-bg, #fffaf5) 92%, var(--zb-theme-accent, #ff6a00) 8%)
+    ) !important;
+  color: var(--text, #241713);
+}
+
+.page-access-gate .access-gate-shell {
+  width: min(100%, 509px);
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding:
+    max(24px, env(safe-area-inset-top))
+    20px
+    max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.page-access-gate .access-gate-brand {
+  width: min(100%, 352px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: var(--text, #241713);
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.page-access-gate .access-gate-brand > span:first-child {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.page-access-gate .access-gate-card {
+  width: min(100%, 352px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 14px 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--border, #ead9c9) 88%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--card-bg-solid, #ffffff) 97%, transparent);
+  box-shadow: 0 11px 25px rgba(76, 46, 26, .12);
+  text-align: center;
+}
+
+.page-access-gate .access-gate-fox {
+  width: 78px;
+  height: 78px;
+  max-height: none;
+  margin: 0 0 2px;
+  object-fit: contain;
+}
+
+.page-access-gate .access-gate-kicker {
+  margin: 0 0 9px;
+  color: var(--zb-theme-accent, #ff6a00);
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.page-access-gate .access-gate-card h1 {
+  max-width: 330px;
+  margin: 0;
+  color: var(--text, #241713);
+  font-size: 24px;
+  line-height: 1.14;
+  font-weight: 900;
+  letter-spacing: -.025em;
+}
+
+.page-access-gate .access-gate-copy,
+.page-access-gate .access-gate-card > p.access-gate-copy {
+  margin: 9px 0 12px;
+  color: var(--muted, #7d6d65);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.page-access-gate .access-gate-primary {
+  width: 100%;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 7px 14px;
+  border: 1px solid var(--zb-theme-accent, #ff6a00) !important;
+  border-radius: 6px;
+  background: var(--zb-theme-accent, #ff6a00) !important;
+  background-image: none !important;
+  color: var(--zb-theme-on-accent, #ffffff) !important;
+  box-shadow: 0 7px 15px var(--zb-theme-accent-shadow, rgba(255, 106, 0, .22)) !important;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.1;
+  font-weight: 900;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page-access-gate .access-gate-primary:is(:hover, :focus-visible, :active) {
+  background: var(--zb-theme-accent-hover, #d95a00) !important;
+  border-color: var(--zb-theme-accent-hover, #d95a00) !important;
+  color: var(--zb-theme-on-accent, #ffffff) !important;
+  box-shadow: 0 9px 19px var(--zb-theme-accent-shadow, rgba(255, 106, 0, .28)) !important;
+}
+
+body.page-access-gate[data-site-theme="dark"],
+body.page-access-gate[data-resolved-theme="dark"] {
+  background:
+    linear-gradient(
+      color-mix(in srgb, var(--page-bg, #151210) 91%, var(--zb-theme-accent, #ff6a00) 9%),
+      color-mix(in srgb, var(--page-bg, #151210) 91%, var(--zb-theme-accent, #ff6a00) 9%)
+    ) !important;
+}
+
+body.page-access-gate[data-site-theme="dark"] .access-gate-card,
+body.page-access-gate[data-resolved-theme="dark"] .access-gate-card {
+  border-color: color-mix(in srgb, var(--zb-theme-accent, #ff6a00) 18%, var(--border, #3a312d));
+  background: color-mix(in srgb, var(--card-bg-solid, #211c19) 97%, transparent);
+  box-shadow: 0 13px 30px rgba(0, 0, 0, .28);
+}
+
+@media (max-width: 390px) {
+  .page-access-gate .access-gate-shell {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .page-access-gate .access-gate-card {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .page-access-gate .access-gate-card h1 {
+    font-size: clamp(21px, 6.6vw, 24px);
+  }
+}

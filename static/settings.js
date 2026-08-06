@@ -40,7 +40,6 @@
     if (document.querySelector("[data-app-access-gate]")) {
       try { applySettings(); } catch (error) { console.error("Не удалось применить тему", error); }
       try { initAccessActions(); } catch (error) { console.error("Не удалось включить проверку доступа", error); }
-      try { initAppFullscreenButton(); } catch (error) { console.error("Не удалось включить полноэкранный режим", error); }
       return;
     }
 
@@ -253,6 +252,45 @@
         }
       });
     });
+
+    const accessGate = document.querySelector("[data-app-access-gate]");
+    let subscribeOpenedAt = 0;
+    let gateRefreshInFlight = false;
+
+    document.querySelectorAll("[data-access-subscribe]").forEach(function (link) {
+      link.addEventListener("click", function () {
+        subscribeOpenedAt = Date.now();
+      });
+    });
+
+    async function refreshAccessAfterSubscribe() {
+      if (!accessGate || !subscribeOpenedAt || gateRefreshInFlight) return;
+      if (Date.now() - subscribeOpenedAt < 700) return;
+      const initData = getTelegramInitData();
+      if (!initData) return;
+
+      gateRefreshInFlight = true;
+      showAuthOverlay();
+      try {
+        await postTelegramAuth(initData);
+        window.location.reload();
+      } catch (error) {
+        console.error(error);
+        gateRefreshInFlight = false;
+        hideAuthOverlay();
+      }
+    }
+
+    if (accessGate) {
+      window.addEventListener("focus", function () {
+        window.setTimeout(refreshAccessAfterSubscribe, 250);
+      });
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") {
+          window.setTimeout(refreshAccessAfterSubscribe, 250);
+        }
+      });
+    }
 
     document.querySelectorAll("[data-refresh-access]").forEach(function (button) {
       button.addEventListener("click", async function () {
