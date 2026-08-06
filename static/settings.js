@@ -242,57 +242,40 @@
     }
   }
 
-  function openTelegramInvite(href) {
-    const inviteUrl = String(href || "").trim();
-    if (!inviteUrl) return;
-
-    const telegram = getTelegramWebApp();
-    if (telegram && inviteUrl.startsWith("https://t.me/") && typeof telegram.openTelegramLink === "function") {
-      telegram.openTelegramLink(inviteUrl);
-      return;
-    }
-
-    window.location.assign(inviteUrl);
-  }
-
   function initAccessActions() {
     document.querySelectorAll("[data-telegram-link]").forEach(function (link) {
       link.addEventListener("click", function (event) {
+        const telegram = getTelegramWebApp();
         const href = link.getAttribute("href") || "";
-        if (!href) return;
-        event.preventDefault();
-        openTelegramInvite(href);
+        if (telegram && href.startsWith("https://t.me/") && typeof telegram.openTelegramLink === "function") {
+          event.preventDefault();
+          telegram.openTelegramLink(href);
+        }
       });
     });
 
-    document.querySelectorAll("[data-subscribe-access]").forEach(function (button) {
+    document.querySelectorAll("[data-refresh-access]").forEach(function (button) {
       button.addEventListener("click", async function () {
-        const inviteUrl = button.dataset.inviteUrl || "";
         const initData = getTelegramInitData();
-        const originalLabel = button.textContent || "Подписаться";
-
+        if (!initData) {
+          alert(
+            "Telegram не передал данные Mini App — закройте это окно и откройте читалку через кнопку Mini App в боте, а не через обычную ссылку"
+          );
+          return;
+        }
         button.disabled = true;
         button.textContent = "Проверяем…";
-
-        if (initData) {
-          showAuthOverlay();
-          try {
-            const data = await postTelegramAuth(initData);
-            const hasAccess = Boolean((data.viewer || {}).app_access);
-            if (hasAccess) {
-              window.location.replace("/library");
-              return;
-            }
-          } catch (error) {
-            console.error("Не удалось проверить доступ перед открытием группы", error);
-          } finally {
-            hideAuthOverlay();
-          }
+        showAuthOverlay();
+        try {
+          await postTelegramAuth(initData);
+          window.location.reload();
+        } catch (error) {
+          console.error(error);
+          hideAuthOverlay();
+          button.disabled = false;
+          button.textContent = "Проверить доступ ещё раз";
+          alert(error.message || "Не удалось проверить доступ");
         }
-
-        button.disabled = false;
-        button.textContent = originalLabel;
-        openTelegramInvite(inviteUrl);
       });
     });
   }

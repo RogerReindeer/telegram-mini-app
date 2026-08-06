@@ -15050,3 +15050,11 @@ a[class*="button"]:focus-visible,
   outline: 3px solid var(--zb-theme-accent-soft-strong) !important;
   outline-offset: 2px;
 }
+/* ==========================================================================
+   v223 — remove question-mark help controls from the library
+   ========================================================================== */
+body.page-library .subscription-help,
+body.page-library .subscription-help-library {
+  display: none !important;
+}
+
