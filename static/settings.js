@@ -3142,6 +3142,38 @@
       subscriptionSummaryLoading = false;
     }
   }
+  let personalStatsLoaded = false;
+  let personalStatsLoading = false;
+  function formatStatsDate(value) {
+    if (!value) return "Пока нет данных";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+  }
+  async function loadPersonalStats(force) {
+    const box = document.querySelector("[data-zb-personal-stats]");
+    if (!box || (personalStatsLoaded && !force) || personalStatsLoading) return;
+    personalStatsLoading = true;
+    box.innerHTML = `<div class="zb-stats-loading">Собираем вашу статистику…</div>`;
+    try {
+      const response = await fetch("/api/user/stats", { credentials: "same-origin" });
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(data.detail || "Не удалось получить статистику");
+      personalStatsLoaded = true;
+      box.innerHTML = `
+        <div class="zb-personal-stats-grid">
+          <article class="zb-personal-stat zb-personal-stat-main"><span>Прочитано глав</span><strong>${Number(data.chapters_read || 0).toLocaleString("ru-RU")}</strong></article>
+          <article class="zb-personal-stat"><span>Новелл начато</span><strong>${Number(data.novels_started || 0).toLocaleString("ru-RU")}</strong></article>
+          <article class="zb-personal-stat"><span>Сейчас читаю</span><strong>${Number(data.currently_reading || 0).toLocaleString("ru-RU")}</strong></article>
+          <article class="zb-personal-stat"><span>Завершено</span><strong>${Number(data.novels_completed || 0).toLocaleString("ru-RU")}</strong></article>
+        </div>
+        <div class="zb-personal-stats-foot"><span>Последнее чтение</span><strong>${escapeHtml(formatStatsDate(data.last_read_at))}</strong></div>`;
+    } catch (error) {
+      box.innerHTML = `<div class="zb-subscription-empty"><strong>Не удалось загрузить статистику</strong><span>${escapeHtml(error && error.message ? error.message : "Попробуйте ещё раз.")}</span><button type="button" class="zb-access-retry" data-zb-stats-retry>Повторить</button></div>`;
+    } finally {
+      personalStatsLoading = false;
+    }
+  }
   function ensureSheet() {
     let overlay = document.querySelector("[data-zb-settings-overlay]");
     if (overlay) return overlay;
@@ -3163,6 +3195,7 @@
           <button class="zb-settings-tab is-active" type="button" data-zb-tab="reader">Читалка</button>
           <button class="zb-settings-tab" type="button" data-zb-tab="app">Приложение</button>
           <button class="zb-settings-tab" type="button" data-zb-tab="access">Доступ</button>
+          <button class="zb-settings-tab" type="button" data-zb-tab="stats">Статистика</button>
           <button class="zb-settings-tab" type="button" data-zb-tab="about">О проекте</button>
         </nav>
         <div class="zb-settings-body">
@@ -3186,6 +3219,9 @@
           </section>
           <section class="zb-settings-pane" data-zb-pane="access">
             <div class="zb-access-box zb-access-box-user"><h3>Подписка</h3><div data-zb-subscription-summary><div class="zb-access-loading">Откройте раздел, чтобы проверить подписку.</div></div></div>
+          </section>
+          <section class="zb-settings-pane" data-zb-pane="stats">
+            <div class="zb-personal-stats-box" data-zb-personal-stats><div class="zb-stats-loading">Откройте раздел, чтобы увидеть статистику чтения.</div></div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="about">
             <div class="zb-about-box zb-about-box-project"><a class="zb-about-project-link" href="https://t.me/+Z5b3eeJjJTs0MTli" target="_blank" rel="noopener noreferrer" data-main-group-link><span>🥟</span><strong>Зефиркины баоцзы</strong><span aria-hidden="true">↗</span></a><p>Мини-читалка для библиотеки, оглавления, раннего доступа и удобного возвращения к последней главе.</p></div>
@@ -3243,9 +3279,12 @@
     });
     const title = overlay.querySelector("[data-zb-settings-title]");
     const subtitle = overlay.querySelector("[data-zb-settings-subtitle]");
-    if (title) title.textContent = tab === "reader" ? "Настройки чтения" : tab === "app" ? "Настройки приложения" : tab === "access" ? "Доступ" : "О проекте";
-    if (subtitle) subtitle.textContent = tab === "reader" ? "Текст, фон и интервалы — без лишних экранов" : tab === "app" ? "Тема, размер интерфейса и акцент" : tab === "access" ? "Ваша активная платная подписка" : "Информация о проекте";
+    const titles = { reader: "Настройки чтения", app: "Настройки приложения", access: "Доступ", stats: "Статистика", about: "О проекте" };
+    const subtitles = { reader: "Текст, фон и интервалы — без лишних экранов", app: "Тема, размер интерфейса и акцент", access: "Ваша активная платная подписка", stats: "Ваше чтение в Mini App", about: "Информация о проекте" };
+    if (title) title.textContent = titles[tab] || "Настройки";
+    if (subtitle) subtitle.textContent = subtitles[tab] || "";
     if (tab === "access") loadSubscriptionSummary(false);
+    if (tab === "stats") loadPersonalStats(false);
   }
   function bindSheet(overlay) {
     overlay.addEventListener("click", function (event) {
@@ -3274,6 +3313,12 @@
       if (retry) {
         subscriptionSummaryLoaded = false;
         loadSubscriptionSummary(true);
+        return;
+      }
+      const statsRetry = event.target.closest("[data-zb-stats-retry]");
+      if (statsRetry) {
+        personalStatsLoaded = false;
+        loadPersonalStats(true);
         return;
       }
       const reset = event.target.closest("[data-zb-reset]");
@@ -3911,6 +3956,7 @@
     updateFloatingChapterNavigation(element);
     const item = buildHistoryItemFromElement(element);
     if (!item) return;
+    document.dispatchEvent(new CustomEvent("zefirki:analytics-progress", { detail: item }));
     const readIds = saveReadChapterId(item.chapterId);
     const history = Array.isArray(readJson(HISTORY_KEY, [])) ? readJson(HISTORY_KEY, []) : [];
     const next = history.filter(function (entry) { return String(entry.novelId) !== String(item.novelId); }).concat(item).slice(-50);
@@ -4659,4 +4705,224 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
+})();
+
+/* =====================================================================
+   v226 — persistent product analytics + personal reading statistics
+   ===================================================================== */
+(function () {
+  const viewer = window.ZEFIRKI_VIEWER || {};
+  const userId = Number(viewer.user_id || viewer.userId || 0);
+  if (!userId) return;
+
+  const SESSION_KEY = "zefirki_analytics_session_id";
+  const SOURCE_KEY = "zefirki_analytics_source";
+  const FIRST_SOURCE_KEY = "zefirki_analytics_first_source";
+  const pageStartedAt = Date.now();
+  const progressSent = new Map();
+  const completedSent = new Set();
+  const openedChapters = new Set();
+
+  function uuid() {
+    try { if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID(); } catch (error) {}
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+  }
+  function safeStorage(storage, method, key, value) {
+    try { return value === undefined ? storage[method](key) : storage[method](key, value); } catch (error) { return null; }
+  }
+  let sessionId = safeStorage(window.sessionStorage, "getItem", SESSION_KEY);
+  const newSession = !sessionId;
+  if (!sessionId) {
+    sessionId = uuid();
+    safeStorage(window.sessionStorage, "setItem", SESSION_KEY, sessionId);
+  }
+  function resolveSource() {
+    const cached = safeStorage(window.sessionStorage, "getItem", SOURCE_KEY);
+    if (cached) return cached;
+    let source = "";
+    try { source = String(window.Telegram?.WebApp?.initDataUnsafe?.start_param || "").trim(); } catch (error) {}
+    if (!source) {
+      try {
+        const params = new URLSearchParams(window.location.search || "");
+        source = String(params.get("startapp") || params.get("utm_source") || "").trim();
+      } catch (error) {}
+    }
+    if (!source) source = "direct";
+    source = source.slice(0, 120);
+    safeStorage(window.sessionStorage, "setItem", SOURCE_KEY, source);
+    if (!safeStorage(window.localStorage, "getItem", FIRST_SOURCE_KEY)) {
+      safeStorage(window.localStorage, "setItem", FIRST_SOURCE_KEY, source);
+    }
+    return source;
+  }
+  const source = resolveSource();
+
+  function pageNovelId() {
+    const root = document.querySelector("[data-novel-page], [data-chapter-page]");
+    return Number(root?.dataset?.novelId || 0) || null;
+  }
+  function pageChapterId() {
+    return String(document.querySelector("[data-chapter-page]")?.dataset?.chapterId || "") || null;
+  }
+  function send(eventName, extra) {
+    const data = extra || {};
+    const payload = {
+      event_id: uuid(),
+      session_id: String(sessionId || ""),
+      event_name: eventName,
+      novel_id: data.novel_id || pageNovelId(),
+      chapter_id: data.chapter_id || pageChapterId(),
+      source,
+      section: data.section || "",
+      action: data.action || "",
+      access_type: data.access_type || String(viewer.app_access_source || ""),
+      subscription_type: data.subscription_type || String(viewer.role || ""),
+      value_int: Number.isFinite(data.value_int) ? Math.trunc(data.value_int) : null,
+      value_float: Number.isFinite(data.value_float) ? Number(data.value_float) : null,
+      value_text: data.value_text == null ? null : String(data.value_text).slice(0, 300),
+      metadata: data.metadata && typeof data.metadata === "object" ? data.metadata : {}
+    };
+    try {
+      window.fetch("/api/analytics/event", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        keepalive: Boolean(data.keepalive)
+      }).catch(function () {});
+    } catch (error) {}
+  }
+
+  function trackChapterOpen(chapterId, novelId, metadata) {
+    const key = String(chapterId || "");
+    if (!key || openedChapters.has(key)) return;
+    openedChapters.add(key);
+    send("chapter_open", { chapter_id: key, novel_id: Number(novelId || 0) || null, section: "reader", metadata: metadata || {} });
+  }
+
+  if (newSession) send("app_open", { section: "app" });
+  if (document.body.classList.contains("page-access-gate")) {
+    send("main_group_gate_view", { section: "access_gate" });
+  }
+  if (document.body.classList.contains("page-library")) {
+    send("library_view", { section: "library" });
+    const seenCards = new Set();
+    const cards = Array.from(document.querySelectorAll("[data-library-novel-card]"));
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          const card = entry.target;
+          const novelId = Number(card.dataset.novelId || 0);
+          if (!novelId || seenCards.has(novelId)) return;
+          seenCards.add(novelId);
+          send("novel_impression", { novel_id: novelId, section: card.closest("[data-library-section]")?.dataset?.librarySection || "library" });
+          observer.unobserve(card);
+        });
+      }, { threshold: 0.35 });
+      cards.forEach(function (card) { observer.observe(card); });
+    }
+    let searchTimer = null;
+    document.getElementById("librarySearchInput")?.addEventListener("input", function (event) {
+      window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(function () {
+        const value = String(event.target.value || "").trim();
+        if (value) send("library_search", { section: "library", value_text: value, value_int: value.length });
+      }, 650);
+    });
+  }
+  if (document.body.classList.contains("page-novel")) {
+    send("toc_open", { section: "toc" });
+  }
+  if (document.body.classList.contains("page-chapter")) {
+    const page = document.querySelector("[data-chapter-page]");
+    if (page?.dataset?.isLocked === "true") {
+      send("access_denied", { section: "reader", action: "chapter_locked" });
+      send("paywall_view", { section: "paywall" });
+    } else if (page) {
+      trackChapterOpen(page.dataset.chapterId, page.dataset.novelId, { initial: true });
+    }
+  }
+
+  document.addEventListener("zefirki:reading-progress-visible", function (event) {
+    const item = event.detail || {};
+    trackChapterOpen(item.chapterId, item.novelId, { infinite_reader: true });
+  });
+  document.addEventListener("zefirki:analytics-progress", function (event) {
+    const item = event.detail || {};
+    const chapterId = String(item.chapterId || "");
+    const novelId = Number(item.novelId || 0) || null;
+    const progress = Math.max(0, Math.min(1, Number(item.scrollPosition || 0)));
+    if (!chapterId) return;
+    trackChapterOpen(chapterId, novelId, { progress_detected: true });
+    const percent = Math.round(progress * 100);
+    const checkpoints = [10, 25, 50, 75, 90, 100];
+    const last = progressSent.get(chapterId) || 0;
+    checkpoints.forEach(function (checkpoint) {
+      if (percent >= checkpoint && last < checkpoint) {
+        send("chapter_progress", { novel_id: novelId, chapter_id: chapterId, section: "reader", value_int: checkpoint, value_float: progress });
+      }
+    });
+    progressSent.set(chapterId, Math.max(last, percent));
+    if (percent >= 90 && !completedSent.has(chapterId)) {
+      completedSent.add(chapterId);
+      send("chapter_complete", { novel_id: novelId, chapter_id: chapterId, section: "reader", value_int: percent, value_float: progress });
+    }
+  });
+
+  document.addEventListener("click", function (event) {
+    const target = event.target;
+    if (!target || !target.closest) return;
+    const subscribe = target.closest("[data-access-subscribe]");
+    if (subscribe) send("main_group_join_click", { section: "access_gate", action: "subscribe" });
+
+    const card = target.closest("[data-library-novel-card]");
+    if (card && !target.closest("[data-card-menu-button], button")) {
+      send("novel_open", { novel_id: Number(card.dataset.novelId || 0) || null, section: "library" });
+    }
+    const filter = target.closest("[data-quick-filter], [data-filter-chip]");
+    if (filter) {
+      send("library_filter", { section: "library", value_text: filter.dataset.quickFilter || filter.dataset.filterChip || filter.textContent || "" });
+    }
+    const readButton = target.closest("#novelReadButton");
+    if (readButton) {
+      const continueReading = /продолж/i.test(String(readButton.textContent || ""));
+      send(continueReading ? "continue_reading_click" : "start_reading_click", { section: "toc" });
+    }
+    const chapterRow = target.closest("[data-chapter-row]");
+    if (chapterRow) {
+      const href = String(chapterRow.getAttribute("href") || "");
+      send("start_reading_click", { section: "toc", chapter_id: String(chapterRow.dataset.chapterId || "") || null, action: href ? "chapter_select" : "" });
+    }
+    const subscriptionLink = target.closest(".chapter-access-purchase-button, [data-paywall-unlock-open]");
+    if (subscriptionLink) {
+      send("subscription_click", { section: "paywall", action: subscriptionLink.matches("[data-paywall-unlock-open]") ? "open_options" : "purchase_link" });
+    }
+    const previous = target.closest(".reader-floating-prev");
+    if (previous) send("chapter_previous", { section: "reader" });
+    const next = target.closest(".reader-floating-next");
+    if (next) send("chapter_next", { section: "reader" });
+    const settingsOpen = target.closest("[data-zb-global-settings], [data-zb-reader-settings], [data-reader-settings-toggle]");
+    if (settingsOpen) send("settings_open", { section: "settings" });
+    const statsTab = target.closest('[data-zb-tab="stats"]');
+    if (statsTab) send("stats_view", { section: "settings" });
+    const setting = target.closest("[data-zb-setting]");
+    if (setting) send("setting_change", { section: "settings", action: String(setting.dataset.zbSetting || ""), value_text: String(setting.dataset.zbValue || "") });
+    const menuAction = target.closest("[data-card-menu-action]");
+    if (menuAction) {
+      const action = String(menuAction.dataset.cardMenuAction || "");
+      const mapping = { favorite: "favorite_add", "remove-favorite": "favorite_remove", "mark-read": "completed_add", "unmark-read": "completed_remove" };
+      if (mapping[action]) send(mapping[action], { section: "library", action });
+    }
+  }, true);
+
+  document.addEventListener("change", function (event) {
+    const select = event.target?.closest?.("[data-zb-select-setting]");
+    if (select) send("setting_change", { section: "settings", action: String(select.dataset.zbSelectSetting || ""), value_text: String(select.value || "") });
+  }, true);
+
+  window.addEventListener("pagehide", function () {
+    const seconds = Math.max(0, Math.round((Date.now() - pageStartedAt) / 1000));
+    send("app_close", { section: "app", value_int: seconds, keepalive: true });
+  });
 })();

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 
 from ..schemas import ResetProgressPayload, SaveLibraryPayload, SaveProgressPayload
 from ..services.user_state import get_user_state_rows, reset_user_progress, save_user_library, save_user_progress
+from ..services.analytics import personal_reading_stats
 
 
 def create_user_router(require_app_access_viewer: Callable, public_viewer: Callable) -> APIRouter:
@@ -22,6 +23,10 @@ def create_user_router(require_app_access_viewer: Callable, public_viewer: Calla
     @router.get("/history")
     def history(request: Request):
         return get_user_state_rows(user_id(request)).get("history", [])
+
+    @router.get("/stats")
+    def stats(request: Request):
+        return personal_reading_stats(user_id(request))
 
     @router.put("/progress")
     def progress(request: Request, payload: SaveProgressPayload):

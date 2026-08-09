@@ -7,6 +7,7 @@ from ..assets import static_manifest
 from ..cache import cache_stats
 from ..security import require_sync_token
 from ..services.diagnostics import build_content_audit
+from ..services.analytics import build_analytics_summary
 from ..services.production import build_production_report
 
 
@@ -18,6 +19,7 @@ def create_admin_page_router(*, templates: Jinja2Templates, app_title: str) -> A
         require_sync_token(request, token)
         audit = build_content_audit()
         production = build_production_report()
+        analytics = build_analytics_summary(days=30)
         version = {"version": production.get("app_version", ""), "environment": "production", "assets": static_manifest()}
         return templates.TemplateResponse(request, "admin.html", {
             "app_title": app_title,
@@ -26,6 +28,7 @@ def create_admin_page_router(*, templates: Jinja2Templates, app_title: str) -> A
             "production": production,
             "cache": cache_stats(),
             "version": version,
+            "analytics": analytics,
         })
 
     return router

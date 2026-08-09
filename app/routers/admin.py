@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request
 from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..security import require_sync_token
 from ..services.admin_state import build_admin_state
+from ..services.analytics import build_analytics_summary, personal_reading_stats
 from ..services.diagnostics import build_catalog_export, build_content_audit
 from ..services.events import recent_events
 from ..services.metrics import metrics_snapshot, reset_metrics
@@ -106,3 +107,15 @@ def metrics_reset(request: Request, token: str = ""):
 def events_recent(request: Request, token: str = ""):
     _guard(request, token)
     return {"status": "ok", "recent_events": recent_events()}
+
+
+@router.get("/analytics/summary")
+def analytics_summary(request: Request, token: str = "", days: int = 30):
+    _guard(request, token)
+    return build_analytics_summary(days=days)
+
+
+@router.get("/analytics/user/{user_id}")
+def analytics_user(request: Request, user_id: int, token: str = ""):
+    _guard(request, token)
+    return {"status": "ok", "user_id": user_id, "reading": personal_reading_stats(user_id)}

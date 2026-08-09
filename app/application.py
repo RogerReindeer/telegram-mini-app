@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from .assets import static_url
 from .middleware import install_exception_handlers, install_middlewares
 from .routers.admin import router as admin_router
+from .routers.analytics import router as analytics_router
 from .routers.admin_page import create_admin_page_router
 from .routers.auth import create_auth_router
 from .routers.catalog import create_catalog_router
@@ -33,6 +34,7 @@ templates.env.globals["static_url"] = static_url
 
 app.include_router(system_router)
 app.include_router(admin_router)
+app.include_router(analytics_router)
 app.include_router(create_admin_page_router(templates=templates, app_title=APP_TITLE))
 app.include_router(create_auth_router())
 app.include_router(create_user_router(require_app_access_viewer, public_viewer))

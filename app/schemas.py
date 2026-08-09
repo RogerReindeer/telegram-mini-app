@@ -52,3 +52,20 @@ class SaveLibraryPayload(StrictInputModel):
     is_completed: bool | None = None
     is_finished: bool | None = None
     is_hidden: bool = False
+
+
+class AnalyticsEventPayload(StrictInputModel):
+    event_id: str = Field(..., min_length=8, max_length=100)
+    session_id: str = Field("", max_length=100)
+    event_name: str = Field(..., min_length=1, max_length=80)
+    novel_id: int | None = Field(None, gt=0)
+    chapter_id: str | None = Field(None, max_length=80)
+    source: str = Field("direct", max_length=120)
+    section: str | None = Field(None, max_length=80)
+    action: str | None = Field(None, max_length=80)
+    access_type: str | None = Field(None, max_length=80)
+    subscription_type: str | None = Field(None, max_length=80)
+    value_int: int | None = None
+    value_float: float | None = None
+    value_text: str | None = Field(None, max_length=300)
+    metadata: dict[str, Any] = Field(default_factory=dict)

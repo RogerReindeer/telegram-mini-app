@@ -58,7 +58,58 @@
       <a href="/ready">Ready</a>
     </section>
 
-
+    <section class="admin-panel">
+      <div class="admin-panel-header">
+        <div>
+          <h2>Статистика Mini App · 30 дней</h2>
+          <p>Пользователи, чтение, сессии, retention, источники и воронка по новеллам.</p>
+        </div>
+        <a href="/api/admin/analytics/summary?token={{ token | urlencode }}&days=30">JSON</a>
+      </div>
+      {% if analytics.status == 'ok' %}
+        {% set ao = analytics.overview %}
+        <div class="admin-grid admin-grid-stats">
+          <article class="admin-card"><span class="admin-card-label">MAU</span><strong>{{ ao.mau or 0 }}</strong><small>активных за 30 дней</small></article>
+          <article class="admin-card"><span class="admin-card-label">DAU</span><strong>{{ ao.dau or 0 }}</strong><small>сегодня</small></article>
+          <article class="admin-card"><span class="admin-card-label">Сессии</span><strong>{{ ao.sessions or 0 }}</strong><small>за 30 дней</small></article>
+          <article class="admin-card"><span class="admin-card-label">Глав открыто</span><strong>{{ ao.chapter_opens or 0 }}</strong><small>событий чтения</small></article>
+          <article class="admin-card"><span class="admin-card-label">Глав дочитано</span><strong>{{ ao.chapters_completed or 0 }}</strong><small>до 90%+</small></article>
+          <article class="admin-card"><span class="admin-card-label">Paywall</span><strong>{{ ao.paywalls or 0 }}</strong><small>показов</small></article>
+          <article class="admin-card"><span class="admin-card-label">Клики подписки</span><strong>{{ ao.subscription_clicks or 0 }}</strong><small>из paywall</small></article>
+          <article class="admin-card"><span class="admin-card-label">Новые</span><strong>{{ ao.new_users or 0 }}</strong><small>первый визит</small></article>
+          <article class="admin-card"><span class="admin-card-label">Прочитано глав</span><strong>{{ ao.chapters_read_all_time or 0 }}</strong><small>всего в прогрессе</small></article>
+          <article class="admin-card"><span class="admin-card-label">Читатели</span><strong>{{ ao.readers_all_time or 0 }}</strong><small>с серверным прогрессом</small></article>
+          <article class="admin-card"><span class="admin-card-label">Новые подписки</span><strong>{{ ao.subscriptions_started or 0 }}</strong><small>за 30 дней</small></article>
+          <article class="admin-card"><span class="admin-card-label">Средняя сессия</span><strong>{{ ao.avg_session_minutes or 0 }}</strong><small>минут</small></article>
+        </div>
+        <div class="admin-analytics-retention" aria-label="Retention">
+          <div><span>D1 retention</span><strong>{{ analytics.retention.d1.rate or 0 }}%</strong><small>{{ analytics.retention.d1.returned or 0 }} / {{ analytics.retention.d1.eligible or 0 }}</small></div>
+          <div><span>D7 retention</span><strong>{{ analytics.retention.d7.rate or 0 }}%</strong><small>{{ analytics.retention.d7.returned or 0 }} / {{ analytics.retention.d7.eligible or 0 }}</small></div>
+          <div><span>D30 retention</span><strong>{{ analytics.retention.d30.rate or 0 }}%</strong><small>{{ analytics.retention.d30.returned or 0 }} / {{ analytics.retention.d30.eligible or 0 }}</small></div>
+        </div>
+        <div class="admin-table-wrap" style="margin-top:14px">
+          <table class="admin-table">
+            <thead><tr><th>Новелла</th><th>Польз.</th><th>Показы</th><th>Открытия</th><th>Оглавление</th><th>Главы</th><th>Дочитано</th><th>Paywall</th></tr></thead>
+            <tbody>
+              {% for row in analytics.novels[:12] %}
+                <tr><td>{{ row.title }}</td><td>{{ row.users }}</td><td>{{ row.novel_impression }}</td><td>{{ row.novel_open }}</td><td>{{ row.toc_open }}</td><td>{{ row.chapter_open }}</td><td>{{ row.chapter_complete }}</td><td>{{ row.paywall_view }}</td></tr>
+              {% else %}<tr><td colspan="8">Пока нет накопленных событий.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="admin-table-wrap" style="margin-top:14px">
+          <table class="admin-table">
+            <thead><tr><th>Источник</th><th>Пользователи</th><th>События</th></tr></thead>
+            <tbody>
+              {% for row in analytics.sources[:12] %}<tr><td><code>{{ row.source }}</code></td><td>{{ row.users }}</td><td>{{ row.events }}</td></tr>
+              {% else %}<tr><td colspan="3">Источники появятся после первых запусков v226.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="admin-card admin-card-warning"><span class="admin-card-label">Нужна миграция</span><strong>v226 analytics</strong><small>Выполните sql/migrations/v225_to_v226_persistent_analytics.sql</small></div>
+      {% endif %}
+    </section>
 
     <section class="admin-panel">
       <div class="admin-panel-header">
