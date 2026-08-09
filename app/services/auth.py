@@ -311,6 +311,43 @@ def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
     return active
 
 
+
+def public_subscription_summary(viewer: dict[str, Any]) -> dict[str, Any]:
+    """Return the active paid subscription in a small user-facing shape.
+
+    This intentionally reads only Supabase subscription state. Opening the
+    Settings → Access tab must never trigger Telegram getChatMember calls.
+    """
+    if not viewer.get("authenticated") or not viewer.get("user_id"):
+        return {"active": False, "role": "guest", "label": "Нет подписок"}
+
+    rows = get_active_tribute_subscriptions(int(viewer["user_id"]))
+    if not rows:
+        return {"active": False, "role": "guest", "label": "Нет подписок"}
+
+    def sort_key(row: dict[str, Any]) -> tuple[int, float]:
+        expires = parse_iso_datetime(row.get("expires_at"))
+        expires_ts = expires.timestamp() if expires else 0.0
+        return (role_rank(row.get("access_role")), expires_ts)
+
+    row = sorted(rows, key=sort_key, reverse=True)[0]
+    role = clean_value(row.get("access_role")) or "traveler"
+    labels = {
+        "traveler": "🌱 Странствующий читатель",
+        "keeper": "📜 Хранитель свитков",
+    }
+    return {
+        "active": True,
+        "role": role,
+        "label": labels.get(role, role),
+        "started_at": clean_value(row.get("started_at")),
+        "expires_at": clean_value(row.get("expires_at")),
+        "status": clean_value(row.get("status")),
+        "auto_renew": bool(row.get("auto_renew")),
+        "provider": clean_value(row.get("provider")) or "tribute",
+    }
+
+
 def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> list[dict[str, Any]]:
     if not supabase_ready() or not user_id:
         return []

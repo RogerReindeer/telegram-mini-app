@@ -15219,3 +15219,228 @@ body.page-access-gate[data-resolved-theme="dark"] .access-gate-card {
     font-size: clamp(21px, 6.6vw, 24px);
   }
 }
+
+
+/* =====================================================================
+   v225 — light yellow theme, status gradients, zero-shelf hiding,
+   session-local floating controls and compact professional settings.
+   ===================================================================== */
+
+/* Light application theme = warm yellow gradient on every user screen. */
+body[data-site-theme="light"],
+body[data-resolved-theme="light"] {
+  --zb-light-yellow-1: #fffdf0;
+  --zb-light-yellow-2: #fff4c9;
+  --zb-light-yellow-3: #ffe9a6;
+  background:
+    radial-gradient(circle at 86% 4%, color-mix(in srgb, var(--zb-theme-accent, #ff6a00) 10%, transparent), transparent 34%),
+    radial-gradient(circle at 8% 12%, rgba(255, 226, 111, .34), transparent 30%),
+    linear-gradient(155deg, var(--zb-light-yellow-1) 0%, var(--zb-light-yellow-2) 54%, var(--zb-light-yellow-3) 100%) !important;
+  background-attachment: fixed !important;
+}
+body.library-redesign[data-site-theme="light"],
+body.library-redesign[data-resolved-theme="light"] {
+  background:
+    radial-gradient(circle at 86% 4%, color-mix(in srgb, var(--zb-theme-accent, #ff6a00) 10%, transparent), transparent 34%),
+    radial-gradient(circle at 8% 12%, rgba(255, 226, 111, .34), transparent 30%),
+    linear-gradient(155deg, #fffdf0 0%, #fff4c9 54%, #ffe9a6 100%) !important;
+}
+
+/* The actual library shelf state wins over the underlying project status. */
+body[data-resolved-theme="light"] .library-v4 .library-book-card-v4.is-soon,
+body[data-site-theme="light"] .library-v4 .library-book-card-v4.is-soon {
+  border-color: rgba(62, 145, 209, .34) !important;
+  background: linear-gradient(115deg, rgba(246, 252, 255, .99), rgba(199, 230, 252, .95)) !important;
+  box-shadow: 0 14px 32px rgba(48, 126, 185, .12) !important;
+}
+body[data-resolved-theme="light"] .library-v4 .library-book-card-v4[data-status="completed"]:not(.is-soon),
+body[data-site-theme="light"] .library-v4 .library-book-card-v4[data-status="completed"]:not(.is-soon) {
+  border-color: rgba(55, 153, 82, .32) !important;
+  background: linear-gradient(115deg, rgba(247, 255, 246, .99), rgba(205, 241, 214, .95)) !important;
+  box-shadow: 0 14px 32px rgba(49, 135, 72, .12) !important;
+}
+
+/* Empty shelves are not tabs/placeholders: they do not occupy any space. */
+.library-section[hidden],
+.library-section.is-empty {
+  display: none !important;
+}
+
+/* Floating controls: clear close affordance while open; no visual ambiguity. */
+.toc-controls-visibility-toggle.is-cross-icon,
+.reader-controls-visibility-toggle.is-cross-icon {
+  font-size: 24px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+}
+
+/* Compact settings sheet. */
+.zb-settings-sheet {
+  width: min(620px, 100%) !important;
+  max-height: min(88dvh, 720px) !important;
+}
+.zb-settings-body { padding: 10px 12px 12px !important; }
+.zb-compact-settings-list {
+  display: grid !important;
+  gap: 7px !important;
+}
+.zb-compact-setting-row {
+  display: grid !important;
+  grid-template-columns: minmax(132px, .8fr) minmax(0, 1.35fr) !important;
+  gap: 12px !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  padding: 9px 10px !important;
+  border: 1px solid var(--zb-sheet-line) !important;
+  border-radius: 15px !important;
+  background: color-mix(in srgb, var(--zb-chip-bg) 76%, transparent) !important;
+}
+.zb-compact-setting-copy {
+  display: grid !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+}
+.zb-compact-setting-copy strong {
+  color: var(--zb-sheet-text) !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+}
+.zb-compact-setting-copy span {
+  color: var(--zb-sheet-muted) !important;
+  font-size: 11px !important;
+  line-height: 1.25 !important;
+}
+.zb-compact-setting-control { min-width: 0 !important; }
+.zb-compact-setting-row .zb-choice-row { gap: 5px !important; flex-wrap: nowrap !important; }
+.zb-compact-setting-row .zb-choice {
+  min-height: 34px !important;
+  padding: 6px 8px !important;
+  border-radius: 10px !important;
+  font-size: 12px !important;
+  white-space: nowrap !important;
+}
+.zb-setting-select {
+  width: 100% !important;
+  min-height: 36px !important;
+  padding: 6px 34px 6px 10px !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  border-radius: 10px !important;
+  background: var(--zb-chip-bg) !important;
+  color: var(--zb-sheet-text) !important;
+  font: inherit !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+}
+.zb-stepper-compact {
+  grid-template-columns: 40px minmax(48px, 1fr) 40px !important;
+  gap: 6px !important;
+}
+.zb-stepper-compact button {
+  width: 40px !important;
+  height: 34px !important;
+  border-radius: 10px !important;
+}
+.zb-stepper-compact .zb-setting-value {
+  min-height: 34px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid var(--zb-chip-border) !important;
+  border-radius: 10px !important;
+  background: var(--zb-chip-bg) !important;
+  font-size: 14px !important;
+}
+.zb-reader-preview-compact {
+  margin-top: 8px !important;
+  padding: 9px 11px !important;
+  border-radius: 14px !important;
+}
+.zb-reader-preview-compact p {
+  margin: 4px 0 0 !important;
+  font-size: var(--reader-font-size) !important;
+  line-height: var(--reader-line-height) !important;
+  text-align: var(--zb-preview-align, left) !important;
+}
+
+/* User-facing subscription status. */
+.zb-access-box-user,
+.zb-about-box-project {
+  padding: 12px !important;
+  border-radius: 16px !important;
+}
+.zb-access-box-user h3 { margin-bottom: 10px !important; }
+.zb-access-loading,
+.zb-subscription-empty {
+  color: var(--zb-sheet-muted) !important;
+  font-size: 13px !important;
+}
+.zb-subscription-empty {
+  display: grid !important;
+  gap: 4px !important;
+  padding: 10px !important;
+  border-radius: 12px !important;
+  background: color-mix(in srgb, var(--zb-chip-bg) 78%, transparent) !important;
+}
+.zb-subscription-empty strong { color: var(--zb-sheet-text) !important; }
+.zb-subscription-card { display: grid !important; gap: 10px !important; }
+.zb-subscription-plan {
+  display: flex !important;
+  align-items: baseline !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding-bottom: 9px !important;
+  border-bottom: 1px solid var(--zb-sheet-line) !important;
+}
+.zb-subscription-plan span,
+.zb-subscription-dates dt { color: var(--zb-sheet-muted) !important; font-size: 12px !important; }
+.zb-subscription-plan strong { color: var(--zb-sheet-text) !important; font-size: 14px !important; text-align: right !important; }
+.zb-subscription-dates { display: grid !important; gap: 7px !important; margin: 0 !important; }
+.zb-subscription-dates > div { display: flex !important; justify-content: space-between !important; gap: 12px !important; }
+.zb-subscription-dates dd { margin: 0 !important; color: var(--zb-sheet-text) !important; font-size: 13px !important; font-weight: 800 !important; text-align: right !important; }
+.zb-access-retry {
+  justify-self: start !important;
+  margin-top: 4px !important;
+  min-height: 32px !important;
+  padding: 5px 10px !important;
+  border: 1px solid var(--zb-theme-accent-border) !important;
+  border-radius: 9px !important;
+  background: var(--zb-theme-control-surface) !important;
+  color: var(--zb-theme-accent) !important;
+  font-weight: 850 !important;
+}
+.zb-about-project-link {
+  display: grid !important;
+  grid-template-columns: auto minmax(0,1fr) auto !important;
+  gap: 8px !important;
+  align-items: center !important;
+  margin: -2px -2px 9px !important;
+  padding: 9px 10px !important;
+  border: 1px solid var(--zb-theme-accent-border) !important;
+  border-radius: 12px !important;
+  background: var(--zb-theme-control-surface) !important;
+  color: var(--zb-sheet-text) !important;
+  text-decoration: none !important;
+}
+.zb-about-project-link strong { color: var(--zb-theme-accent) !important; }
+
+@media (max-width: 560px) {
+  .zb-settings-tabs {
+    display: flex !important;
+    gap: 5px !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    padding: 9px 10px 0 !important;
+  }
+  .zb-settings-tabs::-webkit-scrollbar { display: none !important; }
+  .zb-settings-tab { min-height: 34px !important; flex: 0 0 auto !important; padding: 6px 10px !important; }
+  .zb-settings-head { padding: 12px 14px 8px !important; }
+  .zb-settings-title { font-size: 21px !important; }
+  .zb-settings-subtitle { margin-top: 3px !important; font-size: 12px !important; }
+  .zb-compact-setting-row { grid-template-columns: 1fr !important; gap: 7px !important; padding: 8px 9px !important; }
+  .zb-compact-setting-copy { grid-template-columns: auto minmax(0,1fr) !important; gap: 7px !important; align-items: baseline !important; }
+  .zb-compact-setting-copy span { text-align: right !important; }
+  .zb-compact-setting-row .zb-choice { font-size: 11px !important; padding-inline: 7px !important; }
+  .zb-reader-preview-compact { display: none !important; }
+  .zb-settings-footer { padding: 0 10px 10px !important; }
+  .zb-reset-button { min-height: 36px !important; padding: 6px 10px !important; font-size: 12px !important; }
+}

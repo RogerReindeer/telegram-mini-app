@@ -1762,9 +1762,9 @@
     }
 
     if (section) {
-      const keepVisible = name === "reading";
-      section.hidden = keepVisible ? false : count === 0;
+      section.hidden = count === 0;
       section.classList.toggle("is-empty", count === 0);
+      section.setAttribute("aria-hidden", count === 0 ? "true" : "false");
     }
   }
 
@@ -2495,24 +2495,15 @@
       document.body.classList.toggle("reader-controls-hidden", hidden);
       controls.setAttribute("aria-hidden", hidden ? "true" : "false");
       toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
-      toggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Скрыть панель чтения");
+      toggle.setAttribute("aria-label", hidden ? "Показать панель чтения" : "Свернуть панель чтения");
       toggle.textContent = hidden ? "☰" : "×";
       toggle.classList.toggle("is-cross-icon", !hidden);
-      try {
-        window.localStorage.setItem(STORAGE_KEYS.readerControlsHidden, hidden ? "1" : "0");
-      } catch (error) {}
     };
 
-    let hidden = false;
-    try {
-      hidden = window.localStorage.getItem(STORAGE_KEYS.readerControlsHidden) === "1";
-    } catch (error) {}
-
-    apply(hidden);
-
-    toggle.addEventListener("click", function () {
-      apply(!document.body.classList.contains("reader-controls-hidden"));
-    });
+    // Every fresh chapter opens with controls visible. v156 binds the single
+    // close/open handler to this toggle, so there is no double toggle.
+    try { window.localStorage.removeItem(STORAGE_KEYS.readerControlsHidden); } catch (error) {}
+    apply(false);
   }
 
   function initChapterRetry() {
@@ -3065,6 +3056,17 @@
     document.documentElement.style.setProperty("--reader-font-size", `${clamp(settings.fontSize, 4, 24)}px`);
     document.documentElement.style.setProperty("--reader-line-height", settings.lineHeight || "1.6");
     document.documentElement.style.setProperty("--reader-paragraph-spacing", `${clamp(settings.paragraphSpacing, 0, 32)}px`);
+    const readerThemes = {
+      cream: ["#f7efe7", "#fffaf3", "#111111", "#b45309"],
+      white: ["#f4f4f4", "#ffffff", "#111111", "#b45309"],
+      sepia: ["#ead7bd", "#f4e3c8", "#2b211c", "#92400e"],
+      dark: ["#0f0f0f", "#1b1b1b", "#eeeeee", "#fbbf24"]
+    };
+    const readerPalette = readerThemes[settings.readerTheme] || readerThemes.cream;
+    document.documentElement.style.setProperty("--reader-page-bg", readerPalette[0]);
+    document.documentElement.style.setProperty("--reader-bg", readerPalette[1]);
+    document.documentElement.style.setProperty("--reader-text-color", readerPalette[2]);
+    document.documentElement.style.setProperty("--reader-link-color", readerPalette[3]);
   }
   function setSetting(name, value) {
     const settings = readSettings();
@@ -3102,8 +3104,43 @@
       return `<button class="zb-choice" type="button" data-zb-setting="accentColor" data-zb-value="${value}"><span class="zb-accent-dot" style="--dot:${value}"></span>${label}</button>`;
     }).join("")}</div>`;
   }
+  function settingSelect(name, values) {
+    return `<select class="zb-setting-select" data-zb-select-setting="${escapeHtml(name)}" aria-label="${escapeHtml(name)}">${values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml((LABELS[name] && LABELS[name][value]) || value)}</option>`).join("")}</select>`;
+  }
+  function compactSettingRow(label, hint, body) {
+    return `<section class="zb-compact-setting-row"><div class="zb-compact-setting-copy"><strong>${escapeHtml(label)}</strong>${hint ? `<span>${escapeHtml(hint)}</span>` : ""}</div><div class="zb-compact-setting-control">${body}</div></section>`;
+  }
   function settingCard(label, valueSlot, body) {
     return `<section class="zb-setting-card"><div class="zb-setting-label"><span>${label}</span>${valueSlot || ""}</div>${body}</section>`;
+  }
+  function formatSubscriptionDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "long", year: "numeric" });
+  }
+  let subscriptionSummaryLoaded = false;
+  let subscriptionSummaryLoading = false;
+  async function loadSubscriptionSummary(force) {
+    const box = document.querySelector("[data-zb-subscription-summary]");
+    if (!box || (subscriptionSummaryLoaded && !force) || subscriptionSummaryLoading) return;
+    subscriptionSummaryLoading = true;
+    box.innerHTML = `<div class="zb-access-loading">Проверяем подписку…</div>`;
+    try {
+      const response = await fetch("/api/auth/subscription", { credentials: "same-origin" });
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(data.detail || "Не удалось получить данные подписки");
+      subscriptionSummaryLoaded = true;
+      if (!data.active) {
+        box.innerHTML = `<div class="zb-subscription-empty"><strong>Нет подписок</strong><span>Активных платных подписок сейчас нет.</span></div>`;
+        return;
+      }
+      box.innerHTML = `<div class="zb-subscription-card"><div class="zb-subscription-plan"><span>Подписка</span><strong>${escapeHtml(data.label || "Активна")}</strong></div><dl class="zb-subscription-dates"><div><dt>Куплена</dt><dd>${escapeHtml(formatSubscriptionDate(data.started_at))}</dd></div><div><dt>Действует до</dt><dd>${escapeHtml(formatSubscriptionDate(data.expires_at))}</dd></div></dl></div>`;
+    } catch (error) {
+      box.innerHTML = `<div class="zb-subscription-empty"><strong>Не удалось проверить</strong><span>${escapeHtml(error && error.message ? error.message : "Попробуйте открыть раздел ещё раз.")}</span><button type="button" class="zb-access-retry" data-zb-access-retry>Повторить</button></div>`;
+    } finally {
+      subscriptionSummaryLoading = false;
+    }
   }
   function ensureSheet() {
     let overlay = document.querySelector("[data-zb-settings-overlay]");
@@ -3130,33 +3167,28 @@
         </nav>
         <div class="zb-settings-body">
           <section class="zb-settings-pane is-active" data-zb-pane="reader">
-            <div class="zb-settings-grid">
-              ${settingCard("Размер", `<strong class="zb-setting-value" data-zb-font-value>16</strong>`, `<div class="zb-stepper"><button type="button" data-zb-font-step="-1">A−</button><div class="zb-range-track" aria-hidden="true"><span data-zb-font-track></span></div><button type="button" data-zb-font-step="1">A+</button></div>`)}
-              ${settingCard("Ширина", "", choiceRow("readerWidth", ["comfort", "full", "wide"]))}
-              ${settingCard("Интервал", "", choiceRow("lineHeight", ["1.1", "1.2", "1.3", "1.45", "1.6", "1.75", "1.9"]))}
-              ${settingCard("Абзацы", "", choiceRow("paragraphSpacing", ["0", "2", "4", "8", "12", "16", "20", "24"]))}
-              ${settingCard("Край", "", choiceRow("textAlign", ["left", "justify"]))}
+            <div class="zb-compact-settings-list">
+              ${compactSettingRow("Размер текста", "4–24 px", `<div class="zb-stepper zb-stepper-compact"><button type="button" data-zb-font-step="-1" aria-label="Уменьшить текст">A−</button><strong class="zb-setting-value" data-zb-font-value>16</strong><button type="button" data-zb-font-step="1" aria-label="Увеличить текст">A+</button></div>`)}
+              ${compactSettingRow("Фон главы", "Отдельно от темы приложения", choiceRow("readerTheme", ["cream", "white", "sepia", "dark"]))}
+              ${compactSettingRow("Ширина текста", "Комфортная или расширенная колонка", choiceRow("readerWidth", ["comfort", "full", "wide"]))}
+              ${compactSettingRow("Межстрочный интервал", "Плотность строк", settingSelect("lineHeight", ["1.1", "1.2", "1.3", "1.45", "1.6", "1.75", "1.9"]))}
+              ${compactSettingRow("Отступ между абзацами", "Вертикальный ритм", settingSelect("paragraphSpacing", ["0", "2", "4", "8", "12", "16", "20", "24"]))}
+              ${compactSettingRow("Выравнивание", "Левый край или по ширине", choiceRow("textAlign", ["left", "justify"]))}
             </div>
-            <section class="zb-reader-preview" data-zb-reader-preview aria-label="Предпросмотр текста">
-              <div class="zb-reader-preview-label">Предпросмотр</div>
-              <p>Первый абзац показывает размер, интервал и ширину строки. Так сразу видно, как будет выглядеть глава во время чтения.</p>
-              <p>Второй абзац показывает отступы между абзацами и выравнивание текста.</p>
-            </section>
+            <section class="zb-reader-preview zb-reader-preview-compact" data-zb-reader-preview aria-label="Предпросмотр текста"><div class="zb-reader-preview-label">Предпросмотр</div><p>Так будет выглядеть основной текст главы с выбранными настройками.</p></section>
           </section>
           <section class="zb-settings-pane" data-zb-pane="app">
-            <div class="zb-settings-grid">
-              ${settingCard("Тема", "", choiceRow("siteTheme", ["light", "system", "dark"]))}
-              ${settingCard("Плотность", "", choiceRow("appSize", ["compact", "normal", "large"]))}
-              ${settingCard("Акцент", "", accentRow())}
-              ${settingCard("Панель в читалке", "", `<div class="zb-choice-row"><button class="zb-choice" type="button" data-zb-controls="show">Показывать</button><button class="zb-choice" type="button" data-zb-controls="hide">Скрывать</button></div>`)}
+            <div class="zb-compact-settings-list">
+              ${compactSettingRow("Тема приложения", "Светлая тема использует тёплый жёлтый градиент", choiceRow("siteTheme", ["light", "system", "dark"]))}
+              ${compactSettingRow("Размер интерфейса", "Плотность карточек и элементов", choiceRow("appSize", ["compact", "normal", "large"]))}
+              ${compactSettingRow("Акцент", "Цвет основных кнопок и активных элементов", accentRow())}
             </div>
-            <p class="zb-settings-note">Эти настройки применяются к библиотеке, оглавлению и чтению</p>
           </section>
           <section class="zb-settings-pane" data-zb-pane="access">
-            <div class="zb-access-box"><h3>Доступ</h3><p>Доступ проверяется через Telegram и сохранённые права. Подробная диагностика остаётся в админке, чтобы не перегружать интерфейс читателя</p></div>
+            <div class="zb-access-box zb-access-box-user"><h3>Подписка</h3><div data-zb-subscription-summary><div class="zb-access-loading">Откройте раздел, чтобы проверить подписку.</div></div></div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="about">
-            <div class="zb-about-box"><h3>Зефиркины баоцзы</h3><p>Мини-читалка для библиотеки, оглавления, раннего доступа и удобного возвращения к последней главе</p></div>
+            <div class="zb-about-box zb-about-box-project"><a class="zb-about-project-link" href="https://t.me/+Z5b3eeJjJTs0MTli" target="_blank" rel="noopener noreferrer" data-main-group-link><span>🥟</span><strong>Зефиркины баоцзы</strong><span aria-hidden="true">↗</span></a><p>Мини-читалка для библиотеки, оглавления, раннего доступа и удобного возвращения к последней главе.</p></div>
           </section>
         </div>
         <footer class="zb-settings-footer"><button class="zb-reset-button" type="button" data-zb-reset>Сбросить</button></footer>
@@ -3212,7 +3244,8 @@
     const title = overlay.querySelector("[data-zb-settings-title]");
     const subtitle = overlay.querySelector("[data-zb-settings-subtitle]");
     if (title) title.textContent = tab === "reader" ? "Настройки чтения" : tab === "app" ? "Настройки приложения" : tab === "access" ? "Доступ" : "О проекте";
-    if (subtitle) subtitle.textContent = tab === "reader" ? "Текст, ширина, интервалы и предпросмотр" : tab === "app" ? "Тема, плотность, акцент и панель" : tab === "access" ? "Как приложение понимает права читателя" : "Информация о читалке";
+    if (subtitle) subtitle.textContent = tab === "reader" ? "Текст, фон и интервалы — без лишних экранов" : tab === "app" ? "Тема, размер интерфейса и акцент" : tab === "access" ? "Ваша активная платная подписка" : "Информация о проекте";
+    if (tab === "access") loadSubscriptionSummary(false);
   }
   function bindSheet(overlay) {
     overlay.addEventListener("click", function (event) {
@@ -3221,6 +3254,10 @@
     overlay.querySelector("[data-zb-settings-close]").addEventListener("click", closeSheet);
     overlay.querySelectorAll("[data-zb-tab]").forEach(function (button) {
       button.addEventListener("click", function () { setTab(button.dataset.zbTab); updateSheetState(); });
+    });
+    overlay.addEventListener("change", function (event) {
+      const select = event.target.closest("[data-zb-select-setting]");
+      if (select) setSetting(select.dataset.zbSelectSetting, select.value);
     });
     overlay.addEventListener("click", function (event) {
       const setting = event.target.closest("[data-zb-setting]");
@@ -3233,15 +3270,17 @@
         setFont(Number(step.dataset.zbFontStep || 0));
         return;
       }
-      const controls = event.target.closest("[data-zb-controls]");
-      if (controls) {
-        setControlsChoice(controls.dataset.zbControls);
+      const retry = event.target.closest("[data-zb-access-retry]");
+      if (retry) {
+        subscriptionSummaryLoaded = false;
+        loadSubscriptionSummary(true);
         return;
       }
       const reset = event.target.closest("[data-zb-reset]");
       if (reset) {
         writeSettings(DEFAULTS);
-        setControlsChoice("show");
+        try { window.localStorage.removeItem(CONTROLS_KEY); } catch (error) {}
+        document.body.classList.remove("reader-controls-hidden");
         applyCleanSettings();
         updateSheetState();
       }
@@ -3261,11 +3300,10 @@
       button.classList.toggle("is-active", active);
       button.setAttribute("aria-pressed", active ? "true" : "false");
     });
-    const controlsChoice = getControlsChoice();
-    overlay.querySelectorAll("[data-zb-controls]").forEach(function (button) {
-      const active = button.dataset.zbControls === controlsChoice;
-      button.classList.toggle("is-active", active);
-      button.setAttribute("aria-pressed", active ? "true" : "false");
+    overlay.querySelectorAll("[data-zb-select-setting]").forEach(function (select) {
+      if (Object.prototype.hasOwnProperty.call(settings, select.dataset.zbSelectSetting)) {
+        select.value = String(settings[select.dataset.zbSelectSetting]);
+      }
     });
   }
   function interceptOldReaderSettings() {
@@ -3291,7 +3329,8 @@
     ensureButtons();
     cleanupOldUi();
     interceptOldReaderSettings();
-    setControlsChoice(getControlsChoice());
+    try { window.localStorage.removeItem(CONTROLS_KEY); } catch (error) {}
+    document.body.classList.remove("reader-controls-hidden");
     [0, 150, 500, 1200].forEach(function (delay) {
       window.setTimeout(function () { applyCleanSettings(); ensureButtons(); cleanupOldUi(); updateSheetState(); }, delay);
     });
@@ -4092,7 +4131,6 @@
       toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
       toggle.setAttribute("aria-label", hidden ? "Показать кнопки оглавления" : "Скрыть кнопки оглавления");
     }
-    try { window.localStorage.setItem(TOC_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {}
   }
   function applyReaderHidden(hidden) {
     const controls = qs("[data-reader-floating-controls]");
@@ -4105,7 +4143,6 @@
       toggle.setAttribute("aria-pressed", hidden ? "true" : "false");
       toggle.setAttribute("aria-label", hidden ? "Показать кнопки читалки" : "Скрыть кнопки читалки");
     }
-    try { window.localStorage.setItem(READER_HIDDEN_KEY, hidden ? "1" : "0"); } catch (error) {}
   }
   function initFloatingTocControls() {
     const page = qs("[data-novel-page]");
@@ -4162,17 +4199,19 @@
     if ("IntersectionObserver" in window) {
       try { new IntersectionObserver(syncVisibility, { threshold: [0, .1, .45, .9, 1] }).observe(sourceButton); } catch (error) {}
     }
-    let hidden = false;
-    try { hidden = window.localStorage.getItem(TOC_HIDDEN_KEY) === "1"; } catch (error) {}
-    applyTocHidden(hidden);
+    try { window.localStorage.removeItem(TOC_HIDDEN_KEY); } catch (error) {}
+    applyTocHidden(false);
   }
   function initReaderEmptySpaceCollapse() {
     const page = qs("[data-chapter-page]");
     const controls = qs("[data-reader-floating-controls]");
     const toggle = qs("[data-reader-controls-visibility-toggle]");
     if (!page || !controls || !toggle) return;
+    try { window.localStorage.removeItem(READER_HIDDEN_KEY); } catch (error) {}
+    applyReaderHidden(false);
     controls.addEventListener("click", function (event) { event.stopPropagation(); });
     toggle.addEventListener("click", function (event) { event.stopPropagation(); applyReaderHidden(!document.body.classList.contains("reader-controls-hidden")); });
+    document.addEventListener("zefirki:chapter-appended", function () { applyReaderHidden(false); });
   }
   function initEmptySpaceCollapse() {
     document.addEventListener("click", function (event) {

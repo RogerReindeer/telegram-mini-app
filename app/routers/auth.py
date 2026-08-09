@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response
 
 from ..config import settings
-from ..services.auth import AUTH_COOKIE_NAME, authenticate_telegram_viewer, make_session_token, viewer_access_profile, viewer_from_request
+from ..services.auth import AUTH_COOKIE_NAME, authenticate_telegram_viewer, make_session_token, public_subscription_summary, viewer_access_profile, viewer_from_request
 
 SESSION_COOKIE = AUTH_COOKIE_NAME
 
@@ -15,6 +15,11 @@ def create_auth_router() -> APIRouter:
     def me(request: Request):
         viewer = viewer_from_request(request)
         return {"viewer": viewer, "access": viewer_access_profile(viewer)}
+
+    @router.get("/subscription")
+    def subscription(request: Request):
+        viewer = viewer_from_request(request)
+        return public_subscription_summary(viewer)
 
     @router.post("/telegram")
     async def telegram(request: Request, response: Response):
