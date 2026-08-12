@@ -619,22 +619,28 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
     elif status == "free_scheduled":
         keeper_available = bool(chapter_keeper_url(chapter, novel))
         if keeper_available:
-            title = title or "Упс… эта глава по платной подписке"
+            title = title or "Эта глава уже открыта для 📜 «Хранителей свитков»"
             if novel_is_gift(novel):
                 description = description or (
-                    "Основные главы этой новеллы с 🎁 открывает 🌱 «Странствующий читатель», "
-                    "но эта глава относится к раннему доступу 📜. Для чтения оформите "
-                    "«Хранителя свитков»."
+                    "Эта глава входит в доступ уровня 📜 «Хранитель свитков». "
+                    "Для новелл с 🎁 свободный доступ не предусмотрен."
+                )
+                action_hint = action_hint or (
+                    "Хотите читать дальше? Поддержите канал и присоединяйтесь к 📜 «Хранителям свитков»."
+                )
+            elif release_label:
+                description = description or f"В свободный доступ она выйдет {release_label}."
+                action_hint = action_hint or (
+                    "Хотите читать раньше? Поддержите канал и присоединяйтесь к 📜 «Хранителям свитков»."
                 )
             else:
                 description = description or (
-                    "Эта глава входит в ранний доступ 📜. Для чтения оформите "
-                    "подписку «Хранитель свитков»."
+                    "У этой главы нет даты выхода в свободный доступ — она доступна только на уровне "
+                    "📜 «Хранитель свитков»."
                 )
-            action_hint = action_hint or (
-                "Количество ранних глав задаётся отдельно для каждой новеллы — обычно это одна или две главы. "
-                "После оформления вернитесь сюда и нажмите «Проверить доступ»."
-            )
+                action_hint = action_hint or (
+                    "Чтобы прочитать её, поддержите канал и присоединяйтесь к 📜 «Хранителям свитков»."
+                )
             primary_action = primary_action or "upgrade_keeper"
         else:
             title = title or "Глава пока закрыта"
@@ -745,6 +751,11 @@ def access_paywall_copy(
     else:
         owned_message = ""
 
+    direct_purchase_role = ""
+    paywall_title = decision.title
+    paywall_description = decision.description
+    paywall_action_hint = decision.action_hint
+
     if is_gift_subscription_gate:
         unlock_button_label = "Поддержать канал"
         panel_title = "Выберите уровень поддержки"
@@ -753,18 +764,38 @@ def access_paywall_copy(
             "дополнительно даёт ранний доступ к новым главам и дополнительные главы."
         )
     elif buy_traveler:
-        unlock_button_label = "Получить доступ"
+        unlock_button_label = "Поддержать канал"
         panel_title = "Выберите уровень поддержки"
         panel_description = (
             "🌱 «Странствующий читатель» открывает доступ к чтению этой новеллы с 🎁."
         )
     elif upgrade_keeper:
-        unlock_button_label = "Оформить Хранителя свитков"
-        panel_title = "Ранний доступ к главам"
-        panel_description = (
-            "📜 «Хранитель свитков» открывает ближайшие закрытые главы в пределах "
-            "уровня 📜, установленного для этой новеллы. Обычно это одна или две главы."
-        )
+        unlock_button_label = "Присоединиться к 📜 «Хранителям свитков»"
+        direct_purchase_role = "keeper"
+        panel_title = "📜 «Хранитель свитков»"
+        panel_description = "Ранний доступ к новым главам и дополнительные главы."
+        paywall_title = "Эта глава уже открыта для 📜 «Хранителей свитков»"
+        if is_gift_novel:
+            paywall_description = (
+                "Эта глава входит в доступ уровня 📜 «Хранитель свитков». "
+                "Для новелл с 🎁 свободный доступ не предусмотрен."
+            )
+            paywall_action_hint = (
+                "Хотите читать дальше? Поддержите канал и присоединяйтесь к 📜 «Хранителям свитков»."
+            )
+        elif release_label:
+            paywall_description = f"В свободный доступ она выйдет {release_label}."
+            paywall_action_hint = (
+                "Хотите читать раньше? Поддержите канал и присоединяйтесь к 📜 «Хранителям свитков»."
+            )
+        else:
+            paywall_description = (
+                "У этой главы нет даты выхода в свободный доступ — она доступна только на уровне "
+                "📜 «Хранитель свитков»."
+            )
+            paywall_action_hint = (
+                "Чтобы прочитать её, поддержите канал и присоединяйтесь к 📜 «Хранителям свитков»."
+            )
     else:
         unlock_button_label = ""
         panel_title = "Доступ к главе"
@@ -777,9 +808,9 @@ def access_paywall_copy(
         required_label = "готовый текст главы"
 
     return {
-        "title": decision.title,
-        "description": decision.description,
-        "action_hint": decision.action_hint,
+        "title": paywall_title,
+        "description": paywall_description,
+        "action_hint": paywall_action_hint,
         "status": decision.status,
         "severity": decision.severity,
         "release_date": decision.release_date,
@@ -801,6 +832,7 @@ def access_paywall_copy(
         },
         "is_gift_subscription_gate": is_gift_subscription_gate,
         "unlock_button_label": unlock_button_label,
+        "direct_purchase_role": direct_purchase_role,
         "panel_title": panel_title,
         "panel_description": panel_description,
         "traveler_option_title": "🌱 «Странствующий читатель»",

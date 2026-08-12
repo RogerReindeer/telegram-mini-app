@@ -70,6 +70,11 @@
             </div>
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
               {% if access_paywall.show_tribute %}
+                {% if access_paywall.direct_purchase_role == 'keeper' and tribute_keeper_url %}
+                  <a class="chapter-unlock-button chapter-unlock-button-link chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-keeper" href="{{ tribute_keeper_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>{{ access_paywall.unlock_button_label }}</a>
+                {% elif access_paywall.direct_purchase_role == 'traveler' and tribute_traveler_url %}
+                  <a class="chapter-unlock-button chapter-unlock-button-link chapter-access-purchase-button chapter-access-purchase-tribute chapter-access-purchase-traveler" href="{{ tribute_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>{{ access_paywall.unlock_button_label }}</a>
+                {% else %}
                 <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>{{ access_paywall.unlock_button_label or 'Получить доступ' }}</button>
                 <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden>
                   <div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="{{ access_paywall.panel_title or 'Доступ к главе' }}">
@@ -94,6 +99,7 @@
                     </div>
                   </div>
                 </div>
+                {% endif %}
               {% elif access_paywall.show_refresh %}
                 <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>
               {% endif %}

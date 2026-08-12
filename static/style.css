@@ -15987,3 +15987,15 @@ body[data-site-theme="dark"] .chapter-support-level-option,
 body[data-reader-theme="dark"] .chapter-support-level-option {
   background: color-mix(in srgb, var(--card-bg, #1f1814) 90%, var(--accent, #ff6a00) 10%);
 }
+
+/* v236: a single required support tier is a direct CTA, not a redundant chooser. */
+.chapter-unlock-button-link {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  padding: 10px 16px !important;
+  text-align: center !important;
+  text-decoration: none !important;
+  line-height: 1.25 !important;
+}

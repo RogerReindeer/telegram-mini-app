@@ -86,7 +86,7 @@ class Settings:
     # v202-swipe-animation-feedback; v221-library-tags-paywall-dedup;
     # v224-compact-subscription-gate; v225-theme-sections-controls-settings;
     # v231-free-release-date-subscription-only-extra
-    app_version: str = _env("APP_VERSION", "v235-gift-support-copy-channel-chooser")
+    app_version: str = _env("APP_VERSION", "v236-role-aware-subscription-paywalls")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 
