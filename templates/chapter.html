@@ -35,23 +35,38 @@
           <section class="chapter-paywall chapter-paywall-v54 chapter-paywall-{{ access_paywall.severity }}">
             {% if footer_fox %}<img class="chapter-paywall-fox" src="{{ footer_fox }}" alt="Лисичка" data-fox>{% endif %}
             <div class="chapter-paywall-copy">
-              <div class="chapter-paywall-meta">
-                <span class="chapter-paywall-status">{{ chapter.access_label }}</span>
-                {% if access_paywall.release_label %}<span class="chapter-paywall-date">{{ access_paywall.release_label }}</span>{% endif %}
-                {% if access_paywall.show_subscription_help %}
-                  <details class="subscription-help subscription-help-paywall">
-                    <summary aria-label="Что дают подписки?" title="Что дают подписки?">?</summary>
-                    <div class="subscription-help-popover" role="note">
-                      <strong>Что дают уровни?</strong>
-                      <p><b>🌱 Странствующий читатель</b> нужен только для чтения новелл с 🎁. В обычных новеллах бесплатный диапазон не меняется.</p>
-                      <p><b>📜 Хранитель свитков</b> открывает ближайшие ранние главы во всех новеллах. Количество задаётся отдельно для каждой новеллы — обычно одна или две главы.</p>
-                    </div>
-                  </details>
-                {% endif %}
-              </div>
-              <h2>{{ access_paywall.title or access_copy.title }}</h2>
-              <p>{{ access_paywall.description or access_copy.description }}</p>
-              {% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}
+              {% if access_paywall.is_gift_subscription_gate %}
+                <h2>Эта новелла открывается по подписке</h2>
+                <div class="chapter-support-levels chapter-support-levels-detailed" aria-label="Подходящие уровни поддержки">
+                  <article class="chapter-support-level-option">
+                    <strong>🌱 «Странствующий читатель»</strong>
+                    <p>Доступ к закрытым новеллам и историям канала.</p>
+                  </article>
+                  <article class="chapter-support-level-option">
+                    <strong>📜 «Хранитель свитков»</strong>
+                    <p>Всё из 🌱 плюс ранний доступ к новым главам и дополнительные главы.</p>
+                  </article>
+                </div>
+                <p>Спасибо, что поддерживаете канал — благодаря вам мы продолжаем переводить любимые истории.</p>
+              {% else %}
+                <div class="chapter-paywall-meta">
+                  <span class="chapter-paywall-status">{{ chapter.access_label }}</span>
+                  {% if access_paywall.release_label %}<span class="chapter-paywall-date">{{ access_paywall.release_label }}</span>{% endif %}
+                  {% if access_paywall.show_subscription_help %}
+                    <details class="subscription-help subscription-help-paywall">
+                      <summary aria-label="Что дают подписки?" title="Что дают подписки?">?</summary>
+                      <div class="subscription-help-popover" role="note">
+                        <strong>Что дают уровни?</strong>
+                        <p><b>🌱 Странствующий читатель</b> нужен только для чтения новелл с 🎁. В обычных новеллах бесплатный диапазон не меняется.</p>
+                        <p><b>📜 Хранитель свитков</b> открывает ближайшие ранние главы во всех новеллах. Количество задаётся отдельно для каждой новеллы — обычно одна или две главы.</p>
+                      </div>
+                    </details>
+                  {% endif %}
+                </div>
+                <h2>{{ access_paywall.title or access_copy.title }}</h2>
+                <p>{{ access_paywall.description or access_copy.description }}</p>
+                {% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}
+              {% endif %}
             </div>
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
               {% if access_paywall.show_tribute %}

@@ -556,10 +556,10 @@ def access_copy(required_role: str) -> dict[str, str]:
         }
     if required_role == "traveler":
         return {
-            "title": "Эта новелла доступна по подписке",
+            "title": "Нужен уровень поддержки",
             "description": (
-                "Для чтения новеллы с 🎁 оформите 🌱 «Странствующего читателя». "
-                "Этот уровень нужен только для новелл с подарком."
+                "Эта новелла открывается по подписке. Спасибо, что поддерживаете канал — "
+                "вместе мы можем продолжать переводить любимые истории."
             ),
         }
     return {
@@ -586,13 +586,13 @@ def enrich_access_decision(decision: AccessDecision, chapter: dict, novel: dict,
         primary_action = primary_action or "read"
         severity = "open"
     elif status == "book_access_denied":
-        title = title or "Эта новелла доступна по подписке"
+        title = title or "Нужен уровень поддержки"
         description = description or (
-            "Новелла отмечена 🎁. Для чтения оформите 🌱 «Странствующего читателя». "
-            "В обычных новеллах этот уровень не расширяет бесплатный доступ."
+            "Эта новелла открывается по подписке. Спасибо, что поддерживаете канал — "
+            "вместе мы можем продолжать переводить любимые истории."
         )
         action_hint = action_hint or (
-            "После оформления вернитесь в Mini App и нажмите «Проверить доступ»."
+            "Выберите 🌱 «Странствующего читателя» или 📜 «Хранителя свитков»."
         )
         primary_action = primary_action or "buy_traveler"
         secondary_action = secondary_action or "refresh"
@@ -715,8 +715,19 @@ def access_paywall_copy(
         "book_access_denied", "free_scheduled", "premium_scheduled", "locked"
     }
 
-    show_traveler_purchase = buy_traveler and viewer_rank < role_rank("traveler")
-    show_keeper_purchase = upgrade_keeper and viewer_rank < role_rank("keeper")
+    is_gift_subscription_gate = decision.status == "book_access_denied" and is_gift_novel
+
+    # A 🎁 novel can be unlocked by either support tier: Keeper includes all
+    # Traveler access. The chooser must therefore offer both plans to a guest
+    # instead of forcing the cheaper tier first.
+    show_traveler_purchase = (
+        (buy_traveler or is_gift_subscription_gate)
+        and viewer_rank < role_rank("traveler")
+    )
+    show_keeper_purchase = (
+        (upgrade_keeper or is_gift_subscription_gate)
+        and viewer_rank < role_rank("keeper")
+    )
     traveler_already_owned = viewer_rank >= role_rank("traveler")
     keeper_already_owned = viewer_rank >= role_rank("keeper")
     show_subscription_choices = show_traveler_purchase or show_keeper_purchase
@@ -734,12 +745,18 @@ def access_paywall_copy(
     else:
         owned_message = ""
 
-    if buy_traveler:
-        unlock_button_label = "Оформить Странствующего читателя"
-        panel_title = "Подписка для новеллы с 🎁"
+    if is_gift_subscription_gate:
+        unlock_button_label = "Поддержать канал"
+        panel_title = "Выберите уровень поддержки"
         panel_description = (
-            "🌱 «Странствующий читатель» открывает доступ к чтению этой новеллы с 🎁. "
-            "В обычных новеллах он не добавляет платные главы."
+            "Выберите подходящий уровень. Оба открывают эту новеллу, а 📜 «Хранитель свитков» "
+            "дополнительно даёт ранний доступ к новым главам и дополнительные главы."
+        )
+    elif buy_traveler:
+        unlock_button_label = "Получить доступ"
+        panel_title = "Выберите уровень поддержки"
+        panel_description = (
+            "🌱 «Странствующий читатель» открывает доступ к чтению этой новеллы с 🎁."
         )
     elif upgrade_keeper:
         unlock_button_label = "Оформить Хранителя свитков"
@@ -780,18 +797,19 @@ def access_paywall_copy(
         "show_refresh": can_refresh,
         "show_back_to_toc": True,
         "show_subscription_help": decision.status in {
-            "book_access_denied", "free_scheduled", "premium_scheduled"
+            "free_scheduled", "premium_scheduled"
         },
+        "is_gift_subscription_gate": is_gift_subscription_gate,
         "unlock_button_label": unlock_button_label,
         "panel_title": panel_title,
         "panel_description": panel_description,
-        "traveler_option_title": "🌱 Странствующий читатель",
+        "traveler_option_title": "🌱 «Странствующий читатель»",
         "traveler_option_description": (
-            "Только чтение новелл с 🎁. Бесплатный диапазон обычных новелл не меняется."
+            "Доступ к закрытым новеллам и историям канала."
         ),
-        "keeper_option_title": "📜 Хранитель свитков",
+        "keeper_option_title": "📜 «Хранитель свитков»",
         "keeper_option_description": (
-            "Ближайшие ранние главы по границе 📜 каждой новеллы; обычно одна или две."
+            "Всё из 🌱 плюс ранний доступ к новым главам и дополнительные главы."
         ),
     }
 

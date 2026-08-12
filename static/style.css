@@ -15915,3 +15915,75 @@ body.chapter-swipe-committing .page-swipe-surface {
   .zb-subscription-status-active > div:first-child { align-items: flex-start !important; }
   .zb-subscription-status-active strong { max-width: 58% !important; }
 }
+
+
+/* v234 — gift-novel support gate */
+.chapter-support-levels {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  margin: 10px auto 14px;
+  padding: 12px 14px;
+  width: min(100%, 420px);
+  border: 1px solid color-mix(in srgb, var(--accent-color, #f2a900) 28%, transparent);
+  border-radius: var(--zb-ui-radius, 8px);
+  background: color-mix(in srgb, var(--accent-color, #f2a900) 7%, transparent);
+  text-align: center;
+}
+
+.chapter-support-levels strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.chapter-support-levels span {
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: .66;
+}
+
+.chapter-paywall .chapter-unlock-options {
+  display: grid;
+  gap: 10px;
+}
+
+.chapter-paywall .chapter-access-purchase-button strong {
+  display: block;
+}
+
+.chapter-paywall .chapter-access-purchase-button small {
+  display: block;
+  margin-top: 4px;
+}
+
+
+/* v235 — detailed support levels inside gift-novel paywall */
+.chapter-support-levels-detailed {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 16px;
+}
+.chapter-support-level-option {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 22%, var(--border-color, rgba(0,0,0,.12)));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-bg, #fff) 92%, var(--accent, #ff6a00) 8%);
+  text-align: left;
+}
+.chapter-support-level-option strong {
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+.chapter-support-level-option p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.42;
+  opacity: .78;
+}
+body[data-site-theme="dark"] .chapter-support-level-option,
+body[data-reader-theme="dark"] .chapter-support-level-option {
+  background: color-mix(in srgb, var(--card-bg, #1f1814) 90%, var(--accent, #ff6a00) 10%);
+}
