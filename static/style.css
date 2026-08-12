@@ -15544,3 +15544,172 @@ body[data-site-theme="dark"] .library-v4 .library-book-card-v4[data-status="in_p
   .zb-personal-stats-grid { grid-template-columns: 1fr 1fr !important; }
   .admin-analytics-retention { grid-template-columns: 1fr; }
 }
+
+/* =====================================================================
+   v227 — explicit vertical edge swipe for chapter switching
+   No neighbouring chapter is appended automatically.
+   ===================================================================== */
+.page-chapter {
+  overscroll-behavior-y: none;
+}
+
+.page-chapter .page-swipe-surface {
+  --chapter-swipe-y: 0px;
+  transform: translate3d(var(--page-swipe-x, 0px), var(--chapter-swipe-y), 0);
+  overscroll-behavior-y: none;
+}
+
+body.chapter-swipe-dragging {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+  user-select: none;
+}
+
+body.chapter-swipe-dragging .page-swipe-surface {
+  transition: none !important;
+}
+
+body.chapter-swipe-resetting .page-swipe-surface {
+  transition: transform 240ms cubic-bezier(.22, .72, .22, 1) !important;
+}
+
+body.chapter-swipe-committing .page-swipe-surface {
+  transition: transform 190ms cubic-bezier(.4, 0, .9, .5) !important;
+}
+
+.page-swipe-surface.is-chapter-swipe-down {
+  box-shadow: 0 -26px 50px color-mix(in srgb, var(--accent, #ff6a00) 20%, transparent);
+}
+
+.page-swipe-surface.is-chapter-swipe-up {
+  box-shadow: 0 26px 50px color-mix(in srgb, var(--accent, #ff6a00) 20%, transparent);
+}
+
+.chapter-swipe-hint {
+  --chapter-swipe-progress: 0;
+  position: fixed;
+  left: 50%;
+  z-index: 9997;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  width: min(272px, calc(100vw - 34px));
+  min-height: 68px;
+  padding: 10px 14px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #ff6a00) 64%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--viz-card, #211a16) 92%, transparent);
+  color: var(--viz-text, #fff8ef);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .30);
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 140ms ease, transform 180ms cubic-bezier(.2, .8, .2, 1), border-color 140ms ease, background 140ms ease;
+}
+
+.chapter-swipe-hint.is-from-top {
+  top: max(14px, env(safe-area-inset-top));
+  transform: translate3d(-50%, -28px, 0) scale(.92);
+}
+
+.chapter-swipe-hint.is-from-bottom {
+  bottom: max(88px, calc(74px + env(safe-area-inset-bottom)));
+  transform: translate3d(-50%, 28px, 0) scale(.92);
+}
+
+.chapter-swipe-hint.is-visible {
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0) scale(1);
+}
+
+.chapter-swipe-hint.is-ready {
+  border-color: rgba(89, 210, 126, .92);
+  background: color-mix(in srgb, #173720 82%, var(--viz-card, #211a16));
+}
+
+.chapter-swipe-hint.is-disabled {
+  opacity: .86;
+  border-color: color-mix(in srgb, var(--accent, #ff6a00) 48%, transparent);
+}
+
+.chapter-swipe-hint.is-cancelled {
+  animation: chapter-swipe-hint-shake 220ms ease;
+}
+
+.chapter-swipe-hint-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent, #ff6a00) 18%, transparent);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.chapter-swipe-hint.is-ready .chapter-swipe-hint-icon {
+  background: rgba(89, 210, 126, .20);
+}
+
+.chapter-swipe-hint-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.chapter-swipe-hint-copy strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chapter-swipe-hint-copy small {
+  color: var(--viz-muted, #c9bcb4);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.chapter-swipe-hint-track {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  left: 14px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .10);
+}
+
+.chapter-swipe-hint-track > span {
+  display: block;
+  width: calc(var(--chapter-swipe-progress) * 100%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent, #ff6a00) 62%, white), var(--accent, #ff6a00));
+  transition: width 35ms linear, background 120ms ease;
+}
+
+.chapter-swipe-hint.is-ready .chapter-swipe-hint-track > span {
+  background: linear-gradient(90deg, #67d58c, #32b86a);
+}
+
+@keyframes chapter-swipe-hint-shake {
+  0%, 100% { margin-left: 0; }
+  30% { margin-left: -7px; }
+  70% { margin-left: 7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-swipe-hint,
+  body.chapter-swipe-resetting .page-swipe-surface,
+  body.chapter-swipe-committing .page-swipe-surface {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+  }
+}

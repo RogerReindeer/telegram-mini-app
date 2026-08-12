@@ -3736,10 +3736,266 @@
     window.addEventListener('resize', maybeLoad, { passive: true });
     window.setTimeout(maybeLoad, 700);
   }
+  function initChapterVerticalSwipeNavigation() {
+    const page = document.querySelector('[data-chapter-page]');
+    const source = document.querySelector('[data-cache-chapter-content]');
+    if (!page || !source || page.dataset.isLocked === "true") return;
+
+    const surface = page;
+    const previousUrl = String(page.dataset.previousUrl || '');
+    const nextUrl = String(page.dataset.nextUrl || page.dataset.lockedNextUrl || '');
+    const EDGE_TOLERANCE = 18;
+    const MIN_DRAG = 64;
+    const MAX_DURATION = 1200;
+
+    // The chapter itself must never grow by silently appending neighbours.
+    // Navigation happens only after an explicit edge pull from the reader.
+    document.documentElement.style.overscrollBehaviorY = 'none';
+    document.body.style.overscrollBehaviorY = 'none';
+    surface.style.setProperty('--chapter-swipe-y', '0px');
+
+    let hint = document.querySelector('[data-chapter-swipe-hint]');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.className = 'chapter-swipe-hint';
+      hint.dataset.chapterSwipeHint = 'true';
+      hint.setAttribute('aria-hidden', 'true');
+      hint.innerHTML = `
+        <span class="chapter-swipe-hint-icon" data-chapter-swipe-icon aria-hidden="true">↑</span>
+        <span class="chapter-swipe-hint-copy">
+          <strong data-chapter-swipe-title>Следующая глава</strong>
+          <small data-chapter-swipe-state>Потяните дальше</small>
+        </span>
+        <span class="chapter-swipe-hint-track" aria-hidden="true"><span></span></span>
+      `;
+      document.body.appendChild(hint);
+    }
+
+    function haptic(kind) {
+      try {
+        const h = window.Telegram?.WebApp?.HapticFeedback;
+        if (!h) return;
+        if (kind === 'ready' && typeof h.selectionChanged === 'function') h.selectionChanged();
+        if (kind === 'commit' && typeof h.impactOccurred === 'function') h.impactOccurred('light');
+        if (kind === 'cancel' && typeof h.notificationOccurred === 'function') h.notificationOccurred('warning');
+      } catch (error) {}
+    }
+
+    function atTop() {
+      return window.scrollY <= EDGE_TOLERANCE;
+    }
+
+    function atBottom() {
+      const root = document.documentElement;
+      return root.scrollHeight - (window.scrollY + window.innerHeight) <= EDGE_TOLERANCE;
+    }
+
+    function destination(direction) {
+      if (direction === 'previous') {
+        return {
+          direction,
+          path: previousUrl,
+          title: previousUrl ? 'Предыдущая глава' : 'Это первая доступная глава',
+          icon: '↓',
+          side: 'top'
+        };
+      }
+      return {
+        direction: 'next',
+        path: nextUrl,
+        title: nextUrl ? 'Следующая глава' : 'Доступные главы закончились',
+        icon: '↑',
+        side: 'bottom'
+      };
+    }
+
+    function updateHint(target, progress, ready) {
+      if (!hint || !target) return;
+      hint.classList.toggle('is-from-top', target.side === 'top');
+      hint.classList.toggle('is-from-bottom', target.side === 'bottom');
+      hint.classList.toggle('is-disabled', !target.path);
+      hint.classList.toggle('is-ready', Boolean(target.path && ready));
+      hint.classList.add('is-visible');
+      hint.style.setProperty('--chapter-swipe-progress', String(Math.max(0, Math.min(1, progress))));
+      const icon = hint.querySelector('[data-chapter-swipe-icon]');
+      const title = hint.querySelector('[data-chapter-swipe-title]');
+      const state = hint.querySelector('[data-chapter-swipe-state]');
+      if (icon) icon.textContent = target.icon;
+      if (title) title.textContent = target.title;
+      if (state) {
+        state.textContent = !target.path
+          ? (target.direction === 'previous' ? 'Вы уже в начале' : 'Больше доступных глав нет')
+          : (ready ? 'Отпустите, чтобы перейти' : 'Потяните дальше');
+      }
+    }
+
+    function reset(cancelled) {
+      document.body.classList.remove('chapter-swipe-dragging');
+      document.body.classList.add('chapter-swipe-resetting');
+      surface.style.setProperty('--chapter-swipe-y', '0px');
+      surface.classList.remove('is-chapter-swipe-up', 'is-chapter-swipe-down');
+      if (hint) {
+        hint.classList.remove('is-ready', 'is-committing');
+        hint.classList.toggle('is-cancelled', Boolean(cancelled));
+      }
+      window.setTimeout(function () {
+        document.body.classList.remove('chapter-swipe-resetting');
+        if (hint) {
+          hint.classList.remove('is-visible', 'is-from-top', 'is-from-bottom', 'is-disabled', 'is-cancelled');
+          hint.style.setProperty('--chapter-swipe-progress', '0');
+        }
+      }, 250);
+    }
+
+    function commit(target, deltaY) {
+      if (!target || !target.path) return reset(true);
+      haptic('commit');
+      try {
+        document.dispatchEvent(new CustomEvent('zefirki:chapter-swipe-navigate', {
+          detail: { direction: target.direction, path: target.path }
+        }));
+      } catch (error) {}
+      document.body.classList.remove('chapter-swipe-dragging', 'chapter-swipe-resetting');
+      document.body.classList.add('gesture-navigation-active', 'chapter-swipe-committing');
+      if (hint) {
+        hint.classList.add('is-visible', 'is-ready', 'is-committing');
+        const state = hint.querySelector('[data-chapter-swipe-state]');
+        if (state) state.textContent = 'Открываю главу…';
+      }
+      const offscreen = (deltaY > 0 ? 1 : -1) * (window.innerHeight + 100);
+      surface.style.setProperty('--chapter-swipe-y', `${offscreen}px`);
+      window.setTimeout(function () { window.location.assign(target.path); }, 190);
+    }
+
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let tracking = false;
+    let blocked = false;
+    let startedAtTop = false;
+    let startedAtBottom = false;
+    let verticalIntent = false;
+    let activeTarget = null;
+    let readyTriggered = false;
+    let suppressClickUntil = 0;
+
+    document.addEventListener('click', function (event) {
+      if (Date.now() < suppressClickUntil) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
+
+    document.addEventListener('touchstart', function (event) {
+      if (event.touches.length !== 1 || document.body.classList.contains('chapter-swipe-committing')) {
+        tracking = false;
+        return;
+      }
+      const target = event.target;
+      blocked = Boolean(target && target.closest && target.closest(
+        'a, button, input, textarea, select, summary, [contenteditable="true"], [data-no-chapter-swipe]'
+      ));
+      const touch = event.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      startTime = Date.now();
+      startedAtTop = atTop();
+      startedAtBottom = atBottom();
+      verticalIntent = false;
+      activeTarget = null;
+      readyTriggered = false;
+      tracking = !blocked && (startedAtTop || startedAtBottom);
+      surface.style.setProperty('--chapter-swipe-y', '0px');
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function (event) {
+      if (!tracking || blocked || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+
+      // Only overscroll-like pulls switch chapters:
+      // pull down at the very top -> previous, pull up at the very bottom -> next.
+      const direction = startedAtTop && deltaY > 0
+        ? 'previous'
+        : (startedAtBottom && deltaY < 0 ? 'next' : '');
+
+      if (!direction) {
+        // A normal scroll back into the current chapter must stay native.
+        if (Math.abs(deltaY) > 12) tracking = false;
+        return;
+      }
+
+      if (!verticalIntent) {
+        if (Math.abs(deltaX) > 18 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+          tracking = false;
+          return;
+        }
+        if (Math.abs(deltaY) > 16 && Math.abs(deltaY) > Math.abs(deltaX) * 1.08) verticalIntent = true;
+      }
+      if (!verticalIntent) return;
+
+      event.preventDefault();
+      activeTarget = destination(direction);
+      document.body.classList.add('chapter-swipe-dragging');
+      const threshold = Math.max(82, Math.min(126, window.innerHeight * 0.14));
+      const progress = Math.min(1, Math.abs(deltaY) / threshold);
+      const maxShift = Math.min(180, window.innerHeight * 0.22);
+      const resistance = activeTarget.path ? 0.62 : 0.24;
+      const shift = Math.sign(deltaY || 1) * Math.min(maxShift, Math.abs(deltaY) * resistance);
+      const ready = Boolean(activeTarget.path && Math.abs(deltaY) >= threshold);
+
+      surface.style.setProperty('--chapter-swipe-y', `${shift}px`);
+      surface.classList.toggle('is-chapter-swipe-down', deltaY > 0);
+      surface.classList.toggle('is-chapter-swipe-up', deltaY < 0);
+      updateHint(activeTarget, progress, ready);
+
+      if (ready && !readyTriggered) {
+        readyTriggered = true;
+        haptic('ready');
+      } else if (!ready) {
+        readyTriggered = false;
+      }
+    }, { passive: false });
+
+    document.addEventListener('touchend', function (event) {
+      if (!tracking || blocked || !event.changedTouches.length) {
+        if (verticalIntent) reset(true);
+        tracking = false;
+        return;
+      }
+      tracking = false;
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - startX;
+      const deltaY = touch.clientY - startY;
+      const duration = Math.max(1, Date.now() - startTime);
+      const velocity = Math.abs(deltaY) / duration;
+      const threshold = Math.max(82, Math.min(126, window.innerHeight * 0.14));
+      const directional = Math.abs(deltaY) > Math.abs(deltaX) * 1.15;
+      const passedDistance = Math.abs(deltaY) >= threshold;
+      const passedFlick = Math.abs(deltaY) >= MIN_DRAG && velocity >= 0.34;
+      const shouldNavigate = verticalIntent && directional && duration <= MAX_DURATION
+        && activeTarget && activeTarget.path && (passedDistance || passedFlick);
+
+      suppressClickUntil = verticalIntent ? Date.now() + 360 : 0;
+      if (shouldNavigate) commit(activeTarget, deltaY);
+      else {
+        if (verticalIntent && activeTarget?.path && Math.abs(deltaY) > 42) haptic('cancel');
+        reset(verticalIntent);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', function () {
+      if (!tracking && !verticalIntent) return;
+      tracking = false;
+      reset(true);
+    }, { passive: true });
+  }
+
   function initV134() {
     initSystemThemeWatcher();
     initSettingsPreview();
-    initChapterInfiniteScroll();
+    initChapterVerticalSwipeNavigation();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initV134);
   else initV134();
@@ -4435,7 +4691,7 @@
     coach.className = "page-swipe-coach";
     coach.setAttribute("aria-live", "polite");
     coach.innerHTML = chapterPage
-      ? '<span aria-hidden="true">👉</span><span>Свайп вправо — к оглавлению</span>'
+      ? '<span aria-hidden="true">↕</span><span>Вправо — оглавление · у края вверх/вниз — сменить главу</span>'
       : '<span aria-hidden="true">↔</span><span>Вправо — библиотека, влево — продолжить чтение</span>';
     document.body.appendChild(coach);
     window.setTimeout(function () { coach.classList.add("is-visible"); }, 120);
@@ -4846,7 +5102,12 @@
 
   document.addEventListener("zefirki:reading-progress-visible", function (event) {
     const item = event.detail || {};
-    trackChapterOpen(item.chapterId, item.novelId, { infinite_reader: true });
+    trackChapterOpen(item.chapterId, item.novelId, { reader_progress: true });
+  });
+  document.addEventListener("zefirki:chapter-swipe-navigate", function (event) {
+    const direction = String(event.detail?.direction || "");
+    if (direction === "previous") send("chapter_previous", { section: "reader", action: "vertical_swipe" });
+    if (direction === "next") send("chapter_next", { section: "reader", action: "vertical_swipe" });
   });
   document.addEventListener("zefirki:analytics-progress", function (event) {
     const item = event.detail || {};
