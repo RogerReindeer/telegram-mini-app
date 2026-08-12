@@ -450,8 +450,12 @@ def chapter_traveler_url(chapter: dict, novel: dict | None = None) -> str:
 def chapter_guest_free_url(chapter: dict, novel: dict | None = None) -> str:
     """Return a genuinely free source for a viewer without subscriptions.
 
-    NovelStatus 🌱 is the only free-access boundary. Gift novels still require
-    the Traveler role for that same range.
+    Ordinary novels become public when either the effective 🌱 boundary already
+    includes the chapter *or* ``FreeReleaseDate`` has arrived.  This second
+    condition is important because scheduled releases must unlock at runtime even
+    if the NovelStatus snapshot has not been advanced yet.
+
+    Gift novels remain subscription-only regardless of ``FreeReleaseDate``.
     """
     if novel_is_gift(novel or {}):
         return ""
@@ -460,13 +464,16 @@ def chapter_guest_free_url(chapter: dict, novel: dict | None = None) -> str:
     if traveler_url:
         return traveler_url
 
-    # NovelStatus is the sole access source. Dates are display metadata and
-    # never open a chapter on their own.
+    free_release_date = clean_value(chapter.get("free_release_date"))
+    public_url = chapter_public_url(chapter)
+    if free_release_date and is_date_open(free_release_date) and public_url:
+        return public_url
+
     return ""
 
 
 def chapter_public_ready(chapter: dict, novel: dict | None = None) -> bool:
-    return bool(chapter_traveler_url(chapter, novel))
+    return bool(chapter_guest_free_url(chapter, novel))
 
 
 def chapter_keeper_access_enabled(chapter: dict, novel: dict | None = None) -> bool:
@@ -854,21 +861,27 @@ def effective_role_for_novel(viewer: dict[str, Any], novel: dict) -> tuple[str, 
 
 
 def _scheduled_date_for_role(chapter: dict, role: str) -> str:
-    """Choose the date shown in the TOC; it does not grant access."""
+    """Choose the date relevant to the viewer's access path.
+
+    Guests/Traveler care about ``FreeReleaseDate`` only.  Falling back to the
+    premium date made subscription-only extras look as if they would become free.
+    Keeper may use the premium date because it is the actual paid release date.
+    """
     role = clean_value(role).lower()
     if role == "keeper":
         value = chapter.get("premium_release_date") or chapter.get("free_release_date")
     else:
-        value = chapter.get("free_release_date") or chapter.get("premium_release_date")
+        value = chapter.get("free_release_date")
     return clean_value(parse_date(value) or value)
 
 
 def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, Any]) -> AccessDecision:
-    """Decide access strictly from the NovelStatus role flags.
+    """Decide access from effective role boundaries plus scheduled public release.
 
-    ``FreeReleaseDate`` and ``PremiumReleaseDate`` are display metadata only.
-    The 🌱 boundary opens ordinary novels to guests/Traveler and gift novels to
-    Traveler. The 📜 boundary opens the Keeper range.
+    The 🌱/📜 boundaries define early subscription access.  In an ordinary
+    novel, an arrived ``FreeReleaseDate`` also opens the real free source to
+    everyone, even when the latest NovelStatus snapshot has not yet advanced.
+    Gift novels remain subscription-only.
     """
     role = normalize_required_role(profile.get("role") or "guest")
     is_gift_novel = novel_is_gift(novel)
@@ -1006,7 +1019,10 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
         reason=("keeper_upgrade_available" if keeper_upgrade_available else "outside_novel_status_boundary"),
         required_role=("keeper" if keeper_upgrade_available or role == "keeper" else "guest"),
         viewer_role=role,
-        release_date=(keeper_date if keeper_upgrade_available or role == "keeper" else traveler_date),
+        # For a guest/Traveler, the TOC must show when the chapter becomes free,
+        # not when it first appeared for Keeper.  A blank FreeReleaseDate means
+        # that the chapter is subscription-only and therefore has no public date.
+        release_date=(keeper_date if role == "keeper" else traveler_date),
     )
 
 def decide_chapter_access(chapter: dict, novel: dict, profile: dict[str, Any]) -> AccessDecision:

@@ -2836,7 +2836,7 @@
 
         <section class="settings-section settings-section-v2" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для наших переводов: выбирайте новеллы, возвращайтесь к последней главе и следите за обновлениями</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section>
 
-        <div class="settings-footer settings-footer-v2"><button class="settings-reset" type="button" data-settings-reset>Сбросить всё</button></div>
+        <div class="settings-footer settings-footer-v2"><button class="settings-reset" type="button" data-settings-reset>Сбросить оформление</button></div>
       </div>`;
     document.body.appendChild(fab);
     document.body.appendChild(overlay);
@@ -3125,23 +3125,60 @@
   }
   let subscriptionSummaryLoaded = false;
   let subscriptionSummaryLoading = false;
+/* v229 compatibility wording (not rendered): Дата не передаётся Telegram · Пока вы состоите в группе */
+  function supportPickerHtml(data) {
+    const support = (data && data.support) || {};
+    const travelerUrl = String(support.traveler_url || "").trim();
+    const keeperUrl = String(support.keeper_url || "").trim();
+    if (!travelerUrl && !keeperUrl) return "";
+    const links = [];
+    if (travelerUrl) links.push(`<a href="${escapeHtml(travelerUrl)}" target="_blank" rel="noopener noreferrer" data-telegram-link><strong>🌱 «Странствующий читатель»</strong><span>Поддержать проект и открыть новеллы 🎁</span></a>`);
+    if (keeperUrl) links.push(`<a href="${escapeHtml(keeperUrl)}" target="_blank" rel="noopener noreferrer" data-telegram-link><strong>📜 «Хранитель свитков»</strong><span>Всё из 🌱 и ранние главы</span></a>`);
+    return `<details class="zb-support-picker"><summary>Выбрать уровень поддержки</summary><div class="zb-support-picker-menu">${links.join("")}</div></details>`;
+  }
+  function subscriptionStatusHtml(data) {
+    if (!data || !data.active) {
+      return `<p class="zb-subscription-status zb-subscription-status-empty">Сейчас активных подписок нет.</p>`;
+    }
+    const item = data || {};
+    const membershipBased = Boolean(item.membership_based);
+    const label = item.label || (item.role === "keeper" ? "📜 Хранитель свитков" : "🌱 Странствующий читатель");
+    const source = item.provider_label || (item.provider === "tribute" ? "Tribute" : item.provider === "boosty" ? "Boosty" : "");
+    const details = [];
+    if (item.started_at) details.push(`<span><b>Куплена:</b> ${escapeHtml(formatSubscriptionDate(item.started_at))}</span>`);
+    if (item.expires_at) details.push(`<span><b>Действует до:</b> ${escapeHtml(formatSubscriptionDate(item.expires_at))}</span>`);
+    if (membershipBased && !item.started_at && !item.expires_at) details.push(`<span>Доступ подтверждён по участию в закрытой группе${source ? ` · ${escapeHtml(source)}` : ""}.</span>`);
+    return `<div class="zb-subscription-status zb-subscription-status-active"><div><span>Активная подписка</span><strong>${escapeHtml(label)}</strong></div>${details.length ? `<div class="zb-subscription-status-meta">${details.join("")}</div>` : ""}</div>`;
+  }
   async function loadSubscriptionSummary(force) {
     const box = document.querySelector("[data-zb-subscription-summary]");
     if (!box || (subscriptionSummaryLoaded && !force) || subscriptionSummaryLoading) return;
     subscriptionSummaryLoading = true;
     box.innerHTML = `<div class="zb-access-loading">Проверяем подписку…</div>`;
     try {
-      const response = await fetch("/api/auth/subscription", { credentials: "same-origin" });
+      const response = await fetch("/api/auth/subscription?refresh=true", { credentials: "same-origin" });
       const data = await response.json().catch(function () { return {}; });
       if (!response.ok) throw new Error(data.detail || "Не удалось получить данные подписки");
       subscriptionSummaryLoaded = true;
-      if (!data.active) {
-        box.innerHTML = `<div class="zb-subscription-empty"><strong>Нет подписок</strong><span>Активных платных подписок сейчас нет.</span></div>`;
-        return;
-      }
-      box.innerHTML = `<div class="zb-subscription-card"><div class="zb-subscription-plan"><span>Подписка</span><strong>${escapeHtml(data.label || "Активна")}</strong></div><dl class="zb-subscription-dates"><div><dt>Куплена</dt><dd>${escapeHtml(formatSubscriptionDate(data.started_at))}</dd></div><div><dt>Действует до</dt><dd>${escapeHtml(formatSubscriptionDate(data.expires_at))}</dd></div></dl></div>`;
+      box.innerHTML = `
+        ${subscriptionStatusHtml(data)}
+        <p class="zb-subscription-support-copy">Подписка — это поддержка переводов: благодаря ей мы можем покупать главы, брать новые истории и чаще выпускать обновления. Бонусный доступ в читалке — наше спасибо за поддержку.</p>
+        <div class="zb-subscription-levels">
+          <article class="zb-subscription-level">
+            <h4>🌱 «Странствующий читатель»</h4>
+            <p>Открывает новеллы с отметкой 🎁 — они доступны здесь и на Boosty.</p>
+            <strong class="zb-subscription-bonus">🎁 +3 новеллы</strong>
+          </article>
+          <article class="zb-subscription-level">
+            <h4>📜 «Хранитель свитков»</h4>
+            <p>Открывает всё из 🌱 и ранние главы к некоторым переводам.</p>
+            <strong class="zb-subscription-bonus">🎁 +3 новеллы · 📜 +34 главы</strong>
+          </article>
+        </div>
+        <p class="zb-subscription-free-note">Бесплатные главы можно читать без подписки.</p>
+        ${supportPickerHtml(data)}`;
     } catch (error) {
-      box.innerHTML = `<div class="zb-subscription-empty"><strong>Не удалось проверить</strong><span>${escapeHtml(error && error.message ? error.message : "Попробуйте открыть раздел ещё раз.")}</span><button type="button" class="zb-access-retry" data-zb-access-retry>Повторить</button></div>`;
+      box.innerHTML = `<div class="zb-subscription-empty"><strong>Не удалось проверить подписку</strong><span>${escapeHtml(error && error.message ? error.message : "Попробуйте ещё раз.")}</span><button type="button" class="zb-access-retry" data-zb-access-retry>Повторить</button></div>`;
     } finally {
       subscriptionSummaryLoading = false;
     }
@@ -3222,7 +3259,7 @@
             </div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="access">
-            <div class="zb-access-box zb-access-box-user"><h3>Подписка</h3><div data-zb-subscription-summary><div class="zb-access-loading">Откройте раздел, чтобы проверить подписку.</div></div></div>
+            <div class="zb-access-box zb-access-box-user"><h3>Подписки</h3><div data-zb-subscription-summary><div class="zb-access-loading">Откройте раздел, чтобы проверить подписки.</div></div></div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="stats">
             <div class="zb-personal-stats-box" data-zb-personal-stats><div class="zb-stats-loading">Откройте раздел, чтобы увидеть статистику чтения.</div></div>
@@ -3231,7 +3268,7 @@
             <div class="zb-about-box zb-about-box-project"><a class="zb-about-project-link" href="https://t.me/+Z5b3eeJjJTs0MTli" target="_blank" rel="noopener noreferrer" data-main-group-link><span>🥟</span><strong>Зефиркины баоцзы</strong><span aria-hidden="true">↗</span></a><p>Мини-читалка для наших переводов: выбирайте новеллы, возвращайтесь к последней главе и следите за обновлениями.</p></div>
           </section>
         </div>
-        <footer class="zb-settings-footer"><button class="zb-reset-button" type="button" data-zb-reset>Сбросить</button></footer>
+        <footer class="zb-settings-footer"><button class="zb-reset-button" type="button" data-zb-reset>Сбросить оформление</button></footer>
       </div>`;
     document.body.appendChild(overlay);
     bindSheet(overlay);
@@ -3284,7 +3321,7 @@
     const title = overlay.querySelector("[data-zb-settings-title]");
     const subtitle = overlay.querySelector("[data-zb-settings-subtitle]");
     const titles = { reader: "Настройки чтения", app: "Настройки приложения", access: "Доступ", stats: "Статистика", about: "О проекте" };
-    const subtitles = { reader: "Текст, фон и интервалы — без лишних экранов", app: "Тема, размер интерфейса и акцент", access: "Ваша активная платная подписка", stats: "Ваше чтение в Mini App", about: "Информация о проекте" };
+    const subtitles = { reader: "Текст, фон и интервалы — без лишних экранов", app: "Тема, размер интерфейса и акцент", access: "Поддержка переводов и ваш текущий доступ", stats: "Ваше чтение в Mini App", about: "Информация о проекте" };
     if (title) title.textContent = titles[tab] || "Настройки";
     if (subtitle) subtitle.textContent = subtitles[tab] || "";
     if (tab === "access") loadSubscriptionSummary(false);

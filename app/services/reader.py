@@ -22,6 +22,7 @@ from .access import (
     chapter_content_url_for_access,
     chapter_content_url_for_role,
     chapter_is_translated,
+    chapter_keeper_url,
     chapter_public_ready,
     chapter_public_url,
     chapter_premium_ready,
@@ -836,20 +837,36 @@ def prepare_chapter_for_access_template(
     item["access_severity"] = decision.severity
     item["required_role"] = decision.required_role
 
-    # В оглавлении больше нет текстовых статусов «Подписка/Не подписка».
-    # Показываем только короткую дату из Excel и замок у закрытой главы.
-    date_label = format_toc_date(decision.release_date)
+    # Для обычной главы показываем дату именно бесплатного релиза.
+    # Если FreeReleaseDate отсутствует, но глава доступна по 📜, это не
+    # "дата ещё не указана", а постоянная подписочная экстра.
+    free_release_date = clean_value(chapter.get("free_release_date"))
+    keeper_only_without_free_release = bool(
+        not decision.allowed
+        and decision.required_role == "keeper"
+        and not free_release_date
+        and chapter_keeper_url(chapter, novel)
+    )
+    if keeper_only_without_free_release:
+        date_label = "📜 Только по подписке"
+        date_icon = ""
+        date_hint = "У этой главы нет даты бесплатного релиза"
+    else:
+        date_label = format_toc_date(decision.release_date)
+        date_icon = "" if decision.allowed else "🔒"
+        date_hint = (
+            f"Доступна с {date_label}" if decision.allowed and date_label
+            else f"Откроется {date_label}" if date_label
+            else "Глава доступна" if decision.allowed
+            else "Глава пока закрыта"
+        )
+
     item["toc_date_label"] = date_label
-    item["toc_date_icon"] = "" if decision.allowed else "🔒"
+    item["toc_date_icon"] = date_icon
     item["toc_date_class"] = (
         "chapter-access-date-open" if decision.allowed else "chapter-access-date-locked"
     )
-    item["toc_date_hint"] = (
-        f"Доступна с {date_label}" if decision.allowed and date_label
-        else f"Откроется {date_label}" if date_label
-        else "Глава доступна" if decision.allowed
-        else "Глава пока закрыта"
-    )
+    item["toc_date_hint"] = date_hint
     item["toc_access_label"] = ""
     item["toc_access_hint"] = item["toc_date_hint"]
     item["toc_access_class"] = item["toc_date_class"]

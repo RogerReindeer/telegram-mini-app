@@ -17,9 +17,18 @@ def create_auth_router() -> APIRouter:
         return {"viewer": viewer, "access": viewer_access_profile(viewer)}
 
     @router.get("/subscription")
-    def subscription(request: Request):
+    def subscription(request: Request, refresh: bool = True):
         viewer = viewer_from_request(request)
-        return public_subscription_summary(viewer)
+        profile = viewer_access_profile(viewer, force_group_refresh=refresh)
+        summary = public_subscription_summary(viewer, profile)
+        # Payment links are public UI configuration. Returning both levels lets
+        # Settings render one compact "choose support level" control instead
+        # of hard-coding Tribute URLs in JavaScript.
+        summary["support"] = {
+            "traveler_url": settings.tribute_traveler_url,
+            "keeper_url": settings.tribute_keeper_url,
+        }
+        return summary
 
     @router.post("/telegram")
     async def telegram(request: Request, response: Response):

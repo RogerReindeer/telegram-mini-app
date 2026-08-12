@@ -1,4 +1,4 @@
-# Build history compatibility markers: v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe
+# Build history compatibility markers: v229-group-subscriptions-reset-label; v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe; v228-settings-popup-selects-about-copy
 """Central configuration contract for new modules.
 
 The legacy application currently reads the same environment variables directly.
@@ -84,8 +84,9 @@ class Settings:
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
     # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader;
     # v202-swipe-animation-feedback; v221-library-tags-paywall-dedup;
-    # v224-compact-subscription-gate; v225-theme-sections-controls-settings
-    app_version: str = _env("APP_VERSION", "v228-settings-popup-selects-about-copy")
+    # v224-compact-subscription-gate; v225-theme-sections-controls-settings;
+    # v231-free-release-date-subscription-only-extra
+    app_version: str = _env("APP_VERSION", "v233-access-gate-copy")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 

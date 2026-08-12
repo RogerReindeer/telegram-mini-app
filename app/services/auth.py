@@ -312,40 +312,133 @@ def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
 
 
 
-def public_subscription_summary(viewer: dict[str, Any]) -> dict[str, Any]:
-    """Return the active paid subscription in a small user-facing shape.
+def public_subscription_summary(
+    viewer: dict[str, Any],
+    profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return the user's effective paid subscription for Settings → Access.
 
-    This intentionally reads only Supabase subscription state. Opening the
-    Settings → Access tab must never trigger Telegram getChatMember calls.
+    A paid level can be confirmed in two independent ways:
+    1. a live subscription row received from Tribute;
+    2. current membership in one of the configured paid Telegram groups.
+
+    Telegram ``getChatMember`` does not expose a join/purchase date or an
+    expiry date.  For a group-only subscription we therefore report that the
+    access is membership-backed instead of inventing dates.
     """
     if not viewer.get("authenticated") or not viewer.get("user_id"):
-        return {"active": False, "role": "guest", "label": "Нет подписок"}
+        return {"active": False, "role": "guest", "label": "Нет подписок", "subscriptions": []}
 
-    rows = get_active_tribute_subscriptions(int(viewer["user_id"]))
-    if not rows:
-        return {"active": False, "role": "guest", "label": "Нет подписок"}
+    user_id = int(viewer["user_id"])
+    profile = dict(profile or {})
+    if "tribute_subscriptions" in profile:
+        rows = list(profile.get("tribute_subscriptions") or [])
+    else:
+        rows = get_active_tribute_subscriptions(user_id)
+
+    labels = {
+        "traveler": "🌱 Странствующий читатель",
+        "keeper": "📜 Хранитель свитков",
+    }
 
     def sort_key(row: dict[str, Any]) -> tuple[int, float]:
         expires = parse_iso_datetime(row.get("expires_at"))
         expires_ts = expires.timestamp() if expires else 0.0
         return (role_rank(row.get("access_role")), expires_ts)
 
-    row = sorted(rows, key=sort_key, reverse=True)[0]
-    role = clean_value(row.get("access_role")) or "traveler"
-    labels = {
-        "traveler": "🌱 Странствующий читатель",
-        "keeper": "📜 Хранитель свитков",
-    }
-    return {
-        "active": True,
-        "role": role,
-        "label": labels.get(role, role),
-        "started_at": clean_value(row.get("started_at")),
-        "expires_at": clean_value(row.get("expires_at")),
-        "status": clean_value(row.get("status")),
-        "auto_renew": bool(row.get("auto_renew")),
-        "provider": clean_value(row.get("provider")) or "tribute",
-    }
+    subscriptions: list[dict[str, Any]] = []
+    for row in sorted(rows, key=sort_key, reverse=True):
+        role = clean_value(row.get("access_role")) or "traveler"
+        subscriptions.append({
+            "active": True,
+            "role": role,
+            "label": labels.get(role, role),
+            "started_at": clean_value(row.get("started_at")),
+            "expires_at": clean_value(row.get("expires_at")),
+            "status": clean_value(row.get("status")) or "active",
+            "auto_renew": bool(row.get("auto_renew")),
+            "provider": clean_value(row.get("provider")) or "tribute",
+            "membership_based": False,
+        })
+
+    # If the payment webhook did not create a row (for example access is
+    # granted by a Boosty/Telegram group), membership is still a valid active
+    # subscription signal.  Prefer the strongest currently active paid group.
+    groups = profile.get("groups") or {}
+    active_paid_groups: list[dict[str, Any]] = []
+    for role, key in (("keeper", "keepers"), ("traveler", "travelers")):
+        role_groups = groups.get(key)
+        if not isinstance(role_groups, list):
+            single = groups.get("keeper" if role == "keeper" else "traveler")
+            role_groups = [single] if isinstance(single, dict) else []
+        for group in role_groups:
+            if isinstance(group, dict) and group.get("active"):
+                item = dict(group)
+                item["role"] = role
+                active_paid_groups.append(item)
+
+    known_roles = {clean_value(item.get("role")) for item in subscriptions}
+    for group in sorted(active_paid_groups, key=lambda item: role_rank(item.get("role")), reverse=True):
+        role = clean_value(group.get("role")) or "traveler"
+        if role in known_roles:
+            continue
+        source = clean_value(group.get("source")) or "telegram_group"
+        source_labels = {
+            "tribute": "Telegram-группа Tribute",
+            "boosty": "Telegram-группа Boosty",
+            "telegram": "Telegram-группа",
+            "telegram_group": "Telegram-группа",
+        }
+        subscriptions.append({
+            "active": True,
+            "role": role,
+            "label": labels.get(role, role),
+            "started_at": "",
+            "expires_at": "",
+            "status": "active",
+            "auto_renew": False,
+            "provider": source,
+            "provider_label": source_labels.get(source, "Telegram-группа"),
+            "membership_based": True,
+        })
+        known_roles.add(role)
+
+    # Backward-compatible fallback: the signed session already contains the
+    # effective paid role calculated at Telegram authentication time.  This is
+    # useful when the Access tab is opened during a transient Telegram API
+    # failure but the user's current session has already verified the group.
+    profile_role = clean_value(profile.get("role")) or "guest"
+    session_role = clean_value(viewer.get("role")) or "guest"
+    effective_role = max((profile_role, session_role), key=role_rank)
+    if not subscriptions and role_rank(effective_role) >= role_rank("traveler"):
+        subscriptions.append({
+            "active": True,
+            "role": effective_role,
+            "label": labels.get(effective_role, effective_role),
+            "started_at": "",
+            "expires_at": "",
+            "status": "active",
+            "auto_renew": False,
+            "provider": "verified_access",
+            "provider_label": "Подтверждённый доступ",
+            "membership_based": True,
+        })
+
+    if not subscriptions:
+        return {"active": False, "role": "guest", "label": "Нет подписок", "subscriptions": []}
+
+    def summary_sort_key(item: dict[str, Any]) -> tuple[int, int, float]:
+        expires = parse_iso_datetime(item.get("expires_at"))
+        return (
+            role_rank(item.get("role")),
+            1 if not item.get("membership_based") else 0,
+            expires.timestamp() if expires else 0.0,
+        )
+
+    subscriptions.sort(key=summary_sort_key, reverse=True)
+    strongest = dict(subscriptions[0])
+    strongest["subscriptions"] = subscriptions
+    return strongest
 
 
 def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> list[dict[str, Any]]:
