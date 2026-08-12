@@ -1,3 +1,4 @@
+# Build history compatibility markers: v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe
 """Central configuration contract for new modules.
 
 The legacy application currently reads the same environment variables directly.
@@ -84,7 +85,7 @@ class Settings:
     # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader;
     # v202-swipe-animation-feedback; v221-library-tags-paywall-dedup;
     # v224-compact-subscription-gate; v225-theme-sections-controls-settings
-    app_version: str = _env("APP_VERSION", "v227-vertical-chapter-swipe")
+    app_version: str = _env("APP_VERSION", "v228-settings-popup-selects-about-copy")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 

@@ -15713,3 +15713,51 @@ body.chapter-swipe-committing .page-swipe-surface {
     animation-duration: 1ms !important;
   }
 }
+
+
+/* =====================================================================
+   v228 — compact popup selects where choices would otherwise overflow
+   ===================================================================== */
+.zb-setting-select-wrap {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.zb-setting-select-wrap .zb-setting-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  cursor: pointer !important;
+  padding-right: 34px !important;
+}
+.zb-setting-select-chevron {
+  position: absolute !important;
+  right: 12px !important;
+  top: 50% !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-right: 2px solid var(--zb-sheet-muted) !important;
+  border-bottom: 2px solid var(--zb-sheet-muted) !important;
+  transform: translateY(-68%) rotate(45deg) !important;
+  pointer-events: none !important;
+}
+.zb-setting-select-wrap-accent .zb-setting-select {
+  padding-left: 34px !important;
+}
+.zb-setting-select-accent-dot {
+  --zb-select-accent: var(--zb-theme-accent, #ff6a00);
+  position: absolute !important;
+  z-index: 2 !important;
+  left: 11px !important;
+  top: 50% !important;
+  width: 13px !important;
+  height: 13px !important;
+  border-radius: 50% !important;
+  transform: translateY(-50%) !important;
+  background: var(--zb-select-accent) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--zb-select-accent) 18%, transparent) !important;
+  pointer-events: none !important;
+}
+@media (max-width: 560px) {
+  .zb-setting-select { min-height: 38px !important; font-size: 13px !important; }
+}

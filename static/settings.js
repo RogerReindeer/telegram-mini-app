@@ -2834,7 +2834,7 @@
 
         <section class="settings-section settings-section-v2" data-settings-section="access"><div class="access-debug-box"><div class="access-debug-toolbar"><div><h3>Проверка доступа</h3><p>Telegram, группы, подписки Tribute и купленные новеллы</p></div><button class="settings-access-refresh" type="button" data-access-debug-refresh>Обновить</button></div><div class="access-debug-content" data-access-debug-content><p>Откройте вкладку, чтобы проверить права</p></div></div></section>
 
-        <section class="settings-section settings-section-v2" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для новелл, раннего доступа и удобного возвращения к последней главе</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section>
+        <section class="settings-section settings-section-v2" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для наших переводов: выбирайте новеллы, возвращайтесь к последней главе и следите за обновлениями</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section>
 
         <div class="settings-footer settings-footer-v2"><button class="settings-reset" type="button" data-settings-reset>Сбросить всё</button></div>
       </div>`;
@@ -3002,7 +3002,7 @@
     textAlign: { left: "Слева", justify: "По ширине" },
     siteTheme: { light: "Светлая", system: "Системная", dark: "Тёмная" },
     appSize: { compact: "Плотно", normal: "Норма", large: "Крупно" },
-    accentColor: { "#ff6a00": "Оранж", "#ec4899": "Розовый", "#8b5cf6": "Фиолет", "#0ea5e9": "Синий", "#10b981": "Зелёный" },
+    accentColor: { "#ff6a00": "Оранжевый", "#ec4899": "Розовый", "#8b5cf6": "Фиолетовый", "#0ea5e9": "Синий", "#10b981": "Зелёный" },
     readerControls: { show: "Показывать", hide: "Скрывать" }
   };
 
@@ -3105,7 +3105,11 @@
     }).join("")}</div>`;
   }
   function settingSelect(name, values) {
-    return `<select class="zb-setting-select" data-zb-select-setting="${escapeHtml(name)}" aria-label="${escapeHtml(name)}">${values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml((LABELS[name] && LABELS[name][value]) || value)}</option>`).join("")}</select>`;
+    return `<span class="zb-setting-select-wrap"><select class="zb-setting-select" data-zb-select-setting="${escapeHtml(name)}" aria-label="${escapeHtml(name)}">${values.map((value) => `<option value="${escapeHtml(value)}">${escapeHtml((LABELS[name] && LABELS[name][value]) || value)}</option>`).join("")}</select><span class="zb-setting-select-chevron" aria-hidden="true"></span></span>`;
+  }
+  function accentSelect() {
+    const colors = ["#ff6a00", "#ec4899", "#8b5cf6", "#0ea5e9", "#10b981"];
+    return `<span class="zb-setting-select-wrap zb-setting-select-wrap-accent"><span class="zb-setting-select-accent-dot" data-zb-accent-preview aria-hidden="true"></span><select class="zb-setting-select" data-zb-select-setting="accentColor" aria-label="Акцент">${colors.map((value) => `<option value="${value}">${escapeHtml(LABELS.accentColor[value] || value)}</option>`).join("")}</select><span class="zb-setting-select-chevron" aria-hidden="true"></span></span>`;
   }
   function compactSettingRow(label, hint, body) {
     return `<section class="zb-compact-setting-row"><div class="zb-compact-setting-copy"><strong>${escapeHtml(label)}</strong>${hint ? `<span>${escapeHtml(hint)}</span>` : ""}</div><div class="zb-compact-setting-control">${body}</div></section>`;
@@ -3202,7 +3206,7 @@
           <section class="zb-settings-pane is-active" data-zb-pane="reader">
             <div class="zb-compact-settings-list">
               ${compactSettingRow("Размер текста", "4–24 px", `<div class="zb-stepper zb-stepper-compact"><button type="button" data-zb-font-step="-1" aria-label="Уменьшить текст">A−</button><strong class="zb-setting-value" data-zb-font-value>16</strong><button type="button" data-zb-font-step="1" aria-label="Увеличить текст">A+</button></div>`)}
-              ${compactSettingRow("Фон главы", "Отдельно от темы приложения", choiceRow("readerTheme", ["cream", "white", "sepia", "dark"]))}
+              ${compactSettingRow("Фон главы", "Отдельно от темы приложения", settingSelect("readerTheme", ["cream", "white", "sepia", "dark"]))}
               ${compactSettingRow("Ширина текста", "Комфортная или расширенная колонка", choiceRow("readerWidth", ["comfort", "full", "wide"]))}
               ${compactSettingRow("Межстрочный интервал", "Плотность строк", settingSelect("lineHeight", ["1.1", "1.2", "1.3", "1.45", "1.6", "1.75", "1.9"]))}
               ${compactSettingRow("Отступ между абзацами", "Вертикальный ритм", settingSelect("paragraphSpacing", ["0", "2", "4", "8", "12", "16", "20", "24"]))}
@@ -3214,7 +3218,7 @@
             <div class="zb-compact-settings-list">
               ${compactSettingRow("Тема приложения", "Светлая тема использует тёплый жёлтый градиент", choiceRow("siteTheme", ["light", "system", "dark"]))}
               ${compactSettingRow("Размер интерфейса", "Плотность карточек и элементов", choiceRow("appSize", ["compact", "normal", "large"]))}
-              ${compactSettingRow("Акцент", "Цвет основных кнопок и активных элементов", accentRow())}
+              ${compactSettingRow("Акцент", "Цвет основных кнопок и активных элементов", accentSelect())}
             </div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="access">
@@ -3224,7 +3228,7 @@
             <div class="zb-personal-stats-box" data-zb-personal-stats><div class="zb-stats-loading">Откройте раздел, чтобы увидеть статистику чтения.</div></div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="about">
-            <div class="zb-about-box zb-about-box-project"><a class="zb-about-project-link" href="https://t.me/+Z5b3eeJjJTs0MTli" target="_blank" rel="noopener noreferrer" data-main-group-link><span>🥟</span><strong>Зефиркины баоцзы</strong><span aria-hidden="true">↗</span></a><p>Мини-читалка для библиотеки, оглавления, раннего доступа и удобного возвращения к последней главе.</p></div>
+            <div class="zb-about-box zb-about-box-project"><a class="zb-about-project-link" href="https://t.me/+Z5b3eeJjJTs0MTli" target="_blank" rel="noopener noreferrer" data-main-group-link><span>🥟</span><strong>Зефиркины баоцзы</strong><span aria-hidden="true">↗</span></a><p>Мини-читалка для наших переводов: выбирайте новеллы, возвращайтесь к последней главе и следите за обновлениями.</p></div>
           </section>
         </div>
         <footer class="zb-settings-footer"><button class="zb-reset-button" type="button" data-zb-reset>Сбросить</button></footer>
@@ -3350,6 +3354,8 @@
         select.value = String(settings[select.dataset.zbSelectSetting]);
       }
     });
+    const accentPreview = overlay.querySelector("[data-zb-accent-preview]");
+    if (accentPreview) accentPreview.style.setProperty("--zb-select-accent", settings.accentColor || DEFAULTS.accentColor);
   }
   function interceptOldReaderSettings() {
     document.addEventListener("click", function (event) {
