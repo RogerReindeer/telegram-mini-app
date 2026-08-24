@@ -13,6 +13,9 @@ router = APIRouter(prefix="/api/analytics")
 @router.post("/event")
 def event(request: Request, payload: AnalyticsEventPayload):
     viewer = public_viewer(viewer_from_request(request))
+    if viewer.get("admin_preview"):
+        # Owner browser QA is intentionally excluded from reader analytics.
+        return {"status": "ignored", "reason": "admin_preview"}
     if not viewer.get("authenticated") or not viewer.get("user_id"):
         raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
     return record_analytics_event(int(viewer["user_id"]), payload.to_service_dict())

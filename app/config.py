@@ -1,4 +1,4 @@
-# Build history compatibility markers: v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
+# Build history compatibility markers: v238-admin-browser-preview; v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
 # Build history compatibility markers: v229-group-subscriptions-reset-label; v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe; v228-settings-popup-selects-about-copy
 """Central configuration contract for new modules.
 
@@ -90,7 +90,7 @@ class Settings:
     # v202-swipe-animation-feedback; v208-readable-chapter-title-center; v221-library-tags-paywall-dedup;
     # v224-compact-subscription-gate; v225-theme-sections-controls-settings;
     # v231-free-release-date-subscription-only-extra
-    app_version: str = _env("APP_VERSION", "v237-stabilization-security-progress")
+    app_version: str = _env("APP_VERSION", "v238-admin-browser-preview")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 

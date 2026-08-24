@@ -24,6 +24,7 @@ from fastapi import HTTPException, Request
 
 from ..config import settings
 from ..database import db_select, db_upsert, supabase_ready
+from ..security import ADMIN_COOKIE_NAME, valid_admin_session_token
 from ..utils import clean_value, to_int, utc_now
 
 ROLE_RANK = {"guest": 0, "traveler": 1, "subscriber": 1, "subscription": 1, "boosty": 1, "reader": 1, "keeper": 2, "premium": 2, "paid": 2, "early": 2}
@@ -92,7 +93,38 @@ def public_viewer(viewer: dict[str, Any]) -> dict[str, Any]:
         "app_access": bool(viewer.get("app_access")),
         "app_access_source": str(viewer.get("app_access_source") or ""),
         "auth_version": int(viewer.get("auth_version") or 0),
+        "admin_preview": bool(viewer.get("admin_preview")),
     }
+
+
+def admin_preview_viewer() -> dict[str, Any]:
+    """Return a read-only owner identity backed by the HttpOnly admin session.
+
+    The owner must be able to QA the reader in an ordinary browser after
+    /admin/login, without fabricating a Telegram user id or polluting reading
+    progress/analytics. The preview gets Keeper-level content access plus
+    full-book access, but user-state writes are handled as explicit no-ops.
+    """
+    return {
+        "authenticated": True,
+        "user_id": None,
+        "first_name": "Администратор",
+        "username": "",
+        "role": "keeper",
+        "app_access": True,
+        "app_access_source": "admin_session",
+        "auth_version": 3,
+        "admin_preview": True,
+    }
+
+
+def viewer_has_app_identity(viewer: dict[str, Any]) -> bool:
+    """True for a Telegram identity or the signed owner browser preview."""
+    return bool(
+        viewer.get("authenticated")
+        and (viewer.get("user_id") or viewer.get("admin_preview"))
+        and viewer.get("app_access")
+    )
 
 
 def b64url_encode(data: bytes) -> str:
@@ -151,9 +183,17 @@ def parse_session_token(token: str) -> dict[str, Any] | None:
 
 
 def viewer_from_request(request: Request) -> dict[str, Any]:
+    # Owner preview wins over a stale/guest Telegram cookie in the same browser.
+    # This keeps /admin/login useful for browser QA even after the site has been
+    # opened previously outside Telegram.
+    if valid_admin_session_token(request.cookies.get(ADMIN_COOKIE_NAME, "")):
+        return admin_preview_viewer()
     session = parse_session_token(request.cookies.get(AUTH_COOKIE_NAME, ""))
     if session:
         return session
+    # A successful /admin/login creates a separate signed HttpOnly cookie.
+    # It deliberately unlocks browser QA of the reader without creating a fake
+    # Telegram identity or mixing owner activity into reader statistics.
     return {
         "authenticated": False,
         "user_id": None,
@@ -163,18 +203,19 @@ def viewer_from_request(request: Request) -> dict[str, Any]:
         "app_access": False,
         "app_access_source": "",
         "auth_version": 0,
+        "admin_preview": False,
     }
 
 
 def require_authenticated_viewer(request: Request) -> dict[str, Any]:
     viewer = viewer_from_request(request)
-    if not viewer.get("authenticated") or not viewer.get("user_id"):
+    if not viewer.get("authenticated") or (not viewer.get("user_id") and not viewer.get("admin_preview")):
         raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
     return viewer
 
 
 def require_app_access_viewer(request: Request) -> dict[str, Any]:
-    """Require both Telegram authentication and admission to the Mini App."""
+    """Require Telegram reader access or the signed owner browser session."""
     viewer = require_authenticated_viewer(request)
     if not viewer.get("app_access"):
         raise HTTPException(
@@ -326,6 +367,14 @@ def public_subscription_summary(
     expiry date.  For a group-only subscription we therefore report that the
     access is membership-backed instead of inventing dates.
     """
+    if viewer.get("admin_preview"):
+        return {
+            "active": False,
+            "role": "keeper",
+            "label": "Режим администратора",
+            "subscriptions": [],
+            "admin_preview": True,
+        }
     if not viewer.get("authenticated") or not viewer.get("user_id"):
         return {"active": False, "role": "guest", "label": "Нет подписок", "subscriptions": []}
 
@@ -573,6 +622,22 @@ def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = No
     for normal HTML page rendering; explicit access refresh endpoints still use
     viewer_access_profile(..., force_group_refresh=True).
     """
+    if viewer.get("admin_preview"):
+        return {
+            "user_id": None,
+            "role": "keeper",
+            "app_access": True,
+            "app_access_source": "admin_session",
+            "group_role": "keeper",
+            "tribute_role": "guest",
+            "groups": {},
+            "tribute_subscriptions": [],
+            "book_entitlements": [],
+            "has_full_book_access": True,
+            "novel_id": novel_id,
+            "fast_page_profile": True,
+            "admin_preview": True,
+        }
     role = clean_value(viewer.get("role")) or "guest"
     user_id = to_int(viewer.get("user_id") or viewer.get("telegram_user_id"), 0)
     entitlements = get_active_book_entitlements(user_id, novel_id) if user_id and novel_id else []
@@ -593,6 +658,8 @@ def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = No
     }
 
 def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None, force_group_refresh: bool = False) -> dict[str, Any]:
+    if viewer.get("admin_preview"):
+        return viewer_fast_access_profile(viewer, novel_id)
     if not viewer.get("authenticated") or not viewer.get("user_id"):
         return {
             "user_id": None,

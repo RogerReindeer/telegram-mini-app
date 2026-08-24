@@ -13,7 +13,7 @@ from ..services.access import (
     decide_chapter_access,
     novel_status_boundary_count_hint,
 )
-from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request
+from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request, viewer_has_app_identity
 from ..services.catalog import get_all_novels, get_chapter_by_id, get_chapters_for_novel_ids, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
 from ..services.reader import (
     build_chapter_display_list_for_access,
@@ -71,7 +71,7 @@ def _library_access_chapters(novels: list[dict]) -> list[dict]:
 
 
 def _viewer_can_use_app(viewer: dict) -> bool:
-    return bool(viewer.get("authenticated") and viewer.get("user_id") and viewer.get("app_access"))
+    return viewer_has_app_identity(viewer)
 
 
 def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIRouter:
@@ -194,7 +194,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
     @router.get("/api/library")
     def api_library(request: Request):
         viewer = public_viewer(viewer_from_request(request))
-        if not viewer.get("authenticated") or not viewer.get("user_id"):
+        if not viewer.get("authenticated") or (not viewer.get("user_id") and not viewer.get("admin_preview")):
             raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
         if not viewer.get("app_access"):
             raise HTTPException(status_code=403, detail="Доступ к читалке закрыт")

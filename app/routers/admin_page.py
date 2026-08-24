@@ -14,6 +14,7 @@ from ..security import (
     admin_request_is_authorized,
     constant_time_equals,
     make_admin_session_token,
+    read_limited_body,
 )
 from ..services.diagnostics import build_content_audit
 from ..services.analytics import build_analytics_summary
@@ -34,7 +35,7 @@ def create_admin_page_router(*, templates: Jinja2Templates, app_title: str) -> A
 
     @router.post("/admin/login")
     async def admin_login(request: Request):
-        body = await request.body()
+        body = await read_limited_body(request, max_bytes=4096)
         form = parse_qs(body.decode("utf-8", errors="replace"), keep_blank_values=True)
         token = str((form.get("token") or [""])[0]).strip()
         if not settings.admin_token or not constant_time_equals(token, settings.admin_token):
@@ -45,7 +46,7 @@ def create_admin_page_router(*, templates: Jinja2Templates, app_title: str) -> A
             make_admin_session_token(),
             httponly=True,
             secure=settings.app_env == "production",
-            samesite="strict",
+            samesite="lax",
             max_age=max(300, int(settings.admin_session_ttl_seconds or 43200)),
             path="/",
         )

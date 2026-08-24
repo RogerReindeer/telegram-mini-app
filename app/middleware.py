@@ -24,6 +24,7 @@ API_PREFIXES = ("/api/", "/sync", "/health", "/ready", "/version")
 SENSITIVE_PREFIXES = (
     "/api/auth/telegram",
     "/api/admin/",
+    "/admin/login",
     "/api/sync",
     "/sync",
     "/api/webhooks/",

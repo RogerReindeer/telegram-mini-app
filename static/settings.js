@@ -3137,6 +3137,9 @@
     return `<details class="zb-support-picker"><summary>Выбрать уровень поддержки</summary><div class="zb-support-picker-menu">${links.join("")}</div></details>`;
   }
   function subscriptionStatusHtml(data) {
+    if (data && data.admin_preview) {
+      return `<div class="zb-subscription-status zb-subscription-status-active"><div><span>Режим администратора</span><strong>Полный доступ для проверки читалки</strong></div><div class="zb-subscription-status-meta"><span>Прогресс и аналитика в браузерном режиме не сохраняются.</span></div></div>`;
+    }
     if (!data || !data.active) {
       return `<p class="zb-subscription-status zb-subscription-status-empty">Сейчас активных подписок нет.</p>`;
     }
@@ -3160,23 +3163,27 @@
       const data = await response.json().catch(function () { return {}; });
       if (!response.ok) throw new Error(data.detail || "Не удалось получить данные подписки");
       subscriptionSummaryLoaded = true;
-      box.innerHTML = `
-        ${subscriptionStatusHtml(data)}
-        <p class="zb-subscription-support-copy">Подписка — это поддержка переводов: благодаря ей мы можем покупать главы, брать новые истории и чаще выпускать обновления. Бонусный доступ в читалке — наше спасибо за поддержку.</p>
-        <div class="zb-subscription-levels">
-          <article class="zb-subscription-level">
-            <h4>🌱 «Странствующий читатель»</h4>
-            <p>Открывает новеллы с отметкой 🎁 — они доступны здесь и на Boosty.</p>
-            <strong class="zb-subscription-bonus">🎁 +3 новеллы</strong>
-          </article>
-          <article class="zb-subscription-level">
-            <h4>📜 «Хранитель свитков»</h4>
-            <p>Открывает всё из 🌱 и ранние главы к некоторым переводам.</p>
-            <strong class="zb-subscription-bonus">🎁 +3 новеллы · 📜 +34 главы</strong>
-          </article>
-        </div>
-        <p class="zb-subscription-free-note">Бесплатные главы можно читать без подписки.</p>
-        ${supportPickerHtml(data)}`;
+      if (data && data.admin_preview) {
+        box.innerHTML = subscriptionStatusHtml(data);
+      } else {
+        box.innerHTML = `
+          ${subscriptionStatusHtml(data)}
+          <p class="zb-subscription-support-copy">Подписка — это поддержка переводов: благодаря ей мы можем покупать главы, брать новые истории и чаще выпускать обновления. Бонусный доступ в читалке — наше спасибо за поддержку.</p>
+          <div class="zb-subscription-levels">
+            <article class="zb-subscription-level">
+              <h4>🌱 «Странствующий читатель»</h4>
+              <p>Открывает новеллы с отметкой 🎁 — они доступны здесь и на Boosty.</p>
+              <strong class="zb-subscription-bonus">🎁 +3 новеллы</strong>
+            </article>
+            <article class="zb-subscription-level">
+              <h4>📜 «Хранитель свитков»</h4>
+              <p>Открывает всё из 🌱 и ранние главы к некоторым переводам.</p>
+              <strong class="zb-subscription-bonus">🎁 +3 новеллы · 📜 +34 главы</strong>
+            </article>
+          </div>
+          <p class="zb-subscription-free-note">Бесплатные главы можно читать без подписки.</p>
+          ${supportPickerHtml(data)}`;
+      }
     } catch (error) {
       box.innerHTML = `<div class="zb-subscription-empty"><strong>Не удалось проверить подписку</strong><span>${escapeHtml(error && error.message ? error.message : "Попробуйте ещё раз.")}</span><button type="button" class="zb-access-retry" data-zb-access-retry>Повторить</button></div>`;
     } finally {
@@ -3201,6 +3208,10 @@
       const data = await response.json().catch(function () { return {}; });
       if (!response.ok) throw new Error(data.detail || "Не удалось получить статистику");
       personalStatsLoaded = true;
+      if (data && data.admin_preview) {
+        box.innerHTML = `<div class="zb-subscription-status zb-subscription-status-active"><div><span>Режим администратора</span><strong>Статистика отключена</strong></div><div class="zb-subscription-status-meta"><span>Тестовое чтение через браузер не влияет на реальные показатели канала.</span></div></div>`;
+        return;
+      }
       box.innerHTML = `
         <div class="zb-personal-stats-grid">
           <article class="zb-personal-stat zb-personal-stat-main"><span>Прочитано глав</span><strong>${Number(data.chapters_read || 0).toLocaleString("ru-RU")}</strong></article>

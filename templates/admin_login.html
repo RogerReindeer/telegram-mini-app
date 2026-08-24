@@ -23,7 +23,7 @@
 <body>
   <main class="card">
     <h1>Панель администратора</h1>
-    <p>Введите отдельный ADMIN_TOKEN. Он не сохраняется в адресной строке.</p>
+    <p>Введите отдельный ADMIN_TOKEN. После входа эта HttpOnly-сессия откроет и админку, и читалку в обычном браузере. Токен не сохраняется в адресной строке.</p>
     {% if error %}<div class="error">Неверный токен администратора.</div>{% endif %}
     <form method="post" action="/admin/login" autocomplete="off">
       <label for="token">ADMIN_TOKEN</label>
