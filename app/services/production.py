@@ -35,6 +35,7 @@ def _env_checks() -> list[Check]:
         "SUPABASE_URL": settings.supabase_url,
         "SUPABASE_SERVICE_KEY": settings.supabase_service_key,
         "SYNC_TOKEN": settings.sync_token,
+        "ADMIN_TOKEN": settings.admin_token,
         "SESSION_SECRET": settings.session_secret,
         "TELEGRAM_BOT_TOKEN": settings.telegram_bot_token,
     }
@@ -88,7 +89,7 @@ def _database_checks() -> list[Check]:
     if not supabase_ready():
         return checks
 
-    for table in ("novels", "chapters", "user_novel_state", "user_chapter_progress", "sync_runs"):
+    for table in ("novels", "chapters", "user_novel_state", "user_chapter_progress", "user_entitlements", "sync_runs"):
         try:
             db_select(table, select="*", limit=1)
         except Exception as error:

@@ -643,7 +643,7 @@
       available_chapters: Number(item.availableChapters || 0),
       scroll_position: Number(item.scrollPosition || 0),
       scroll_position_px: Math.max(0, Math.round(Number(item.scrollPositionPx || 0))),
-      completed: true,
+      completed: Number(item.scrollPosition || 0) >= 0.9,
       read_chapter_ids: Array.isArray(readIds) ? readIds.slice(-3000) : [],
     };
   }
@@ -4202,7 +4202,7 @@
       available_chapters: Number(item.availableChapters || 0),
       scroll_position: Number(item.scrollPosition || 0),
       scroll_position_px: Math.max(0, Math.round(Number(item.scrollPositionPx || 0))),
-      completed: true,
+      completed: Number(item.scrollPosition || 0) >= 0.9,
       read_chapter_ids: Array.isArray(readIds) ? readIds.slice(-3000) : [],
     };
     window.fetch("/api/user/progress", {

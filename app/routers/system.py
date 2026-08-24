@@ -7,7 +7,7 @@ from ..assets import static_manifest
 from ..cache import cache_stats
 from ..config import settings
 from ..database import db_select, supabase_ready
-from ..security import require_sync_token
+from ..security import require_admin_token
 
 router = APIRouter()
 
@@ -40,8 +40,8 @@ def version() -> dict[str, object]:
 
 
 @router.get("/api/admin/sync/status")
-def admin_sync_status(request: Request, token: str = ""):
-    require_sync_token(request, token)
+def admin_sync_status(request: Request):
+    require_admin_token(request)
     try:
         rows = db_select("sync_runs", order="started_at.desc", limit=10)
     except Exception as error:

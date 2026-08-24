@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from ..cache import clear_catalog_cache, clear_image_cache, clear_telegraph_cache
+from ..config import settings
 from ..database import db_delete, db_insert, db_select, db_update, db_upsert, supabase_ready
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
 from .access import normalize_readable_chapter_source
@@ -772,6 +773,56 @@ def _finish_sync_run(sync_id: int | None, patch: dict[str, Any]) -> None:
         print("Could not update sync_runs row:", error)
 
 
+
+def _guard_full_snapshot_prune(novels: list[dict[str, Any]], chapters: list[dict[str, Any]], payload: dict[str, Any]) -> dict[str, Any]:
+    """Block suspiciously destructive full snapshots before any write occurs.
+
+    A truncated Apps Script payload must never silently delete a large part of
+    production. Operators can explicitly set allow_large_prune=true after
+    reviewing validation output when a large removal is intentional.
+    """
+    if payload.get("full_snapshot") is not True:
+        return {"checked": False}
+    if payload.get("allow_large_prune") is True:
+        return {"checked": True, "override": True}
+
+    existing_novels = db_select("novels", select="novel_id")
+    existing_chapters = db_select("chapters", select="chapter_id")
+    incoming_novel_ids = {to_int(row.get("novel_id"), 0) for row in novels if to_int(row.get("novel_id"), 0) > 0}
+    incoming_chapter_ids = {clean_value(row.get("chapter_id")) for row in chapters if clean_value(row.get("chapter_id"))}
+
+    def removed_ratio(existing_count: int, incoming_count: int) -> float:
+        if existing_count <= 0:
+            return 0.0
+        return max(0.0, (existing_count - incoming_count) / existing_count)
+
+    novel_ratio = removed_ratio(len(existing_novels), len(incoming_novel_ids))
+    chapter_ratio = removed_ratio(len(existing_chapters), len(incoming_chapter_ids))
+    limit = max(0.0, min(0.95, float(settings.sync_max_prune_ratio or 0.35)))
+    suspicious = (len(existing_novels) >= 5 and novel_ratio > limit) or (len(existing_chapters) >= 20 and chapter_ratio > limit)
+    if suspicious:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "suspicious_full_snapshot_prune",
+                "message": "Полный snapshot удаляет слишком большую долю каталога. Сначала проверьте источник; для осознанного массового удаления передайте allow_large_prune=true.",
+                "existing_novels": len(existing_novels),
+                "incoming_novels": len(incoming_novel_ids),
+                "existing_chapters": len(existing_chapters),
+                "incoming_chapters": len(incoming_chapter_ids),
+                "novel_prune_ratio": round(novel_ratio, 4),
+                "chapter_prune_ratio": round(chapter_ratio, 4),
+                "max_prune_ratio": limit,
+            },
+        )
+    return {
+        "checked": True,
+        "override": False,
+        "novel_prune_ratio": round(novel_ratio, 4),
+        "chapter_prune_ratio": round(chapter_ratio, 4),
+        "max_prune_ratio": limit,
+    }
+
 def _delete_stale_chapters_for_snapshot(novels: list[dict[str, Any]], chapters: list[dict[str, Any]]) -> int:
     """Make ``chapters`` match the complete visible Excel snapshot.
 
@@ -920,6 +971,9 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
         fox_rows = validation["fox"]
         warnings = validation["warnings"]
 
+        stage = "snapshot_safety"
+        snapshot_safety = _guard_full_snapshot_prune(novels, chapters, payload)
+
         result: dict[str, Any] = {
             "status": "ok",
             "sync_id": sync_id,
@@ -936,6 +990,7 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
             "stale_fox_deleted": 0,
             "warnings_count": len(warnings),
             "warnings": warnings[:100],
+            "snapshot_safety": snapshot_safety,
         }
 
         stage = "novels"

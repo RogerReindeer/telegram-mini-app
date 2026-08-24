@@ -27,7 +27,7 @@ class SaveProgressPayload(StrictInputModel):
     chapter_id: str = Field(..., min_length=1, max_length=80)
     scroll_position: float = Field(0.0, ge=0.0, le=1.0)
     scroll_position_px: int = Field(0, ge=0, le=10_000_000)
-    completed: bool = True
+    completed: bool = False
 
     @field_validator("chapter_id")
     @classmethod

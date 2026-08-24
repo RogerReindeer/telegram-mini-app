@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 
 from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_image_cache, clear_telegraph_cache
-from ..security import require_sync_token
+from ..security import require_admin_token
 from ..services.admin_state import build_admin_state
 from ..services.analytics import build_analytics_summary, personal_reading_stats
 from ..services.diagnostics import build_catalog_export, build_content_audit
@@ -15,51 +15,51 @@ from ..services.render_smoke import render_smoke_plan
 router = APIRouter(prefix="/api/admin")
 
 
-def _guard(request: Request, token: str) -> None:
-    require_sync_token(request, token)
+def _guard(request: Request) -> None:
+    require_admin_token(request)
 
 
 @router.get("/state")
-def state(request: Request, token: str = ""):
-    _guard(request, token)
+def state(request: Request):
+    _guard(request)
     return build_admin_state()
 
 
 @router.get("/access/check")
-def access_check(request: Request, token: str = "", user_id: int | None = None):
-    _guard(request, token)
+def access_check(request: Request, user_id: int | None = None):
+    _guard(request)
     if not user_id:
         return {"status": "needs_user_id", "configuration": build_admin_state().get("access", {})}
     return {"status": "ok", "user_id": user_id, "configuration": build_admin_state().get("access", {})}
 
 
 @router.get("/content/audit")
-def content_audit(request: Request, token: str = ""):
-    _guard(request, token)
+def content_audit(request: Request):
+    _guard(request)
     return build_content_audit()
 
 
 @router.get("/export/catalog")
-def export_catalog(request: Request, token: str = ""):
-    _guard(request, token)
+def export_catalog(request: Request):
+    _guard(request)
     return build_catalog_export()
 
 
 @router.get("/export/manifest")
-def export_manifest(request: Request, token: str = ""):
-    _guard(request, token)
+def export_manifest(request: Request):
+    _guard(request)
     return {"status": "ok", "exports": ["catalog"], "excluded": ["user progress", "payments", "subscriptions", "secrets", "sync_runs"]}
 
 
 @router.get("/cache")
-def cache(request: Request, token: str = ""):
-    _guard(request, token)
+def cache(request: Request):
+    _guard(request)
     return cache_stats()
 
 
 @router.post("/cache/clear")
-def cache_clear(request: Request, token: str = "", namespace: str = "all"):
-    _guard(request, token)
+def cache_clear(request: Request, namespace: str = "all"):
+    _guard(request)
     cleared = {
         "catalog": clear_catalog_cache,
         "telegraph": clear_telegraph_cache,
@@ -70,14 +70,14 @@ def cache_clear(request: Request, token: str = "", namespace: str = "all"):
 
 
 @router.get("/production/check")
-def production_check(request: Request, token: str = ""):
-    _guard(request, token)
+def production_check(request: Request):
+    _guard(request)
     return build_production_report()
 
 
 @router.get("/release/check")
-def release_check(request: Request, token: str = ""):
-    _guard(request, token)
+def release_check(request: Request):
+    _guard(request)
     production = build_production_report()
     production_summary = production.get("summary", {})
     failed = production_summary.get("failed", 0)
@@ -86,36 +86,36 @@ def release_check(request: Request, token: str = ""):
 
 
 @router.get("/render/smoke-plan")
-def smoke_plan(request: Request, token: str = "", base_url: str = ""):
-    _guard(request, token)
+def smoke_plan(request: Request, base_url: str = ""):
+    _guard(request)
     return render_smoke_plan(base_url=base_url)
 
 
 @router.get("/metrics/summary")
-def metrics_summary(request: Request, token: str = ""):
-    _guard(request, token)
+def metrics_summary(request: Request):
+    _guard(request)
     return metrics_snapshot()
 
 
 @router.post("/metrics/reset")
-def metrics_reset(request: Request, token: str = ""):
-    _guard(request, token)
+def metrics_reset(request: Request):
+    _guard(request)
     return reset_metrics()
 
 
 @router.get("/events/recent")
-def events_recent(request: Request, token: str = ""):
-    _guard(request, token)
+def events_recent(request: Request):
+    _guard(request)
     return {"status": "ok", "recent_events": recent_events()}
 
 
 @router.get("/analytics/summary")
-def analytics_summary(request: Request, token: str = "", days: int = 30):
-    _guard(request, token)
+def analytics_summary(request: Request, days: int = 30):
+    _guard(request)
     return build_analytics_summary(days=days)
 
 
 @router.get("/analytics/user/{user_id}")
-def analytics_user(request: Request, user_id: int, token: str = ""):
-    _guard(request, token)
+def analytics_user(request: Request, user_id: int):
+    _guard(request)
     return {"status": "ok", "user_id": user_id, "reading": personal_reading_stats(user_id)}

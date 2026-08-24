@@ -340,13 +340,28 @@ def save_user_progress(telegram_user_id: int, payload: dict[str, Any]) -> dict[s
     scroll_position_px = max(0, to_int(payload.get("scroll_position_px"), 0))
     now_iso = utc_now().isoformat()
 
+    # A chapter is considered read only after the reader reaches the end zone.
+    # Never turn an already-completed chapter back into incomplete when someone
+    # opens it again and saves a smaller scroll position during a reread.
+    existing_progress = db_select(
+        "user_chapter_progress",
+        select="completed,progress_percent",
+        filters={
+            "telegram_user_id": f"eq.{telegram_user_id}",
+            "chapter_id": f"eq.{chapter_id}",
+        },
+        limit=1,
+    )
+    was_completed = bool(existing_progress and existing_progress[0].get("completed"))
+    completed = bool(payload.get("completed", False)) or progress_percent >= 0.9 or was_completed
+
     progress_row = {
         "telegram_user_id": telegram_user_id,
         "novel_id": novel_id,
         "chapter_id": chapter_id,
         "progress_percent": progress_percent,
         "scroll_position": scroll_position_px,
-        "completed": bool(payload.get("completed", True)),
+        "completed": completed,
         "last_read_at": now_iso,
     }
     novel_state_row = {

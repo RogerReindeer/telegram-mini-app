@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from ..config import settings
+from ..security import require_admin_token
 from ..services.auth import AUTH_COOKIE_NAME, authenticate_telegram_viewer, make_session_token, public_subscription_summary, viewer_access_profile, viewer_from_request
 
 SESSION_COOKIE = AUTH_COOKIE_NAME
@@ -44,6 +45,10 @@ def create_auth_router() -> APIRouter:
 
     @router.get("/debug")
     def debug(request: Request, refresh: bool = False):
+        if not settings.access_debug_enabled:
+            raise HTTPException(status_code=404, detail="Not found")
+        if settings.app_env == "production":
+            require_admin_token(request)
         viewer = viewer_from_request(request)
         profile = viewer_access_profile(viewer, force_group_refresh=refresh)
         groups = profile.get("groups") or {}

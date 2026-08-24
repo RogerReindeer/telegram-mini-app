@@ -1,14 +1,17 @@
 """Small security helpers shared by routers.
 
-The goal is to keep token checks and JSON body handling consistent.  Routers
+The goal is to keep token checks and JSON body handling consistent. Routers
 should not compare secrets with plain equality and should not accept unlimited
 request bodies from public endpoints.
 """
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import hmac
 import json
+import time
 from typing import Any
 
 from fastapi import HTTPException, Request
@@ -18,6 +21,7 @@ from .config import settings
 DEFAULT_JSON_BODY_LIMIT_BYTES = 512 * 1024
 SYNC_JSON_BODY_LIMIT_BYTES = 2 * 1024 * 1024
 WEBHOOK_BODY_LIMIT_BYTES = 512 * 1024
+ADMIN_COOKIE_NAME = "zefirki_admin"
 
 
 def constant_time_equals(left: str | None, right: str | None) -> bool:
@@ -37,7 +41,7 @@ def bearer_token_from_header(value: str | None) -> str:
 
 
 def token_from_request(request: Request, query_token: str | None = None) -> str:
-    """Read an admin/sync token from query, header, or Authorization bearer."""
+    """Read the sync token from header/Bearer and legacy query fallback."""
     header_token = request.headers.get("x-sync-token") or request.headers.get("X-Sync-Token") or ""
     bearer = bearer_token_from_header(
         request.headers.get("authorization") or request.headers.get("Authorization")
@@ -51,6 +55,72 @@ def require_sync_token(request: Request, query_token: str | None = None) -> None
         raise HTTPException(status_code=503, detail="SYNC_TOKEN не настроен")
     if not constant_time_equals(token_from_request(request, query_token), settings.sync_token):
         raise HTTPException(status_code=403, detail="Неверный sync token")
+
+
+def _b64url_encode(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(data: str) -> bytes:
+    return base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+
+
+def _admin_signing_key() -> bytes:
+    # SESSION_SECRET is already required in production. Keep ADMIN_TOKEN as a
+    # secondary fallback so a local/dev admin login can still work independently
+    # from the Telegram bot token.
+    secret = settings.session_secret or settings.admin_token or "change-admin-secret"
+    return hashlib.sha256(("admin-session:" + secret).encode("utf-8")).digest()
+
+
+def make_admin_session_token() -> str:
+    payload = {
+        "scope": "admin",
+        "exp": int(time.time()) + max(300, int(settings.admin_session_ttl_seconds or 43200)),
+    }
+    body = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signature = _b64url_encode(hmac.new(_admin_signing_key(), body.encode("ascii"), hashlib.sha256).digest())
+    return f"{body}.{signature}"
+
+
+def valid_admin_session_token(token: str | None) -> bool:
+    text = (token or "").strip()
+    if not text or "." not in text:
+        return False
+    body, signature = text.split(".", 1)
+    expected = _b64url_encode(hmac.new(_admin_signing_key(), body.encode("ascii"), hashlib.sha256).digest())
+    if not hmac.compare_digest(signature, expected):
+        return False
+    try:
+        payload = json.loads(_b64url_decode(body).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return payload.get("scope") == "admin" and int(payload.get("exp") or 0) >= int(time.time())
+
+
+def admin_token_from_request(request: Request) -> str:
+    header_token = request.headers.get("x-admin-token") or request.headers.get("X-Admin-Token") or ""
+    bearer = bearer_token_from_header(
+        request.headers.get("authorization") or request.headers.get("Authorization")
+    )
+    return (header_token or bearer or "").strip()
+
+
+def admin_request_is_authorized(request: Request) -> bool:
+    if not settings.admin_token:
+        return False
+    direct = admin_token_from_request(request)
+    if direct and constant_time_equals(direct, settings.admin_token):
+        return True
+    return valid_admin_session_token(request.cookies.get(ADMIN_COOKIE_NAME, ""))
+
+
+def require_admin_token(request: Request) -> None:
+    """Require ADMIN_TOKEN or an HttpOnly signed admin session cookie."""
+    if not settings.admin_token:
+        raise HTTPException(status_code=503, detail="ADMIN_TOKEN не настроен")
+    if not admin_request_is_authorized(request):
+        raise HTTPException(status_code=403, detail="Требуется вход администратора")
 
 
 def _content_length(request: Request) -> int | None:

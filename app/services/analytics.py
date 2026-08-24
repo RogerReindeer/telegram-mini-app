@@ -146,6 +146,7 @@ def personal_reading_stats(telegram_user_id: int) -> dict[str, Any]:
     user_id = to_int(telegram_user_id, 0)
     if user_id <= 0:
         return {
+            "chapters_opened": 0,
             "chapters_read": 0,
             "chapters_finished": 0,
             "novels_started": 0,
@@ -167,12 +168,12 @@ def personal_reading_stats(telegram_user_id: int) -> dict[str, Any]:
         order="updated_at.desc",
     )
 
-    chapter_ids = {
+    opened_chapter_ids = {
         clean_value(row.get("chapter_id"))
         for row in progress_rows
         if clean_value(row.get("chapter_id"))
     }
-    finished_chapter_ids = {
+    read_chapter_ids = {
         clean_value(row.get("chapter_id"))
         for row in progress_rows
         if clean_value(row.get("chapter_id"))
@@ -210,8 +211,10 @@ def personal_reading_stats(telegram_user_id: int) -> dict[str, Any]:
         last_read_at = max(parsed, key=lambda item: item[1])[0]
 
     return {
-        "chapters_read": len(chapter_ids),
-        "chapters_finished": len(finished_chapter_ids),
+        "chapters_opened": len(opened_chapter_ids),
+        "chapters_read": len(read_chapter_ids),
+        # Backward-compatible alias for clients from v226-v236.
+        "chapters_finished": len(read_chapter_ids),
         "novels_started": len(progress_novel_ids | state_novel_ids),
         "novels_completed": len(completed_novel_ids),
         "currently_reading": len(currently_reading_ids),

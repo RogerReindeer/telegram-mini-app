@@ -22,6 +22,9 @@
       <div class="admin-status admin-status-{{ audit.status }}">
         {% if audit.status == 'ok' %}OK{% else %}Проверить{% endif %}
       </div>
+      <form method="post" action="/admin/logout" class="admin-logout-form">
+        <button type="submit">Выйти</button>
+      </form>
     </header>
 
     <section class="admin-grid admin-grid-stats" aria-label="Сводка">
@@ -48,12 +51,12 @@
     </section>
 
     <section class="admin-actions" aria-label="Действия">
-      <a href="/api/admin/content/audit?token={{ token | urlencode }}">Открыть JSON-аудит</a>
-      <a href="/api/admin/export/catalog?token={{ token | urlencode }}">Скачать JSON-каталог</a>
-      <a href="/api/admin/production/check?token={{ token | urlencode }}">Production check</a>
-      <a href="/api/admin/state?token={{ token | urlencode }}">Состояние проекта</a>
-      <a href="/api/admin/access/check?token={{ token | urlencode }}">Проверка доступов</a>
-      <a href="/api/admin/render/smoke-plan?token={{ token | urlencode }}">Render smoke plan</a>
+      <a href="/api/admin/content/audit">Открыть JSON-аудит</a>
+      <a href="/api/admin/export/catalog">Скачать JSON-каталог</a>
+      <a href="/api/admin/production/check">Production check</a>
+      <a href="/api/admin/state">Состояние проекта</a>
+      <a href="/api/admin/access/check">Проверка доступов</a>
+      <a href="/api/admin/render/smoke-plan">Render smoke plan</a>
       <a href="/version">Версия</a>
       <a href="/ready">Ready</a>
     </section>
@@ -64,7 +67,7 @@
           <h2>Статистика Mini App · 30 дней</h2>
           <p>Пользователи, чтение, сессии, retention, источники и воронка по новеллам.</p>
         </div>
-        <a href="/api/admin/analytics/summary?token={{ token | urlencode }}&days=30">JSON</a>
+        <a href="/api/admin/analytics/summary?days=30">JSON</a>
       </div>
       {% if analytics.status == 'ok' %}
         {% set ao = analytics.overview %}
@@ -162,7 +165,7 @@
       </div>
       <div class="admin-form-row">
         {% for namespace, label in [('all', 'Сбросить всё'), ('catalog', 'Каталог'), ('telegraph', 'Telegraph'), ('images', 'Картинки')] %}
-          <form method="post" action="/api/admin/cache/clear?token={{ token | urlencode }}&namespace={{ namespace }}">
+          <form method="post" action="/api/admin/cache/clear?namespace={{ namespace }}">
             <button type="submit">{{ label }}</button>
           </form>
         {% endfor %}
@@ -259,12 +262,12 @@
         <h2>Release candidate</h2>
         <p>Быстрые ссылки для финальной проверки перед запуском.</p>
         <div class="admin-link-grid">
-          <a href="/api/admin/metrics/summary?token={{ token }}" target="_blank" rel="noopener noreferrer">Метрики</a>
-          <a href="/api/admin/release/check?token={{ token }}" target="_blank" rel="noopener noreferrer">Release check</a>
-          <a href="/api/admin/state?token={{ token }}" target="_blank" rel="noopener noreferrer">Project state</a>
-          <a href="/api/admin/render/smoke-plan?token={{ token }}" target="_blank" rel="noopener noreferrer">Render smoke</a>
-          <a href="/api/admin/export/manifest?token={{ token }}" target="_blank" rel="noopener noreferrer">Backup manifest</a>
-          <a href="/api/admin/export/catalog?token={{ token }}" target="_blank" rel="noopener noreferrer">Export catalog</a>
+          <a href="/api/admin/metrics/summary" target="_blank" rel="noopener noreferrer">Метрики</a>
+          <a href="/api/admin/release/check" target="_blank" rel="noopener noreferrer">Release check</a>
+          <a href="/api/admin/state" target="_blank" rel="noopener noreferrer">Project state</a>
+          <a href="/api/admin/render/smoke-plan" target="_blank" rel="noopener noreferrer">Render smoke</a>
+          <a href="/api/admin/export/manifest" target="_blank" rel="noopener noreferrer">Backup manifest</a>
+          <a href="/api/admin/export/catalog" target="_blank" rel="noopener noreferrer">Export catalog</a>
         </div>
       </section>
 

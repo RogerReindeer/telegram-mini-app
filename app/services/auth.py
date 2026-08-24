@@ -14,6 +14,7 @@ import json
 import os
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
 from urllib.parse import parse_qsl
@@ -33,8 +34,7 @@ MEMBERSHIP_CACHE_SECONDS = int(os.getenv("MEMBERSHIP_CACHE_SECONDS") or "300")
 APP_ENV = settings.app_env
 
 TELEGRAM_BOT_TOKEN = settings.telegram_bot_token
-SYNC_TOKEN = settings.sync_token
-SESSION_SECRET_TEXT = settings.session_secret or TELEGRAM_BOT_TOKEN or SYNC_TOKEN or "change-me"
+SESSION_SECRET_TEXT = settings.session_secret or TELEGRAM_BOT_TOKEN or "change-me"
 SESSION_SECRET = SESSION_SECRET_TEXT.encode("utf-8")
 
 MAIN_CHAT_ID = settings.normalized_main_chat_id
@@ -444,7 +444,12 @@ def public_subscription_summary(
 def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> list[dict[str, Any]]:
     if not supabase_ready() or not user_id:
         return []
-    filters = {"telegram_user_id": f"eq.{int(user_id)}", "revoked_at": "is.null"}
+
+    # Do not filter on revoked_at in PostgREST. Older production schemas did
+    # not have this column, which made every entitlement lookup fail closed.
+    # The v237 migration adds the column, while this local filter keeps the
+    # code backward-compatible during deployment.
+    filters = {"telegram_user_id": f"eq.{int(user_id)}"}
     if novel_id:
         filters["novel_id"] = f"eq.{int(novel_id)}"
     try:
@@ -453,10 +458,17 @@ def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> l
         print("Book entitlement lookup failed:", error)
         return []
     now = utc_now()
-    return [
-        row for row in rows
-        if not row.get("expires_at") or (parse_iso_datetime(row.get("expires_at")) or now) > now
-    ]
+    active: list[dict[str, Any]] = []
+    for row in rows:
+        if clean_value(row.get("revoked_at")):
+            continue
+        expires_at = clean_value(row.get("expires_at"))
+        if expires_at:
+            expires = parse_iso_datetime(expires_at)
+            if not expires or expires <= now:
+                continue
+        active.append(row)
+    return active
 
 
 def tribute_role_from_rows(rows: list[dict[str, Any]]) -> str:
@@ -486,15 +498,23 @@ def resolve_access_profile(
             cached_profile["novel_id"] = novel_id
         return cached_profile
 
-    main_group = telegram_membership_details(
-        MAIN_CHAT_ID,
-        user_id,
-        label="Основная группа",
-        source="main_group",
-        role="member",
-    )
-    keeper_groups = telegram_memberships_for_role(KEEPER_CHAT_IDS, user_id, role="keeper")
-    traveler_groups = telegram_memberships_for_role(TRAVELER_CHAT_IDS, user_id, role="traveler")
+    # Telegram membership checks are independent network calls. Run the main,
+    # traveler and keeper checks in parallel so a slow getChatMember response
+    # does not multiply the login latency by the number of configured groups.
+    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="telegram-membership") as executor:
+        main_future = executor.submit(
+            telegram_membership_details,
+            MAIN_CHAT_ID,
+            user_id,
+            label="Основная группа",
+            source="main_group",
+            role="member",
+        )
+        keeper_future = executor.submit(telegram_memberships_for_role, KEEPER_CHAT_IDS, user_id, role="keeper")
+        traveler_future = executor.submit(telegram_memberships_for_role, TRAVELER_CHAT_IDS, user_id, role="traveler")
+        main_group = main_future.result()
+        keeper_groups = keeper_future.result()
+        traveler_groups = traveler_future.result()
     keeper_group = first_active_group(keeper_groups) or (keeper_groups[0] if keeper_groups else telegram_membership_details("", user_id, label="📜 Хранитель свитков", role="keeper"))
     traveler_group = first_active_group(traveler_groups) or (traveler_groups[0] if traveler_groups else telegram_membership_details("", user_id, label="🌱 Странствующий читатель", role="traveler"))
     tribute_rows = get_active_tribute_subscriptions(user_id)

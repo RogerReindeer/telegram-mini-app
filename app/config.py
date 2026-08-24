@@ -1,3 +1,4 @@
+# Build history compatibility markers: v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
 # Build history compatibility markers: v229-group-subscriptions-reset-label; v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe; v228-settings-popup-selects-about-copy
 """Central configuration contract for new modules.
 
@@ -55,6 +56,7 @@ class Settings:
     supabase_service_key: str = _env("SUPABASE_SERVICE_KEY") or _env("SUPABASE_KEY")
     telegram_bot_token: str = _env("TELEGRAM_BOT_TOKEN")
     sync_token: str = _env("SYNC_TOKEN")
+    admin_token: str = _env("ADMIN_TOKEN")
     session_secret: str = _env("SESSION_SECRET")
     main_chat_id: str = _env("MAIN_CHAT_ID", "2608069201")
     main_group_invite_url: str = _env("MAIN_GROUP_INVITE_URL", "https://t.me/+Z5b3eeJjJTs0MTli")
@@ -72,10 +74,12 @@ class Settings:
     tribute_keeper_subscription_id: str = _env("TRIBUTE_KEEPER_SUBSCRIPTION_ID")
     tribute_traveler_url: str = _env("TRIBUTE_TRAVELER_URL", "https://t.me/tribute/app?startapp=sZmh")
     tribute_keeper_url: str = _env("TRIBUTE_KEEPER_URL", "https://t.me/tribute/app?startapp=sZLB")
-    access_debug_enabled: bool = _env("ACCESS_DEBUG_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
+    access_debug_enabled: bool = _env("ACCESS_DEBUG_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    admin_session_ttl_seconds: int = int(_env("ADMIN_SESSION_TTL_SECONDS", "43200") or "43200")
     catalog_cache_seconds: int = int(_env("CATALOG_CACHE_SECONDS", "300") or "300")
     telegraph_cache_seconds: int = int(_env("TELEGRAPH_CACHE_SECONDS", "1800") or "1800")
     image_cache_seconds: int = int(_env("IMAGE_CACHE_SECONDS", "1800") or "1800")
+    sync_max_prune_ratio: float = float(_env("SYNC_MAX_PRUNE_RATIO", "0.35") or "0.35")
 
     rate_limit_enabled: bool = _env("RATE_LIMIT_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     rate_limit_window_seconds: int = int(_env("RATE_LIMIT_WINDOW_SECONDS", "60") or "60")
@@ -83,10 +87,10 @@ class Settings:
     rate_limit_sensitive_max_requests: int = int(_env("RATE_LIMIT_SENSITIVE_MAX_REQUESTS", "60") or "60")
     static_cache_seconds: int = int(_env("STATIC_CACHE_SECONDS", "86400") or "86400")
     # compatibility markers: v188-locked-preview-off-readable-soon; v192-bidirectional-infinite-reader;
-    # v202-swipe-animation-feedback; v221-library-tags-paywall-dedup;
+    # v202-swipe-animation-feedback; v208-readable-chapter-title-center; v221-library-tags-paywall-dedup;
     # v224-compact-subscription-gate; v225-theme-sections-controls-settings;
     # v231-free-release-date-subscription-only-extra
-    app_version: str = _env("APP_VERSION", "v236-role-aware-subscription-paywalls")
+    app_version: str = _env("APP_VERSION", "v237-stabilization-security-progress")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 
@@ -127,6 +131,7 @@ class Settings:
             "supabase_service_key",
             "telegram_bot_token",
             "sync_token",
+            "admin_token",
             "session_secret",
         ):
             if not getattr(self, field_name):

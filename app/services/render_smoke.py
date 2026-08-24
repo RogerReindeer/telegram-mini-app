@@ -38,7 +38,7 @@ ADMIN_SMOKE_TARGETS: tuple[SmokeTarget, ...] = (
     SmokeTarget("production_check", "GET", "/api/admin/production/check", 200, "json", True, note="Production readiness report."),
     SmokeTarget("sync_status", "GET", "/api/admin/sync/status", 200, "json", True, False, note="Recent sync_runs; can be empty on first deploy."),
     SmokeTarget("cache_status", "GET", "/api/admin/cache", 200, "json", True, False, note="Cache statistics and namespace visibility."),
-    SmokeTarget("admin_page", "GET", "/admin", 200, "html", True, False, note="Owner-facing HTML diagnostics."),
+    SmokeTarget("admin_login", "GET", "/admin/login", 200, "html", False, False, note="Owner-facing admin login page."),
 )
 
 
@@ -51,10 +51,10 @@ def render_smoke_plan(*, base_url: str = "") -> dict[str, Any]:
     targets = []
     for target in render_smoke_targets():
         url = f"{normalized_base}{target.path}"
+        target_payload = {**asdict(target), "url": url}
         if target.requires_token:
-            separator = "&" if "?" in url else "?"
-            url = f"{url}{separator}token=<SYNC_TOKEN>"
-        targets.append({**asdict(target), "url": url})
+            target_payload["auth_header"] = "X-Admin-Token: <ADMIN_TOKEN>"
+        targets.append(target_payload)
     return {
         "status": "ok",
         "kind": "render_smoke_plan",
@@ -68,8 +68,9 @@ def render_smoke_plan(*, base_url: str = "") -> dict[str, Any]:
         },
         "rules": [
             "Run after every Render deploy.",
-            "Use the same SYNC_TOKEN as Google Apps Script.",
-            "Do not paste tokens into screenshots or public chats.",
+            "Use ADMIN_TOKEN in the X-Admin-Token header for /api/admin/* checks.",
+            "SYNC_TOKEN is only for sync/payment integration endpoints and must be different from ADMIN_TOKEN.",
+            "Do not put admin tokens in URLs, screenshots or public chats.",
             "A degraded /ready is acceptable only before production env vars are configured.",
         ],
     }
