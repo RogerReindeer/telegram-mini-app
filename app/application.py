@@ -15,6 +15,7 @@ from .routers.admin_page import create_admin_page_router
 from .routers.auth import create_auth_router
 from .routers.catalog import create_catalog_router
 from .routers.payments import router as payments_router
+from .routers.reader_preview import create_reader_preview_router
 from .routers.sync import router as sync_router
 from .routers.system import router as system_router
 from .routers.user import create_user_router
@@ -36,6 +37,7 @@ app.include_router(system_router)
 app.include_router(admin_router)
 app.include_router(analytics_router)
 app.include_router(create_admin_page_router(templates=templates, app_title=APP_TITLE))
+app.include_router(create_reader_preview_router(templates=templates, app_title=APP_TITLE))
 app.include_router(create_auth_router())
 app.include_router(create_user_router(require_app_access_viewer, public_viewer))
 app.include_router(sync_router)

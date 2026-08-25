@@ -25,6 +25,7 @@ SENSITIVE_PREFIXES = (
     "/api/auth/telegram",
     "/api/admin/",
     "/admin/login",
+    "/reader-preview/login",
     "/api/sync",
     "/sync",
     "/api/webhooks/",

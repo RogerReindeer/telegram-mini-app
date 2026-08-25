@@ -24,7 +24,7 @@ from fastapi import HTTPException, Request
 
 from ..config import settings
 from ..database import db_select, db_upsert, supabase_ready
-from ..security import ADMIN_COOKIE_NAME, valid_admin_session_token
+from ..security import ADMIN_COOKIE_NAME, READER_PREVIEW_COOKIE_NAME, valid_admin_session_token, valid_reader_preview_session_token
 from ..utils import clean_value, to_int, utc_now
 
 ROLE_RANK = {"guest": 0, "traveler": 1, "subscriber": 1, "subscription": 1, "boosty": 1, "reader": 1, "keeper": 2, "premium": 2, "paid": 2, "early": 2}
@@ -97,7 +97,7 @@ def public_viewer(viewer: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def admin_preview_viewer() -> dict[str, Any]:
+def admin_preview_viewer(*, source: str = "admin_session") -> dict[str, Any]:
     """Return a read-only owner identity backed by the HttpOnly admin session.
 
     The owner must be able to QA the reader in an ordinary browser after
@@ -112,7 +112,7 @@ def admin_preview_viewer() -> dict[str, Any]:
         "username": "",
         "role": "keeper",
         "app_access": True,
-        "app_access_source": "admin_session",
+        "app_access_source": source,
         "auth_version": 3,
         "admin_preview": True,
     }
@@ -188,6 +188,8 @@ def viewer_from_request(request: Request) -> dict[str, Any]:
     # opened previously outside Telegram.
     if valid_admin_session_token(request.cookies.get(ADMIN_COOKIE_NAME, "")):
         return admin_preview_viewer()
+    if valid_reader_preview_session_token(request.cookies.get(READER_PREVIEW_COOKIE_NAME, "")):
+        return admin_preview_viewer(source="reader_preview")
     session = parse_session_token(request.cookies.get(AUTH_COOKIE_NAME, ""))
     if session:
         return session
@@ -627,7 +629,7 @@ def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = No
             "user_id": None,
             "role": "keeper",
             "app_access": True,
-            "app_access_source": "admin_session",
+            "app_access_source": clean_value(viewer.get("app_access_source")) or "admin_session",
             "group_role": "keeper",
             "tribute_role": "guest",
             "groups": {},

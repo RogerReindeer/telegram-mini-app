@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Читалка · {{ app_title }}</title>
+  <style>
+    :root { color-scheme: light dark; font-family: Inter, system-ui, sans-serif; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; background:#f6f4ef; color:#24211d; }
+    .card { width:min(420px, calc(100vw - 32px)); padding:28px; box-sizing:border-box; border-radius:20px; background:#fff; box-shadow:0 16px 60px rgba(0,0,0,.12); }
+    h1 { margin:0 0 8px; font-size:24px; } p { margin:0 0 20px; color:#6b655d; line-height:1.45; }
+    label { display:block; font-size:13px; font-weight:700; margin-bottom:8px; }
+    input { width:100%; box-sizing:border-box; border:1px solid #d8d2c9; border-radius:12px; padding:12px 14px; font:inherit; }
+    button { width:100%; margin-top:14px; border:0; border-radius:12px; padding:12px 14px; font:inherit; font-weight:800; cursor:pointer; background:#24211d; color:#fff; }
+    .error { margin:0 0 14px; padding:10px 12px; border-radius:10px; background:#ffe8e6; color:#8a1f17; font-size:14px; }
+    @media (prefers-color-scheme: dark) { body{background:#161616;color:#f4f1eb}.card{background:#222}p{color:#aaa49a}input{background:#191919;color:#fff;border-color:#444}button{background:#f1c75b;color:#201b0e}.error{background:#4a211f;color:#ffc7c2} }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Читалка в браузере</h1>
+    {% if not configured %}<div class="error">На сервере не задан READER_PREVIEW_TOKEN.</div>{% endif %}
+    {% if error %}<div class="error">Неверный ключ доступа.</div>{% endif %}
+    <p>Этот вход открывает читалку без проверки подписки на Telegram-группу. Прогресс и аналитика в режиме предпросмотра не сохраняются.</p>
+    <form id="readerPreviewForm" method="post" action="/reader-preview/login" autocomplete="off">
+      <input type="hidden" name="next" value="{{ next_path }}">
+      <label for="token">Ключ доступа</label>
+      <input id="token" name="token" type="password" required autocomplete="current-password">
+      <button type="submit">Открыть читалку</button>
+    </form>
+  </main>
+  <script>
+    (() => {
+      const hash = new URLSearchParams(location.hash.replace(/^#/, ''));
+      const token = hash.get('token');
+      if (!token) return;
+      const input = document.getElementById('token');
+      const form = document.getElementById('readerPreviewForm');
+      if (!input || !form) return;
+      input.value = token;
+      history.replaceState(null, '', location.pathname + location.search);
+      form.requestSubmit();
+    })();
+  </script>
+</body>
+</html>

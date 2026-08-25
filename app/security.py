@@ -22,6 +22,7 @@ DEFAULT_JSON_BODY_LIMIT_BYTES = 512 * 1024
 SYNC_JSON_BODY_LIMIT_BYTES = 2 * 1024 * 1024
 WEBHOOK_BODY_LIMIT_BYTES = 512 * 1024
 ADMIN_COOKIE_NAME = "zefirki_admin"
+READER_PREVIEW_COOKIE_NAME = "zefirki_reader_preview"
 
 
 def constant_time_equals(left: str | None, right: str | None) -> bool:
@@ -96,6 +97,35 @@ def valid_admin_session_token(token: str | None) -> bool:
     except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
         return False
     return payload.get("scope") == "admin" and int(payload.get("exp") or 0) >= int(time.time())
+
+
+
+
+def make_reader_preview_session_token() -> str:
+    payload = {
+        "scope": "reader_preview",
+        "exp": int(time.time()) + max(300, int(settings.admin_session_ttl_seconds or 43200)),
+    }
+    body = _b64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    key = hashlib.sha256(("reader-preview:" + (settings.session_secret or settings.reader_preview_token or "change-reader-preview-secret")).encode("utf-8")).digest()
+    signature = _b64url_encode(hmac.new(key, body.encode("ascii"), hashlib.sha256).digest())
+    return f"{body}.{signature}"
+
+
+def valid_reader_preview_session_token(token: str | None) -> bool:
+    text = (token or "").strip()
+    if not text or "." not in text:
+        return False
+    body, signature = text.split(".", 1)
+    key = hashlib.sha256(("reader-preview:" + (settings.session_secret or settings.reader_preview_token or "change-reader-preview-secret")).encode("utf-8")).digest()
+    expected = _b64url_encode(hmac.new(key, body.encode("ascii"), hashlib.sha256).digest())
+    if not hmac.compare_digest(signature, expected):
+        return False
+    try:
+        payload = json.loads(_b64url_decode(body).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    return payload.get("scope") == "reader_preview" and int(payload.get("exp") or 0) >= int(time.time())
 
 
 def admin_token_from_request(request: Request) -> str:

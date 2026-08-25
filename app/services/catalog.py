@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -20,6 +21,8 @@ from .reader import (
 from .sync import parse_iso_datetime
 from .telegraph import resolve_external_image_url
 from .access import normalize_readable_chapter_source
+
+logger = logging.getLogger("zefirki.catalog.service")
 
 NOVEL_TABLE_COLUMNS = {
     "novel_id", "code", "novel_short", "title_ru", "title_en", "title_original",
@@ -482,9 +485,12 @@ def _load_all_novels_uncached(include_hidden: bool = False) -> list[dict]:
     try:
         rows = db_select("novels", select="*", filters=filters, order="novel_id.asc")
         return [adapt_novel_from_db(row) for row in rows]
-    except Exception as error:
-        print("get_all_novels error:", error)
-        return []
+    except Exception:
+        # An unavailable catalog is not an empty catalog. Let the request-level
+        # handler return a diagnostic 500 with X-Request-ID instead of a false
+        # empty-library state.
+        logger.exception("Failed to load novels from Supabase")
+        raise
 
 
 def get_all_novels(include_hidden: bool = False) -> list[dict]:

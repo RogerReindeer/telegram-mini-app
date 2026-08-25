@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -25,6 +27,9 @@ from ..services.reader import (
     prepare_novel_for_template,
 )
 from ..services.telegraph import fetch_chapter_content
+
+
+logger = logging.getLogger("zefirki.catalog")
 
 
 def _counter_recovery_novel_ids(novels: list[dict]) -> list[str]:
@@ -70,6 +75,34 @@ def _library_access_chapters(novels: list[dict]) -> list[dict]:
     return get_chapters_for_novel_ids(_visible_novel_ids(novels))
 
 
+
+
+def _novel_is_reader_visible(novel: dict | None) -> bool:
+    if not novel:
+        return False
+    return novel.get("miniapp_visible", novel.get("is_visible", True)) is not False
+
+
+def _only_visible_novels(novels: list[dict]) -> list[dict]:
+    """Defensive MiniAppVisible filter for every library representation."""
+    return [novel for novel in novels if _novel_is_reader_visible(novel)]
+
+
+def _viewer_with_fast_access_profile(viewer: dict, novel_id: int | None = None) -> dict:
+    prepared = dict(viewer)
+    prepared["__fast_access_profile"] = viewer_fast_access_profile(viewer, novel_id)
+    return prepared
+
+
+def _prepare_library_items(viewer: dict) -> list[dict]:
+    novels = _only_visible_novels(get_all_novels(include_hidden=False))
+    return prepare_library_novels_for_access(
+        novels,
+        _library_access_chapters(novels),
+        _viewer_with_fast_access_profile(viewer),
+    )
+
+
 def _viewer_can_use_app(viewer: dict) -> bool:
     return viewer_has_app_identity(viewer)
 
@@ -97,14 +130,16 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         viewer = public_viewer(viewer_from_request(request))
         if not _viewer_can_use_app(viewer):
             return access_gate(request, viewer)
-        page_profile = viewer_fast_access_profile(viewer)
-        fast_viewer = dict(viewer)
-        fast_viewer["__fast_access_profile"] = page_profile
+        # Library preparation errors must reach the global exception handler.
+        # Returning [] here makes a backend failure look like an actually empty catalog.
         try:
-            novels = get_all_novels(include_hidden=False)
-            prepared = prepare_library_novels_for_access(novels, _library_access_chapters(novels), fast_viewer)
+            prepared = _prepare_library_items(viewer)
         except Exception:
-            prepared = []
+            logger.exception(
+                "Failed to prepare library",
+                extra={"request_id": getattr(request.state, "request_id", "unknown")},
+            )
+            raise
         return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
 
     @router.get("/novel/{slug}")
@@ -113,7 +148,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         if not _viewer_can_use_app(viewer):
             return access_gate(request, viewer)
         raw_novel = get_novel_by_slug(slug, include_hidden=False)
-        if not raw_novel:
+        if not _novel_is_reader_visible(raw_novel):
             raise HTTPException(status_code=404, detail="Novel not found")
         novel_id = int(raw_novel.get("novel_id") or raw_novel.get("id") or 0) or None
         page_profile = viewer_fast_access_profile(viewer, novel_id)
@@ -141,7 +176,12 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         raw_chapter = get_chapter_by_id(chapter_id)
         if not raw_chapter:
             raise HTTPException(status_code=404, detail="Chapter not found")
-        raw_novel = get_novel_by_id(str(raw_chapter.get("novel_id"))) or {}
+        raw_novel = get_novel_by_id(str(raw_chapter.get("novel_id")))
+        # MiniAppVisible is the source of truth for whether a novel exists in
+        # the reader at all.  A guessed /chapter/<id> URL must not bypass the
+        # library/TOC visibility filter, including in browser admin-preview.
+        if not _novel_is_reader_visible(raw_novel):
+            raise HTTPException(status_code=404, detail="Novel not found")
         raw_chapters = get_novel_chapters(str(raw_chapter.get("novel_id")))
         raw_chapters = apply_novel_status_access_boundaries(raw_chapters, raw_novel)
         raw_chapter = next(
@@ -198,10 +238,8 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
         if not viewer.get("app_access"):
             raise HTTPException(status_code=403, detail="Доступ к читалке закрыт")
-        raw_novels = get_all_novels(include_hidden=False)
-        novels = prepare_library_novels_for_access(
-            raw_novels, _library_access_chapters(raw_novels), viewer
-        )
-        return {"items": novels}
+        # Keep HTML and JSON library access decisions on the same fast snapshot.
+        # This prevents the two endpoints from drifting in role/entitlement logic.
+        return {"items": _prepare_library_items(viewer)}
 
     return router
