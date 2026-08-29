@@ -272,3 +272,8 @@ def db_update(table: str, filters: dict[str, str], patch: dict[str, Any], prefer
 
 def db_delete(table: str, filters: dict[str, str], prefer: str = "return=minimal") -> Any:
     return supabase.request("DELETE", table, params=filters, prefer=prefer)
+
+
+def db_rpc(function_name: str, payload: dict[str, Any] | None = None) -> Any:
+    """Call a Supabase/PostgREST RPC function through the shared service-key client."""
+    return supabase.request("POST", f"rpc/{function_name}", payload=payload or {})

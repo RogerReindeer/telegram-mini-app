@@ -1,0 +1,49 @@
+{
+  "id": "qinghe_return_wounded_01",
+  "category": "LIFE",
+  "trigger": "DIRECT",
+  "title": "Не лучший поход",
+  "visualTheme": "sickroom",
+  "completeGuidedSlot": false,
+  "body": [
+    "Удар кабана сбивает вас с ног и на несколько мгновений лишает воздуха. Зверь не преследует, когда вы отползаете с тропы. До Цинхэ вы добираетесь медленно, опираясь на стволы и останавливаясь почти у каждого поворота. Живым — этого сегодня достаточно."
+  ],
+  "choices": [
+    {
+      "id": "recover_and_retry",
+      "label": "Восстановиться и снова пойти, когда сможете",
+      "effects": [
+        {
+          "type": "CHANGE_HEALTH",
+          "amount": 45
+        },
+        {
+          "type": "ADVANCE_TIME",
+          "days": 21
+        },
+        {
+          "type": "START_TRAVEL",
+          "locationId": "bamboo_grove"
+        }
+      ]
+    },
+    {
+      "id": "recover_at_home",
+      "label": "Не торопиться возвращаться",
+      "effects": [
+        {
+          "type": "CHANGE_HEALTH",
+          "amount": 35
+        },
+        {
+          "type": "ADVANCE_TIME",
+          "days": 14
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_home_pause_01"
+        }
+      ]
+    }
+  ]
+}

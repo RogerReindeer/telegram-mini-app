@@ -1,0 +1,143 @@
+{
+  "id": "qinghe_return_early_01",
+  "category": "LIFE",
+  "trigger": "DIRECT",
+  "title": "Снова дома",
+  "visualTheme": "home",
+  "completeGuidedSlot": false,
+  "body": [
+    "Вы возвращаетесь в Цинхэ раньше, чем рассчитывали. Никто не смеётся и не вручает медаль за здравый смысл. Просто городские ворота оказываются удивительно приятным зрелищем.",
+    "Роща никуда не делась. Но возвращаться туда немедленно вы никому не обязаны."
+  ],
+  "bodyAdditions": [
+    {
+      "requirements": {
+        "flagPresent": "grove_motive_blacksmith"
+      },
+      "body": [
+        "Чжан Бо смотрит на вас, потом на пустые руки. «Живой? Уже неплохо. Уголь подождёт»."
+      ]
+    },
+    {
+      "requirements": {
+        "flagsAll": [
+          "grove_motive_blacksmith",
+          "grove_cart_visited"
+        ]
+      },
+      "body": [
+        "Вы успели увидеть телегу Чэня. Это делает его исчезновение реальнее, но не понятнее."
+      ]
+    },
+    {
+      "requirements": {
+        "flagPresent": "grove_motive_herbalist"
+      },
+      "body": [
+        "Госпожа Янь коротко осматривает одежду. «Вернулся. Уже достижение»."
+      ]
+    },
+    {
+      "requirements": {
+        "flagsAll": [
+          "grove_motive_herbalist",
+          "grove_stream_visited"
+        ]
+      },
+      "body": [
+        "Если вы успели заглянуть к ручью, то рассказываете и о том, что там увидели."
+      ]
+    },
+    {
+      "requirements": {
+        "flagPresent": "grove_motive_hunter"
+      },
+      "body": [
+        "Ло Шань не спрашивает, почему вы повернули назад. Только кивает: «Лес никуда не денется. Нога у меня тоже»."
+      ]
+    },
+    {
+      "requirements": {
+        "flagsAll": [
+          "grove_motive_hunter",
+          "grove_cart_visited"
+        ]
+      },
+      "body": [
+        "Вы упоминаете оборванный шнур у телеги. Ло Шань хмурится: ближний силок не должен был оказаться там."
+      ]
+    },
+    {
+      "requirements": {
+        "flagPresent": "grove_motive_merchant"
+      },
+      "body": [
+        "Дома заметно выдыхают. Поставщик по-прежнему не вернулся, но хотя бы вы вернулись сами."
+      ]
+    },
+    {
+      "requirements": {
+        "flagsAll": [
+          "grove_motive_merchant",
+          "grove_cart_visited"
+        ]
+      },
+      "body": [
+        "Вы рассказываете о найденной телеге и знакомой печати на бумаге. Теперь ясно хотя бы то, что груз дошёл до рощи."
+      ]
+    },
+    {
+      "requirements": {
+        "flagPresent": "grove_motive_odd_jobs"
+      },
+      "body": [
+        "На складе спрашивают о Цао. Вы можете сказать только то, что действительно успели увидеть. Дневная плата подождёт, а человек всё ещё где-то за северной стеной."
+      ]
+    },
+    {
+      "requirements": {
+        "flagsAll": [
+          "grove_motive_odd_jobs",
+          "grove_cart_visited"
+        ]
+      },
+      "body": [
+        "Телегу Цао вы видели своими глазами. Самого Цао рядом не было."
+      ]
+    }
+  ],
+  "choices": [
+    {
+      "id": "go_again",
+      "label": "Через несколько дней решиться на новый поход",
+      "effects": [
+        {
+          "type": "ADVANCE_TIME",
+          "days": 3
+        },
+        {
+          "type": "START_TRAVEL",
+          "locationId": "bamboo_grove"
+        }
+      ]
+    },
+    {
+      "id": "ordinary_life",
+      "label": "Пока заняться обычными делами",
+      "effects": [
+        {
+          "type": "ADD_FLAG",
+          "flagId": "chose_home_pause_after_grove"
+        },
+        {
+          "type": "ADVANCE_TIME",
+          "days": 7
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_home_pause_01"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,245 @@
+[
+  {
+    "id": "simple_clothes",
+    "name": "Повседневная одежда",
+    "description": "Простая одежда, в которой удобно заниматься обычными делами.",
+    "instance": true,
+    "equipSlots": [
+      "outfit"
+    ],
+    "visibleWhenEquipped": "На нём простая городская одежда.",
+    "conditionable": true,
+    "tags": [
+      "clothing",
+      "base_clothing"
+    ]
+  },
+  {
+    "id": "work_shoes",
+    "name": "Рабочая обувь",
+    "description": "Прочная обувь для улиц Цинхэ и сухих троп.",
+    "instance": true,
+    "equipSlots": [
+      "footwear"
+    ],
+    "conditionable": true,
+    "tags": [
+      "clothing",
+      "base_clothing"
+    ]
+  },
+  {
+    "id": "good_knife",
+    "name": "Хороший рабочий нож",
+    "description": "Надёжный нож из домашней кузницы.",
+    "instance": true,
+    "equipSlots": [
+      "main_hand",
+      "belt"
+    ],
+    "visibleWhenEquipped": "На поясе — хороший рабочий нож.",
+    "conditionable": true,
+    "tags": [
+      "knife",
+      "tool",
+      "weapon"
+    ]
+  },
+  {
+    "id": "healing_salve",
+    "name": "Лекарственная мазь",
+    "description": "Простое средство от ушибов и неглубоких ран.",
+    "tags": [
+      "medicine",
+      "consumable"
+    ]
+  },
+  {
+    "id": "short_bow",
+    "name": "Короткий лук",
+    "description": "Привычное оружие для лесных троп.",
+    "instance": true,
+    "equipSlots": [
+      "main_hand"
+    ],
+    "visibleWhenEquipped": "При нём короткий охотничий лук.",
+    "conditionable": true,
+    "tags": [
+      "bow",
+      "weapon",
+      "hunting"
+    ]
+  },
+  {
+    "id": "road_knife",
+    "name": "Дорожный нож",
+    "description": "Дешёвый, но лучше, чем пустые руки.",
+    "instance": true,
+    "equipSlots": [
+      "main_hand",
+      "belt"
+    ],
+    "visibleWhenEquipped": "За поясом — простой дорожный нож.",
+    "conditionable": true,
+    "tags": [
+      "knife",
+      "tool",
+      "weapon"
+    ]
+  },
+  {
+    "id": "herbalist_basket",
+    "name": "Плетёная корзина",
+    "description": "В ней удобно нести свежие растения, не сминая листья.",
+    "instance": true,
+    "equipSlots": [
+      "carry"
+    ],
+    "visibleWhenEquipped": "Через руку перекинута плетёная корзина для трав.",
+    "tags": [
+      "carrier",
+      "herbs"
+    ]
+  },
+  {
+    "id": "travel_bag",
+    "name": "Дорожная сумка",
+    "description": "Небольшая сумка для денег, еды и полезных мелочей.",
+    "instance": true,
+    "equipSlots": [
+      "carry"
+    ],
+    "visibleWhenEquipped": "Через плечо висит небольшая дорожная сумка.",
+    "tags": [
+      "carrier",
+      "travel"
+    ]
+  },
+  {
+    "id": "hunting_pouch",
+    "name": "Охотничья сумка",
+    "description": "Небольшая сумка со стяжками для снастей и мелкой добычи.",
+    "instance": true,
+    "equipSlots": [
+      "carry"
+    ],
+    "visibleWhenEquipped": "Через плечо висит небольшая охотничья сумка.",
+    "tags": [
+      "carrier",
+      "hunting"
+    ]
+  },
+  {
+    "id": "work_rope",
+    "name": "Короткая верёвка",
+    "description": "Простая крепкая верёвка. Полезна там, где руками не дотянуться.",
+    "instance": true,
+    "equipSlots": [
+      "belt"
+    ],
+    "visibleWhenEquipped": "К поясу привязана короткая бухта верёвки.",
+    "conditionable": true,
+    "tags": [
+      "rope",
+      "tool"
+    ]
+  },
+  {
+    "id": "luo_snare_markers",
+    "name": "Связка меток Ло Шаня",
+    "description": "Небольшие деревянные метки. По ним можно отличить силки Ло Шаня от чужих.",
+    "instance": true,
+    "storyKind": "critical",
+    "protected": true,
+    "tags": [
+      "story",
+      "hunting",
+      "critical"
+    ]
+  },
+  {
+    "id": "ironwort",
+    "name": "Железница",
+    "description": "Трава с серебристым краем листьев.",
+    "tags": [
+      "herb"
+    ]
+  },
+  {
+    "id": "rope",
+    "name": "Верёвка",
+    "description": "Кусок крепкой верёвки с брошенной телеги.",
+    "instance": true,
+    "equipSlots": [
+      "belt"
+    ],
+    "visibleWhenEquipped": "К поясу привязана старая бухта верёвки.",
+    "conditionable": true,
+    "storyKind": "evidence",
+    "tags": [
+      "rope",
+      "tool"
+    ]
+  },
+  {
+    "id": "boar_tusk",
+    "name": "Клык кабана",
+    "tags": [
+      "material"
+    ]
+  },
+  {
+    "id": "boar_meat",
+    "name": "Мясо кабана",
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "unknown_silver_herb",
+    "name": "Неизвестная трава с серебристым краем",
+    "description": "Вы пока не знаете, как она называется и для чего используется.",
+    "storyKind": "evidence",
+    "tags": [
+      "herb",
+      "evidence"
+    ]
+  },
+  {
+    "id": "dried_cake",
+    "name": "Сухая лепёшка",
+    "description": "Сухая лепёшка в дорогу. Не очень вкусно, зато долго не портится.",
+    "tags": [
+      "food",
+      "consumable"
+    ]
+  },
+  {
+    "id": "wood_bundle",
+    "name": "Связка древесины",
+    "description": "Обычная сухая древесина, собранная у рабочих троп.",
+    "tags": [
+      "material"
+    ]
+  },
+  {
+    "id": "forest_mushrooms",
+    "name": "Лесные грибы",
+    "description": "Небольшая связка обычных съедобных грибов.",
+    "tags": [
+      "food"
+    ]
+  },
+  {
+    "id": "unfinished_guard_tip_batch",
+    "name": "Незаконченная партия наконечников",
+    "description": "Работа для городской стражи осталась на вашем месте в кузнице.",
+    "instance": true,
+    "storyKind": "temporary",
+    "protected": true,
+    "tags": [
+      "workpiece",
+      "temporary"
+    ]
+  }
+]

@@ -1,0 +1,337 @@
+{
+  "id": "qinghe_first_work_01",
+  "category": "LIFE",
+  "trigger": "GUIDED",
+  "title": "Первые собственные деньги",
+  "visualTheme": "work",
+  "body": [
+    "Подростком вы впервые начинаете регулярно делать работу, за которую платят вам, а не вашей семье. Это ещё не профессия. Просто первое дело, в котором вы можете стать лучше."
+  ],
+  "bodyByOrigin": {
+    "blacksmith_family": [
+      "Кузница всегда рядом, но теперь это не единственная дверь, которую вы способны открыть."
+    ],
+    "herbalist_family": [
+      "Травы знакомы с детства, но знакомство ещё не обязывает посвятить им жизнь."
+    ],
+    "hunter_family": [
+      "Лес начинается за северной стеной, однако и у городских улиц хватает способов заработать."
+    ],
+    "merchant_family": [
+      "Лавка семьи остаётся привычным вариантом, но через рынок проходят люди, которым постоянно нужны чужие руки."
+    ]
+  },
+  "choices": [
+    {
+      "id": "family_blacksmith",
+      "label": "Помогать в кузнице",
+      "requirements": {
+        "originId": "blacksmith_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "blacksmithing",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_blacksmith"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 8
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Подростком вы начали всерьёз помогать в кузнице."
+      }
+    },
+    {
+      "id": "family_herbalist",
+      "label": "Помогать со сбором и сушкой трав",
+      "requirements": {
+        "originId": "herbalist_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "herbalism",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_herbalism"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 7
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Подростком вы начали регулярно работать с лекарственными травами."
+      }
+    },
+    {
+      "id": "family_hunter",
+      "label": "Учиться следам и силкам",
+      "requirements": {
+        "originId": "hunter_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "tracking",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_tracking"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 6
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Подростком вы начали всерьёз учиться читать следы и ставить силки."
+      }
+    },
+    {
+      "id": "family_merchant",
+      "label": "Работать в семейной лавке",
+      "requirements": {
+        "originId": "merchant_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "trade",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_trade"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 10
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Подростком вы начали самостоятельно работать в лавке и вести мелкие сделки."
+      }
+    },
+    {
+      "id": "interest_blacksmith",
+      "label": "Попроситься к Чжан Бо на подработку",
+      "requirements": {
+        "flagPresent": "interest_craft",
+        "originNot": "blacksmith_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "blacksmithing",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_blacksmith"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 7
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Детский интерес к оружейникам не прошёл: подростком вы начали подрабатывать у кузнецов."
+      }
+    },
+    {
+      "id": "interest_herbalism",
+      "label": "Попроситься помогать госпоже Янь",
+      "requirements": {
+        "flagPresent": "interest_herbs",
+        "originNot": "herbalist_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "herbalism",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_herbalism"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 7
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Детский интерес к растениям привёл вас во двор госпожи Янь."
+      }
+    },
+    {
+      "id": "interest_trade",
+      "label": "Подрабатывать у рыночных торговцев",
+      "requirements": {
+        "flagPresent": "interest_trade",
+        "originNot": "merchant_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "trade",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_trade"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 9
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "После детского интереса к торгу вы стали подрабатывать у рыночных лавок."
+      }
+    },
+    {
+      "id": "road_work",
+      "label": "Браться за работу у приезжих караванов",
+      "requirements": {
+        "flagPresent": "saw_trackless_traveler",
+        "originNot": "merchant_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "trade",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_trade"
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "worked_with_caravans"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 9
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "В подростковые годы вас снова потянуло к восточным воротам: вы начали подрабатывать у приезжих караванов."
+      }
+    },
+    {
+      "id": "learn_tracking_luo",
+      "label": "Помогать Ло Шаню с ближними силками",
+      "requirements": {
+        "originNot": "hunter_family"
+      },
+      "effects": [
+        {
+          "type": "CHANGE_SKILL",
+          "skillId": "tracking",
+          "amount": 1
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_tracking"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 6
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Подростком вы стали помогать Ло Шаню с ближними силками и понемногу учились читать следы."
+      }
+    },
+    {
+      "id": "odd_jobs",
+      "label": "Не выбирать одно дело и браться за разную работу",
+      "effects": [
+        {
+          "type": "ADD_FLAG",
+          "flagId": "work_odd_jobs"
+        },
+        {
+          "type": "CHANGE_MONEY",
+          "amount": 9
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_work_years_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "В подростковые годы вы не выбрали одного ремесла и брались за любую доступную работу."
+      }
+    }
+  ],
+  "completeGuidedSlot": false
+}

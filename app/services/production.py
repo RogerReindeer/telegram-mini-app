@@ -60,6 +60,26 @@ def _env_checks() -> list[Check]:
             severity="warning",
         ))
 
+
+    checks.append(_check(
+        "feature.READER_COINS_ENABLED",
+        "pass",
+        f"Reader Coins {'включены' if settings.reader_coins_enabled else 'выключены'}.",
+        severity="warning",
+    ))
+    checks.append(_check(
+        "feature.READER_COIN_GRANTS_ENABLED",
+        "pass",
+        f"Приём начислений Qinghe {'включён' if settings.reader_coin_grants_enabled else 'выключен'}.",
+        severity="warning",
+    ))
+    if settings.reader_coin_grants_enabled:
+        checks.append(_check(
+            "env.QINGHE_COMMERCE_SHARED_SECRET",
+            "pass" if bool(settings.qinghe_commerce_shared_secret) else "fail",
+            "QINGHE_COMMERCE_SHARED_SECRET настроен." if settings.qinghe_commerce_shared_secret else "QINGHE_COMMERCE_SHARED_SECRET не настроен.",
+        ))
+
     if settings.access_debug_enabled and settings.app_env == "production":
         checks.append(_check(
             "env.ACCESS_DEBUG_ENABLED",
@@ -89,7 +109,10 @@ def _database_checks() -> list[Check]:
     if not supabase_ready():
         return checks
 
-    for table in ("novels", "chapters", "user_novel_state", "user_chapter_progress", "user_entitlements", "sync_runs"):
+    tables = ["novels", "chapters", "user_novel_state", "user_chapter_progress", "user_entitlements", "sync_runs"]
+    if settings.reader_coins_enabled or settings.reader_coin_grants_enabled:
+        tables.extend(["reader_coin_wallets", "reader_coin_ledger"])
+    for table in tables:
         try:
             db_select(table, select="*", limit=1)
         except Exception as error:
@@ -104,6 +127,29 @@ def _database_checks() -> list[Check]:
                 "pass",
                 f"Таблица {table} доступна.",
             ))
+    # user_subscriptions exists in several legacy production shapes.  The
+    # current payment service needs these columns even when ordinary table
+    # reads still succeed.  Report the migration explicitly instead of
+    # allowing a later Tribute/analytics request to fail with PostgREST 42703.
+    try:
+        db_select(
+            "user_subscriptions",
+            select="telegram_user_id,provider,external_plan_id,access_role,status,started_at,expires_at,updated_at",
+            limit=1,
+        )
+    except Exception as error:
+        checks.append(_check(
+            "database.schema.user_subscriptions",
+            "fail",
+            "Схема user_subscriptions устарела. Выполните миграцию v244_to_v245_user_subscriptions_compat.sql.",
+            details={"error": str(error)[:320]},
+        ))
+    else:
+        checks.append(_check(
+            "database.schema.user_subscriptions",
+            "pass",
+            "Схема user_subscriptions совместима с текущим приложением.",
+        ))
     return checks
 
 

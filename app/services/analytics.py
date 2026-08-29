@@ -290,7 +290,7 @@ def build_analytics_summary(days: int = 30) -> dict[str, Any]:
     try:
         subscription_rows = db_select(
             "user_subscriptions",
-            select="telegram_user_id,provider,external_plan_id,access_role,started_at,expires_at,status",
+            select="*",
             order="started_at.desc",
         )
     except Exception:

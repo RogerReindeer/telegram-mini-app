@@ -25,6 +25,10 @@ def ready() -> dict[str, object]:
         "missing": missing,
         "supabase": supabase_ready(),
         "version": settings.app_version,
+        "features": {
+            "reader_coins": settings.reader_coins_enabled,
+            "reader_coin_grants": settings.reader_coin_grants_enabled,
+        },
     }
 
 
@@ -36,6 +40,10 @@ def version() -> dict[str, object]:
         "app_version": settings.app_version,
         "environment": settings.app_env,
         "assets": static_manifest(),
+        "features": {
+            "reader_coins": settings.reader_coins_enabled,
+            "reader_coin_grants": settings.reader_coin_grants_enabled,
+        },
     }
 
 

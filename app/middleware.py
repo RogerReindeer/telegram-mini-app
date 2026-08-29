@@ -29,6 +29,8 @@ SENSITIVE_PREFIXES = (
     "/api/sync",
     "/sync",
     "/api/webhooks/",
+    "/api/store/",
+    "/api/internal/commerce/",
 )
 
 

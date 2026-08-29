@@ -1,0 +1,746 @@
+[
+  {
+    "id": "tip_lantern_dark",
+    "type": "TIP",
+    "text": "Фонарь может открыть действия и наблюдения, которые в темноте просто недоступны.",
+    "periods": [
+      "evening",
+      "night"
+    ],
+    "locationTags": [
+      "grove",
+      "north",
+      "gate",
+      "road"
+    ],
+    "minDuration": 15,
+    "weight": 5
+  },
+  {
+    "id": "tip_rain_outerwear",
+    "type": "TIP",
+    "text": "Перед долгой дорогой под дождём стоит проверить, есть ли на вас верхняя одежда.",
+    "weather": [
+      "rain"
+    ],
+    "minDuration": 20,
+    "weight": 4
+  },
+  {
+    "id": "tip_rope_routes",
+    "type": "TIP",
+    "text": "Верёвка полезна не только для груза: некоторые неудобные маршруты без неё лучше не пробовать.",
+    "locationTags": [
+      "grove",
+      "ravine"
+    ],
+    "minDuration": 20,
+    "weight": 4
+  },
+  {
+    "id": "tip_herb_carry",
+    "type": "TIP",
+    "text": "Свежие растения легче донести целыми, если для них есть подходящая переноска.",
+    "locationTags": [
+      "grove",
+      "stream",
+      "healer"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "herbalism",
+        "minLevel": 1
+      }
+    ],
+    "minDuration": 15,
+    "weight": 4
+  },
+  {
+    "id": "tip_boots_mud",
+    "type": "TIP",
+    "text": "Хорошая обувь особенно заметна тогда, когда дорога перестаёт быть хорошей.",
+    "weather": [
+      "rain"
+    ],
+    "locationTags": [
+      "grove",
+      "outskirts",
+      "road"
+    ],
+    "minDuration": 15,
+    "weight": 3
+  },
+  {
+    "id": "tip_travel_tabs",
+    "type": "TIP",
+    "text": "В дороге можно спокойно проверить Героя, Вещи или Записи — прежнее место уже осталось позади.",
+    "minDuration": 20,
+    "weight": 2,
+    "cooldownSeconds": 1800
+  },
+  {
+    "id": "tip_turn_back",
+    "type": "TIP",
+    "text": "Если передумали в пути, можно повернуть назад. Уже пройденная дорога всё равно займёт время.",
+    "minDuration": 30,
+    "weight": 2,
+    "cooldownSeconds": 2400
+  },
+  {
+    "id": "tip_local_chat",
+    "type": "TIP",
+    "text": "«Разговоры рядом» слышны только в той локации, где вы действительно находитесь.",
+    "locationTags": [
+      "town",
+      "grove"
+    ],
+    "minDuration": 20,
+    "weight": 2,
+    "cooldownSeconds": 2400
+  },
+  {
+    "id": "tip_rest_before_wild",
+    "type": "TIP",
+    "text": "Иногда лучше выйти в лес позже, но отдохнувшим, чем раньше и на последних силах.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "minDuration": 20,
+    "weight": 3
+  },
+  {
+    "id": "tip_storage_home",
+    "type": "TIP",
+    "text": "Не обязательно носить всё с собой: вещи, которые сегодня не нужны, можно оставить дома.",
+    "allowedRoutes": [
+      "home_qinghe<>market_street",
+      "home_qinghe<>craft_street",
+      "home_qinghe<>north_outskirts"
+    ],
+    "minDuration": 20,
+    "weight": 2
+  },
+  {
+    "id": "fact_north_flatbread",
+    "type": "LOCAL_FACT",
+    "text": "У северной окраины продают одни из самых дешёвых лепёшек в Цинхэ. Мао Цзе утверждает, что вкус объясняет цену.",
+    "locationTags": [
+      "north"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_bridge_sign",
+    "type": "LOCAL_FACT",
+    "text": "У Старого моста уже несколько лет висит запрет останавливаться с телегами. Кто-нибудь почти всегда стоит прямо под ним.",
+    "locationTags": [
+      "bridge",
+      "market"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_mao_tea",
+    "type": "LOCAL_FACT",
+    "text": "В «Трёх ивах» можно спорить почти обо всём. О необходимости платить за чай Мао Цзе спорить не разрешает.",
+    "locationTags": [
+      "tea",
+      "market"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_zhang_hammer",
+    "type": "LOCAL_FACT",
+    "text": "Чжан Бо утверждает, что хороший молот никогда не теряется. Его подмастерья с этим не согласны.",
+    "locationTags": [
+      "forge",
+      "home"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_yan_diagnosis",
+    "type": "LOCAL_FACT",
+    "text": "Госпожа Янь не любит, когда пациенты сами ставят себе диагноз. Ещё меньше она любит, когда диагноз оказывается правильным.",
+    "locationTags": [
+      "healer"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_fast_news",
+    "type": "LOCAL_FACT",
+    "text": "Самая быстрая новость в Цинхэ — та, которую просили никому не рассказывать.",
+    "locationTags": [
+      "town",
+      "gate",
+      "market",
+      "tea"
+    ],
+    "weight": 5
+  },
+  {
+    "id": "fact_home_roof",
+    "type": "LOCAL_FACT",
+    "text": "Протечку под одной из домашних балок собираются починить уже третий год. Глиняная миска пока справляется лучше.",
+    "locationTags": [
+      "home"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "fact_craft_smoke",
+    "type": "LOCAL_FACT",
+    "text": "На Ремесленной улице по дыму иногда легче понять погоду, чем по небу.",
+    "locationTags": [
+      "forge"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "fact_bridge_half_city",
+    "type": "LOCAL_FACT",
+    "text": "Старый мост давно перестал быть красивым, но через него всё ещё проходит добрая половина Цинхэ.",
+    "locationTags": [
+      "bridge",
+      "market"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "fact_north_boundary",
+    "type": "LOCAL_FACT",
+    "text": "За последними домами дорога быстро теряет уверенность. Для жителей Цинхэ именно здесь по-настоящему начинается лес.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_east_gate_new",
+    "type": "LOCAL_FACT",
+    "text": "Через Восточные ворота приходит почти всё новое: товары, люди, письма и неприятности.",
+    "locationTags": [
+      "gate",
+      "road"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_three_willows_dust",
+    "type": "LOCAL_FACT",
+    "text": "Утром Мао Цзе протирает столы с видом человека, которого пыль оскорбила лично.",
+    "locationTags": [
+      "tea"
+    ],
+    "periods": [
+      "morning"
+    ],
+    "weight": 5
+  },
+  {
+    "id": "fact_market_real_price",
+    "type": "LOCAL_FACT",
+    "text": "Настоящую цену товара проще увидеть утром, пока продавец ещё не придумал цену именно для вас.",
+    "locationTags": [
+      "market"
+    ],
+    "periods": [
+      "morning"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "fact_luo_knee",
+    "type": "LOCAL_FACT",
+    "text": "Ло Шань иногда узнаёт о дожде по колену раньше, чем небо успевает принять решение.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "fact_qinghe_uninvited",
+    "type": "LOCAL_FACT",
+    "text": "В Цинхэ две вещи приходят без приглашения: паводок и родственники.",
+    "locationTags": [
+      "town",
+      "bridge"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_mao_tradition",
+    "type": "JOKE",
+    "text": "Мао Цзе считает чай без оплаты оскорблением традиций.",
+    "locationTags": [
+      "tea",
+      "market"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_zhang_voice",
+    "type": "JOKE",
+    "text": "Чжан Бо говорит, что никогда не повышает голос. Остальные подозревают, что просто никогда не слышали его обычного.",
+    "locationTags": [
+      "forge"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_luo_knife",
+    "type": "JOKE",
+    "text": "Ло Шань однажды потерял нож в лесу. По его версии, нож потерял Ло Шаня.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_cart_prohibition",
+    "type": "JOKE",
+    "text": "У Восточных ворот запрещено оставлять телеги. Прямо под запретом обычно стоит телега.",
+    "locationTags": [
+      "gate"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_yan_rest",
+    "type": "JOKE",
+    "text": "Госпожа Янь утверждает, что половину болезней лечит отдых. Вторая половина часто приходит потому, что люди не захотели отдыхать.",
+    "locationTags": [
+      "healer",
+      "home"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_secret_news",
+    "type": "JOKE",
+    "text": "Если хотите, чтобы о новости узнал весь Цинхэ, начните словами: «Только никому».",
+    "locationTags": [
+      "town",
+      "tea",
+      "market"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_chicken_orders",
+    "type": "JOKE",
+    "text": "Курицы на Рыночной улице плохо понимают приказы и совсем не уважают возраст.",
+    "locationTags": [
+      "market"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "joke_mao_dust",
+    "type": "JOKE",
+    "text": "Мао Цзе уверен, что пыль в чайной появляется исключительно из злого умысла.",
+    "locationTags": [
+      "tea"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "joke_zhang_last_small_job",
+    "type": "JOKE",
+    "text": "На Ремесленной улице «ещё одна мелочь» почти всегда означает работу до темноты.",
+    "locationTags": [
+      "forge"
+    ],
+    "periods": [
+      "evening"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "joke_luo_weather",
+    "type": "JOKE",
+    "text": "Если Ло Шань сказал, что дождя не будет, плащ всё равно лучше взять. На всякий случай.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "quote_mao_important",
+    "type": "QUOTE",
+    "text": "«А кто решает, что из этого важное?» — Мао Цзе о городских новостях.",
+    "locationTags": [
+      "tea",
+      "market"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "quote_zhang_three_things",
+    "type": "QUOTE",
+    "text": "«Хорошее железо, терпение… и хороший заказчик». Чжан Бо обычно вспоминает третье чуть позже.",
+    "locationTags": [
+      "forge"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "quote_yan_second",
+    "type": "QUOTE",
+    "text": "«Может, сверхъестественное. А может, вы плохо знаете растения. Пока второе вероятнее».",
+    "locationTags": [
+      "healer",
+      "stream"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "herbalism",
+        "minLevel": 1
+      }
+    ],
+    "weight": 2
+  },
+  {
+    "id": "quote_luo_dont_invent",
+    "type": "QUOTE",
+    "text": "«Не знаете — так и скажите. Не стали придумывать — уже хорошо».",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "tracking",
+        "minLevel": 1
+      }
+    ],
+    "weight": 3
+  },
+  {
+    "id": "quote_sun_work",
+    "type": "QUOTE",
+    "text": "«Работа обычно выглядит менее героически, чем людям хотелось бы». — Сунь Ци.",
+    "locationTags": [
+      "gate",
+      "bridge",
+      "market"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "folk_fox_three_crossings",
+    "type": "FOLKLORE",
+    "text": "Говорят: если лиса трижды пересекла дорогу, лучше проверить, туда ли вы вообще идёте.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "periods": [
+      "evening",
+      "night"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "folk_fox_tracks_end",
+    "type": "FOLKLORE",
+    "text": "Старики рассказывают о лисьих следах, которые иногда заканчиваются посреди чистой земли. Охотники обычно просят показать такие следы до дождя.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "folk_bridge_woman",
+    "type": "FOLKLORE",
+    "text": "Говорят, ночью у Старого моста иногда видят женщину в белом. Днём эта история звучит заметно менее убедительно.",
+    "locationTags": [
+      "bridge",
+      "river"
+    ],
+    "periods": [
+      "evening",
+      "night"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "folk_night_bell",
+    "type": "FOLKLORE",
+    "text": "Говорят: если ночью со стороны северных холмов слышен колокол, лучше не считать удары.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "periods": [
+      "evening",
+      "night"
+    ],
+    "requiredWorldEvents": [
+      "night_bell"
+    ],
+    "weight": 6
+  },
+  {
+    "id": "folk_shanxiao_food",
+    "type": "FOLKLORE",
+    "text": "Лесорубы называют мелких ночных воришек шаньсяо и советуют не оставлять еду у дерева. Мао Цзе подозревает очень образованных обезьян.",
+    "locationTags": [
+      "grove",
+      "north"
+    ],
+    "periods": [
+      "evening",
+      "night"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "folk_hungry_ghost_tree",
+    "type": "FOLKLORE",
+    "text": "Путники иногда оставляют немного еды у старого дерева восточнее Цинхэ — для голодного духа дороги. Еда обычно исчезает.",
+    "locationTags": [
+      "gate",
+      "road"
+    ],
+    "weight": 3
+  },
+  {
+    "id": "folk_river_name",
+    "type": "FOLKLORE",
+    "text": "Старая примета: услышал своё имя у реки ночью — сначала посмотри, кто зовёт. Потом уже отвечай.",
+    "locationTags": [
+      "river",
+      "bridge",
+      "stream"
+    ],
+    "periods": [
+      "night"
+    ],
+    "weight": 4
+  },
+  {
+    "id": "folk_snake_north_path",
+    "type": "FOLKLORE",
+    "text": "Говорят, змеи никогда не пересекают старую северную тропу. Ло Шань на такие рассказы обычно только смотрит.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "folk_silver_veins_winter",
+    "type": "FOLKLORE",
+    "text": "Старики уверяют, что серебряные прожилки на листьях появляются перед холодной зимой. Госпожа Янь не считает стариков надёжным справочником.",
+    "locationTags": [
+      "healer",
+      "stream",
+      "grove"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "folk_gui_offering",
+    "type": "FOLKLORE",
+    "text": "В некоторых домах оставляют чашку еды умершим родственникам. Никто не считает нужным спорить о том, кто именно приходит ночью.",
+    "locationTags": [
+      "home",
+      "town",
+      "gate"
+    ],
+    "periods": [
+      "evening",
+      "night"
+    ],
+    "weight": 2
+  },
+  {
+    "id": "memory_family_illness_yan",
+    "type": "MEMORY",
+    "text": "Каждый раз, проходя по дороге к госпоже Янь, вы вспоминаете одну очень долгую ночь из детства.",
+    "locationTags": [
+      "healer"
+    ],
+    "requiredFlagsAny": [
+      "acted_for_family",
+      "chose_practical_solution",
+      "did_not_take_over_family_crisis"
+    ],
+    "weight": 7,
+    "cooldownSeconds": 5400
+  },
+  {
+    "id": "memory_work_zhang_sound",
+    "type": "MEMORY",
+    "text": "По стуку из кузницы вы уже примерно понимаете, сердится Чжан Бо или просто работает. Разница невелика.",
+    "locationTags": [
+      "forge"
+    ],
+    "requiredFlagsAny": [
+      "work_blacksmith"
+    ],
+    "weight": 7,
+    "cooldownSeconds": 3600
+  },
+  {
+    "id": "memory_whiteback_shadows",
+    "type": "MEMORY",
+    "text": "Некоторые тени между бамбуком всё ещё заставляют вас смотреть дважды.",
+    "locationTags": [
+      "grove",
+      "north"
+    ],
+    "requiredKnowledge": [
+      {
+        "topic": "whiteback",
+        "stages": [
+          "witnessed"
+        ]
+      }
+    ],
+    "weight": 8,
+    "cooldownSeconds": 3600
+  },
+  {
+    "id": "memory_whiteback_skeptic",
+    "type": "MEMORY",
+    "text": "О Белой спине вы когда-то тоже думали, что это просто хорошая история для чайной.",
+    "locationTags": [
+      "grove",
+      "north"
+    ],
+    "requiredFlagsAny": [
+      "whiteback_rumor_skeptic"
+    ],
+    "requiredKnowledge": [
+      {
+        "topic": "whiteback",
+        "stages": [
+          "witnessed"
+        ]
+      }
+    ],
+    "weight": 8,
+    "cooldownSeconds": 5400
+  },
+  {
+    "id": "memory_whiteback_curiosity",
+    "type": "MEMORY",
+    "text": "Вы всё ещё помните слова дровосека о белой полосе — теперь гораздо точнее, чем хотелось бы.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "requiredFlagsAny": [
+      "whiteback_rumor_curiosity"
+    ],
+    "requiredKnowledge": [
+      {
+        "topic": "whiteback",
+        "stages": [
+          "witnessed"
+        ]
+      }
+    ],
+    "weight": 7,
+    "cooldownSeconds": 5400
+  },
+  {
+    "id": "obs_tracking_rain",
+    "type": "OBSERVATION",
+    "text": "После дождя следы у северной дороги читаются гораздо легче.",
+    "locationTags": [
+      "north",
+      "grove"
+    ],
+    "weather": [
+      "rain"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "tracking",
+        "minLevel": 1
+      }
+    ],
+    "weight": 6
+  },
+  {
+    "id": "obs_herbalism_wet",
+    "type": "OBSERVATION",
+    "text": "Влажная погода хороша для молодых побегов, но собранные листья хранятся хуже.",
+    "locationTags": [
+      "healer",
+      "grove",
+      "stream"
+    ],
+    "weather": [
+      "rain"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "herbalism",
+        "minLevel": 1
+      }
+    ],
+    "weight": 6
+  },
+  {
+    "id": "obs_blacksmith_rain_charcoal",
+    "type": "OBSERVATION",
+    "text": "После сильного дождя уголь из плохо закрытого сарая приходится сушить заново.",
+    "locationTags": [
+      "forge"
+    ],
+    "weather": [
+      "rain"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "blacksmithing",
+        "minLevel": 1
+      }
+    ],
+    "weight": 6
+  },
+  {
+    "id": "obs_trade_caravan",
+    "type": "OBSERVATION",
+    "text": "Караван, пришедший раньше срока, иногда влияет на цены сильнее, чем большой урожай.",
+    "locationTags": [
+      "market",
+      "gate"
+    ],
+    "requiredSkills": [
+      {
+        "skill": "trade",
+        "minLevel": 1
+      }
+    ],
+    "requiredWorldEvents": [
+      "large_caravan"
+    ],
+    "weight": 7
+  },
+  {
+    "id": "memory_trackless_east_gate",
+    "type": "MEMORY",
+    "text": "У Восточных ворот иногда вспоминается тот странный путник из детства, за которым на дороге не осталось следов.",
+    "locationTags": [
+      "gate"
+    ],
+    "requiredFlagsAny": [
+      "saw_trackless_traveler"
+    ],
+    "weight": 5,
+    "cooldownSeconds": 7200
+  }
+]

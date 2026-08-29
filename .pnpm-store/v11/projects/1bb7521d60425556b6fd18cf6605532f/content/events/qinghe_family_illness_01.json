@@ -1,0 +1,86 @@
+{
+  "id": "qinghe_family_illness_01",
+  "category": "LIFE",
+  "trigger": "GUIDED",
+  "title": "Ночь без сна",
+  "visualTheme": "sickroom",
+  "completeGuidedSlot": false,
+  "body": [
+    "Вам около десяти. Однажды ночью тяжело заболевает мать. Её дыхание становится хриплым, а кожа — горячей даже через мокрую ткань.",
+    "Отец тихо говорит, что надо позвать госпожу Янь. За ночной визит придётся отдать деньги, которых семье сейчас почти не хватает.",
+    "Вы ещё ребёнок. Никто не ждёт, что именно вы обязаны всё исправить. Но вы всё равно слышите этот разговор."
+  ],
+  "choices": [
+    {
+      "id": "fetch_yan",
+      "label": "Самому побежать за госпожой Янь",
+      "effects": [
+        {
+          "type": "ADD_FLAG",
+          "flagId": "acted_for_family"
+        },
+        {
+          "type": "CHANGE_RELATIONSHIP",
+          "npcId": "yan",
+          "familiarity": 1,
+          "status": "acquainted"
+        },
+        {
+          "type": "ADVANCE_TIME",
+          "days": 4
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_family_recovery_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "major",
+        "entry": "В детстве, когда мать тяжело заболела, вы ночью побежали за госпожой Янь."
+      }
+    },
+    {
+      "id": "practical",
+      "label": "Спросить соседей о более дешёвом средстве",
+      "effects": [
+        {
+          "type": "ADD_FLAG",
+          "flagId": "chose_practical_solution"
+        },
+        {
+          "type": "ADVANCE_TIME",
+          "days": 10
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_family_recovery_01",
+          "carryGuidedSlot": true
+        }
+      ],
+      "biography": {
+        "importance": "normal",
+        "entry": "Во время болезни матери вы помогли найти более доступное лечение, и выздоровление затянулось."
+      }
+    },
+    {
+      "id": "leave_to_adults",
+      "label": "Остаться рядом и не решать за взрослых",
+      "effects": [
+        {
+          "type": "ADD_FLAG",
+          "flagId": "did_not_take_over_family_crisis"
+        },
+        {
+          "type": "ADVANCE_TIME",
+          "days": 7
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_family_recovery_01",
+          "carryGuidedSlot": true
+        }
+      ]
+    }
+  ]
+}

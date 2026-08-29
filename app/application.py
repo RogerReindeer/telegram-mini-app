@@ -15,6 +15,9 @@ from .routers.admin_page import create_admin_page_router
 from .routers.auth import create_auth_router
 from .routers.catalog import create_catalog_router
 from .routers.payments import router as payments_router
+from .routers.store import router as store_router
+from .routers.internal_commerce import router as internal_commerce_router
+from .routers.media import router as media_router
 from .routers.reader_preview import create_reader_preview_router
 from .routers.sync import router as sync_router
 from .routers.system import router as system_router
@@ -42,5 +45,8 @@ app.include_router(create_auth_router())
 app.include_router(create_user_router(require_app_access_viewer, public_viewer))
 app.include_router(sync_router)
 app.include_router(payments_router)
+app.include_router(store_router)
+app.include_router(internal_commerce_router)
+app.include_router(media_router)
 app.include_router(create_catalog_router(templates=templates, app_title=APP_TITLE))
 install_exception_handlers(app, templates=templates, app_title=APP_TITLE, get_fox=get_fox)

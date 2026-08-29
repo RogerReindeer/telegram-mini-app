@@ -163,7 +163,7 @@ def normalize_novel_row(row: dict) -> dict:
         "author_latin": clean_value(row.get("author_latin")) or None,
         "author_cyrillic": clean_value(row.get("author_cyrillic")) or None,
         "author_translated": clean_value(row.get("author_translated")) or None,
-        "cover_url": clean_value(row.get("cover_url")) or None,
+        "cover_url": resolve_external_image_url(row.get("cover_url")) or None,
         "description": clean_value(row.get("description")) or None,
         "top_description": clean_value(row.get("top_description")) or None,
         "bottom_description": clean_value(row.get("bottom_description")) or None,

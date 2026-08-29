@@ -13,6 +13,7 @@ from typing import Any
 
 from ..database import SupabaseError, db_select, db_upsert, supabase_request
 from ..utils import clean_value, to_float, to_int, utc_now
+from .media import external_image_proxy_url
 
 
 class UserStateError(ValueError):
@@ -216,7 +217,7 @@ def get_user_state_rows(telegram_user_id: int) -> dict[str, Any]:
                 "novel_id": novel_id,
                 "novel_slug": clean_value(novel.get("code")),
                 "novel_title": clean_value(novel.get("novel_short")) or clean_value(novel.get("title_ru")),
-                "cover_url": clean_value(novel.get("cover_url")),
+                "cover_url": external_image_proxy_url(novel.get("cover_url")),
                 "chapter_id": last_chapter_id,
                 "chapter_title": clean_value(chapter.get("chapter_title")),
                 "chapter_index": chapter_index,

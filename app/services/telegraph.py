@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 
 from ..cache import cache_get_or_set, image_cache_ttl, telegraph_cache_ttl
 from .reader import clean_value, split_text_paragraphs
+from .media import external_image_proxy_url, teletype_mirror_page_url
 
 
 _HTTP_SESSION = requests.Session()
@@ -74,13 +75,21 @@ def extract_first_image_from_html(page_url: str, html_text: str) -> str:
     return ""
 
 
-def _resolve_external_image_url_uncached(url: Any) -> str:
-    """Return a browser-displayable image URL.
+def _teletype_page_candidates(value: Any) -> list[str]:
+    text = clean_value(value)
+    if not text:
+        return []
+    mirror = teletype_mirror_page_url(text)
+    candidates: list[str] = []
+    for candidate in (mirror, text):
+        candidate = clean_value(candidate)
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
+    return candidates
 
-    Fox images are stored in the Excel/Google Sheets tab `fox` as Teletype links.
-    If the link is already a direct image URL, it is used as-is. If it is a
-    Teletype/Telegraph page URL, the first page image is extracted and used.
-    """
+
+def _resolve_external_image_url_uncached(url: Any) -> str:
+    """Return a browser-displayable image URL with Teletype mirror recovery."""
     text = clean_value(url)
 
     if not text:
@@ -93,23 +102,26 @@ def _resolve_external_image_url_uncached(url: Any) -> str:
         text = "https://" + text[len("http://"):]
 
     if is_probably_direct_image_url(text):
-        return text
+        return external_image_proxy_url(text)
 
     parsed = urlparse(text)
     host = parsed.netloc.lower()
 
-    if "teletype.in" not in host and "telegra.ph" not in host:
+    if not any(domain in host for domain in ("teletype.in", "teletype.media", "telegra.ph")):
         return text
 
-    try:
-        response = _HTTP_SESSION.get(text, timeout=15)
-        response.raise_for_status()
-    except Exception:
-        return text
+    candidates = _teletype_page_candidates(text) if "teletype" in host else [text]
+    for candidate in candidates:
+        try:
+            response = _HTTP_SESSION.get(candidate, timeout=15)
+            response.raise_for_status()
+        except Exception:
+            continue
+        extracted = extract_first_image_from_html(response.url or candidate, response.text)
+        if extracted:
+            return external_image_proxy_url(extracted)
 
-    extracted = extract_first_image_from_html(text, response.text)
-
-    return extracted or text
+    return external_image_proxy_url(text) if is_probably_direct_image_url(text) else text
 
 
 def resolve_external_image_url(url: Any) -> str:
@@ -265,6 +277,8 @@ def render_telegraph_node(node: Any) -> str:
             key_text = clean_value(key)
             value_text = clean_value(value)
             if key_text in ("href", "src", "alt", "title"):
+                if key_text == "src":
+                    value_text = external_image_proxy_url(value_text, base_url="https://telegra.ph/")
                 safe_attrs.append(f'{html.escape(key_text)}="{html.escape(value_text)}"')
     attrs_text = f" {' '.join(safe_attrs)}" if safe_attrs else ""
     inner = "".join(render_telegraph_node(child) for child in children)
@@ -316,7 +330,12 @@ _TELETYPE_ALLOWED_TAGS = {
 def chapter_source_kind(url: str) -> str:
     text = clean_value(url)
     host = urlparse(text if "://" in text else "").netloc.lower()
-    if host == "teletype.in" or host.endswith(".teletype.in"):
+    if (
+        host == "teletype.in"
+        or host.endswith(".teletype.in")
+        or host == "teletype.media"
+        or host.endswith(".teletype.media")
+    ):
         return "teletype"
     if host == "telegra.ph" or host.endswith(".telegra.ph") or telegraph_path_from_url(text):
         return "telegraph"
@@ -351,7 +370,7 @@ def sanitize_teletype_fragment(page_url: str, fragment: Any) -> str:
         elif node.name == "img":
             src = _safe_content_url(page_url, node.get("src") or node.get("data-src"))
             if src:
-                attrs = {"src": src, "loading": "lazy", "alt": clean_value(node.get("alt"))}
+                attrs = {"src": external_image_proxy_url(src), "loading": "lazy", "alt": clean_value(node.get("alt"))}
         node.attrs = attrs
 
     return "".join(str(child) for child in soup.contents).strip()
@@ -399,16 +418,24 @@ def _fetch_teletype_content_uncached(url: str) -> tuple[dict | None, str]:
     text = clean_value(url)
     if chapter_source_kind(text) != "teletype":
         return None, ""
-    try:
-        response = _HTTP_SESSION.get(text, timeout=20)
-        response.raise_for_status()
-    except Exception as error:
-        return None, f"Ошибка загрузки Teletype: {error}"
 
-    title, html_content = extract_teletype_article(text, response.text)
-    if not html_content:
-        return None, "Teletype не вернул текст главы."
-    return {"title": title, "content_html": html_content}, ""
+    last_error: Exception | None = None
+    for candidate in _teletype_page_candidates(text):
+        try:
+            response = _HTTP_SESSION.get(candidate, timeout=20)
+            response.raise_for_status()
+        except Exception as error:
+            last_error = error
+            continue
+
+        page_url = clean_value(getattr(response, "url", "")) or candidate
+        title, html_content = extract_teletype_article(page_url, response.text)
+        if html_content:
+            return {"title": title, "content_html": html_content}, ""
+
+    if last_error is not None:
+        return None, f"Ошибка загрузки Teletype: {last_error}"
+    return None, "Teletype не вернул текст главы."
 
 
 def _fetch_chapter_content_uncached(url: str) -> tuple[dict | None, str]:
@@ -422,7 +449,7 @@ def fetch_chapter_content(url: str) -> tuple[dict | None, str]:
     if not text:
         return None, ""
     return cache_get_or_set(
-        f"chapter:content:v206:{text}",
+        f"chapter:content:v244:{text}",
         telegraph_cache_ttl(),
         lambda: _fetch_chapter_content_uncached(text),
         namespace="telegraph",

@@ -1,4 +1,4 @@
-# Build history compatibility markers: v241-browser-reader-link; v240-production-gate-hardening; v239-miniapp-visible-direct-route; v238-admin-browser-preview; v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
+# Build history compatibility markers: v245-user-subscriptions-schema-compat; v244-teletype-mirror-media-recovery; v243-sync-media-repair; v242-reader-coins-foundation; v241-browser-reader-link; v240-production-gate-hardening; v239-miniapp-visible-direct-route; v238-admin-browser-preview; v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
 # Build history compatibility markers: v229-group-subscriptions-reset-label; v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe; v228-settings-popup-selects-about-copy
 """Central configuration contract for new modules.
 
@@ -58,6 +58,13 @@ class Settings:
     sync_token: str = _env("SYNC_TOKEN")
     admin_token: str = _env("ADMIN_TOKEN")
     reader_preview_token: str = _env("READER_PREVIEW_TOKEN")
+    reader_coins_enabled: bool = _env("READER_COINS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    reader_coin_grants_enabled: bool = _env("READER_COIN_GRANTS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    qinghe_commerce_shared_secret: str = _env("QINGHE_COMMERCE_SHARED_SECRET")
+    qinghe_commerce_service_id: str = _env("QINGHE_COMMERCE_SERVICE_ID", "qinghe-api")
+    reader_coin_max_single_grant: int = int(_env("READER_COIN_MAX_SINGLE_GRANT", "100000") or "100000")
+    reader_commerce_clock_skew_seconds: int = int(_env("READER_COMMERCE_CLOCK_SKEW_SECONDS", "300") or "300")
+    reader_commerce_nonce_ttl_seconds: int = int(_env("READER_COMMERCE_NONCE_TTL_SECONDS", "600") or "600")
     session_secret: str = _env("SESSION_SECRET")
     main_chat_id: str = _env("MAIN_CHAT_ID", "2608069201")
     main_group_invite_url: str = _env("MAIN_GROUP_INVITE_URL", "https://t.me/+Z5b3eeJjJTs0MTli")
@@ -91,7 +98,7 @@ class Settings:
     # v202-swipe-animation-feedback; v208-readable-chapter-title-center; v221-library-tags-paywall-dedup;
     # v224-compact-subscription-gate; v225-theme-sections-controls-settings;
     # v231-free-release-date-subscription-only-extra
-    app_version: str = _env("APP_VERSION", "v241-browser-reader-link")
+    app_version: str = _env("APP_VERSION", "v245-user-subscriptions-schema-compat")
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 
@@ -137,6 +144,8 @@ class Settings:
         ):
             if not getattr(self, field_name):
                 missing.append(field_name.upper())
+        if self.reader_coin_grants_enabled and not self.qinghe_commerce_shared_secret:
+            missing.append("QINGHE_COMMERCE_SHARED_SECRET")
         return missing
 
 

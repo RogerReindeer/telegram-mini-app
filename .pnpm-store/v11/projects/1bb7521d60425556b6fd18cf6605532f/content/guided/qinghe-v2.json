@@ -1,0 +1,40 @@
+{
+  "contentVersion": "qinghe-v2",
+  "slots": {
+    "BIRTH": {
+      "eventId": "qinghe_birth_01",
+      "nextSlot": "ORIGIN"
+    },
+    "ORIGIN": {
+      "eventId": "qinghe_origin_01",
+      "nextSlot": "EARLY_CHILDHOOD"
+    },
+    "EARLY_CHILDHOOD": {
+      "eventId": "qinghe_water_festival_01",
+      "nextSlot": "CHILDHOOD_FAMILY_EVENT"
+    },
+    "CHILDHOOD_FAMILY_EVENT": {
+      "eventId": "qinghe_family_illness_01",
+      "nextSlot": "ADOLESCENT_ACTIVITY"
+    },
+    "ADOLESCENT_ACTIVITY": {
+      "eventId": "qinghe_first_work_01",
+      "nextSlot": "FIRST_WORLD_RUMOR"
+    },
+    "FIRST_WORLD_RUMOR": {
+      "eventId": "qinghe_whiteback_rumor_01",
+      "nextSlot": "EARLY_ADULTHOOD"
+    },
+    "EARLY_ADULTHOOD": {
+      "eventId": "qinghe_adulthood_01",
+      "nextSlot": "FIRST_INDEPENDENT_TRAVEL"
+    },
+    "FIRST_INDEPENDENT_TRAVEL": {
+      "eventId": "qinghe_first_grove_prompt_01"
+    },
+    "FIRST_RETURN": {
+      "eventId": "qinghe_first_return_01",
+      "opensLife": true
+    }
+  }
+}

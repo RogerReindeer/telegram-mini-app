@@ -1,0 +1,104 @@
+{
+  "id": "qinghe_origin_01",
+  "category": "LIFE",
+  "trigger": "GUIDED",
+  "title": "Дом, в котором вы родились",
+  "body": [
+    "Вы родились в Цинхэ. Дом, голоса взрослых и привычные запахи станут вашим первым миром."
+  ],
+  "choices": [
+    {
+      "id": "origin_blacksmith",
+      "label": "Семья кузнеца",
+      "effects": [
+        {
+          "type": "SET_ORIGIN",
+          "originId": "blacksmith_family"
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "origin_blacksmith"
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_origin_childhood_01",
+          "carryGuidedSlot": true
+        }
+      ]
+    },
+    {
+      "id": "origin_herbalist",
+      "label": "Семья травников",
+      "effects": [
+        {
+          "type": "SET_ORIGIN",
+          "originId": "herbalist_family"
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "origin_herbalist"
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_origin_childhood_01",
+          "carryGuidedSlot": true
+        }
+      ]
+    },
+    {
+      "id": "origin_hunter",
+      "label": "Семья охотника",
+      "effects": [
+        {
+          "type": "SET_ORIGIN",
+          "originId": "hunter_family"
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "origin_hunter"
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_origin_childhood_01",
+          "carryGuidedSlot": true
+        }
+      ]
+    },
+    {
+      "id": "origin_merchant",
+      "label": "Семья торговца",
+      "effects": [
+        {
+          "type": "SET_ORIGIN",
+          "originId": "merchant_family"
+        },
+        {
+          "type": "ADD_FLAG",
+          "flagId": "origin_merchant"
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_origin_childhood_01",
+          "carryGuidedSlot": true
+        }
+      ]
+    },
+    {
+      "id": "origin_fate",
+      "label": "Принять судьбу",
+      "effects": [
+        {
+          "type": "SET_ORIGIN",
+          "originId": "RANDOM"
+        },
+        {
+          "type": "START_EVENT",
+          "eventId": "qinghe_origin_childhood_01",
+          "carryGuidedSlot": true
+        }
+      ]
+    }
+  ],
+  "visualTheme": "home",
+  "completeGuidedSlot": false
+}
