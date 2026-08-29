@@ -1,0 +1,19 @@
+# Merge these fields into the existing qinghe-api service envVars.
+# This fragment is not a complete standalone Blueprint.
+
+envVars:
+  - key: TELEGRAM_STARS_ENABLED
+    value: "true"
+  - key: PAYMENTS_TRIBUTE_CURRENCY_ENABLED
+    value: "false"
+  - key: READER_API_URL
+    sync: false
+  - key: READER_MINIAPP_RETURN_URL
+    sync: false
+  - key: READER_COMMERCE_SHARED_SECRET
+    sync: false
+  - key: GRANT_WORKER_ENABLED
+    value: "true"
+  - key: GRANT_MAX_ATTEMPTS
+    value: "0"
+

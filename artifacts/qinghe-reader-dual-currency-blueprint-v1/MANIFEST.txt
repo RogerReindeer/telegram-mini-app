@@ -1,0 +1,18 @@
+Qinghe RPG + Reader dual-currency blueprint v1
+Generated: 2026-08-29
+
+README.md
+01_PRODUCT_AND_ARCHITECTURE.md
+02_QINGHE_RPG_CHANGES.md
+03_READER_CHANGES.md
+04_API_CONTRACT.md
+05_PAYMENT_AND_COMPLIANCE.md
+06_SECURITY_AND_RELIABILITY.md
+07_RENDER_BLUEPRINT.md
+08_TEST_AND_ROLLOUT_PLAN.md
+database/qinghe/005_dual_currency_commerce.sql
+database/reader/v242_reader_coins_store.sql
+examples/reader-render.example.yaml
+examples/qinghe-render.fragment.yaml
+examples/coin-grant.payload.json
+

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "event_id": "c46020a0-d3bb-40b0-88c3-1d641f5e0fc3",
+  "purchase_id": "7da789b8-8915-4e49-a5ae-5f86ba305fde",
+  "telegram_user_id": 123456789,
+  "product_code": "currency_bundle_500",
+  "amount": 500,
+  "currency": "reader_coins",
+  "provider": "telegram_stars",
+  "occurred_at": "2026-08-29T12:10:00Z"
+}
+

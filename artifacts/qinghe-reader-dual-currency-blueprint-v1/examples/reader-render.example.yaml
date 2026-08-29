@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: telegram-mini-app
+    runtime: python
+    plan: free
+    region: frankfurt
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: COMMERCE_ENABLED
+        value: "false"
+      - key: STORE_ENABLED
+        value: "false"
+      - key: QINGHE_API_URL
+        sync: false
+      - key: QINGHE_MINIAPP_LAUNCH_URL
+        sync: false
+      - key: QINGHE_COMMERCE_SHARED_SECRET
+        sync: false
+      - key: READER_COIN_MAX_SINGLE_GRANT
+        value: "10000"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: SYNC_TOKEN
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: READER_PREVIEW_TOKEN
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+
+previews:
+  generation: off
+
