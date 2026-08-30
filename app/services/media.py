@@ -106,6 +106,38 @@ def external_image_candidates(value: Any) -> list[str]:
     return candidates
 
 
+def preferred_browser_image_url(value: Any, *, base_url: str = "") -> str:
+    """Return the best browser-loadable URL for external chapter/catalog media.
+
+    Teletype's temporary mirror serves image CDN hosts directly from
+    ``imgN.teletype.media``.  Returning that URL to the browser avoids a
+    fragile extra server-side download through Render/Cloudflare.  Telegraph
+    stays on the same-origin proxy because relative ``/file/...`` sources and
+    its legacy host handling still benefit from proxying.
+    """
+    absolute = _normalized_external_url(value, base_url=base_url)
+    if not absolute:
+        return ""
+
+    parsed = urlparse(absolute)
+    host = (parsed.hostname or "").lower().rstrip(".")
+    if _is_teletype_host(host):
+        candidates = external_image_candidates(absolute)
+        if candidates:
+            # Prefer the canonical mirror CDN while teletype.in is unavailable.
+            for candidate in candidates:
+                candidate_host = (urlparse(candidate).hostname or "").lower().rstrip(".")
+                if candidate_host.endswith(".teletype.media"):
+                    return candidate
+            for candidate in candidates:
+                candidate_host = (urlparse(candidate).hostname or "").lower().rstrip(".")
+                if candidate_host == "teletype.media":
+                    return candidate
+            return candidates[0]
+
+    return external_image_proxy_url(absolute)
+
+
 def is_allowed_external_image_url(value: Any) -> bool:
     text = _normalized_external_url(value)
     if not text:
@@ -118,12 +150,7 @@ def is_allowed_external_image_url(value: Any) -> bool:
 
 
 def external_image_proxy_url(value: Any, *, base_url: str = "") -> str:
-    """Return a same-origin URL for Telegraph/Teletype images.
-
-    Keeping upstream URLs in CRM/Supabase while proxying only at render time
-    makes media recovery reversible and fixes relative Telegraph `/file/...`
-    paths without rewriting source data.
-    """
+    """Return a same-origin proxy URL for allow-listed external images."""
     absolute = _normalized_external_url(value, base_url=base_url)
     if not absolute:
         return ""

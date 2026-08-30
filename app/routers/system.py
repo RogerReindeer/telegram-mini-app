@@ -13,8 +13,18 @@ router = APIRouter()
 
 
 @router.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok", "version": settings.app_version}
+def health() -> JSONResponse:
+    # Public CORS is intentional only for this non-sensitive liveness probe.
+    # The always-on static launcher uses it to wake a sleeping Render Web Service
+    # and waits for the real application before navigating the Telegram WebView.
+    return JSONResponse(
+        {"status": "ok", "version": settings.app_version},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET",
+            "Access-Control-Allow-Headers": "Accept",
+        },
+    )
 
 
 @router.get("/ready")

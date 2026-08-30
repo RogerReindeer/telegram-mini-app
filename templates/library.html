@@ -29,7 +29,7 @@
         </div>
 
         {% if header_fox %}
-          <img class="library-hero-fox" src="{{ header_fox }}" alt="Лисичка" data-fox>
+          <img class="library-hero-fox" src="{{ header_fox }}" alt="Лисичка" data-fox referrerpolicy="no-referrer">
         {% endif %}
       </header>
 
@@ -221,7 +221,7 @@
                 aria-label="Открыть оглавление: {{ novel.library_short_title }}"
               >
                 {% if card_fox %}
-                  <img class="library-card-fox" src="{{ card_fox }}" alt="" aria-hidden="true" data-fox>
+                  <img class="library-card-fox" src="{{ card_fox }}" alt="" aria-hidden="true" data-fox referrerpolicy="no-referrer">
                 {% endif %}
 
                 <a class="library-book-cover-link" href="/novel/{{ novel.slug }}">
@@ -230,6 +230,7 @@
                       <img
                         class="library-book-cover"
                         src="{{ novel.cover_url }}"
+                        referrerpolicy="no-referrer"
                         alt="{{ novel.library_short_title }}"
                         onerror="this.style.display='none'; this.parentElement.classList.add('is-cover-failed'); this.nextElementSibling.style.display='flex';"
                       >
@@ -322,14 +323,14 @@
 
         <div class="library-empty-filter" id="libraryEmptyFilter" hidden>
           {% if empty_fox %}
-            <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox>
+            <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox referrerpolicy="no-referrer">
           {% endif %}
           <div>Ничего не нашлось — попробуйте убрать фильтр или изменить поиск</div>
         </div>
       {% else %}
         <div class="library-empty-filter">
           {% if empty_fox %}
-            <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox>
+            <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox referrerpolicy="no-referrer">
           {% endif %}
           <div>В библиотеке пока нет активных новелл</div>
         </div>

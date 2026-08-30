@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fff7ed" />
+  <title>Зефиркины баоцзы</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #fff7ed;
+      --bg-2: #fff0da;
+      --card: rgba(255, 250, 243, .94);
+      --text: #2b180c;
+      --muted: #7a614f;
+      --accent: #ff6a00;
+      --border: rgba(255, 106, 0, .28);
+      --shadow: rgba(61, 30, 9, .18);
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; min-height: 100%; margin: 0; }
+    body {
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      background:
+        radial-gradient(circle at 15% 0%, rgba(255, 190, 110, .28), transparent 34%),
+        radial-gradient(circle at 100% 100%, rgba(255, 106, 0, .12), transparent 38%),
+        linear-gradient(145deg, var(--bg), var(--bg-2));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    }
+    body.dark {
+      --bg: #17100c;
+      --bg-2: #25160d;
+      --card: rgba(31, 21, 16, .95);
+      --text: #fff6ed;
+      --muted: #c9b5a5;
+      --border: rgba(255, 135, 53, .32);
+      --shadow: rgba(0, 0, 0, .42);
+    }
+    .boot {
+      width: min(420px, calc(100vw - 40px));
+      display: grid;
+      justify-items: center;
+      gap: 20px;
+      text-align: center;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: clamp(20px, 5.4vw, 28px);
+      font-weight: 900;
+      letter-spacing: -.02em;
+    }
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: 0 12px 34px var(--shadow);
+      font-size: 25px;
+    }
+    .loader-card {
+      min-height: 48px;
+      max-width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 11px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      box-shadow: 0 16px 44px var(--shadow);
+      font-weight: 800;
+    }
+    .spinner {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 106, 0, .20);
+      border-top-color: var(--accent);
+      animation: spin .82s linear infinite;
+    }
+    .hint {
+      min-height: 20px;
+      margin: -8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .retry {
+      min-height: 44px;
+      padding: 10px 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--card);
+      color: var(--text);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .retry[hidden] { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+  </style>
+</head>
+<body>
+  <main class="boot" role="status" aria-live="polite">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">🥟</span><span>Зефиркины баоцзы</span></div>
+    <div class="loader-card"><span class="spinner" aria-hidden="true"></span><span id="bootText">Открываю библиотеку…</span></div>
+    <p class="hint" id="bootHint">Подготавливаем читалку</p>
+    <button class="retry" id="retryButton" type="button" hidden>Попробовать ещё раз</button>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const BACKEND_ORIGIN = "https://telegram-mini-app-fwq0.onrender.com";
+      const HEALTH_URL = `${BACKEND_ORIGIN}/health`;
+      const text = document.getElementById("bootText");
+      const hint = document.getElementById("bootHint");
+      const retry = document.getElementById("retryButton");
+      let attempt = 0;
+      let stopped = false;
+      let startedAt = Date.now();
+
+      function applyTelegramTheme() {
+        try {
+          const tg = window.Telegram && window.Telegram.WebApp;
+          if (!tg) return;
+          tg.ready();
+          if (tg.colorScheme === "dark") document.body.classList.add("dark");
+          const bg = tg.themeParams && tg.themeParams.bg_color;
+          if (bg && /^#[0-9a-f]{6}$/i.test(bg)) {
+            document.documentElement.style.setProperty("--telegram-bg", bg);
+          }
+        } catch (_) {}
+      }
+
+      function safeTargetPath() {
+        const path = window.location.pathname || "/";
+        if (path === "/" || path === "/index.html") return "/library";
+        if (path === "/library" || path.startsWith("/novel/") || path.startsWith("/chapter/") || path === "/reader-preview") {
+          return path;
+        }
+        return "/library";
+      }
+
+      function telegramLaunchFragment() {
+        const current = (window.location.hash || "").replace(/^#/, "");
+        if (current) return current;
+        try {
+          const tg = window.Telegram && window.Telegram.WebApp;
+          if (tg && tg.initData) {
+            const params = new URLSearchParams();
+            params.set("tgWebAppData", tg.initData);
+            if (tg.version) params.set("tgWebAppVersion", tg.version);
+            if (tg.platform) params.set("tgWebAppPlatform", tg.platform);
+            return params.toString();
+          }
+        } catch (_) {}
+        return "";
+      }
+
+      function buildTargetUrl() {
+        const target = new URL(safeTargetPath(), BACKEND_ORIGIN);
+        const sourceQuery = new URLSearchParams(window.location.search);
+        const next = sourceQuery.get("next");
+        if (safeTargetPath() === "/reader-preview" && next && /^\/(?:library|novel\/|chapter\/)/.test(next)) {
+          target.searchParams.set("next", next);
+        }
+        const fragment = telegramLaunchFragment();
+        if (fragment) target.hash = fragment;
+        return target.toString();
+      }
+
+      function updateCopy() {
+        const elapsed = Date.now() - startedAt;
+        if (elapsed > 35000) {
+          text.textContent = "Читалка запускается…";
+          hint.textContent = "Первый запуск после паузы может занять немного времени";
+        } else if (elapsed > 12000) {
+          text.textContent = "Ещё немного…";
+          hint.textContent = "Готовим библиотеку и главы";
+        } else if (elapsed > 3500) {
+          text.textContent = "Запускаю читалку…";
+          hint.textContent = "Оставайтесь здесь — откроется автоматически";
+        }
+      }
+
+      async function probe() {
+        if (stopped) return false;
+        attempt += 1;
+        updateCopy();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
+        try {
+          const response = await fetch(`${HEALTH_URL}?boot=${Date.now()}`, {
+            method: "GET",
+            mode: "cors",
+            credentials: "omit",
+            cache: "no-store",
+            signal: controller.signal,
+            headers: { "Accept": "application/json" }
+          });
+          if (!response.ok) return false;
+          const payload = await response.json();
+          return payload && payload.status === "ok";
+        } catch (_) {
+          return false;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      async function wakeAndOpen() {
+        stopped = false;
+        retry.hidden = true;
+        startedAt = Date.now();
+        text.textContent = "Открываю библиотеку…";
+        hint.textContent = "Подготавливаем читалку";
+
+        for (let round = 0; round < 12 && !stopped; round += 1) {
+          if (await probe()) {
+            text.textContent = "Готово";
+            hint.textContent = "Открываю…";
+            window.location.replace(buildTargetUrl());
+            return;
+          }
+          updateCopy();
+          await new Promise((resolve) => setTimeout(resolve, Math.min(900 + round * 150, 2200)));
+        }
+
+        text.textContent = "Не удалось открыть читалку";
+        hint.textContent = "Проверьте соединение и попробуйте ещё раз";
+        retry.hidden = false;
+      }
+
+      retry.addEventListener("click", wakeAndOpen);
+      applyTelegramTheme();
+      wakeAndOpen();
+    })();
+  </script>
+</body>
+</html>

@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 
 from ..cache import cache_get_or_set, image_cache_ttl, telegraph_cache_ttl
 from .reader import clean_value, split_text_paragraphs
-from .media import external_image_proxy_url, teletype_mirror_page_url
+from .media import external_image_proxy_url, preferred_browser_image_url, teletype_mirror_page_url
 
 
 _HTTP_SESSION = requests.Session()
@@ -102,7 +102,7 @@ def _resolve_external_image_url_uncached(url: Any) -> str:
         text = "https://" + text[len("http://"):]
 
     if is_probably_direct_image_url(text):
-        return external_image_proxy_url(text)
+        return preferred_browser_image_url(text)
 
     parsed = urlparse(text)
     host = parsed.netloc.lower()
@@ -119,9 +119,9 @@ def _resolve_external_image_url_uncached(url: Any) -> str:
             continue
         extracted = extract_first_image_from_html(response.url or candidate, response.text)
         if extracted:
-            return external_image_proxy_url(extracted)
+            return preferred_browser_image_url(extracted)
 
-    return external_image_proxy_url(text) if is_probably_direct_image_url(text) else text
+    return preferred_browser_image_url(text) if is_probably_direct_image_url(text) else text
 
 
 def resolve_external_image_url(url: Any) -> str:
@@ -370,7 +370,7 @@ def sanitize_teletype_fragment(page_url: str, fragment: Any) -> str:
         elif node.name == "img":
             src = _safe_content_url(page_url, node.get("src") or node.get("data-src"))
             if src:
-                attrs = {"src": external_image_proxy_url(src), "loading": "lazy", "alt": clean_value(node.get("alt"))}
+                attrs = {"src": preferred_browser_image_url(src), "loading": "lazy", "alt": clean_value(node.get("alt")), "referrerpolicy": "no-referrer"}
         node.attrs = attrs
 
     return "".join(str(child) for child in soup.contents).strip()
