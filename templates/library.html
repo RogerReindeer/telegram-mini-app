@@ -33,6 +33,18 @@
         {% endif %}
       </header>
 
+      {% if reader_coins_enabled %}
+        <section class="library-wallet-card" id="readerCoinsWallet" data-shop-url="{{ qinghe_shop_url }}" aria-label="Баланс Монеток">
+          <div class="library-wallet-copy">
+            <span class="library-wallet-label">Баланс</span>
+            <strong><span id="readerCoinsBalance">—</span> Монеток</strong>
+          </div>
+          {% if qinghe_shop_url %}
+            <a class="library-wallet-buy" id="readerCoinsBuy" href="{{ qinghe_shop_url }}">Пополнить</a>
+          {% endif %}
+        </section>
+      {% endif %}
+
       <section class="library-actions library-actions-v4" aria-label="Инструменты библиотеки">
         <button class="library-action-button" type="button" id="librarySearchToggle">
           <span class="library-action-icon">⌕</span>
@@ -403,6 +415,25 @@
     window.ZEFIRKI_FOX = {{ fox | tojson }};
     window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
+  {% if reader_coins_enabled %}
+  <script>
+    (function () {
+      var balance = document.getElementById("readerCoinsBalance");
+      var buy = document.getElementById("readerCoinsBuy");
+      if (buy && window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openTelegramLink && /^https:\/\/t\.me\//i.test(buy.href)) {
+        buy.addEventListener("click", function (event) {
+          event.preventDefault();
+          window.Telegram.WebApp.openTelegramLink(buy.href);
+        });
+      }
+      if (!balance) return;
+      fetch("/api/store/wallet", { credentials: "same-origin" })
+        .then(function (response) { if (!response.ok) throw new Error("wallet unavailable"); return response.json(); })
+        .then(function (wallet) { balance.textContent = Number(wallet.balance || 0).toLocaleString("ru-RU"); })
+        .catch(function () { balance.textContent = "—"; });
+    })();
+  </script>
+  {% endif %}
   <script src="{{ static_url('settings.js') }}"></script>
 </body>
 </html>

@@ -62,6 +62,7 @@ class Settings:
     reader_coin_grants_enabled: bool = _env("READER_COIN_GRANTS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     qinghe_commerce_shared_secret: str = _env("QINGHE_COMMERCE_SHARED_SECRET")
     qinghe_commerce_service_id: str = _env("QINGHE_COMMERCE_SERVICE_ID", "qinghe-api")
+    qinghe_shop_url: str = _env("QINGHE_SHOP_URL")
     reader_coin_max_single_grant: int = int(_env("READER_COIN_MAX_SINGLE_GRANT", "100000") or "100000")
     reader_commerce_clock_skew_seconds: int = int(_env("READER_COMMERCE_CLOCK_SKEW_SECONDS", "300") or "300")
     reader_commerce_nonce_ttl_seconds: int = int(_env("READER_COMMERCE_NONCE_TTL_SECONDS", "600") or "600")

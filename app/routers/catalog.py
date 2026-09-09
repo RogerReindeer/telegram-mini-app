@@ -140,7 +140,14 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
                 extra={"request_id": getattr(request.state, "request_id", "unknown")},
             )
             raise
-        return templates.TemplateResponse(request, "library.html", {"app_title": app_title, "fox": get_fox(), "viewer": viewer, "novels": prepared})
+        return templates.TemplateResponse(request, "library.html", {
+            "app_title": app_title,
+            "fox": get_fox(),
+            "viewer": viewer,
+            "novels": prepared,
+            "reader_coins_enabled": settings.reader_coins_enabled,
+            "qinghe_shop_url": settings.qinghe_shop_url,
+        })
 
     @router.get("/novel/{slug}")
     def novel(request: Request, slug: str):

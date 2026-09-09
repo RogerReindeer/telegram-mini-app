@@ -16003,3 +16003,39 @@ body[data-reader-theme="dark"] .chapter-support-level-option {
 /* v237 — compact admin sign-out control */
 .admin-logout-form { margin: 0; align-self: center; }
 .admin-logout-form button { border: 0; border-radius: 12px; padding: 9px 13px; font: inherit; font-weight: 700; cursor: pointer; background: var(--card-bg, rgba(255,255,255,.7)); color: inherit; box-shadow: inset 0 0 0 1px rgba(127,127,127,.18); }
+
+/* Reader Coins wallet: compact entry point to the Qinghe purchase flow. */
+.library-wallet-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(164, 119, 45, .20);
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(255, 249, 236, .96), rgba(244, 229, 198, .84));
+  box-shadow: 0 10px 28px rgba(92, 56, 25, .08);
+}
+.library-wallet-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.library-wallet-label { color: var(--muted, #796b62); font-size: 11px; font-weight: 700; }
+.library-wallet-copy strong { color: #8a672c; font-size: 17px; }
+.library-wallet-buy {
+  flex: 0 0 auto;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 15px;
+  border-radius: 13px;
+  background: #315f50;
+  color: #fff !important;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+body[data-site-theme="dark"] .library-wallet-card,
+body[data-resolved-theme="dark"] .library-wallet-card {
+  border-color: rgba(211, 169, 89, .20);
+  background: linear-gradient(135deg, rgba(52, 43, 32, .96), rgba(44, 35, 28, .92));
+}
