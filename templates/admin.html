@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Админка · {{ app_title }}</title>
   <link rel="stylesheet" href="{{ static_url('style.css') }}" />
+  <link rel="stylesheet" href="{{ static_url('enhancements.css') }}" />
 </head>
 <body class="page-admin">
   {% set counts = audit.counts %}
@@ -274,5 +275,7 @@
 
     </main>
   <script src="{{ static_url('settings.js') }}"></script>
+  <script src="{{ static_url('settings-panel.js') }}"></script>
+  <script src="{{ static_url('reader-experience.js') }}"></script>
 </body>
 </html>

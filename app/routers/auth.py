@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request, Response
+from starlette.concurrency import run_in_threadpool
 
 from ..config import settings
-from ..security import require_admin_token
+from ..security import read_json_payload, require_admin_token
 from ..services.auth import AUTH_COOKIE_NAME, authenticate_telegram_viewer, make_session_token, public_subscription_summary, viewer_access_profile, viewer_from_request
 
 SESSION_COOKIE = AUTH_COOKIE_NAME
@@ -33,8 +34,11 @@ def create_auth_router() -> APIRouter:
 
     @router.post("/telegram")
     async def telegram(request: Request, response: Response):
-        payload = await request.json()
-        viewer = authenticate_telegram_viewer(str(payload.get("init_data") or ""))
+        payload = await read_json_payload(request, max_bytes=64 * 1024)
+        viewer = await run_in_threadpool(
+            authenticate_telegram_viewer,
+            str(payload.get("init_data") or ""),
+        )
         response.set_cookie(SESSION_COOKIE, make_session_token(viewer), httponly=True, secure=True, samesite="none")
         return {"status": "ok", "viewer": viewer}
 

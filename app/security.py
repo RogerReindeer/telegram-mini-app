@@ -41,20 +41,20 @@ def bearer_token_from_header(value: str | None) -> str:
     return ""
 
 
-def token_from_request(request: Request, query_token: str | None = None) -> str:
-    """Read the sync token from header/Bearer and legacy query fallback."""
+def token_from_request(request: Request) -> str:
+    """Read the sync token from a header without leaking it into URLs/logs."""
     header_token = request.headers.get("x-sync-token") or request.headers.get("X-Sync-Token") or ""
     bearer = bearer_token_from_header(
         request.headers.get("authorization") or request.headers.get("Authorization")
     )
-    return (query_token or header_token or bearer or "").strip()
+    return (header_token or bearer or "").strip()
 
 
-def require_sync_token(request: Request, query_token: str | None = None) -> None:
+def require_sync_token(request: Request) -> None:
     """Validate SYNC_TOKEN with constant-time comparison."""
     if not settings.sync_token:
         raise HTTPException(status_code=503, detail="SYNC_TOKEN не настроен")
-    if not constant_time_equals(token_from_request(request, query_token), settings.sync_token):
+    if not constant_time_equals(token_from_request(request), settings.sync_token):
         raise HTTPException(status_code=403, detail="Неверный sync token")
 
 

@@ -5,6 +5,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from ..security import SYNC_JSON_BODY_LIMIT_BYTES, read_json_payload, require_sync_token
 from ..services.sync import build_validation_response, run_sync
@@ -22,28 +23,28 @@ def _json_response_payload(response: Any) -> dict[str, Any]:
 
 
 @router.post("/api/sync")
-async def api_sync(request: Request, token: str = ""):
-    require_sync_token(request, token)
+async def api_sync(request: Request):
+    require_sync_token(request)
     payload = await read_json_payload(request, max_bytes=SYNC_JSON_BODY_LIMIT_BYTES)
-    return await run_sync(payload)
+    return await run_in_threadpool(run_sync, payload)
 
 
 @router.post("/sync")
-async def legacy_sync(request: Request, token: str = ""):
-    require_sync_token(request, token)
+async def legacy_sync(request: Request):
+    require_sync_token(request)
     payload = await read_json_payload(request, max_bytes=SYNC_JSON_BODY_LIMIT_BYTES)
-    return await run_sync(payload)
+    return await run_in_threadpool(run_sync, payload)
 
 
 @router.post("/api/sync/validate")
-async def api_sync_validate(request: Request, token: str = ""):
-    require_sync_token(request, token)
+async def api_sync_validate(request: Request):
+    require_sync_token(request)
     payload = await read_json_payload(request, max_bytes=SYNC_JSON_BODY_LIMIT_BYTES)
     return build_validation_response(payload)
 
 
 @router.post("/sync/validate")
-async def legacy_sync_validate(request: Request, token: str = ""):
-    require_sync_token(request, token)
+async def legacy_sync_validate(request: Request):
+    require_sync_token(request)
     payload = await read_json_payload(request, max_bytes=SYNC_JSON_BODY_LIMIT_BYTES)
     return build_validation_response(payload)

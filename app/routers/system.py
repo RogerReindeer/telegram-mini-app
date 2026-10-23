@@ -28,18 +28,28 @@ def health() -> JSONResponse:
 
 
 @router.get("/ready")
-def ready() -> dict[str, object]:
+def ready() -> JSONResponse:
     missing = settings.validate_production()
-    return {
-        "status": "ready" if not missing else "degraded",
+    database_ready = supabase_ready()
+    if database_ready and not missing:
+        try:
+            # A real PostgREST round trip catches revoked/expired keys and a
+            # temporarily unavailable database; an empty catalog is still ready.
+            db_select("novels", select="novel_id", limit=1)
+        except Exception:
+            database_ready = False
+    is_ready = not missing and database_ready
+    payload: dict[str, object] = {
+        "status": "ready" if is_ready else "degraded",
         "missing": missing,
-        "supabase": supabase_ready(),
+        "supabase": database_ready,
         "version": settings.app_version,
         "features": {
             "reader_coins": settings.reader_coins_enabled,
             "reader_coin_grants": settings.reader_coin_grants_enabled,
         },
     }
+    return JSONResponse(payload, status_code=200 if is_ready else 503)
 
 
 @router.get("/version")

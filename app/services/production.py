@@ -211,6 +211,19 @@ def _runtime_checks() -> list[Check]:
             "settings.js fingerprint найден." if assets.get("settings.js") else "settings.js fingerprint не найден.",
         ),
         _check(
+            "runtime.assets.bundle",
+            "pass" if all(assets.get(name) for name in (
+                "style.css", "enhancements.css", "settings.js",
+                "settings-panel.js", "reader-experience.js",
+            )) else "fail",
+            "Все CSS/JS-модули имеют fingerprint."
+            if all(assets.get(name) for name in (
+                "style.css", "enhancements.css", "settings.js",
+                "settings-panel.js", "reader-experience.js",
+            )) else "Не для всех CSS/JS-модулей найден fingerprint.",
+            details={"assets": assets},
+        ),
+        _check(
             "runtime.rate_limit",
             "pass" if settings.rate_limit_enabled else "warn",
             "Rate limit включён." if settings.rate_limit_enabled else "Rate limit выключен.",

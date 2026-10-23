@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 
 from ..cache import clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..config import settings
-from ..database import db_delete, db_insert, db_select, db_update, db_upsert, supabase_ready
+from ..database import db_delete, db_insert, db_rpc, db_select, db_update, db_upsert, supabase_ready
 from ..utils import chapter_id_matches_parts, clean_value, is_date_open, normalize_part_no_for_storage, parse_chapter_id, parse_date, to_bool, to_float, to_int, today_iso
 from .access import normalize_readable_chapter_source
 
@@ -918,7 +918,48 @@ def _delete_stale_fox_for_snapshot(fox_rows: list[dict[str, Any]]) -> int:
     return deleted
 
 
-async def run_sync(payload: dict[str, Any]) -> JSONResponse:
+def _apply_atomic_catalog_snapshot(
+    novels: list[dict[str, Any]],
+    chapters: list[dict[str, Any]],
+    fox_rows: list[dict[str, Any]],
+) -> dict[str, int]:
+    """Apply a complete catalog in one database transaction.
+
+    The RPC owns both upserts and pruning, so readers can never observe a
+    half-updated full snapshot. Spreadsheet-only diagnostic keys are removed
+    before the payload crosses the database boundary.
+    """
+    def public_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {key: value for key, value in row.items() if not str(key).startswith("__")}
+            for row in rows
+        ]
+
+    response = db_rpc(
+        "apply_catalog_snapshot",
+        {
+            "p_novels": public_rows(novels),
+            "p_chapters": public_rows(chapters),
+            "p_fox": public_rows(fox_rows),
+        },
+    )
+    if isinstance(response, list):
+        response = response[0] if response else {}
+    if not isinstance(response, dict):
+        raise RuntimeError("Supabase RPC apply_catalog_snapshot вернул некорректный ответ")
+
+    keys = (
+        "novels_upserted",
+        "chapters_upserted",
+        "fox_upserted",
+        "stale_chapters_deleted",
+        "stale_novels_deleted",
+        "stale_fox_deleted",
+    )
+    return {key: max(0, to_int(response.get(key), 0)) for key in keys}
+
+
+def run_sync(payload: dict[str, Any]) -> JSONResponse:
     """Normalize sync payload, record sync_runs, and upsert it into Supabase."""
     if not supabase_ready():
         return JSONResponse(
@@ -993,40 +1034,44 @@ async def run_sync(payload: dict[str, Any]) -> JSONResponse:
             "snapshot_safety": snapshot_safety,
         }
 
-        stage = "novels"
-        if novels:
-            novels_upserted, omitted_novel_columns = _upsert_with_schema_compat(
-                "novels", novels, "novel_id", batch_size=50
-            )
-            result["novels_upserted"] = novels_upserted
-            if omitted_novel_columns:
-                warnings.append(_schema_compat_warning("novels", omitted_novel_columns))
-            _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "warnings": warnings[:100]})
-
-        stage = "chapters"
-        if chapters:
-            chapters_upserted, omitted_chapter_columns = _upsert_with_schema_compat(
-                "chapters", chapters, "chapter_id", batch_size=100
-            )
-            result["chapters_upserted"] = chapters_upserted
-            if omitted_chapter_columns:
-                warnings.append(_schema_compat_warning("chapters", omitted_chapter_columns))
-            _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "warnings": warnings[:100]})
-
-        stage = "prune_stale_chapters"
         if payload.get("full_snapshot") is True:
-            # Children first, parents second. Hidden novels are absent from the
-            # snapshot, so their chapters must be removed before deleting novels.
-            result["stale_chapters_deleted"] = _delete_stale_chapters_for_snapshot(novels, chapters)
-            stage = "prune_stale_novels"
-            result["stale_novels_deleted"] = _delete_stale_novels_for_snapshot(novels)
+            stage = "atomic_snapshot"
+            result.update(_apply_atomic_catalog_snapshot(novels, chapters, fox_rows))
+            _finish_sync_run(
+                sync_id,
+                {
+                    "status": "running",
+                    "novels_count": result["novels_upserted"],
+                    "chapters_count": result["chapters_upserted"],
+                    "fox_count": result["fox_upserted"],
+                    "warnings": warnings[:100],
+                },
+            )
+        else:
+            stage = "novels"
+            if novels:
+                novels_upserted, omitted_novel_columns = _upsert_with_schema_compat(
+                    "novels", novels, "novel_id", batch_size=50
+                )
+                result["novels_upserted"] = novels_upserted
+                if omitted_novel_columns:
+                    warnings.append(_schema_compat_warning("novels", omitted_novel_columns))
+                _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "warnings": warnings[:100]})
 
-        stage = "fox"
-        if fox_rows:
-            result["fox_upserted"] = db_upsert("fox", fox_rows, "name", batch_size=50)
-            if payload.get("full_snapshot") is True:
-                result["stale_fox_deleted"] = _delete_stale_fox_for_snapshot(fox_rows)
-            _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "fox_count": result["fox_upserted"], "warnings": warnings[:100]})
+            stage = "chapters"
+            if chapters:
+                chapters_upserted, omitted_chapter_columns = _upsert_with_schema_compat(
+                    "chapters", chapters, "chapter_id", batch_size=100
+                )
+                result["chapters_upserted"] = chapters_upserted
+                if omitted_chapter_columns:
+                    warnings.append(_schema_compat_warning("chapters", omitted_chapter_columns))
+                _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "warnings": warnings[:100]})
+
+            stage = "fox"
+            if fox_rows:
+                result["fox_upserted"] = db_upsert("fox", fox_rows, "name", batch_size=50)
+                _finish_sync_run(sync_id, {"status": "running", "novels_count": result["novels_upserted"], "chapters_count": result["chapters_upserted"], "fox_count": result["fox_upserted"], "warnings": warnings[:100]})
 
         result["warnings_count"] = len(warnings)
         result["warnings"] = warnings[:100]

@@ -49,6 +49,14 @@ def _env(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
 
 
+def _app_version() -> str:
+    explicit = _env("APP_VERSION")
+    if explicit:
+        return explicit
+    commit = _env("RENDER_GIT_COMMIT") or _env("GIT_COMMIT")
+    return f"git-{commit[:12]}" if commit else "dev"
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     app_env: str = _env("APP_ENV", "production").lower()
@@ -99,7 +107,7 @@ class Settings:
     # v202-swipe-animation-feedback; v208-readable-chapter-title-center; v221-library-tags-paywall-dedup;
     # v224-compact-subscription-gate; v225-theme-sections-controls-settings;
     # v231-free-release-date-subscription-only-extra
-    app_version: str = _env("APP_VERSION", "v247-static-startup-launcher")
+    app_version: str = _app_version()
     app_events_enabled: bool = _env("APP_EVENTS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     app_metrics_enabled: bool = _env("APP_METRICS_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
 

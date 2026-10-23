@@ -261,6 +261,13 @@ def clean_chapter_content_html(html_content: str) -> str:
     return cleaned
 
 
+_TELEGRAPH_ALLOWED_TAGS = {
+    "p", "br", "strong", "b", "em", "i", "u", "s", "blockquote",
+    "h2", "h3", "h4", "ul", "ol", "li", "a", "img", "figure",
+    "figcaption", "code", "pre", "hr",
+}
+
+
 def render_telegraph_node(node: Any) -> str:
     if isinstance(node, str):
         return html.escape(node)
@@ -271,18 +278,24 @@ def render_telegraph_node(node: Any) -> str:
         return ""
     attrs = node.get("attrs") or {}
     children = node.get("children") or []
+    inner = "".join(render_telegraph_node(child) for child in children)
+    if tag not in _TELEGRAPH_ALLOWED_TAGS:
+        return inner
     safe_attrs = []
     if isinstance(attrs, dict):
         for key, value in attrs.items():
             key_text = clean_value(key)
             value_text = clean_value(value)
             if key_text in ("href", "src", "alt", "title"):
+                if key_text in ("href", "src"):
+                    value_text = _safe_content_url("https://telegra.ph/", value_text)
+                    if not value_text:
+                        continue
                 if key_text == "src":
                     value_text = external_image_proxy_url(value_text, base_url="https://telegra.ph/")
                 safe_attrs.append(f'{html.escape(key_text)}="{html.escape(value_text)}"')
     attrs_text = f" {' '.join(safe_attrs)}" if safe_attrs else ""
-    inner = "".join(render_telegraph_node(child) for child in children)
-    if tag in ("br", "img"):
+    if tag in ("br", "img", "hr"):
         return f"<{tag}{attrs_text}>"
     return f"<{tag}{attrs_text}>{inner}</{tag}>"
 

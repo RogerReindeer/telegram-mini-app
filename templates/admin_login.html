@@ -6,6 +6,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>Вход · {{ app_title }}</title>
   <link rel="stylesheet" href="{{ static_url('style.css') }}">
+  <link rel="stylesheet" href="{{ static_url('enhancements.css') }}">
   <style>
     :root { color-scheme: light dark; font-family: Inter, system-ui, sans-serif; }
     body { margin:0; min-height:100vh; display:grid; place-items:center; background:#f6f4ef; color:#24211d; }
@@ -19,6 +20,8 @@
     @media (prefers-color-scheme: dark) { body{background:#161616;color:#f4f1eb}.card{background:#222}.card p{color:#aaa49a}input{background:#191919;color:#fff;border-color:#444}button{background:#f1c75b;color:#201b0e}.error{background:#4a211f;color:#ffc7c2} }
   </style>
   <script defer src="{{ static_url('settings.js') }}"></script>
+  <script defer src="{{ static_url('settings-panel.js') }}"></script>
+  <script defer src="{{ static_url('reader-experience.js') }}"></script>
 </head>
 <body>
   <main class="card">

@@ -45,7 +45,10 @@ def static_manifest() -> dict[str, str]:
     """Small diagnostics map for /version without exposing local paths."""
     return {
         "style.css": static_asset_version("style.css"),
+        "enhancements.css": static_asset_version("enhancements.css"),
         "settings.js": static_asset_version("settings.js"),
+        "settings-panel.js": static_asset_version("settings-panel.js"),
+        "reader-experience.js": static_asset_version("reader-experience.js"),
     }
 
 

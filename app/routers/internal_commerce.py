@@ -6,6 +6,7 @@ import json
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from ..config import settings
 from ..schemas_commerce import CoinGrantPayload
@@ -38,7 +39,7 @@ async def coin_grant(request: Request):
 
     payload = model.model_dump()
     try:
-        return credit_from_qinghe(payload)
+        return await run_in_threadpool(credit_from_qinghe, payload)
     except CoinGrantConflict as error:
         raise HTTPException(status_code=409, detail="purchase_conflict") from error
     except CoinGrantTemporaryError as error:
