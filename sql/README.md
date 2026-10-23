@@ -5,7 +5,7 @@ This directory is the reproducible database contract for the Mini App.
 For a new empty project, run `schema.sql` once and then run every file in
 `migrations/` in numeric order. **Do not run `schema.sql` against an existing
 project.** For the existing `itvirexpgztwivqavpxt` project, run migrations
-`001`, `002`, and `003` in numeric order. Migration `001` contains the explicit
+`001` through `004` in numeric order. Migration `001` contains the explicit
 legacy-column conversion required by that project. Every migration is written
 to be safe to retry, but it should still be tested on a staging project first.
 
@@ -23,3 +23,7 @@ After applying migrations:
 `002_atomic_catalog_snapshot.sql` is required before deploying the matching
 application code: full snapshots now call `apply_catalog_snapshot` instead of
 performing multiple independent REST writes.
+
+`004_security_analytics_hardening.sql` removes the duplicate analytics trigger,
+repairs derived analytics counters, closes legacy public objects, adds missing
+primary keys and foreign-key indexes, and removes known duplicate indexes.

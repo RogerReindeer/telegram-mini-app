@@ -40,3 +40,26 @@ def test_reader_coins_relaxes_legacy_insert_blockers():
     assert "drop constraint if exists reader_coin_ledger_operation" in sql
     assert "drop constraint if exists reader_coin_ledger_amount_positive" in sql
     assert "reader_coin_ledger_idempotency_key_idx" in sql
+
+
+def test_security_hardening_removes_duplicate_analytics_trigger_before_rebuild():
+    sql = (ROOT / "sql" / "migrations" / "004_security_analytics_hardening.sql").read_text(
+        encoding="utf-8"
+    )
+    drop_trigger = sql.index("drop trigger if exists analytics_events_touch_user_profile")
+    rebuild = sql.index("with event_rollup as")
+    assert drop_trigger < rebuild
+    assert "drop function if exists public.analytics_touch_user_profile();" in sql
+    assert "alter view public.analytics_daily set (security_invoker = true);" in sql
+
+
+def test_security_hardening_closes_public_access_and_adds_keys_and_indexes():
+    sql = (ROOT / "sql" / "migrations" / "004_security_analytics_hardening.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "enable row level security" in sql
+    assert "from public, anon, authenticated" in sql
+    assert "primary key (subscription_id)" in sql
+    assert "primary key (entitlement_id)" in sql
+    assert "user_chapter_progress_chapter_idx" in sql
+    assert "user_novel_state_novel_fk_idx" in sql
