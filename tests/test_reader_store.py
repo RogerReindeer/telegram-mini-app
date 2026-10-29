@@ -373,3 +373,24 @@ def test_global_mouse_wheel_scroll_has_root_contract_and_runtime_fallback():
     assert "html.reader-scroll-locked" in enhancements
     assert "body:not(.reader-transaction-open):not(.zb-settings-open):not(.reader-quick-settings-open)" in enhancements
     assert "overflow-y: visible !important" in enhancements
+
+
+def test_library_discovery_has_grouped_filters_dynamic_tags_and_fuzzy_search():
+    library = (ROOT / "templates" / "library.html").read_text(encoding="utf-8")
+    settings_script = (ROOT / "static" / "settings.js").read_text(encoding="utf-8")
+    enhancements = (ROOT / "static" / "enhancements.css").read_text(encoding="utf-8")
+    assert 'data-filter-group="reading"' in library
+    assert 'data-filter-group="project"' in library
+    assert 'data-filter-group="access"' in library
+    assert 'id="libraryDynamicTagChips"' in library
+    assert 'id="libraryResultSummary"' in library
+    assert 'id="libraryEmptyReset"' in library
+    assert "buildLibraryDynamicTags()" in settings_script
+    assert "normalizeLibrarySearchText" in settings_script
+    assert "boundedLibraryDistance" in settings_script
+    assert "grouped[group].some" in settings_script
+    assert "updateLibraryFilterFacetCounts" in settings_script
+    assert "subscription_access" in settings_script
+    assert "library-filter-open" in settings_script
+    assert "v244 — thoughtful library discovery" in enhancements
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in enhancements

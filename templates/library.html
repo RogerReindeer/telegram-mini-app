@@ -35,41 +35,61 @@
       </header>
 
       <section class="library-actions library-actions-v4" aria-label="Инструменты библиотеки">
-        <button class="library-action-button" type="button" id="librarySearchToggle">
+        <button class="library-action-button" type="button" id="librarySearchToggle" aria-controls="librarySearchPanel" aria-expanded="false">
           <span class="library-action-icon">⌕</span>
           <span>Поиск</span>
+          <span class="library-action-count" id="librarySearchCount" hidden>0</span>
         </button>
 
-        <button class="library-action-button" type="button" id="libraryFilterToggle">
+        <button class="library-action-button" type="button" id="libraryFilterToggle" aria-controls="libraryFilterSheet" aria-expanded="false">
           <span class="library-action-icon">☷</span>
           <span>Фильтры</span>
+          <span class="library-action-count" id="libraryFilterCount" hidden>0</span>
         </button>
 
       </section>
 
-      <section class="library-search-panel" id="librarySearchPanel" hidden>
+      <section class="library-search-panel" id="librarySearchPanel" role="search" aria-label="Поиск по библиотеке" hidden>
+        <div class="library-search-heading">
+          <div>
+            <strong>Найдём историю по настроению</strong>
+            <span>Название, описание, жанр или тег — можно вводить несколько слов</span>
+          </div>
+          <button type="button" class="library-search-close" data-search-close aria-label="Закрыть поиск">×</button>
+        </div>
         <label class="library-search-input-wrap">
-          <span>⌕</span>
+          <span aria-hidden="true">⌕</span>
           <input
             id="librarySearchInput"
             type="search"
-            placeholder="Поиск по названию, жанру, тегам"
+            placeholder="Например: романтика фэнтези"
             autocomplete="off"
+            enterkeyhint="search"
+            aria-label="Поиск новеллы"
           >
           <button type="button" id="librarySearchClear" aria-label="Очистить поиск">×</button>
         </label>
 
-        <div class="library-quick-tags">
-          <button type="button" data-quick-filter="Сянься/Уся">Сянься/Уся</button>
-          <button type="button" data-quick-filter="Слэш">Слэш</button>
-          <button type="button" data-quick-filter="Гет">Гет</button>
-          <button type="button" data-quick-filter="Джен">Джен</button>
-          <button type="button" data-quick-filter="Романтика">Романтика</button>
-          <button type="button" data-quick-filter="Переводится">Переводится</button>
+        <div class="library-quick-tags" aria-label="Быстрые фильтры">
+          <button type="button" data-quick-filter="Сянься/Уся" data-filter-group="tag">Сянься/Уся</button>
+          <button type="button" data-quick-filter="Слэш" data-filter-group="format">Слэш</button>
+          <button type="button" data-quick-filter="Гет" data-filter-group="format">Гет</button>
+          <button type="button" data-quick-filter="Джен" data-filter-group="format">Джен</button>
+          <button type="button" data-quick-filter="Романтика" data-filter-group="tag">Романтика</button>
+          <button type="button" data-quick-filter="in_progress" data-filter-group="project">Переводится</button>
         </div>
+        <div class="library-search-feedback" id="librarySearchFeedback" role="status" aria-live="polite"></div>
       </section>
 
-      <section class="library-active-filters" id="libraryActiveFilters" hidden></section>
+      <section class="library-active-filters" id="libraryActiveFilters" aria-label="Активные условия поиска" hidden></section>
+
+      <section class="library-discovery-summary" id="libraryDiscoverySummary" aria-live="polite">
+        <div>
+          <strong id="libraryResultSummary">Все новеллы</strong>
+          <span id="libraryResultDetail">Можно искать по названию, описанию и тегам</span>
+        </div>
+        <button type="button" id="libraryResetAll" hidden>Сбросить всё</button>
+      </section>
 
       <section class="library-mobile-hint" aria-label="Подсказка по библиотеке">
         <span>Карточка открывает книгу, если вы уже читали новеллу, Mini App предложит продолжить с места</span>
@@ -326,7 +346,11 @@
           {% if empty_fox %}
             <img class="library-empty-fox-img" src="{{ empty_fox }}" alt="Лисичка" data-fox referrerpolicy="no-referrer">
           {% endif %}
-          <div>Ничего не нашлось — попробуйте убрать фильтр или изменить поиск</div>
+          <div>
+            <strong>Такой истории пока не нашлось</strong>
+            <span>Попробуйте сократить запрос или убрать один из фильтров.</span>
+            <button type="button" id="libraryEmptyReset">Показать все новеллы</button>
+          </div>
         </div>
       {% else %}
         <div class="library-empty-filter">
@@ -338,61 +362,90 @@
       {% endif %}
     </section>
 
-    <section class="library-filter-sheet" id="libraryFilterSheet" hidden>
+    <section class="library-filter-sheet" id="libraryFilterSheet" role="dialog" aria-modal="true" aria-labelledby="libraryFilterTitle" tabindex="-1" hidden>
       <div class="library-filter-backdrop" data-filter-close></div>
 
       <div class="library-filter-panel">
         <div class="library-filter-handle"></div>
 
         <header class="library-filter-header">
-          <h2>Фильтры</h2>
+          <div>
+            <h2 id="libraryFilterTitle">Фильтры библиотеки</h2>
+            <p id="libraryFilterPreview">Подберите историю под настроение</p>
+          </div>
           <button type="button" data-filter-close aria-label="Закрыть">×</button>
         </header>
 
-        <div class="library-filter-group">
-          <h3>Статус</h3>
+        <div class="library-filter-content">
+        <div class="library-filter-group" data-filter-group-panel="collection">
+          <h3>Моя библиотека</h3>
           <div class="library-filter-chips">
-            <button type="button" data-filter-chip="all" class="active">Все</button>
-            <button type="button" data-filter-chip="favorite">Избранное</button>
-            <button type="button" data-filter-chip="reading">Читаю</button>
-            <button type="button" data-filter-chip="new">Новая глава</button>
-            <button type="button" data-filter-chip="start">Можно начать</button>
-            <button type="button" data-filter-chip="waiting">Скоро</button>
-            <button type="button" data-filter-chip="finished">Прочитано</button>
-            <button type="button" data-filter-chip="hidden">Скрытые</button>
+            <button type="button" data-filter-chip="all" data-filter-group="collection" class="active">Любые</button>
+            <button type="button" data-filter-chip="favorite" data-filter-group="collection">Избранное</button>
+            <button type="button" data-filter-chip="hidden" data-filter-group="collection">Скрытые</button>
           </div>
         </div>
 
-        <div class="library-filter-group">
+        <div class="library-filter-group" data-filter-group-panel="reading">
+          <h3>Что читать</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="all" data-filter-group="reading" class="active">Любое</button>
+            <button type="button" data-filter-chip="reading" data-filter-group="reading">Читаю</button>
+            <button type="button" data-filter-chip="new" data-filter-group="reading">Есть новые главы</button>
+            <button type="button" data-filter-chip="start" data-filter-group="reading">Можно начать</button>
+            <button type="button" data-filter-chip="waiting" data-filter-group="reading">Скоро</button>
+            <button type="button" data-filter-chip="finished" data-filter-group="reading">Прочитано</button>
+            <button type="button" data-filter-chip="subscription" data-filter-group="reading">По подписке</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group" data-filter-group-panel="project">
           <h3>Статус проекта</h3>
           <div class="library-filter-chips">
-            <button type="button" data-filter-chip="in_progress">Переводится</button>
-            <button type="button" data-filter-chip="completed">Завершено</button>
+            <button type="button" data-filter-chip="all" data-filter-group="project" class="active">Любой</button>
+            <button type="button" data-filter-chip="in_progress" data-filter-group="project">Переводится</button>
+            <button type="button" data-filter-chip="completed" data-filter-group="project">Завершено</button>
+            <button type="button" data-filter-chip="paused" data-filter-group="project">На паузе</button>
           </div>
         </div>
 
-        <div class="library-filter-group">
+        <div class="library-filter-group" data-filter-group-panel="access">
+          <h3>Доступ</h3>
+          <div class="library-filter-chips">
+            <button type="button" data-filter-chip="all" data-filter-group="access" class="active">Любой</button>
+            <button type="button" data-filter-chip="free" data-filter-group="access">Есть бесплатные главы</button>
+            <button type="button" data-filter-chip="subscription_access" data-filter-group="access">По подписке</button>
+          </div>
+        </div>
+
+        <div class="library-filter-group" data-filter-group-panel="format">
           <h3>Формат</h3>
           <div class="library-filter-chips">
-            <button type="button" data-filter-chip="Слэш">Слэш</button>
-            <button type="button" data-filter-chip="Гет">Гет</button>
-            <button type="button" data-filter-chip="Джен">Джен</button>
+            <button type="button" data-filter-chip="all" data-filter-group="format" class="active">Любой</button>
+            <button type="button" data-filter-chip="Слэш" data-filter-group="format">Слэш</button>
+            <button type="button" data-filter-chip="Гет" data-filter-group="format">Гет</button>
+            <button type="button" data-filter-chip="Джен" data-filter-group="format">Джен</button>
           </div>
         </div>
 
-        <div class="library-filter-group">
-          <h3>Жанр / сеттинг</h3>
-          <div class="library-filter-chips">
-            <button type="button" data-filter-chip="Сянься/Уся">Сянься/Уся</button>
-            <button type="button" data-filter-chip="Фэнтези">Фэнтези</button>
-            <button type="button" data-filter-chip="Современность">Современность</button>
-            <button type="button" data-filter-chip="Романтика">Романтика</button>
-            <button type="button" data-filter-chip="Иссекай/Попаданцы">Иссекай/Попаданцы</button>
+        <div class="library-filter-group" id="libraryDynamicTagGroup" data-filter-group-panel="tag" hidden>
+          <div class="library-filter-group-heading">
+            <h3>Жанры и теги из каталога</h3>
+            <span id="libraryDynamicTagHint"></span>
           </div>
+          <label class="library-filter-tag-search">
+            <span aria-hidden="true">⌕</span>
+            <input type="search" id="libraryTagFilterSearch" placeholder="Найти тег" autocomplete="off" aria-label="Найти тег">
+          </label>
+          <div class="library-filter-chips library-filter-dynamic-chips" id="libraryDynamicTagChips">
+            <button type="button" data-filter-chip="all" data-filter-group="tag" class="active">Любой тег</button>
+          </div>
+          <div class="library-filter-no-tags" id="libraryNoMatchingTags" hidden>Такого тега нет в текущем каталоге</div>
+        </div>
         </div>
 
         <footer class="library-filter-footer">
-          <button type="button" class="library-filter-reset" id="libraryFilterReset">Сбросить</button>
+          <button type="button" class="library-filter-reset" id="libraryFilterReset">Сбросить всё</button>
           <button type="button" class="library-filter-apply" id="libraryFilterApply">Показать новеллы</button>
         </footer>
       </div>

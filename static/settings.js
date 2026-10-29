@@ -31,6 +31,24 @@
   };
 
   const DEFAULT_FILTER = { query: "", chips: [] };
+  const LIBRARY_FILTER_GROUPS = {
+    favorite: "collection",
+    hidden: "collection",
+    reading: "reading",
+    new: "reading",
+    start: "reading",
+    waiting: "reading",
+    finished: "reading",
+    subscription: "reading",
+    in_progress: "project",
+    completed: "project",
+    paused: "project",
+    free: "access",
+    subscription_access: "access",
+    "Слэш": "format",
+    "Гет": "format",
+    "Джен": "format",
+  };
 
   document.addEventListener("DOMContentLoaded", async function () {
     initTelegram();
@@ -107,7 +125,8 @@
     function isScrollLocked() {
       return document.body.classList.contains("reader-transaction-open")
         || document.body.classList.contains("zb-settings-open")
-        || document.body.classList.contains("reader-quick-settings-open");
+        || document.body.classList.contains("reader-quick-settings-open")
+        || document.body.classList.contains("library-filter-open");
     }
 
     function syncRootScrollLock() {
@@ -923,11 +942,71 @@
   }
 
   function getLibraryFilter() {
-    return { ...DEFAULT_FILTER, ...readJson(STORAGE_KEYS.libraryFilter, {}) };
+    const stored = readJson(STORAGE_KEYS.libraryFilter, {});
+    const legacyChips = { "Переводится": "in_progress", "Завершено": "completed" };
+    const chips = Array.isArray(stored && stored.chips)
+      ? Array.from(new Set(stored.chips.map(function (chip) {
+        const value = String(chip || "").trim();
+        return legacyChips[value] || value;
+      }).filter(function (chip) { return chip && chip !== "all"; })))
+      : [];
+    return {
+      query: String(stored && stored.query || "").trim(),
+      chips: chips,
+    };
   }
 
   function saveLibraryFilter(filter) {
-    writeJson(STORAGE_KEYS.libraryFilter, filter);
+    writeJson(STORAGE_KEYS.libraryFilter, {
+      query: String(filter && filter.query || "").trim(),
+      chips: Array.from(new Set(Array.isArray(filter && filter.chips) ? filter.chips.filter(Boolean) : [])),
+    });
+  }
+
+  function normalizeLibrarySearchText(value) {
+    return String(value || "")
+      .toLocaleLowerCase("ru")
+      .replace(/ё/g, "е")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zа-я0-9]+/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function libraryFilterGroup(chip, explicitGroup) {
+    if (explicitGroup) return String(explicitGroup);
+    if (LIBRARY_FILTER_GROUPS[chip]) return LIBRARY_FILTER_GROUPS[chip];
+    const matchingButton = Array.from(document.querySelectorAll("[data-filter-chip], [data-quick-filter]")).find(function (button) {
+      return String(button.dataset.filterChip || button.dataset.quickFilter || "") === String(chip || "");
+    });
+    return matchingButton && matchingButton.dataset.filterGroup ? matchingButton.dataset.filterGroup : "tag";
+  }
+
+  function libraryFilterLabel(chip) {
+    const matchingButton = Array.from(document.querySelectorAll("[data-filter-chip], [data-quick-filter]")).find(function (button) {
+      return String(button.dataset.filterChip || button.dataset.quickFilter || "") === String(chip || "");
+    });
+    if (matchingButton) {
+      const label = matchingButton.cloneNode(true);
+      label.querySelectorAll("[data-filter-count]").forEach(function (node) { node.remove(); });
+      return String(label.textContent || chip).trim();
+    }
+    return String(chip || "");
+  }
+
+  function formatNovelCount(count) {
+    const value = Math.max(0, Number(count || 0));
+    const mod100 = value % 100;
+    const mod10 = value % 10;
+    const word = mod100 >= 11 && mod100 <= 14
+      ? "новелл"
+      : mod10 === 1
+        ? "новелла"
+        : mod10 >= 2 && mod10 <= 4
+          ? "новеллы"
+          : "новелл";
+    return `${value} ${word}`;
   }
 
   function animateLibraryControl(element, className = "is-animating", duration = 260) {
@@ -948,20 +1027,43 @@
     if (!toggle || !panel || !input) return;
 
     input.value = getLibraryFilter().query || "";
-    toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+    const setOpen = function (open) {
+      panel.hidden = !open;
+      toggle.classList.toggle("is-active", open || Boolean(getLibraryFilter().query));
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) window.setTimeout(function () { input.focus({ preventScroll: true }); }, 30);
+    };
+
+    setOpen(Boolean(input.value));
     toggle.addEventListener("click", function () {
-      const willOpen = panel.hidden;
-      panel.hidden = !willOpen;
-      toggle.classList.toggle("is-active", willOpen);
-      toggle.setAttribute("aria-expanded", willOpen ? "true" : "false");
+      const willOpen = Boolean(panel.hidden);
+      setOpen(willOpen);
       animateLibraryControl(toggle);
-      if (willOpen) input.focus();
     });
+
+    panel.querySelectorAll("[data-search-close]").forEach(function (button) {
+      button.addEventListener("click", function () { setOpen(false); toggle.focus({ preventScroll: true }); });
+    });
+
     input.addEventListener("input", function () {
       const current = getLibraryFilter();
       current.query = input.value.trim();
       saveLibraryFilter(current);
       renderLibraryCards();
+    });
+    input.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      if (input.value) {
+        input.value = "";
+        const current = getLibraryFilter();
+        current.query = "";
+        saveLibraryFilter(current);
+        renderLibraryCards();
+      } else {
+        setOpen(false);
+        toggle.focus({ preventScroll: true });
+      }
     });
     if (clear) {
       clear.addEventListener("click", function () {
@@ -974,8 +1076,56 @@
       });
     }
     document.querySelectorAll("[data-quick-filter]").forEach(function (button) {
-      button.addEventListener("click", function () { toggleFilterChip(button.dataset.quickFilter); });
+      button.addEventListener("click", function () {
+        toggleFilterChip(button.dataset.quickFilter, true, button.dataset.filterGroup);
+      });
     });
+  }
+
+  function buildLibraryDynamicTags() {
+    const group = document.getElementById("libraryDynamicTagGroup");
+    const wrap = document.getElementById("libraryDynamicTagChips");
+    if (!group || !wrap) return;
+
+    const ignored = new Set(["слэш", "гет", "джен"]);
+    const tags = new Map();
+    document.querySelectorAll("[data-library-novel-card]").forEach(function (card) {
+      String(card.dataset.tags || "").split(/[\n;]+/).forEach(function (rawTag) {
+        const tag = rawTag.trim();
+        const normalized = normalizeLibrarySearchText(tag);
+        if (!tag || !normalized || ignored.has(normalized)) return;
+        if (!tags.has(normalized)) tags.set(normalized, tag);
+      });
+    });
+
+    Array.from(wrap.querySelectorAll('[data-filter-chip]:not([data-filter-chip="all"])')).forEach(function (button) { button.remove(); });
+    Array.from(tags.values()).sort(function (a, b) { return a.localeCompare(b, "ru"); }).forEach(function (tag) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.filterChip = tag;
+      button.dataset.filterGroup = "tag";
+      button.textContent = tag;
+      wrap.appendChild(button);
+    });
+
+    group.hidden = tags.size === 0;
+    const hint = document.getElementById("libraryDynamicTagHint");
+    if (hint) hint.textContent = tags.size ? `${tags.size} в каталоге` : "";
+
+    const search = document.getElementById("libraryTagFilterSearch");
+    const empty = document.getElementById("libraryNoMatchingTags");
+    if (search) {
+      search.addEventListener("input", function () {
+        const query = normalizeLibrarySearchText(search.value);
+        let visible = 0;
+        wrap.querySelectorAll('[data-filter-chip]:not([data-filter-chip="all"])').forEach(function (button) {
+          const matches = !query || normalizeLibrarySearchText(button.textContent).includes(query);
+          button.hidden = !matches;
+          if (matches) visible += 1;
+        });
+        if (empty) empty.hidden = visible !== 0;
+      });
+    }
   }
 
   function initLibraryFilters() {
@@ -985,31 +1135,64 @@
     const apply = document.getElementById("libraryFilterApply");
     if (!open || !sheet) return;
 
+    buildLibraryDynamicTags();
+    let restoreFocus = null;
+    const closeSheet = function () {
+      sheet.hidden = true;
+      document.body.classList.remove("library-filter-open");
+      open.classList.toggle("is-active", getLibraryFilter().chips.length > 0);
+      open.setAttribute("aria-expanded", "false");
+      if (restoreFocus && typeof restoreFocus.focus === "function") restoreFocus.focus({ preventScroll: true });
+      restoreFocus = null;
+    };
+
     open.setAttribute("aria-expanded", "false");
     open.addEventListener("click", function () {
       syncFilterSheetButtons();
       updateFilterApplyButton();
+      restoreFocus = document.activeElement;
       sheet.hidden = false;
+      document.body.classList.add("library-filter-open");
       open.classList.add("is-active");
       open.setAttribute("aria-expanded", "true");
       animateLibraryControl(open);
+      window.setTimeout(function () { sheet.focus({ preventScroll: true }); }, 30);
     });
     sheet.querySelectorAll("[data-filter-close]").forEach(function (button) {
-      button.addEventListener("click", function () {
-        sheet.hidden = true;
-        open.classList.remove("is-active");
-        open.setAttribute("aria-expanded", "false");
-      });
+      button.addEventListener("click", closeSheet);
+    });
+    sheet.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSheet();
+        return;
+      }
+      if (event.key === "Tab") {
+        const focusable = Array.from(sheet.querySelectorAll('button:not([disabled]):not([hidden]), input:not([disabled]):not([hidden])')).filter(function (element) {
+          return element.offsetParent !== null;
+        });
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     });
     sheet.querySelectorAll("[data-filter-chip]").forEach(function (button) {
       button.addEventListener("click", function () {
         const chip = button.dataset.filterChip;
+        const group = button.dataset.filterGroup || libraryFilterGroup(chip);
         if (chip === "all") {
           const current = getLibraryFilter();
-          current.chips = [];
+          current.chips = current.chips.filter(function (item) { return libraryFilterGroup(item) !== group; });
           saveLibraryFilter(current);
         } else {
-          toggleFilterChip(chip, false);
+          toggleFilterChip(chip, false, group);
         }
         syncFilterSheetButtons();
         renderLibraryCards();
@@ -1017,24 +1200,32 @@
       });
     });
     if (reset) {
-      reset.addEventListener("click", function () {
-        saveLibraryFilter({ query: "", chips: [] });
-        const input = document.getElementById("librarySearchInput");
-        if (input) input.value = "";
-        syncFilterSheetButtons();
-        renderLibraryCards();
-        updateFilterApplyButton();
-      });
+      reset.addEventListener("click", resetLibraryDiscovery);
     }
     if (apply) apply.addEventListener("click", function () {
-      sheet.hidden = true;
-      open.classList.remove("is-active");
-      open.setAttribute("aria-expanded", "false");
       renderLibraryCards();
+      closeSheet();
+    });
+
+    [document.getElementById("libraryResetAll"), document.getElementById("libraryEmptyReset")].forEach(function (button) {
+      if (button) button.addEventListener("click", resetLibraryDiscovery);
     });
   }
 
-  function toggleFilterChip(chip, shouldRender = true) {
+  function resetLibraryDiscovery() {
+    saveLibraryFilter({ query: "", chips: [] });
+    const input = document.getElementById("librarySearchInput");
+    const tagInput = document.getElementById("libraryTagFilterSearch");
+    if (input) input.value = "";
+    if (tagInput) {
+      tagInput.value = "";
+      tagInput.dispatchEvent(new Event("input"));
+    }
+    syncFilterSheetButtons();
+    renderLibraryCards();
+  }
+
+  function toggleFilterChip(chip, shouldRender = true, explicitGroup = "") {
     const current = getLibraryFilter();
     const normalized = String(chip || "").trim();
     if (!normalized) return;
@@ -1044,6 +1235,7 @@
       current.chips.push(normalized);
     }
     saveLibraryFilter(current);
+    syncFilterSheetButtons();
     if (shouldRender) renderLibraryCards();
   }
 
@@ -1051,8 +1243,34 @@
     const current = getLibraryFilter();
     document.querySelectorAll("[data-filter-chip]").forEach(function (button) {
       const chip = button.dataset.filterChip;
-      button.classList.toggle("active", chip === "all" ? current.chips.length === 0 : current.chips.includes(chip));
+      const group = button.dataset.filterGroup || libraryFilterGroup(chip);
+      const groupHasSelection = current.chips.some(function (item) { return libraryFilterGroup(item) === group; });
+      const active = chip === "all" ? !groupHasSelection : current.chips.includes(chip);
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
     });
+    document.querySelectorAll("[data-quick-filter]").forEach(function (button) {
+      const active = current.chips.includes(String(button.dataset.quickFilter || ""));
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+
+    const filterCount = document.getElementById("libraryFilterCount");
+    if (filterCount) {
+      filterCount.textContent = String(current.chips.length);
+      filterCount.hidden = current.chips.length === 0;
+    }
+    const searchCount = document.getElementById("librarySearchCount");
+    if (searchCount) {
+      searchCount.textContent = current.query ? "1" : "0";
+      searchCount.hidden = !current.query;
+    }
+    const filterToggle = document.getElementById("libraryFilterToggle");
+    if (filterToggle && document.getElementById("libraryFilterSheet")?.hidden) filterToggle.classList.toggle("is-active", current.chips.length > 0);
+    const searchToggle = document.getElementById("librarySearchToggle");
+    if (searchToggle) searchToggle.classList.toggle("has-value", Boolean(current.query));
+    const clear = document.getElementById("librarySearchClear");
+    if (clear) clear.hidden = !current.query;
   }
 
   function renderActiveFilters() {
@@ -1061,13 +1279,13 @@
     if (!wrap) return;
     const items = [];
     filter.chips.forEach(function (chip) {
-      items.push(`<button type="button" data-remove-filter="${escapeHtml(chip)}">${escapeHtml(chip)} <span>×</span></button>`);
+      items.push(`<button type="button" data-remove-filter="${escapeHtml(chip)}" data-filter-group="${escapeHtml(libraryFilterGroup(chip))}"><span>${escapeHtml(libraryFilterLabel(chip))}</span><b aria-hidden="true">×</b></button>`);
     });
-    if (filter.query) items.push(`<button type="button" data-clear-search>Поиск: ${escapeHtml(filter.query)} <span>×</span></button>`);
+    if (filter.query) items.push(`<button type="button" data-clear-search><span>Поиск: ${escapeHtml(filter.query)}</span><b aria-hidden="true">×</b></button>`);
     wrap.hidden = items.length === 0;
     wrap.innerHTML = items.join("");
     wrap.querySelectorAll("[data-remove-filter]").forEach(function (button) {
-      button.addEventListener("click", function () { toggleFilterChip(button.dataset.removeFilter); });
+      button.addEventListener("click", function () { toggleFilterChip(button.dataset.removeFilter, true, button.dataset.filterGroup); });
     });
     const clearSearch = wrap.querySelector("[data-clear-search]");
     if (clearSearch) {
@@ -1531,10 +1749,34 @@
       empty.hidden = visibleTotal !== 0;
     }
 
+    updateLibraryFilterFacetCounts(cards, filter);
+    updateLibraryDiscoverySummary(visibleTotal, cards.length, filter);
+    syncFilterSheetButtons();
     renderActiveFilters();
     renderLibraryUpdateBanner(buckets.reading.concat(buckets.favorite));
     renderLibraryContinuePanel(history, cards);
     updateFilterApplyButton(visibleTotal);
+  }
+
+  function updateLibraryDiscoverySummary(visibleCount, totalCount, filter) {
+    const summary = document.getElementById("libraryResultSummary");
+    const detail = document.getElementById("libraryResultDetail");
+    const feedback = document.getElementById("librarySearchFeedback");
+    const reset = document.getElementById("libraryResetAll");
+    const preview = document.getElementById("libraryFilterPreview");
+    const hasConditions = Boolean(filter.query || (filter.chips || []).length);
+    const resultText = formatNovelCount(visibleCount);
+
+    if (summary) summary.textContent = hasConditions ? `Найдено: ${resultText}` : `В библиотеке ${formatNovelCount(totalCount)}`;
+    if (detail) {
+      if (filter.query && filter.chips.length) detail.textContent = `По запросу «${filter.query}» с выбранными фильтрами`;
+      else if (filter.query) detail.textContent = `По запросу «${filter.query}»`;
+      else if (filter.chips.length) detail.textContent = `Выбрано условий: ${filter.chips.length}`;
+      else detail.textContent = "Можно искать по названию, описанию и тегам";
+    }
+    if (feedback) feedback.textContent = filter.query ? `Поиск: ${resultText}` : "";
+    if (reset) reset.hidden = !hasConditions;
+    if (preview) preview.textContent = hasConditions ? `Сейчас подходит ${resultText}` : "Подберите историю под настроение";
   }
 
   function prepareLibraryCard(card, historyByNovel, readIds, completedNovels) {
@@ -1731,91 +1973,115 @@
     return state;
   }
 
-  function cardMatchesFilter(card, filter) {
-    const query = String(filter.query || "").toLowerCase().trim();
-    const chips = filter.chips || [];
-    const state = card.dataset.cardState || "";
-    const isFavorite = card.dataset.isFavorite === "true" || card.classList.contains("is-favorite");
-    const haystack = [
+  function libraryCardHaystack(card) {
+    const source = [
+      card.dataset.novelId,
       card.dataset.novelTitle,
+      card.dataset.novelShort,
       card.dataset.title,
       card.dataset.description,
       card.dataset.tags,
       card.dataset.statusLabel,
       card.dataset.relation,
-    ].join(" ").toLowerCase();
+    ].join(" ");
+    let normalized = normalizeLibrarySearchText(source);
+    if (/слэш/.test(normalized)) normalized += " bl бл яой даньмей";
+    if (/гет/.test(normalized)) normalized += " het gl гл";
+    return normalized;
+  }
 
-    if (query && !haystack.includes(query)) {
+  function boundedLibraryDistance(left, right) {
+    if (left === right) return 0;
+    if (Math.abs(left.length - right.length) > 1) return 2;
+    let previous = Array.from({ length: right.length + 1 }, function (_, index) { return index; });
+    for (let row = 1; row <= left.length; row += 1) {
+      const current = [row];
+      let rowMinimum = row;
+      for (let column = 1; column <= right.length; column += 1) {
+        const value = Math.min(
+          current[column - 1] + 1,
+          previous[column] + 1,
+          previous[column - 1] + (left[row - 1] === right[column - 1] ? 0 : 1)
+        );
+        current[column] = value;
+        rowMinimum = Math.min(rowMinimum, value);
+      }
+      if (rowMinimum > 1) return 2;
+      previous = current;
+    }
+    return previous[right.length];
+  }
+
+  function cardMatchesQuery(card, query) {
+    const normalizedQuery = normalizeLibrarySearchText(query);
+    if (!normalizedQuery) return true;
+    const haystack = libraryCardHaystack(card);
+    const words = haystack.split(" ").filter(Boolean);
+    return normalizedQuery.split(" ").filter(Boolean).every(function (token) {
+      if (haystack.includes(token)) return true;
+      if (token.length >= 3 && words.some(function (word) { return word.startsWith(token); })) return true;
+      if (token.length >= 5 && words.some(function (word) { return Math.abs(word.length - token.length) <= 1 && boundedLibraryDistance(word, token) <= 1; })) return true;
       return false;
+    });
+  }
+
+  function cardMatchesFilterChip(card, chip) {
+    const state = card.dataset.cardState || "";
+    const isFavorite = card.dataset.isFavorite === "true" || card.classList.contains("is-favorite");
+    if (!chip || chip === "all") return true;
+    if (chip === "favorite") return isFavorite;
+    if (chip === "hidden") return card.dataset.isHidden === "true";
+    if (chip === "reading") return state === "reading" || state === "new" || state === "waiting_new";
+    if (chip === "new") return state === "new";
+    if (chip === "start") return state === "start";
+    if (chip === "waiting") return state === "locked" || state === "soon" || state === "waiting_new";
+    if (chip === "finished") return state === "completed";
+    if (chip === "subscription") return state === "subscription";
+    if (chip === "in_progress" || chip === "completed" || chip === "paused") return card.dataset.status === chip;
+    if (chip === "free") return card.dataset.allFree === "true" || Number(card.dataset.freeChapters || 0) > 0;
+    if (chip === "subscription_access") {
+      const requiredRole = String(card.dataset.requiredRole || "guest").toLowerCase();
+      return card.dataset.isGift === "true" || requiredRole === "traveler" || requiredRole === "keeper";
     }
+    return libraryCardHaystack(card).includes(normalizeLibrarySearchText(chip));
+  }
 
-    for (const chip of chips) {
-      if (!chip || chip === "all") {
-        continue;
+  function cardMatchesFilter(card, filter, ignoredGroup = "") {
+    if (!cardMatchesQuery(card, filter.query)) return false;
+    const grouped = {};
+    (filter.chips || []).forEach(function (chip) {
+      const group = libraryFilterGroup(chip);
+      if (group === ignoredGroup) return;
+      if (!grouped[group]) grouped[group] = [];
+      grouped[group].push(chip);
+    });
+    return Object.keys(grouped).every(function (group) {
+      return grouped[group].some(function (chip) { return cardMatchesFilterChip(card, chip); });
+    });
+  }
+
+  function updateLibraryFilterFacetCounts(cards, filter) {
+    document.querySelectorAll("[data-filter-chip]").forEach(function (button) {
+      const chip = String(button.dataset.filterChip || "");
+      const group = button.dataset.filterGroup || libraryFilterGroup(chip);
+      let count = 0;
+      cards.forEach(function (card) {
+        if (!cardMatchesFilter(card, filter, group)) return;
+        if (chip === "all" || cardMatchesFilterChip(card, chip)) count += 1;
+      });
+      let badge = button.querySelector("[data-filter-count]");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.dataset.filterCount = "true";
+        button.appendChild(badge);
       }
-
-      if (chip === "favorite") {
-        if (!isFavorite) {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "reading") {
-        if (!(state === "reading" || state === "new" || state === "waiting_new")) {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "new") {
-        if (state !== "new") {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "start") {
-        if (state !== "start") {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "waiting") {
-        if (!(state === "locked" || state === "soon" || state === "subscription")) {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "finished") {
-        if (state !== "completed") {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "hidden") {
-        if (card.dataset.isHidden !== "true") {
-          return false;
-        }
-        continue;
-      }
-
-      if (chip === "in_progress" || chip === "completed" || chip === "paused") {
-        if (card.dataset.status !== chip) {
-          return false;
-        }
-        continue;
-      }
-
-      if (!haystack.includes(String(chip).toLowerCase())) {
-        return false;
-      }
-    }
-
-    return true;
+      badge.textContent = String(count);
+      const selected = chip === "all"
+        ? !filter.chips.some(function (item) { return libraryFilterGroup(item) === group; })
+        : filter.chips.includes(chip);
+      button.disabled = count === 0 && !selected;
+      button.classList.toggle("is-unavailable", button.disabled);
+    });
   }
 
   function sortCards(cards) {
@@ -1861,7 +2127,7 @@
     }
 
     if (typeof knownCount === "number") {
-      button.textContent = `Показать ${knownCount} новелл`;
+      button.textContent = `Показать ${formatNovelCount(knownCount)}`;
       return;
     }
 
@@ -1869,12 +2135,13 @@
       '[data-section-list="favorite"] [data-library-novel-card], ' +
       '[data-section-list="reading"] [data-library-novel-card], ' +
       '[data-section-list="start"] [data-library-novel-card], ' +
+      '[data-section-list="subscription"] [data-library-novel-card], ' +
       '[data-section-list="waiting"] [data-library-novel-card], ' +
       '[data-section-list="finished"] [data-library-novel-card], ' +
       '[data-section-list="hidden"] [data-library-novel-card]'
     );
 
-    button.textContent = `Показать ${visibleCards.length} новелл`;
+    button.textContent = `Показать ${formatNovelCount(visibleCards.length)}`;
   }
 
   function renderLibraryContinuePanel(history, cards) {
