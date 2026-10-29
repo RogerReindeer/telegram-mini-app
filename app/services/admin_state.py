@@ -49,9 +49,9 @@ def build_admin_state() -> dict[str, Any]:
             "telegram_bot": _configured(settings.telegram_bot_token),
             "traveler_group": _configured(settings.normalized_traveler_chat_id),
             "keeper_group": _configured(settings.normalized_keeper_chat_id),
-            "tribute_api": _configured(settings.tribute_api_key),
-            "tribute_traveler": _configured(settings.tribute_traveler_subscription_id or settings.tribute_traveler_url),
-            "tribute_keeper": _configured(settings.tribute_keeper_subscription_id or settings.tribute_keeper_url),
+            "boosty_traveler": _configured(settings.boosty_traveler_url),
+            "boosty_keeper": _configured(settings.boosty_keeper_url),
+            "reader_coins": _configured(settings.reader_coins_enabled),
         },
         "content": content_counts,
         "sync": {

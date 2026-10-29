@@ -47,6 +47,8 @@ def ready() -> JSONResponse:
         "features": {
             "reader_coins": settings.reader_coins_enabled,
             "reader_coin_grants": settings.reader_coin_grants_enabled,
+            "reader_test_free_coins": bool(getattr(settings, "reader_test_free_coins_enabled", False)),
+            "reader_test_purchases": bool(getattr(settings, "reader_test_purchases_enabled", False)),
         },
     }
     return JSONResponse(payload, status_code=200 if is_ready else 503)
@@ -63,6 +65,8 @@ def version() -> dict[str, object]:
         "features": {
             "reader_coins": settings.reader_coins_enabled,
             "reader_coin_grants": settings.reader_coin_grants_enabled,
+            "reader_test_free_coins": bool(getattr(settings, "reader_test_free_coins_enabled", False)),
+            "reader_test_purchases": bool(getattr(settings, "reader_test_purchases_enabled", False)),
         },
     }
 

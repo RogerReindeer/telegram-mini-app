@@ -166,7 +166,7 @@
     const item = data || {};
     const membershipBased = Boolean(item.membership_based);
     const label = item.label || (item.role === "keeper" ? "📜 Хранитель свитков" : "🌱 Странствующий читатель");
-    const source = item.provider_label || (item.provider === "tribute" ? "Tribute" : item.provider === "boosty" ? "Boosty" : "");
+    const source = item.provider_label || (item.provider === "reader_coins" ? "Монетки" : item.provider === "boosty" ? "Boosty" : "");
     const details = [];
     if (item.started_at) details.push(`<span><b>Куплена:</b> ${escapeHtml(formatSubscriptionDate(item.started_at))}</span>`);
     if (item.expires_at) details.push(`<span><b>Действует до:</b> ${escapeHtml(formatSubscriptionDate(item.expires_at))}</span>`);

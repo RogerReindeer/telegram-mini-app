@@ -819,7 +819,7 @@ def access_paywall_copy(
         "viewer_role_label": role_display_name(viewer_role),
         "viewer_role": viewer_role,
         "show_boosty": False,
-        "show_tribute": show_subscription_choices,
+        "show_subscription_choices": show_subscription_choices,
         "show_traveler_purchase": show_traveler_purchase,
         "show_keeper_purchase": show_keeper_purchase,
         "traveler_already_owned": traveler_already_owned,
@@ -858,8 +858,9 @@ def chapter_toc_notice(decision: AccessDecision) -> dict[str, str]:
             "hint": "Глава открыта благодаря подписке",
             "class_name": "chapter-access-subscription",
         }
-    if status == "full_book_entitlement":
-        return {"label": "Открыта покупкой", "hint": "Доступ к книге куплен отдельно", "class_name": "chapter-access-public"}
+    if status in {"full_book_entitlement", "chapter_entitlement"}:
+        hint = "Доступ к книге куплен отдельно" if status == "full_book_entitlement" else "Глава куплена за Монетки"
+        return {"label": "Открыта покупкой", "hint": hint, "class_name": "chapter-access-public"}
     if status == "free_scheduled":
         return {
             "label": f"Откроется {release_label}" if release_label else "Откроется позже",
@@ -925,6 +926,12 @@ def _scheduled_date_for_role(chapter: dict, role: str) -> str:
     return clean_value(parse_date(value) or value)
 
 
+def profile_has_chapter_access(profile: dict[str, Any], chapter: dict) -> bool:
+    chapter_id = clean_value(chapter.get("chapter_id") or chapter.get("id"))
+    owned = {clean_value(value) for value in (profile.get("chapter_entitlements") or [])}
+    return bool(chapter_id and chapter_id in owned)
+
+
 def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, Any]) -> AccessDecision:
     """Decide access from effective role boundaries plus scheduled public release.
 
@@ -963,6 +970,22 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             required_role=required_role, viewer_role=role,
         )
 
+    if profile.get("has_full_book_access") or profile_has_chapter_access(profile, chapter):
+        url = chapter_premium_url(chapter) or chapter_public_url(chapter)
+        if url:
+            full_book = bool(profile.get("has_full_book_access"))
+            return AccessDecision(
+                allowed=True,
+                status=("full_book_entitlement" if full_book else "chapter_entitlement"),
+                url=url,
+                label="Открыта покупкой",
+                class_name="chapter-access-public",
+                reason=("full_book_entitlement" if full_book else "chapter_entitlement"),
+                required_role=required_role,
+                viewer_role=role,
+                release_date=_scheduled_date_for_role(chapter, "keeper") or _scheduled_date_for_role(chapter, "traveler"),
+            )
+
     traveler_url = chapter_traveler_url(chapter, novel)
     guest_free_url = chapter_guest_free_url(chapter, novel)
     keeper_url = chapter_keeper_url(chapter, novel)
@@ -989,16 +1012,6 @@ def _decide_chapter_access_raw(chapter: dict, novel: dict, profile: dict[str, An
             class_name="chapter-access-locked", reason="outside_novel_status_boundary",
             required_role="traveler", viewer_role=role, release_date=traveler_date,
         )
-
-    if profile.get("has_full_book_access") and not is_gift_novel:
-        url = chapter_premium_url(chapter) or chapter_public_url(chapter)
-        if url:
-            return AccessDecision(
-                allowed=True, status="full_book_entitlement", url=url, label="Открыта",
-                class_name="chapter-access-public", reason="full_book_entitlement",
-                required_role=required_role, viewer_role=role,
-                release_date=keeper_date or traveler_date,
-            )
 
     if is_gift_novel:
         if role == "keeper" and keeper_url:

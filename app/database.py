@@ -11,6 +11,8 @@ from __future__ import annotations
 from typing import Any
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 from .config import settings
 
@@ -27,6 +29,23 @@ class SupabaseClient:
         # Reuse TLS connections to Supabase instead of opening a new socket for
         # every catalog/auth/sync request. This is especially noticeable on Render.
         self.session = requests.Session()
+        # Retry only safe, idempotent reads. Retrying POST/PATCH/DELETE here could
+        # repeat a payment or a state change; those operations use their own
+        # database-level idempotency instead.
+        retry_policy = Retry(
+            total=3,
+            connect=3,
+            read=3,
+            status=3,
+            backoff_factor=0.25,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=frozenset({"GET", "HEAD", "OPTIONS"}),
+            respect_retry_after_header=True,
+            raise_on_status=False,
+        )
+        adapter = HTTPAdapter(max_retries=retry_policy, pool_connections=10, pool_maxsize=20)
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
 
     def ready(self) -> bool:
         return bool(self.url and self.service_key)

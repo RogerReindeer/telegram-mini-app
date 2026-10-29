@@ -23,12 +23,11 @@ def create_auth_router() -> APIRouter:
         viewer = viewer_from_request(request)
         profile = viewer_access_profile(viewer, force_group_refresh=refresh)
         summary = public_subscription_summary(viewer, profile)
-        # Payment links are public UI configuration. Returning both levels lets
-        # Settings render one compact "choose support level" control instead
-        # of hard-coding Tribute URLs in JavaScript.
+        # Boosty links are public UI configuration. Returning both levels lets
+        # Settings render one compact support-level control.
         summary["support"] = {
-            "traveler_url": settings.tribute_traveler_url,
-            "keeper_url": settings.tribute_keeper_url,
+            "traveler_url": settings.boosty_traveler_url,
+            "keeper_url": settings.boosty_keeper_url,
         }
         return summary
 
@@ -56,7 +55,7 @@ def create_auth_router() -> APIRouter:
         viewer = viewer_from_request(request)
         profile = viewer_access_profile(viewer, force_group_refresh=refresh)
         groups = profile.get("groups") or {}
-        subscriptions = profile.get("tribute_subscriptions") or []
+        subscriptions = profile.get("subscriptions") or []
         entitlements = profile.get("book_entitlements") or []
         role = profile.get("role") or "guest"
         rights = {
@@ -64,7 +63,7 @@ def create_auth_router() -> APIRouter:
             "can_use_app": bool(profile.get("app_access")),
             "app_access_source": profile.get("app_access_source") or "",
             "group_role": profile.get("group_role") or "guest",
-            "tribute_role": profile.get("tribute_role") or "guest",
+            "subscription_role": profile.get("subscription_role") or "guest",
             "can_view_gift_books": role in {"traveler", "keeper"},
             "can_read_premium_releases": role == "keeper",
             "book_entitlements_count": len(entitlements),
@@ -80,7 +79,9 @@ def create_auth_router() -> APIRouter:
             "telegram": viewer,
             "rights": rights,
             "groups": groups,
-            "tribute_subscriptions": subscriptions,
+            "subscriptions": subscriptions,
+            "reader_coin_entitlements": profile.get("reader_coin_entitlements") or [],
+            "chapter_entitlements": profile.get("chapter_entitlements") or [],
             "book_entitlements": entitlements,
             "configuration": {
                 "main": {
@@ -94,14 +95,14 @@ def create_auth_router() -> APIRouter:
                     "chat_id": settings.traveler_chat_id,
                     "normalized_chat_id": settings.normalized_traveler_chat_id,
                     "chat_ids": list(settings.traveler_chat_ids),
-                    "payment_url": settings.tribute_traveler_url,
+                    "payment_url": settings.boosty_traveler_url,
                 },
                 "keeper": {
                     "label": "📜 Хранитель свитков",
                     "chat_id": settings.keeper_chat_id,
                     "normalized_chat_id": settings.normalized_keeper_chat_id,
                     "chat_ids": list(settings.keeper_chat_ids),
-                    "payment_url": settings.tribute_keeper_url,
+                    "payment_url": settings.boosty_keeper_url,
                 },
             },
             "checked_at": profile.get("checked_at"),

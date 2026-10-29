@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from collections import deque
@@ -134,24 +135,26 @@ class InMemoryRateLimiter:
     def __init__(self) -> None:
         self._buckets: dict[str, _RateLimitBucket] = {}
         self._last_cleanup = time.monotonic()
+        self._lock = threading.Lock()
 
     def allow(self, key: str, *, limit: int, window_seconds: int) -> tuple[bool, int, int]:
-        now = time.monotonic()
-        window = max(1, int(window_seconds or 60))
-        limit = max(1, int(limit or 1))
-        bucket = self._buckets.setdefault(key, _RateLimitBucket())
-        cutoff = now - window
-        while bucket.hits and bucket.hits[0] <= cutoff:
-            bucket.hits.popleft()
-        if len(bucket.hits) >= limit:
-            retry_after = max(1, int(window - (now - bucket.hits[0])))
-            return False, 0, retry_after
-        bucket.hits.append(now)
-        remaining = max(0, limit - len(bucket.hits))
-        if now - self._last_cleanup > window:
-            self._cleanup(cutoff)
-            self._last_cleanup = now
-        return True, remaining, 0
+        with self._lock:
+            now = time.monotonic()
+            window = max(1, int(window_seconds or 60))
+            limit = max(1, int(limit or 1))
+            bucket = self._buckets.setdefault(key, _RateLimitBucket())
+            cutoff = now - window
+            while bucket.hits and bucket.hits[0] <= cutoff:
+                bucket.hits.popleft()
+            if len(bucket.hits) >= limit:
+                retry_after = max(1, int(window - (now - bucket.hits[0])))
+                return False, 0, retry_after
+            bucket.hits.append(now)
+            remaining = max(0, limit - len(bucket.hits))
+            if now - self._last_cleanup > window:
+                self._cleanup(cutoff)
+                self._last_cleanup = now
+            return True, remaining, 0
 
     def _cleanup(self, cutoff: float) -> None:
         empty_keys: list[str] = []

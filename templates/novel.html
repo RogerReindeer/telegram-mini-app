@@ -25,6 +25,14 @@
       {% set visible_tags = novel.toc_tag_items if novel.toc_tag_items is defined else (novel.tag_items if novel.tag_items is defined else novel.catalog_tag_items) %}
       {% if visible_tags or novel.age_rating %}<div class="novel-tags-v2 novel-toc-tags novel-toc-tags-full" aria-label="Теги">{% if novel.age_rating %}<span class="tag tag-rating">{{ novel.age_rating }}</span>{% endif %}{% for tag in visible_tags %}{% if tag.is_spoiler %}<button class="tag tag-spoiler tag-spoiler-reveal" type="button" data-spoiler="{{ tag.text }}" data-spoiler-class="{{ tag.class_name }}" aria-label="Показать скрытый тег"><span class="tag-spoiler-icon" aria-hidden="true">⚠️</span><span class="tag-spoiler-text">Скрытый тег</span><span class="tag-spoiler-action">показать</span></button>{% else %}<span class="tag {{ tag.class_name }}">{{ tag.text }}</span>{% endif %}{% endfor %}</div>{% endif %}
     </section>
+    {% if reader_coins_enabled %}
+      <section class="reader-store novel-reader-store" data-reader-store data-novel-id="{{ novel.id }}" hidden>
+        <div class="reader-store-heading"><div><span>Купить доступ</span><strong>Баланс: <b data-reader-coins-balance>—</b> 🪙</strong></div><small>1 ₽ = 1 Монетка</small></div>
+        <div class="reader-store-products" data-reader-store-products></div>
+        <p class="reader-store-empty" data-reader-store-empty hidden>Для этой книги пока нет предложений за Монетки.</p>
+        <p class="reader-store-message" data-reader-store-message hidden role="status"></p>
+      </section>
+    {% endif %}
     {% if has_readable_chapters and read_ns.first_available_id %}<section class="novel-read-action novel-read-action-v2 novel-read-action-priority"><a class="primary-read-button novel-continue-button" id="novelReadButton" href="/chapter/{{ read_ns.first_available_id }}">Начать читать</a><p class="novel-read-action-hint" id="novelReadHint" hidden></p></section>{% endif %}
     {% if novel.description_paragraphs or novel.description %}<section class="novel-description-card" data-collapsible-description><div class="novel-section-heading"><h2>О новелле</h2></div><div class="collapsible-description-content novel-description-v2-content" data-description-content>{% if novel.description_paragraphs %}{% for paragraph in novel.description_paragraphs %}<p>{{ paragraph }}</p>{% endfor %}{% else %}<p>{{ novel.description }}</p>{% endif %}</div><button class="description-toggle novel-description-toggle-v2" type="button" data-description-toggle>Ещё</button></section>{% endif %}
     {% if novel.top_description or novel.bottom_description %}<section class="character-info novel-character-info-v2">{% if novel.top_description %}<article class="character-card"><h2>Актив</h2>{% if novel.top_description_paragraphs %}{% for paragraph in novel.top_description_paragraphs %}<p>{{ paragraph }}</p>{% endfor %}{% else %}<p>{{ novel.top_description }}</p>{% endif %}</article>{% endif %}{% if novel.bottom_description %}<article class="character-card"><h2>Пассив</h2>{% if novel.bottom_description_paragraphs %}{% for paragraph in novel.bottom_description_paragraphs %}<p>{{ paragraph }}</p>{% endfor %}{% else %}<p>{{ novel.bottom_description }}</p>{% endif %}</article>{% endif %}</section>{% endif %}
@@ -36,5 +44,6 @@
   <script src="{{ static_url('settings.js') }}"></script>
   <script src="{{ static_url('settings-panel.js') }}"></script>
   <script src="{{ static_url('reader-experience.js') }}"></script>
+  {% if reader_coins_enabled %}<script src="{{ static_url('reader-store.js') }}"></script>{% endif %}
 </body>
 </html>

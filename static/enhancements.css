@@ -726,7 +726,7 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
 }
 
 
-/* v138 — Tribute paywall and full-year release dates */
+/* v138 — subscription paywall and full-year release dates */
 .chapter-paywall-date {
   white-space: nowrap !important;
   letter-spacing: 0.01em;
@@ -737,7 +737,7 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
   gap: 10px !important;
   width: 100% !important;
 }
-.chapter-access-purchase-tribute,
+.chapter-access-purchase-boosty,
 .chapter-access-purchase-traveler,
 .chapter-access-purchase-keeper,
 .subscription-refresh-button,
@@ -761,7 +761,7 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
   border: 1px solid var(--app-accent, #ff6b00) !important;
   color: #fff !important;
 }
-.chapter-paywall-tribute-note {
+.chapter-paywall-support-note {
   margin: 0 !important;
   padding: 4px 10px 0 !important;
   color: var(--text-muted, #7b6a60) !important;
@@ -775,8 +775,8 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
   border-color: color-mix(in srgb, var(--app-accent, #ff6b00) 55%, #3a2a20) !important;
   color: #fff3e7 !important;
 }
-.theme-dark .chapter-paywall-tribute-note,
-[data-theme="dark"] .chapter-paywall-tribute-note {
+.theme-dark .chapter-paywall-support-note,
+[data-theme="dark"] .chapter-paywall-support-note {
   color: #cdbdb0 !important;
 }
 @media (min-width: 740px) {
@@ -786,7 +786,7 @@ body[data-resolved-theme="dark"] .page-library .library-continue-progress {
   }
 }
 
-/* compatibility/current marker: v138-tribute-paywall-dates */
+/* compatibility/current marker: v138-subscription-paywall-dates */
 
 
 /* === v139 mobile novel/reader/history fix === */
@@ -1489,7 +1489,7 @@ body[data-reader-theme="dark"] .reader-floating-next {
 
 /* current marker: v150-access-settings-groups */
 
-/* v150 — access settings: Telegram groups and Tribute payment links */
+/* v150 — access settings: Telegram groups and subscription payment links */
 .access-debug-pay-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2991,6 +2991,92 @@ body.dark .library-filter-footer {
 
 
 /* current marker: v175-novel-title-spacing-restore */
+
+/* Reader Coins store */
+.reader-store {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent, #cf7f55) 28%, transparent);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface, #fffaf4) 94%, var(--accent, #cf7f55) 6%);
+  box-shadow: 0 10px 28px rgba(80, 52, 39, .08);
+}
+.reader-store-heading,
+.reader-store-heading > div,
+.library-wallet-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.reader-store-heading > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+.reader-store-heading span,
+.reader-store-product-type,
+.library-wallet-label { color: var(--muted, #806f67); font-size: 12px; }
+.reader-store-heading small { color: var(--muted, #806f67); }
+.reader-store-products { display: grid; gap: 10px; margin-top: 12px; }
+.reader-store-product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface, #fff) 90%, transparent);
+  border: 1px solid rgba(120, 90, 70, .12);
+}
+.reader-store-product > div { display: grid; gap: 3px; }
+.reader-store-product small { color: var(--muted, #806f67); }
+.reader-store-buy,
+.reader-topup-presets button,
+.reader-topup-custom button {
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 13px;
+  color: #fff;
+  background: var(--accent, #cf7f55);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.reader-store-buy:disabled { opacity: .5; cursor: not-allowed; }
+.reader-test-topup { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(120, 90, 70, .14); }
+.reader-topup-presets { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+.reader-topup-presets button { padding: 8px 10px; background: color-mix(in srgb, var(--accent, #cf7f55) 80%, #574039); }
+.reader-topup-custom { display: flex; gap: 8px; margin-top: 9px; }
+.reader-topup-custom input,
+.admin-store-form input,
+.admin-store-form select {
+  min-width: 0;
+  border: 1px solid rgba(120, 90, 70, .22);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+.reader-topup-custom input { flex: 1; }
+.reader-store-message { margin: 10px 0 0; font-size: 13px; }
+.reader-store-message[data-tone="success"] { color: #16734b; }
+.reader-store-message[data-tone="error"] { color: #b43b3b; }
+.reader-store-empty { color: var(--muted, #806f67); font-size: 13px; }
+.library-reader-store .library-wallet-card { margin: -16px -16px 14px; padding: 16px; border-radius: 18px 18px 0 0; }
+.library-wallet-copy { display: grid; gap: 2px; }
+.library-wallet-copy small { color: var(--muted, #806f67); }
+.chapter-reader-store { text-align: left; }
+.admin-store-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.admin-store-form label { display: grid; gap: 5px; font-size: 12px; color: var(--muted, #806f67); }
+.admin-store-form .admin-store-wide { grid-column: span 2; }
+.admin-store-form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+.admin-store-form-actions button,
+.admin-store-rollback button { border: 0; border-radius: 10px; padding: 10px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.admin-store-rollback { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(120, 90, 70, .16); }
+.admin-store-rollback button { background: #9f3838; color: #fff; }
+@media (max-width: 720px) {
+  .admin-store-form { grid-template-columns: 1fr 1fr; }
+  .admin-store-form .admin-store-wide { grid-column: 1 / -1; }
+  .reader-store-product { align-items: flex-start; }
+}
 
 /* v175 — restore readable spacing after the novel title on TOC pages.
    Previous mobile compression was too aggressive: title, subtitle and facts

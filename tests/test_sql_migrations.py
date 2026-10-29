@@ -42,6 +42,20 @@ def test_reader_coins_relaxes_legacy_insert_blockers():
     assert "reader_coin_ledger_idempotency_key_idx" in sql
 
 
+def test_reader_store_purchase_and_rollback_are_atomic_service_role_rpcs():
+    sql = (ROOT / "sql" / "migrations" / "005_reader_store_test_commerce.sql").read_text(encoding="utf-8")
+    assert "create or replace function public.reader_grant_test_coins" in sql
+    assert "create or replace function public.reader_purchase_product" in sql
+    assert "create or replace function public.reader_rollback_test_purchases" in sql
+    assert "pg_advisory_xact_lock" in sql
+    assert "reader_insufficient_balance" in sql
+    assert "reader_product_already_owned" in sql
+    assert "set revoked_at = now()" in sql
+    assert "operation_type in ('qinghe_grant', 'store_spend')" in sql
+    assert "revoke execute on function public.reader_purchase_product" in sql
+    assert "grant execute on function public.reader_purchase_product" in sql
+
+
 def test_security_hardening_removes_duplicate_analytics_trigger_before_rebuild():
     sql = (ROOT / "sql" / "migrations" / "004_security_analytics_hardening.sql").read_text(
         encoding="utf-8"

@@ -49,8 +49,8 @@ def _env_checks() -> list[Check]:
     optional = {
         "TRAVELER_CHAT_IDS": ",".join(settings.traveler_chat_ids),
         "KEEPER_CHAT_IDS": ",".join(settings.keeper_chat_ids),
-        "TRIBUTE_TRAVELER_URL": settings.tribute_traveler_url,
-        "TRIBUTE_KEEPER_URL": settings.tribute_keeper_url,
+        "BOOSTY_TRAVELER_URL": settings.boosty_traveler_url,
+        "BOOSTY_KEEPER_URL": settings.boosty_keeper_url,
     }
     for env_name, value in optional.items():
         checks.append(_check(
@@ -67,6 +67,13 @@ def _env_checks() -> list[Check]:
         f"Reader Coins {'включены' if settings.reader_coins_enabled else 'выключены'}.",
         severity="warning",
     ))
+    if settings.reader_test_free_coins_enabled or settings.reader_test_purchases_enabled:
+        checks.append(_check(
+            "feature.READER_TEST_MODE",
+            "warn",
+            "Тестовые бесплатные начисления или покупки включены. Отключите их после теста.",
+            severity="warning",
+        ))
     checks.append(_check(
         "feature.READER_COIN_GRANTS_ENABLED",
         "pass",
@@ -111,7 +118,10 @@ def _database_checks() -> list[Check]:
 
     tables = ["novels", "chapters", "user_novel_state", "user_chapter_progress", "user_entitlements", "sync_runs"]
     if settings.reader_coins_enabled or settings.reader_coin_grants_enabled:
-        tables.extend(["reader_coin_wallets", "reader_coin_ledger"])
+        tables.extend([
+            "reader_coin_wallets", "reader_coin_ledger", "reader_store_products",
+            "reader_store_purchases", "reader_commerce_entitlements",
+        ])
     for table in tables:
         try:
             db_select(table, select="*", limit=1)
@@ -130,7 +140,7 @@ def _database_checks() -> list[Check]:
     # user_subscriptions exists in several legacy production shapes.  The
     # current payment service needs these columns even when ordinary table
     # reads still succeed.  Report the migration explicitly instead of
-    # allowing a later Tribute/analytics request to fail with PostgREST 42703.
+    # allowing a later subscription/analytics request to fail with PostgREST 42703.
     try:
         db_select(
             "user_subscriptions",
@@ -188,6 +198,53 @@ def _content_checks(audit: dict[str, Any]) -> list[Check]:
             details={"chapters": chapters},
         ),
     ]
+
+    recent_runs = audit.get("latest_sync_runs") or []
+    latest_success = next(
+        (row for row in recent_runs if str(row.get("status") or "").lower() in {"ok", "success", "completed"}),
+        None,
+    )
+    if not latest_success:
+        checks.append(_check(
+            "content.sync_freshness",
+            "warn",
+            "Среди последних запусков нет успешной синхронизации каталога.",
+            severity="warning",
+        ))
+    else:
+        finished_text = str(
+            latest_success.get("finished_at")
+            or latest_success.get("started_at")
+            or ""
+        ).strip()
+        try:
+            finished_at = datetime.fromisoformat(finished_text.replace("Z", "+00:00"))
+            if finished_at.tzinfo is None:
+                finished_at = finished_at.replace(tzinfo=timezone.utc)
+        except ValueError:
+            finished_at = None
+
+        if finished_at is None:
+            checks.append(_check(
+                "content.sync_freshness",
+                "warn",
+                "Не удалось определить время последней успешной синхронизации.",
+                severity="warning",
+            ))
+        else:
+            age_hours = max(0, int((datetime.now(timezone.utc) - finished_at).total_seconds() // 3600))
+            stale_after = max(1, int(settings.sync_stale_after_hours or 48))
+            stale = age_hours > stale_after
+            checks.append(_check(
+                "content.sync_freshness",
+                "warn" if stale else "pass",
+                (
+                    f"Последняя успешная синхронизация была {age_hours} ч. назад; "
+                    f"порог — {stale_after} ч."
+                ),
+                severity="warning",
+                details={"age_hours": age_hours, "stale_after_hours": stale_after},
+            ))
     return checks
 
 
@@ -250,7 +307,7 @@ def _manual_checklist() -> list[dict[str, str]]:
         {"step": "Открыть бесплатную главу", "why": "Проверить Telegraph/Teletype, сохранение позиции и навигацию."},
         {"step": "Открыть закрытую главу", "why": "Проверить paywall copy и отсутствие случайного доступа."},
         {"step": "Проверить Telegram login", "why": "Убедиться, что initData/session работают на реальном Mini App."},
-        {"step": "Проверить платёжный сценарий", "why": "Проверить Tribute/Boosty только если этот сценарий включён."},
+        {"step": "Проверить платёжный сценарий", "why": "Проверить Boosty и Reader Coins только если этот сценарий включён."},
     ]
 
 

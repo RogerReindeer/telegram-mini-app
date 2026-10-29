@@ -68,6 +68,10 @@ class Settings:
     reader_preview_token: str = _env("READER_PREVIEW_TOKEN")
     reader_coins_enabled: bool = _env("READER_COINS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     reader_coin_grants_enabled: bool = _env("READER_COIN_GRANTS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    reader_test_free_coins_enabled: bool = _env("READER_TEST_FREE_COINS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    reader_test_purchases_enabled: bool = _env("READER_TEST_PURCHASES_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    reader_test_coin_min_amount: int = int(_env("READER_TEST_COIN_MIN_AMOUNT", "10") or "10")
+    reader_test_coin_max_amount: int = int(_env("READER_TEST_COIN_MAX_AMOUNT", "100000") or "100000")
     qinghe_commerce_shared_secret: str = _env("QINGHE_COMMERCE_SHARED_SECRET")
     qinghe_commerce_service_id: str = _env("QINGHE_COMMERCE_SERVICE_ID", "qinghe-api")
     qinghe_shop_url: str = _env("QINGHE_SHOP_URL")
@@ -83,20 +87,18 @@ class Settings:
     keeper_chat_ids_raw: str = _env("KEEPER_CHAT_IDS")
     boosty_traveler_chat_id: str = _env("BOOSTY_TRAVELER_CHAT_ID")
     boosty_keeper_chat_id: str = _env("BOOSTY_KEEPER_CHAT_ID")
+    boosty_traveler_url: str = _env("BOOSTY_TRAVELER_URL")
+    boosty_keeper_url: str = _env("BOOSTY_KEEPER_URL")
     auth_session_ttl_seconds: int = int(_env("AUTH_SESSION_TTL_SECONDS", "900") or "900")
     telegram_init_data_max_age_seconds: int = int(_env("TELEGRAM_INIT_DATA_MAX_AGE_SECONDS", "86400") or "86400")
     membership_cache_seconds: int = int(_env("MEMBERSHIP_CACHE_SECONDS", "300") or "300")
-    tribute_api_key: str = _env("TRIBUTE_API_KEY")
-    tribute_traveler_subscription_id: str = _env("TRIBUTE_TRAVELER_SUBSCRIPTION_ID")
-    tribute_keeper_subscription_id: str = _env("TRIBUTE_KEEPER_SUBSCRIPTION_ID")
-    tribute_traveler_url: str = _env("TRIBUTE_TRAVELER_URL", "https://t.me/tribute/app?startapp=sZmh")
-    tribute_keeper_url: str = _env("TRIBUTE_KEEPER_URL", "https://t.me/tribute/app?startapp=sZLB")
     access_debug_enabled: bool = _env("ACCESS_DEBUG_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
     admin_session_ttl_seconds: int = int(_env("ADMIN_SESSION_TTL_SECONDS", "43200") or "43200")
     catalog_cache_seconds: int = int(_env("CATALOG_CACHE_SECONDS", "300") or "300")
     telegraph_cache_seconds: int = int(_env("TELEGRAPH_CACHE_SECONDS", "1800") or "1800")
     image_cache_seconds: int = int(_env("IMAGE_CACHE_SECONDS", "1800") or "1800")
     sync_max_prune_ratio: float = float(_env("SYNC_MAX_PRUNE_RATIO", "0.35") or "0.35")
+    sync_stale_after_hours: int = int(_env("SYNC_STALE_AFTER_HOURS", "48") or "48")
 
     rate_limit_enabled: bool = _env("RATE_LIMIT_ENABLED", "true").lower() in {"1", "true", "yes", "on"}
     rate_limit_window_seconds: int = int(_env("RATE_LIMIT_WINDOW_SECONDS", "60") or "60")

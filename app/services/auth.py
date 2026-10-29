@@ -2,7 +2,7 @@
 
 This module owns the parts that are easy to break when they are scattered
 through page handlers: Telegram initData validation, signed session cookies,
-Telegram group membership, active Tribute subscriptions and book entitlements.
+Telegram group membership, active subscriptions and purchased entitlements.
 """
 
 from __future__ import annotations
@@ -44,11 +44,6 @@ KEEPER_CHAT_ID = settings.normalized_keeper_chat_id
 TRAVELER_CHAT_IDS = settings.traveler_chat_ids or tuple(filter(None, (TRAVELER_CHAT_ID,)))
 KEEPER_CHAT_IDS = settings.keeper_chat_ids or tuple(filter(None, (KEEPER_CHAT_ID,)))
 
-TRIBUTE_API_KEY = settings.tribute_api_key
-TRIBUTE_TRAVELER_SUBSCRIPTION_ID = settings.tribute_traveler_subscription_id
-TRIBUTE_KEEPER_SUBSCRIPTION_ID = settings.tribute_keeper_subscription_id
-TRIBUTE_TRAVELER_URL = settings.tribute_traveler_url
-TRIBUTE_KEEPER_URL = settings.tribute_keeper_url
 ACCESS_DEBUG_ENABLED = settings.access_debug_enabled
 
 _membership_cache: dict[int, tuple[float, dict[str, Any]]] = {}
@@ -309,7 +304,11 @@ def telegram_memberships_for_role(chat_ids: tuple[str, ...], user_id: int, *, ro
     details: list[dict[str, Any]] = []
     for index, chat_id in enumerate(chat_ids):
         label = "📜 Хранитель свитков" if role == "keeper" else "🌱 Странствующий читатель"
-        source = "tribute" if index == 0 else "boosty" if index == 1 else f"group_{index + 1}"
+        boosty_ids = {
+            settings.normalized_boosty_traveler_chat_id,
+            settings.normalized_boosty_keeper_chat_id,
+        }
+        source = "boosty" if chat_id in boosty_ids and chat_id else "telegram_group"
         details.append(telegram_membership_details(chat_id, user_id, label=label, source=source, role=role))
     return details
 
@@ -330,7 +329,7 @@ def parse_iso_datetime(value: Any) -> datetime | None:
         return None
 
 
-def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
+def get_active_external_subscriptions(user_id: int) -> list[dict[str, Any]]:
     if not supabase_ready() or not user_id:
         return []
     try:
@@ -340,11 +339,13 @@ def get_active_tribute_subscriptions(user_id: int) -> list[dict[str, Any]]:
             order="expires_at.desc",
         )
     except Exception as error:
-        print("Tribute subscription lookup failed:", error)
+        print("Subscription lookup failed:", error)
         return []
     now = utc_now()
     active = []
     for row in rows:
+        if clean_value(row.get("provider")).lower() not in {"boosty", "reader_coins"}:
+            continue
         expires = parse_iso_datetime(row.get("expires_at"))
         if row.get("status") not in {"active", "cancelling"}:
             continue
@@ -362,7 +363,7 @@ def public_subscription_summary(
     """Return the user's effective paid subscription for Settings → Access.
 
     A paid level can be confirmed in two independent ways:
-    1. a live subscription row received from Tribute;
+    1. a live subscription row received from an enabled provider;
     2. current membership in one of the configured paid Telegram groups.
 
     Telegram ``getChatMember`` does not expose a join/purchase date or an
@@ -382,10 +383,10 @@ def public_subscription_summary(
 
     user_id = int(viewer["user_id"])
     profile = dict(profile or {})
-    if "tribute_subscriptions" in profile:
-        rows = list(profile.get("tribute_subscriptions") or [])
+    if "subscriptions" in profile:
+        rows = list(profile.get("subscriptions") or [])
     else:
-        rows = get_active_tribute_subscriptions(user_id)
+        rows = get_active_external_subscriptions(user_id)
 
     labels = {
         "traveler": "🌱 Странствующий читатель",
@@ -408,7 +409,7 @@ def public_subscription_summary(
             "expires_at": clean_value(row.get("expires_at")),
             "status": clean_value(row.get("status")) or "active",
             "auto_renew": bool(row.get("auto_renew")),
-            "provider": clean_value(row.get("provider")) or "tribute",
+            "provider": clean_value(row.get("provider")) or "reader_coins",
             "membership_based": False,
         })
 
@@ -435,7 +436,6 @@ def public_subscription_summary(
             continue
         source = clean_value(group.get("source")) or "telegram_group"
         source_labels = {
-            "tribute": "Telegram-группа Tribute",
             "boosty": "Telegram-группа Boosty",
             "telegram": "Telegram-группа",
             "telegram_group": "Telegram-группа",
@@ -522,7 +522,85 @@ def get_active_book_entitlements(user_id: int, novel_id: int | None = None) -> l
     return active
 
 
-def tribute_role_from_rows(rows: list[dict[str, Any]]) -> str:
+def get_active_reader_entitlements(user_id: int, novel_id: int | None = None) -> list[dict[str, Any]]:
+    """Return non-revoked Reader Coin entitlements relevant to this page.
+
+    Subscription rows are global and must remain in the result when a novel is
+    selected. Novel/chapter rows are narrowed in Python so the query does not
+    accidentally exclude those global subscriptions.
+    """
+    if not settings.reader_coins_enabled or not supabase_ready() or not user_id:
+        return []
+    try:
+        rows = db_select(
+            "reader_commerce_entitlements",
+            filters={"telegram_user_id": f"eq.{int(user_id)}"},
+            order="created_at.desc",
+        )
+    except Exception as error:
+        print("Reader entitlement lookup failed:", error)
+        return []
+    now = utc_now()
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if clean_value(row.get("revoked_at")):
+            continue
+        starts = parse_iso_datetime(row.get("starts_at"))
+        expires = parse_iso_datetime(row.get("expires_at"))
+        if starts and starts > now:
+            continue
+        if expires and expires <= now:
+            continue
+        kind = clean_value(row.get("entitlement_type"))
+        if kind == "subscription":
+            result.append(row)
+        elif novel_id and to_int(row.get("novel_id"), 0) == int(novel_id):
+            result.append(row)
+        elif novel_id is None:
+            result.append(row)
+    return result
+
+
+def reader_subscription_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        if clean_value(row.get("entitlement_type")) != "subscription":
+            continue
+        role = clean_value(row.get("subscription_role")) or "traveler"
+        result.append({
+            "access_role": role,
+            "status": "active",
+            "started_at": clean_value(row.get("starts_at")),
+            "expires_at": clean_value(row.get("expires_at")),
+            "auto_renew": False,
+            "provider": "reader_coins",
+        })
+    return result
+
+
+def reader_book_entitlements(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "novel_id": row.get("novel_id"),
+            "access_type": "full_book",
+            "source_type": "reader_coins",
+            "source_id": row.get("purchase_id"),
+            "expires_at": row.get("expires_at"),
+        }
+        for row in rows
+        if clean_value(row.get("entitlement_type")) == "novel" and row.get("novel_id") is not None
+    ]
+
+
+def reader_chapter_ids(rows: list[dict[str, Any]]) -> list[str]:
+    return [
+        clean_value(row.get("chapter_id"))
+        for row in rows
+        if clean_value(row.get("entitlement_type")) == "chapter" and clean_value(row.get("chapter_id"))
+    ]
+
+
+def subscription_role_from_rows(rows: list[dict[str, Any]]) -> str:
     roles = {clean_value(row.get("access_role")) for row in rows}
     if "keeper" in roles:
         return "keeper"
@@ -540,13 +618,22 @@ def resolve_access_profile(
     now_ts = time.time()
     if not force_group_refresh and cached and cached[0] > now_ts:
         cached_profile = dict(cached[1])
-        if novel_id:
-            entitlements = get_active_book_entitlements(user_id, novel_id)
-            cached_profile["book_entitlements"] = entitlements
-            cached_profile["has_full_book_access"] = any(
-                clean_value(row.get("access_type")) == "full_book" for row in entitlements
-            )
-            cached_profile["novel_id"] = novel_id
+        legacy_books = get_active_book_entitlements(user_id, novel_id)
+        reader_rows = get_active_reader_entitlements(user_id, novel_id)
+        books = legacy_books + reader_book_entitlements(reader_rows)
+        reader_role = subscription_role_from_rows(reader_subscription_rows(reader_rows))
+        base_role = clean_value(cached_profile.get("base_role")) or clean_value(cached_profile.get("role")) or "guest"
+        cached_profile["role"] = max((base_role, reader_role), key=role_rank)
+        cached_profile["reader_coin_role"] = reader_role
+        cached_profile["reader_coin_entitlements"] = reader_rows
+        cached_profile["chapter_entitlements"] = reader_chapter_ids(reader_rows)
+        cached_profile["book_entitlements"] = books
+        cached_profile["subscriptions"] = list(cached_profile.get("external_subscriptions") or []) + reader_subscription_rows(reader_rows)
+        cached_profile["has_full_book_access"] = any(
+            clean_value(row.get("access_type")) == "full_book" for row in books
+        )
+        cached_profile["app_access"] = bool(cached_profile.get("app_access") or reader_rows)
+        cached_profile["novel_id"] = novel_id
         return cached_profile
 
     # Telegram membership checks are independent network calls. Run the main,
@@ -568,31 +655,40 @@ def resolve_access_profile(
         traveler_groups = traveler_future.result()
     keeper_group = first_active_group(keeper_groups) or (keeper_groups[0] if keeper_groups else telegram_membership_details("", user_id, label="📜 Хранитель свитков", role="keeper"))
     traveler_group = first_active_group(traveler_groups) or (traveler_groups[0] if traveler_groups else telegram_membership_details("", user_id, label="🌱 Странствующий читатель", role="traveler"))
-    tribute_rows = get_active_tribute_subscriptions(user_id)
-    tribute_role = tribute_role_from_rows(tribute_rows)
+    external_rows = get_active_external_subscriptions(user_id)
+    external_role = subscription_role_from_rows(external_rows)
     group_role = "keeper" if any(group.get("active") for group in keeper_groups) else ("traveler" if any(group.get("active") for group in traveler_groups) else "guest")
-    global_role = max((group_role, tribute_role), key=role_rank)
+    base_role = max((group_role, external_role), key=role_rank)
+    reader_rows = get_active_reader_entitlements(user_id, novel_id)
+    reader_rows_as_subscriptions = reader_subscription_rows(reader_rows)
+    reader_role = subscription_role_from_rows(reader_rows_as_subscriptions)
+    global_role = max((base_role, reader_role), key=role_rank)
     has_subscription = role_rank(global_role) >= role_rank("traveler")
     main_group_active = bool(main_group.get("active"))
-    app_access = main_group_active or has_subscription
+    app_access = main_group_active or has_subscription or bool(reader_rows)
     app_access_source = (
         "main_group+subscription" if main_group_active and has_subscription
         else "main_group" if main_group_active
         else "subscription" if has_subscription
         else ""
     )
-    entitlements = get_active_book_entitlements(user_id, novel_id)
+    entitlements = get_active_book_entitlements(user_id, novel_id) + reader_book_entitlements(reader_rows)
     full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
     profile = {
         "user_id": int(user_id),
         "role": global_role,
+        "base_role": base_role,
         "group_role": group_role,
-        "tribute_role": tribute_role,
+        "subscription_role": max((external_role, reader_role), key=role_rank),
+        "reader_coin_role": reader_role,
         "groups": {"main": main_group, "traveler": traveler_group, "keeper": keeper_group, "travelers": traveler_groups, "keepers": keeper_groups},
         "app_access": app_access,
         "app_access_source": app_access_source,
-        "tribute_subscriptions": tribute_rows,
+        "external_subscriptions": external_rows,
+        "subscriptions": external_rows + reader_rows_as_subscriptions,
         "book_entitlements": entitlements,
+        "reader_coin_entitlements": reader_rows,
+        "chapter_entitlements": reader_chapter_ids(reader_rows),
         "has_full_book_access": full_book,
         "novel_id": novel_id,
         "checked_at": utc_now().isoformat(),
@@ -631,10 +727,12 @@ def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = No
             "app_access": True,
             "app_access_source": clean_value(viewer.get("app_access_source")) or "admin_session",
             "group_role": "keeper",
-            "tribute_role": "guest",
+            "subscription_role": "keeper",
             "groups": {},
-            "tribute_subscriptions": [],
+            "subscriptions": [],
             "book_entitlements": [],
+            "reader_coin_entitlements": [],
+            "chapter_entitlements": [],
             "has_full_book_access": True,
             "novel_id": novel_id,
             "fast_page_profile": True,
@@ -642,18 +740,26 @@ def viewer_fast_access_profile(viewer: dict[str, Any], novel_id: int | None = No
         }
     role = clean_value(viewer.get("role")) or "guest"
     user_id = to_int(viewer.get("user_id") or viewer.get("telegram_user_id"), 0)
-    entitlements = get_active_book_entitlements(user_id, novel_id) if user_id and novel_id else []
+    legacy_books = get_active_book_entitlements(user_id, novel_id) if user_id and novel_id else []
+    reader_rows = get_active_reader_entitlements(user_id, novel_id) if user_id else []
+    entitlements = legacy_books + reader_book_entitlements(reader_rows)
+    reader_subscriptions = reader_subscription_rows(reader_rows)
+    reader_role = subscription_role_from_rows(reader_subscriptions)
+    effective_role = max((role if role in ROLE_RANK else "guest", reader_role), key=role_rank)
     full_book = any(clean_value(row.get("access_type")) == "full_book" for row in entitlements)
     return {
         "user_id": user_id or None,
-        "role": role if role in ROLE_RANK else "guest",
-        "app_access": bool(viewer.get("app_access")),
+        "role": effective_role,
+        "app_access": bool(viewer.get("app_access") or reader_rows),
         "app_access_source": clean_value(viewer.get("app_access_source")),
         "group_role": role if role in ROLE_RANK else "guest",
-        "tribute_role": "guest",
+        "subscription_role": reader_role,
+        "reader_coin_role": reader_role,
         "groups": {},
-        "tribute_subscriptions": [],
+        "subscriptions": reader_subscriptions,
         "book_entitlements": entitlements,
+        "reader_coin_entitlements": reader_rows,
+        "chapter_entitlements": reader_chapter_ids(reader_rows),
         "has_full_book_access": full_book,
         "novel_id": novel_id,
         "fast_page_profile": True,
@@ -669,10 +775,12 @@ def viewer_access_profile(viewer: dict[str, Any], novel_id: int | None = None, f
             "app_access": False,
             "app_access_source": "",
             "group_role": "guest",
-            "tribute_role": "guest",
+            "subscription_role": "guest",
             "groups": {},
-            "tribute_subscriptions": [],
+            "subscriptions": [],
             "book_entitlements": [],
+            "reader_coin_entitlements": [],
+            "chapter_entitlements": [],
             "has_full_book_access": False,
             "novel_id": novel_id,
         }

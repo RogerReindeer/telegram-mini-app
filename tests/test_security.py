@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
@@ -9,7 +10,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app import security
-from app.middleware import SecurityHeadersMiddleware
+from app.middleware import InMemoryRateLimiter, SecurityHeadersMiddleware
 
 
 def make_request(*, headers: dict[str, str] | None = None, query: bytes = b"") -> Request:
@@ -54,3 +55,15 @@ def test_security_headers_include_csp_and_production_hsts(monkeypatch):
     response = asyncio.run(middleware.dispatch(make_request(), call_next))
     assert "default-src 'self'" in response.headers["content-security-policy"]
     assert response.headers["strict-transport-security"].startswith("max-age=31536000")
+
+
+def test_rate_limiter_is_safe_under_concurrent_requests():
+    limiter = InMemoryRateLimiter()
+
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        results = list(executor.map(
+            lambda _index: limiter.allow("same-client", limit=10, window_seconds=60)[0],
+            range(100),
+        ))
+
+    assert sum(results) == 10

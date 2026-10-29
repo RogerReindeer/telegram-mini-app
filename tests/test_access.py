@@ -152,6 +152,21 @@ def test_full_book_access_falls_back_to_public_url_when_no_premium_source():
     assert decision.url == "https://telegra.ph/free"
 
 
+def test_full_book_purchase_opens_gift_novel_too():
+    profile = make_profile(role="guest", has_full_book_access=True)
+    decision = _decide_chapter_access_raw(make_chapter(), GIFT_NOVEL, profile)
+    assert decision.status == "full_book_entitlement"
+    assert decision.allowed
+
+
+def test_chapter_purchase_opens_only_owned_chapter():
+    chapter = make_chapter(chapter_id="501-12")
+    owned = make_profile(role="guest") | {"chapter_entitlements": ["501-12"]}
+    other = make_profile(role="guest") | {"chapter_entitlements": ["501-11"]}
+    assert _decide_chapter_access_raw(chapter, GIFT_NOVEL, owned).status == "chapter_entitlement"
+    assert not _decide_chapter_access_raw(chapter, GIFT_NOVEL, other).allowed
+
+
 def test_full_book_access_without_any_source_falls_through_instead_of_granting():
     """A full_book_access grant never fabricates a URL: with no source at all
     the decision must still be a denial, not `allowed=True, url=""`."""

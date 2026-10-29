@@ -2832,7 +2832,7 @@
           <p class="settings-hint-v2">Эти настройки применяются ко всей библиотеке, оглавлению и читалке</p>
         </section>
 
-        <section class="settings-section settings-section-v2" data-settings-section="access"><div class="access-debug-box"><div class="access-debug-toolbar"><div><h3>Проверка доступа</h3><p>Telegram, группы, подписки Tribute и купленные новеллы</p></div><button class="settings-access-refresh" type="button" data-access-debug-refresh>Обновить</button></div><div class="access-debug-content" data-access-debug-content><p>Откройте вкладку, чтобы проверить права</p></div></div></section>
+        <section class="settings-section settings-section-v2" data-settings-section="access"><div class="access-debug-box"><div class="access-debug-toolbar"><div><h3>Проверка доступа</h3><p>Telegram, группы, подписки, Монетки и купленные новеллы</p></div><button class="settings-access-refresh" type="button" data-access-debug-refresh>Обновить</button></div><div class="access-debug-content" data-access-debug-content><p>Откройте вкладку, чтобы проверить права</p></div></div></section>
 
         <section class="settings-section settings-section-v2" data-settings-section="about"><div class="about-box"><div data-about-fox-wrap></div><h3>Зефиркины баоцзы</h3><p>Мини-читалка для наших переводов: выбирайте новеллы, возвращайтесь к последней главе и следите за обновлениями</p><div class="about-links"><a href="/library">Библиотека</a></div></div></section>
 
@@ -2883,7 +2883,7 @@
     const telegram = data.telegram || {};
     const rights = data.rights || {};
     const groups = data.groups || {};
-    const subscriptions = Array.isArray(data.tribute_subscriptions) ? data.tribute_subscriptions : [];
+    const subscriptions = Array.isArray(data.subscriptions) ? data.subscriptions : [];
     const entitlements = Array.isArray(data.book_entitlements) ? data.book_entitlements : [];
     const config = data.configuration || {};
     const mainConfig = config.main || {};
@@ -2905,8 +2905,8 @@
       rows.push(groupRow("Основная группа", groups.main, mainConfig));
       const travelerGroups = Array.isArray(groups.travelers) && groups.travelers.length ? groups.travelers : [groups.traveler];
       const keeperGroups = Array.isArray(groups.keepers) && groups.keepers.length ? groups.keepers : [groups.keeper];
-      travelerGroups.forEach(function (group, index) { rows.push(groupRow(index === 0 ? "🌱 Tribute / Странствующий" : index === 1 ? "🌱 Boosty / Странствующий" : "🌱 Странствующий", group, travelerConfig)); });
-      keeperGroups.forEach(function (group, index) { rows.push(groupRow(index === 0 ? "📜 Tribute / Хранитель" : index === 1 ? "📜 Boosty / Хранитель" : "📜 Хранитель", group, keeperConfig)); });
+      travelerGroups.forEach(function (group) { rows.push(groupRow(group.source === "boosty" ? "🌱 Boosty / Странствующий" : "🌱 Странствующий", group, travelerConfig)); });
+      keeperGroups.forEach(function (group) { rows.push(groupRow(group.source === "boosty" ? "📜 Boosty / Хранитель" : "📜 Хранитель", group, keeperConfig)); });
       return rows.join("");
     };
     const ownedButton = function (label) {
@@ -2922,7 +2922,7 @@
     };
     const subscriptionsHtml = subscriptions.length
       ? subscriptions.map((item) => `<li>${escapeHtml(item.access_role || "—")} · план ${escapeHtml(item.external_plan_id || "—")} · до ${escapeHtml(item.expires_at || "—")} · ${escapeHtml(item.status || "—")}</li>`).join("")
-      : "<li>Активных подписок Tribute нет.</li>";
+      : "<li>Активных подписок нет.</li>";
     const entitlementsHtml = entitlements.length
       ? entitlements.map((item) => `<li>NovelID ${escapeHtml(item.novel_id || "—")} · ${escapeHtml(item.access_type || "—")} · источник ${escapeHtml(item.source_type || "—")}</li>`).join("")
       : "<li>Купленных или выданных книг нет.</li>";
@@ -2940,11 +2940,11 @@
       <div class="access-debug-row"><span>Полный доступ к книгам</span><strong class="${rights.book_entitlements_count ? "is-ok" : "is-no"}">${escapeHtml(String(rights.book_entitlements_count || 0))}</strong><small>NovelID: ${escapeHtml((rights.full_book_novel_ids || []).join(", ") || "—")}</small></div>
       <h4>Telegram-группы</h4>
       ${groupRows()}
-      <h4>Оплата Tribute</h4>
+      <h4>Покупка на Boosty</h4>
       <div class="access-debug-pay-actions">
         ${payLink("Оформить 📜 Хранителя", keeperConfig.payment_url, "keeper")}
       </div>
-      <h4>Подписки Tribute</h4><ul>${subscriptionsHtml}</ul>
+      <h4>Активные подписки</h4><ul>${subscriptionsHtml}</ul>
       <h4>Книжные доступы</h4><ul>${entitlementsHtml}</ul>
       <details class="access-debug-config"><summary>Техническая конфигурация</summary><pre>${escapeHtml(JSON.stringify(config, null, 2))}</pre></details>
       <p class="access-debug-time">Проверено: ${escapeHtml(data.checked_at || "—")}</p>`;

@@ -35,14 +35,25 @@
       </header>
 
       {% if reader_coins_enabled %}
-        <section class="library-wallet-card" id="readerCoinsWallet" data-shop-url="{{ qinghe_shop_url }}" aria-label="Баланс Монеток">
-          <div class="library-wallet-copy">
-            <span class="library-wallet-label">Баланс</span>
-            <strong><span id="readerCoinsBalance">—</span> Монеток</strong>
+        <section class="reader-store library-reader-store" data-reader-store data-store-scope="subscriptions" hidden aria-label="Монетки и подписки">
+          <div class="library-wallet-card" aria-label="Баланс Монеток">
+            <div class="library-wallet-copy">
+              <span class="library-wallet-label">Баланс</span>
+              <strong><span data-reader-coins-balance>—</span> Монеток</strong>
+              <small>Курс: 1 ₽ = 1 Монетка</small>
+            </div>
           </div>
-          {% if qinghe_shop_url %}
-            <a class="library-wallet-buy" id="readerCoinsBuy" href="{{ qinghe_shop_url }}">Пополнить</a>
-          {% endif %}
+          <div class="reader-test-topup" data-reader-test-topup hidden>
+            <strong>Бесплатное пополнение на время теста</strong>
+            <div class="reader-topup-presets">
+              {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-topup-amount="{{ amount }}">+{{ amount }}</button>{% endfor %}
+            </div>
+            <div class="reader-topup-custom"><input type="number" min="10" step="1" inputmode="numeric" placeholder="Своя сумма" data-reader-topup-custom><button type="button" data-reader-topup-submit>Начислить</button></div>
+          </div>
+          <div class="reader-store-heading"><div><span>Подписки за Монетки</span><strong>Доступ на выбранный срок</strong></div></div>
+          <div class="reader-store-products" data-reader-store-products></div>
+          <p class="reader-store-empty" data-reader-store-empty hidden>Подписки за Монетки ещё не настроены администратором.</p>
+          <p class="reader-store-message" data-reader-store-message hidden role="status"></p>
         </section>
       {% endif %}
 
@@ -416,25 +427,7 @@
     window.ZEFIRKI_FOX = {{ fox | tojson }};
     window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
-  {% if reader_coins_enabled %}
-  <script>
-    (function () {
-      var balance = document.getElementById("readerCoinsBalance");
-      var buy = document.getElementById("readerCoinsBuy");
-      if (buy && window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openTelegramLink && /^https:\/\/t\.me\//i.test(buy.href)) {
-        buy.addEventListener("click", function (event) {
-          event.preventDefault();
-          window.Telegram.WebApp.openTelegramLink(buy.href);
-        });
-      }
-      if (!balance) return;
-      fetch("/api/store/wallet", { credentials: "same-origin" })
-        .then(function (response) { if (!response.ok) throw new Error("wallet unavailable"); return response.json(); })
-        .then(function (wallet) { balance.textContent = Number(wallet.balance || 0).toLocaleString("ru-RU"); })
-        .catch(function () { balance.textContent = "—"; });
-    })();
-  </script>
-  {% endif %}
+  {% if reader_coins_enabled %}<script src="{{ static_url('reader-store.js') }}"></script>{% endif %}
   <script src="{{ static_url('settings.js') }}"></script>
   <script src="{{ static_url('settings-panel.js') }}"></script>
   <script src="{{ static_url('reader-experience.js') }}"></script>

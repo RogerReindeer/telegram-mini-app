@@ -173,6 +173,7 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "novel": novel_prepared,
             "chapters": chapters,
             "hidden_subscriber_count": hidden_subscriber_count,
+            "reader_coins_enabled": settings.reader_coins_enabled,
         })
 
     @router.get("/chapter/{chapter_id}")
@@ -227,10 +228,9 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "telegraph_error": telegraph_error,
             "access_copy": access_copy(decision.required_role),
             "access_paywall": access_paywall_copy(decision, raw_novel, profile, raw_chapter),
-            "boosty_access_url": "",
-            "tribute_access_url": settings.tribute_keeper_url or settings.tribute_traveler_url,
-            "tribute_traveler_url": settings.tribute_traveler_url,
-            "tribute_keeper_url": settings.tribute_keeper_url,
+            "reader_coins_enabled": settings.reader_coins_enabled,
+            "boosty_traveler_url": settings.boosty_traveler_url,
+            "boosty_keeper_url": settings.boosty_keeper_url,
             "traveler_chat_id": settings.normalized_traveler_chat_id,
             "keeper_chat_id": settings.normalized_keeper_chat_id,
             "previous_chapter": previous_chapter,

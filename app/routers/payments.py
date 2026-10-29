@@ -1,23 +1,30 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
-from ..security import WEBHOOK_BODY_LIMIT_BYTES, read_json_payload, read_limited_body, require_sync_token
-from ..services.payments import import_boosty_order, process_tribute_webhook
+from ..database import SupabaseError
+from ..security import WEBHOOK_BODY_LIMIT_BYTES, read_json_payload, require_sync_token
+from ..services.payments import (
+    PaymentConflictError,
+    PaymentPayloadError,
+    PaymentProductNotFoundError,
+    import_boosty_order,
+)
 
 router = APIRouter()
-
-
-@router.post("/api/webhooks/tribute")
-async def tribute_webhook(request: Request):
-    raw_body = await read_limited_body(request, max_bytes=WEBHOOK_BODY_LIMIT_BYTES)
-    signature = request.headers.get("x-tribute-signature") or request.headers.get("X-Tribute-Signature") or ""
-    return await run_in_threadpool(process_tribute_webhook, raw_body, signature)
-
 
 @router.post("/api/admin/boosty/order")
 async def boosty_order(request: Request):
     require_sync_token(request)
     payload = await read_json_payload(request, max_bytes=WEBHOOK_BODY_LIMIT_BYTES)
-    return await run_in_threadpool(import_boosty_order, payload)
+    try:
+        return await run_in_threadpool(import_boosty_order, payload)
+    except PaymentPayloadError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except PaymentProductNotFoundError as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except PaymentConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except SupabaseError as error:
+        raise HTTPException(status_code=503, detail="payment_storage_temporarily_unavailable") from error

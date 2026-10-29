@@ -3947,7 +3947,7 @@ body[data-site-theme="dark"] .library-v4 .library-book-card-v4 .library-card-sta
   }
 }
 
-/* v22 — diagnostics for Telegram / Tribute / book purchases */
+/* v22 — diagnostics for Telegram / subscriptions / book purchases */
 .access-debug-box {
   display: grid;
   gap: 14px;
@@ -4796,12 +4796,6 @@ body[data-site-theme="dark"] .library-book-card-v4 .library-card-access-row {
 .chapter-access-purchase-boosty {
   background: var(--accent);
   color: #fff;
-}
-
-.chapter-access-purchase-tribute {
-  border-color: rgba(67, 139, 237, .24);
-  background: rgba(67, 139, 237, .10);
-  color: #225da9;
 }
 
 @media (max-width: 760px) {

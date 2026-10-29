@@ -63,6 +63,40 @@
       <a href="/ready">Ready</a>
     </section>
 
+    <section class="admin-panel" data-admin-store>
+      <div class="admin-panel-header">
+        <div>
+          <h2>Монетки · цены и доступы</h2>
+          <p>Отдельные цены для глав, книжных бандлов и подписок. Курс фиксирован: 1 ₽ = 1 Монетка.</p>
+        </div>
+        <span>Тестовый режим</span>
+      </div>
+      <form class="admin-store-form" data-admin-store-form>
+        <label>Код товара<input name="product_code" maxlength="120" required placeholder="chapter-123"></label>
+        <label>Тип<select name="product_type" required><option value="chapter_unlock">Глава</option><option value="novel_unlock">Вся книга</option><option value="subscription">Подписка</option><option value="subscription_upgrade">Повышение подписки</option></select></label>
+        <label class="admin-store-wide">Название<input name="title" maxlength="240" required placeholder="Глава 12"></label>
+        <label>Цена, Монетки<input name="coin_price" type="number" min="1" max="1000000" required></label>
+        <label>Novel ID<input name="novel_id" type="number" min="1"></label>
+        <label>Chapter ID<input name="chapter_id" maxlength="160"></label>
+        <label>Роль<select name="subscription_role"><option value="">—</option><option value="traveler">Traveler</option><option value="keeper">Keeper</option></select></label>
+        <label>Срок, дней<input name="duration_days" type="number" min="1" max="3650"></label>
+        <label>Повышение с роли<select name="upgrade_from_role"><option value="">—</option><option value="traveler">Traveler</option><option value="keeper">Keeper</option></select></label>
+        <label>Сортировка<input name="sort_order" type="number" value="0"></label>
+        <label><span>Активен</span><input name="is_active" type="checkbox" checked></label>
+        <div class="admin-store-form-actions"><button type="submit">Сохранить товар</button><span data-admin-store-status role="status"></span></div>
+      </form>
+      <div class="admin-table-wrap" style="margin-top:14px">
+        <table class="admin-table">
+          <thead><tr><th>Код</th><th>Тип</th><th>Название</th><th>Цена</th><th>Novel</th><th>Chapter</th><th>Роль</th><th>Дни</th><th>Активен</th></tr></thead>
+          <tbody data-admin-store-rows><tr><td colspan="9">Загрузка…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="admin-store-rollback">
+        <button type="button" data-admin-store-rollback>Откатить тестовые покупки</button>
+        <p class="admin-muted">Доступы отзываются, потраченные Монетки возвращаются. Начисленный тестовый баланс остаётся.</p>
+      </div>
+    </section>
+
     <section class="admin-panel">
       <div class="admin-panel-header">
         <div>
@@ -277,5 +311,6 @@
   <script src="{{ static_url('settings.js') }}"></script>
   <script src="{{ static_url('settings-panel.js') }}"></script>
   <script src="{{ static_url('reader-experience.js') }}"></script>
+  <script src="{{ static_url('admin-store.js') }}"></script>
 </body>
 </html>

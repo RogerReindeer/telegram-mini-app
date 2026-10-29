@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..security import require_admin_token
+from ..schemas_commerce import StoreProductAdminPayload, TestPurchaseRollbackRequest
 from ..services.admin_state import build_admin_state
 from ..services.analytics import build_analytics_summary, personal_reading_stats
 from ..services.diagnostics import build_catalog_export, build_content_audit
@@ -11,6 +12,14 @@ from ..services.events import recent_events
 from ..services.metrics import metrics_snapshot, reset_metrics
 from ..services.production import build_production_report
 from ..services.render_smoke import render_smoke_plan
+from ..services.auth import invalidate_access_cache
+from ..services.coins import (
+    StoreTemporaryError,
+    StoreValidationError,
+    list_store_products,
+    rollback_test_purchases,
+    upsert_store_product,
+)
 
 router = APIRouter(prefix="/api/admin")
 
@@ -119,3 +128,37 @@ def analytics_summary(request: Request, days: int = 30):
 def analytics_user(request: Request, user_id: int):
     _guard(request)
     return {"status": "ok", "user_id": user_id, "reading": personal_reading_stats(user_id)}
+
+
+@router.get("/store/products")
+def store_products(request: Request):
+    _guard(request)
+    try:
+        return {"status": "ok", "exchange_rate_rub": 1, "items": list_store_products(active_only=False)}
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+
+
+@router.put("/store/products/{product_code}")
+def store_product_upsert(request: Request, product_code: str, model: StoreProductAdminPayload):
+    _guard(request)
+    try:
+        product = upsert_store_product(product_code, model.model_dump())
+    except StoreValidationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+    return {"status": "ok", "product": product}
+
+
+@router.post("/store/rollback-test-purchases")
+def store_rollback_test_purchases(request: Request, model: TestPurchaseRollbackRequest):
+    _guard(request)
+    try:
+        result = rollback_test_purchases(model.telegram_user_id)
+    except StoreValidationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+    invalidate_access_cache(model.telegram_user_id)
+    return result

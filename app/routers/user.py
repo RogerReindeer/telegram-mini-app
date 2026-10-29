@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 
 from ..schemas import ResetProgressPayload, SaveLibraryPayload, SaveProgressPayload
-from ..services.user_state import get_user_state_rows, reset_user_progress, save_user_library, save_user_progress
+from ..services.user_state import (
+    ChapterNotFoundError,
+    UserStateError,
+    get_user_state_rows,
+    reset_user_progress,
+    save_user_library,
+    save_user_progress,
+)
 from ..services.analytics import personal_reading_stats
 
 
@@ -49,6 +56,14 @@ def create_user_router(require_app_access_viewer: Callable, public_viewer: Calla
     def preview_noop() -> dict:
         return {"status": "ignored", "reason": "admin_preview_read_only", "admin_preview": True}
 
+    def run_user_write(operation: Callable, *args):
+        try:
+            return operation(*args)
+        except ChapterNotFoundError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except UserStateError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
     @router.get("/state")
     def state(request: Request):
         current = viewer(request)
@@ -75,20 +90,20 @@ def create_user_router(require_app_access_viewer: Callable, public_viewer: Calla
         current = viewer(request)
         if current.get("admin_preview"):
             return preview_noop()
-        return save_user_progress(user_id_from_viewer(current), payload.to_service_dict())
+        return run_user_write(save_user_progress, user_id_from_viewer(current), payload.to_service_dict())
 
     @router.post("/progress/reset")
     def reset_progress(request: Request, payload: ResetProgressPayload):
         current = viewer(request)
         if current.get("admin_preview"):
             return preview_noop()
-        return reset_user_progress(user_id_from_viewer(current), payload.to_service_dict())
+        return run_user_write(reset_user_progress, user_id_from_viewer(current), payload.to_service_dict())
 
     @router.put("/library")
     def library(request: Request, payload: SaveLibraryPayload):
         current = viewer(request)
         if current.get("admin_preview"):
             return preview_noop()
-        return save_user_library(user_id_from_viewer(current), payload.to_service_dict())
+        return run_user_write(save_user_library, user_id_from_viewer(current), payload.to_service_dict())
 
     return router
