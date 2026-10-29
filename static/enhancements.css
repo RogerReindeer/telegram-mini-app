@@ -3066,6 +3066,18 @@ body.dark .library-filter-footer {
 .chapter-reader-store { text-align: left; }
 .admin-store-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .admin-store-form label { display: grid; gap: 5px; font-size: 12px; color: var(--muted, #806f67); }
+.admin-bulk-pricing { margin-top: 14px; padding: 14px; border: 1px solid rgba(120, 90, 70, .16); border-radius: 14px; background: color-mix(in srgb, var(--surface, #fff) 94%, var(--accent, #cf7f55) 6%); }
+.admin-store-subheading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.admin-store-subheading h3 { margin: 0; font-size: 16px; }
+.admin-store-subheading p { margin: 5px 0 0; color: var(--muted, #806f67); font-size: 13px; }
+.admin-store-subheading > span { flex: 0 0 auto; color: var(--muted, #806f67); font-size: 12px; }
+.admin-bulk-pricing-form { display: grid; grid-template-columns: minmax(220px, 2fr) minmax(130px, 1fr) minmax(130px, 1fr); gap: 10px; margin-top: 14px; }
+.admin-bulk-pricing-form label { display: grid; gap: 5px; color: var(--muted, #806f67); font-size: 12px; }
+.admin-bulk-pricing-form input { min-width: 0; border: 1px solid rgba(120, 90, 70, .22); border-radius: 10px; padding: 10px; background: var(--surface, #fff); color: inherit; font: inherit; }
+.admin-bulk-pricing-form small { color: var(--muted, #806f67); }
+.admin-bulk-pricing-form button { border: 0; border-radius: 10px; padding: 10px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.admin-pricing-rules-table { margin-top: 14px; }
+.admin-manual-pricing-heading { margin-top: 20px; padding-top: 18px; border-top: 1px solid rgba(120, 90, 70, .16); }
 .admin-store-form .admin-store-wide { grid-column: span 2; }
 .admin-store-form-actions { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
 .admin-store-form-actions button,
@@ -3075,6 +3087,10 @@ body.dark .library-filter-footer {
 @media (max-width: 720px) {
   .admin-store-form { grid-template-columns: 1fr 1fr; }
   .admin-store-form .admin-store-wide { grid-column: 1 / -1; }
+  .admin-bulk-pricing-form { grid-template-columns: 1fr 1fr; }
+  .admin-bulk-pricing-form .admin-store-wide,
+  .admin-bulk-pricing-form .admin-store-form-actions { grid-column: 1 / -1; }
+  .admin-store-subheading { flex-direction: column; }
   .reader-store-product { align-items: flex-start; }
 }
 

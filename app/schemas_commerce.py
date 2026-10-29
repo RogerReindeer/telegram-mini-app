@@ -91,6 +91,20 @@ class StoreProductAdminPayload(CommerceInputModel):
         return self
 
 
+class BulkNovelPricingPayload(CommerceInputModel):
+    novel_ids: str = Field(..., min_length=1, max_length=1000)
+    chapter_coin_price: int = Field(..., ge=1, le=1_000_000)
+    bundle_coin_price: int = Field(..., ge=1, le=1_000_000)
+
+    @field_validator("novel_ids")
+    @classmethod
+    def strip_novel_ids(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("Укажите ID новелл")
+        return text
+
+
 class TestPurchaseRollbackRequest(CommerceInputModel):
     confirmation: Literal["ROLLBACK_TEST_PURCHASES"]
     telegram_user_id: int | None = Field(default=None, gt=0)

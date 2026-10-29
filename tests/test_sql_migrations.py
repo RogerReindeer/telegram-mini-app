@@ -56,6 +56,22 @@ def test_reader_store_purchase_and_rollback_are_atomic_service_role_rpcs():
     assert "grant execute on function public.reader_purchase_product" in sql
 
 
+def test_bulk_novel_pricing_persists_rules_and_prices_future_chapters():
+    sql = (ROOT / "sql" / "migrations" / "006_reader_bulk_novel_pricing.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "create table if not exists public.reader_novel_pricing_rules" in sql
+    assert "create or replace function public.reader_set_bulk_novel_pricing" in sql
+    assert "reader_chapters_apply_pricing_rule" in sql
+    assert "after insert or update of novel_id, chapter_title, title" in sql
+    assert "pg_advisory_xact_lock" in sql
+    assert "reader_store_products_active_chapter_target_idx" in sql
+    assert "reader_store_products_active_novel_target_idx" in sql
+    assert "alter table public.reader_novel_pricing_rules enable row level security" in sql
+    assert "from public, anon, authenticated" in sql
+    assert "to service_role" in sql
+
+
 def test_security_hardening_removes_duplicate_analytics_trigger_before_rebuild():
     sql = (ROOT / "sql" / "migrations" / "004_security_analytics_hardening.sql").read_text(
         encoding="utf-8"

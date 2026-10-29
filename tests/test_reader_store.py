@@ -9,7 +9,7 @@ from jinja2 import Environment, FileSystemLoader
 from pydantic import ValidationError
 
 from app.database import SupabaseError
-from app.schemas_commerce import StoreProductAdminPayload, TestCoinGrantRequest as CoinGrantRequest
+from app.schemas_commerce import BulkNovelPricingPayload, StoreProductAdminPayload, TestCoinGrantRequest as CoinGrantRequest
 from app.services import coins
 
 
@@ -40,6 +40,55 @@ def test_store_product_shape_matches_target_type():
             subscription_role="keeper",
             duration_days=30,
         )
+
+
+def test_bulk_pricing_schema_uses_requested_example_prices():
+    model = BulkNovelPricingPayload(
+        novel_ids="1-3",
+        chapter_coin_price=5,
+        bundle_coin_price=530,
+    )
+    assert model.chapter_coin_price == 5
+    assert model.bundle_coin_price == 530
+
+
+@pytest.mark.parametrize(
+    ("selector", "expected"),
+    [
+        ("1-3", [1, 2, 3]),
+        ("1,3,5", [1, 3, 5]),
+        ("1-3, 3, 5", [1, 2, 3, 5]),
+        ("5; 7–8", [5, 7, 8]),
+    ],
+)
+def test_parse_novel_id_selector_supports_ranges_and_lists(selector, expected):
+    assert coins.parse_novel_id_selector(selector) == expected
+
+
+@pytest.mark.parametrize("selector", ["", "0", "3-1", "abc", "1-101"])
+def test_parse_novel_id_selector_rejects_invalid_or_oversized_values(selector):
+    with pytest.raises(coins.StoreValidationError):
+        coins.parse_novel_id_selector(selector)
+
+
+def test_bulk_pricing_calls_atomic_rpc_with_normalized_ids(monkeypatch):
+    captured = {}
+
+    def fake_rpc(name, payload):
+        captured.update({"name": name, "payload": payload})
+        return [{"novels_updated": 3, "chapters_priced": 42, "bundles_priced": 3}]
+
+    monkeypatch.setattr(coins, "db_rpc", fake_rpc)
+    result = coins.set_bulk_novel_pricing("1-3", 5, 530)
+    assert captured == {
+        "name": "reader_set_bulk_novel_pricing",
+        "payload": {
+            "p_novel_ids": [1, 2, 3],
+            "p_chapter_coin_price": 5,
+            "p_bundle_coin_price": 530,
+        },
+    }
+    assert result["chapters_priced"] == 42
 
 
 def test_context_product_list_includes_chapter_bundle_and_subscriptions(monkeypatch):

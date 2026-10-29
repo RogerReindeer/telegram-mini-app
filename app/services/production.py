@@ -121,6 +121,7 @@ def _database_checks() -> list[Check]:
         tables.extend([
             "reader_coin_wallets", "reader_coin_ledger", "reader_store_products",
             "reader_store_purchases", "reader_commerce_entitlements",
+            "reader_novel_pricing_rules",
         ])
     for table in tables:
         try:

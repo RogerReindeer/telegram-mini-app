@@ -5,6 +5,9 @@
   const form = root.querySelector("[data-admin-store-form]");
   const rows = root.querySelector("[data-admin-store-rows]");
   const status = root.querySelector("[data-admin-store-status]");
+  const bulkForm = root.querySelector("[data-admin-bulk-pricing-form]");
+  const bulkStatus = root.querySelector("[data-admin-bulk-pricing-status]");
+  const pricingRuleRows = root.querySelector("[data-admin-pricing-rule-rows]");
 
   async function api(url, options) {
     const response = await fetch(url, Object.assign({ credentials: "same-origin" }, options || {}));
@@ -18,6 +21,10 @@
     return String(form.elements[name] && form.elements[name].value || "").trim();
   }
 
+  function bulkValue(name) {
+    return String(bulkForm.elements[name] && bulkForm.elements[name].value || "").trim();
+  }
+
   function nullableInt(name) {
     const text = value(name);
     return text ? Number(text) : null;
@@ -26,6 +33,11 @@
   function show(text, error) {
     status.textContent = text || "";
     status.dataset.tone = error ? "error" : "success";
+  }
+
+  function showBulk(text, error) {
+    bulkStatus.textContent = text || "";
+    bulkStatus.dataset.tone = error ? "error" : "success";
   }
 
   function cell(text) {
@@ -62,13 +74,53 @@
     }
   }
 
-  async function load() {
+  function renderPricingRules(items) {
+    pricingRuleRows.replaceChildren();
+    (items || []).forEach(function (item) {
+      const tr = document.createElement("tr");
+      tr.append(
+        cell(item.novel_id),
+        cell(item.chapter_coin_price + " 🪙"),
+        cell(item.bundle_coin_price + " 🪙"),
+        cell(item.is_active ? "да" : "нет"),
+        cell(item.updated_at)
+      );
+      tr.addEventListener("click", function () {
+        bulkForm.elements.novel_ids.value = item.novel_id;
+        bulkForm.elements.chapter_coin_price.value = item.chapter_coin_price;
+        bulkForm.elements.bundle_coin_price.value = item.bundle_coin_price;
+      });
+      pricingRuleRows.appendChild(tr);
+    });
+    if (!items || !items.length) {
+      const tr = document.createElement("tr");
+      const td = cell("Массовые правила ещё не настроены.");
+      td.colSpan = 5;
+      tr.appendChild(td);
+      pricingRuleRows.appendChild(tr);
+    }
+  }
+
+  async function loadProducts() {
     try {
       const data = await api("/api/admin/store/products");
       render(data.items);
     } catch (error) {
       show("Не удалось загрузить товары: " + error.message, true);
     }
+  }
+
+  async function loadPricingRules() {
+    try {
+      const data = await api("/api/admin/store/pricing-rules");
+      renderPricingRules(data.items);
+    } catch (error) {
+      showBulk("Не удалось загрузить правила цен: " + error.message, true);
+    }
+  }
+
+  async function load() {
+    await Promise.all([loadProducts(), loadPricingRules()]);
   }
 
   form.addEventListener("submit", async function (event) {
@@ -93,9 +145,44 @@
         body: JSON.stringify(payload)
       });
       show("Товар сохранён. Цена в Монетках равна цене в рублях.", false);
-      await load();
+      await loadProducts();
     } catch (error) {
       show("Не удалось сохранить: " + error.message, true);
+    }
+  });
+
+  bulkForm.addEventListener("submit", async function (event) {
+    event.preventDefault();
+    const novelIds = bulkValue("novel_ids");
+    const chapterPrice = Number(bulkValue("chapter_coin_price"));
+    const bundlePrice = Number(bulkValue("bundle_coin_price"));
+    const confirmation = "Выставить выбранным новеллам цену каждой главы " + chapterPrice
+      + " 🪙 и всей книги " + bundlePrice + " 🪙?";
+    if (!window.confirm(confirmation)) return;
+    const submit = bulkForm.querySelector('button[type="submit"]');
+    submit.disabled = true;
+    showBulk("Применяем цены ко всем главам…", false);
+    try {
+      const result = await api("/api/admin/store/bulk-pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          novel_ids: novelIds,
+          chapter_coin_price: chapterPrice,
+          bundle_coin_price: bundlePrice
+        })
+      });
+      showBulk(
+        "Готово: новелл — " + result.novels_updated
+          + ", глав — " + result.chapters_priced
+          + ", книжных бандлов — " + result.bundles_priced + ".",
+        false
+      );
+      await Promise.all([loadProducts(), loadPricingRules()]);
+    } catch (error) {
+      showBulk("Не удалось выставить цены: " + error.message, true);
+    } finally {
+      submit.disabled = false;
     }
   });
 

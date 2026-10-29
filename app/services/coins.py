@@ -18,10 +18,13 @@ LEDGER_TABLE = "reader_coin_ledger"
 PRODUCT_TABLE = "reader_store_products"
 PURCHASE_TABLE = "reader_store_purchases"
 ENTITLEMENT_TABLE = "reader_commerce_entitlements"
+PRICING_RULE_TABLE = "reader_novel_pricing_rules"
 CREDIT_RPC = "reader_credit_coins_from_qinghe"
 TEST_CREDIT_RPC = "reader_grant_test_coins"
 PURCHASE_RPC = "reader_purchase_product"
 ROLLBACK_RPC = "reader_rollback_test_purchases"
+BULK_PRICING_RPC = "reader_set_bulk_novel_pricing"
+MAX_BULK_PRICING_NOVELS = 100
 
 
 class CoinGrantConflict(RuntimeError):
@@ -243,6 +246,85 @@ def list_user_entitlements(telegram_user_id: int) -> list[dict[str, Any]]:
     )
 
 
+def parse_novel_id_selector(value: Any) -> list[int]:
+    text = str(value or "").strip()
+    if not text:
+        raise StoreValidationError("Укажите ID новелл")
+    text = text.replace("–", "-").replace("—", "-").replace(";", ",").replace("\n", ",")
+    result: set[int] = set()
+    for raw_part in text.split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            pieces = [piece.strip() for piece in part.split("-")]
+            if len(pieces) != 2 or not all(piece.isdigit() for piece in pieces):
+                raise StoreValidationError(f"Некорректный диапазон ID: {part}")
+            start, end = (int(piece) for piece in pieces)
+            if start <= 0 or end < start:
+                raise StoreValidationError(f"Некорректный диапазон ID: {part}")
+            if end - start + 1 > MAX_BULK_PRICING_NOVELS:
+                raise StoreValidationError("Один диапазон не может содержать больше 100 новелл")
+            result.update(range(start, end + 1))
+        else:
+            if not part.isdigit() or int(part) <= 0:
+                raise StoreValidationError(f"Некорректный ID новеллы: {part}")
+            result.add(int(part))
+        if len(result) > MAX_BULK_PRICING_NOVELS:
+            raise StoreValidationError("За один раз можно настроить не больше 100 новелл")
+    if not result:
+        raise StoreValidationError("Укажите ID новелл")
+    return sorted(result)
+
+
+def list_novel_pricing_rules() -> list[dict[str, Any]]:
+    try:
+        rows = db_select(PRICING_RULE_TABLE, order="novel_id.asc")
+    except SupabaseError as error:
+        raise StoreTemporaryError(str(error)) from error
+    return [
+        {
+            "novel_id": int(row.get("novel_id") or 0),
+            "chapter_coin_price": int(row.get("chapter_coin_price") or 0),
+            "bundle_coin_price": int(row.get("bundle_coin_price") or 0),
+            "is_active": bool(row.get("is_active")),
+            "updated_at": row.get("updated_at"),
+        }
+        for row in rows
+    ]
+
+
+def set_bulk_novel_pricing(
+    novel_selector: Any,
+    chapter_coin_price: int,
+    bundle_coin_price: int,
+) -> dict[str, Any]:
+    novel_ids = parse_novel_id_selector(novel_selector)
+    try:
+        row = _rpc_row(db_rpc(BULK_PRICING_RPC, {
+            "p_novel_ids": novel_ids,
+            "p_chapter_coin_price": int(chapter_coin_price),
+            "p_bundle_coin_price": int(bundle_coin_price),
+        }), operation="bulk novel pricing")
+    except SupabaseError as error:
+        message = str(error)
+        if "reader_invalid_bulk_pricing" in message:
+            raise StoreValidationError("Некорректные параметры массовых цен") from error
+        if "reader_unknown_novel_ids" in message:
+            missing = message.split("reader_unknown_novel_ids:", 1)[-1].split('"', 1)[0]
+            raise StoreValidationError(f"Новеллы не найдены: {missing}") from error
+        raise StoreTemporaryError(message) from error
+    return {
+        "status": "ok",
+        "novel_ids": novel_ids,
+        "chapter_coin_price": int(chapter_coin_price),
+        "bundle_coin_price": int(bundle_coin_price),
+        "novels_updated": int(row.get("novels_updated") or 0),
+        "chapters_priced": int(row.get("chapters_priced") or 0),
+        "bundles_priced": int(row.get("bundles_priced") or 0),
+    }
+
+
 def upsert_store_product(product_code: str, payload: dict[str, Any]) -> dict[str, Any]:
     code = str(product_code or "").strip()
     if not code or len(code) > 120:
@@ -292,7 +374,7 @@ def upsert_store_product(product_code: str, payload: dict[str, Any]) -> dict[str
         rows = db_select(PRODUCT_TABLE, filters={"product_code": f"eq.{quote(code, safe='')}"}, limit=1)
     except SupabaseError as error:
         message = str(error)
-        if any(sqlstate in message for sqlstate in ("23503", "23514", "22P02")):
+        if any(sqlstate in message for sqlstate in ("23503", "23505", "23514", "22P02")):
             raise StoreValidationError(message) from error
         raise StoreTemporaryError(message) from error
     if not rows:
