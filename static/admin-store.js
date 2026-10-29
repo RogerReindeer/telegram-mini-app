@@ -1,19 +1,44 @@
 (function () {
   "use strict";
+
   const root = document.querySelector("[data-admin-store]");
   if (!root) return;
+
   const form = root.querySelector("[data-admin-store-form]");
   const rows = root.querySelector("[data-admin-store-rows]");
   const status = root.querySelector("[data-admin-store-status]");
   const bulkForm = root.querySelector("[data-admin-bulk-pricing-form]");
   const bulkStatus = root.querySelector("[data-admin-bulk-pricing-status]");
-  const pricingRuleRows = root.querySelector("[data-admin-pricing-rule-rows]");
+  const chapterForm = root.querySelector("[data-admin-chapter-pricing-form]");
+  const chapterStatus = root.querySelector("[data-admin-chapter-pricing-status]");
+  const novelList = root.querySelector("[data-admin-novel-list]");
+  const chapterList = root.querySelector("[data-admin-chapter-list]");
+  const novelSearch = root.querySelector("[data-admin-novel-search]");
+  const chapterSearch = root.querySelector("[data-admin-chapter-search]");
+  const novelCount = root.querySelector("[data-admin-novel-selected-count]");
+  const chapterCount = root.querySelector("[data-admin-chapter-selected-count]");
+
+  const state = {
+    novels: [],
+    chapters: [],
+    selectedNovels: new Set(),
+    selectedChapters: new Set(),
+    lastNovelIndex: null,
+    lastChapterIndex: null
+  };
+
+  function errorMessage(detail) {
+    if (Array.isArray(detail)) {
+      return detail.map(function (item) { return item && item.msg ? item.msg : String(item); }).join("; ");
+    }
+    return String(detail || "request_failed");
+  }
 
   async function api(url, options) {
     const response = await fetch(url, Object.assign({ credentials: "same-origin" }, options || {}));
     let data = {};
     try { data = await response.json(); } catch (_) {}
-    if (!response.ok) throw new Error(String(data.detail || "request_failed"));
+    if (!response.ok) throw new Error(errorMessage(data.detail));
     return data;
   }
 
@@ -30,15 +55,15 @@
     return text ? Number(text) : null;
   }
 
-  function show(text, error) {
-    status.textContent = text || "";
-    status.dataset.tone = error ? "error" : "success";
+  function setMessage(node, text, error) {
+    if (!node) return;
+    node.textContent = text || "";
+    node.dataset.tone = error ? "error" : "success";
   }
 
-  function showBulk(text, error) {
-    bulkStatus.textContent = text || "";
-    bulkStatus.dataset.tone = error ? "error" : "success";
-  }
+  function show(text, error) { setMessage(status, text, error); }
+  function showBulk(text, error) { setMessage(bulkStatus, text, error); }
+  function showChapter(text, error) { setMessage(chapterStatus, text, error); }
 
   function cell(text) {
     const td = document.createElement("td");
@@ -46,7 +71,7 @@
     return td;
   }
 
-  function render(items) {
+  function renderProducts(items) {
     rows.replaceChildren();
     (items || []).forEach(function (item) {
       const tr = document.createElement("tr");
@@ -62,6 +87,8 @@
           if (control.type === "checkbox") control.checked = Boolean(item[key]);
           else control.value = item[key] == null ? "" : item[key];
         });
+        const advanced = root.querySelector(".admin-advanced-pricing");
+        if (advanced) advanced.open = true;
       });
       rows.appendChild(tr);
     });
@@ -74,53 +101,192 @@
     }
   }
 
-  function renderPricingRules(items) {
-    pricingRuleRows.replaceChildren();
-    (items || []).forEach(function (item) {
-      const tr = document.createElement("tr");
-      tr.append(
-        cell(item.novel_id),
-        cell(item.chapter_coin_price + " 🪙"),
-        cell(item.bundle_coin_price + " 🪙"),
-        cell(item.is_active ? "да" : "нет"),
-        cell(item.updated_at)
-      );
-      tr.addEventListener("click", function () {
-        bulkForm.elements.novel_ids.value = item.novel_id;
-        bulkForm.elements.chapter_coin_price.value = item.chapter_coin_price;
-        bulkForm.elements.bundle_coin_price.value = item.bundle_coin_price;
+  function normalizedSearch(input) {
+    return String(input && input.value || "").trim().toLocaleLowerCase("ru");
+  }
+
+  function filteredNovels() {
+    const query = normalizedSearch(novelSearch);
+    if (!query) return state.novels;
+    return state.novels.filter(function (novel) {
+      return [novel.title, novel.code, novel.novel_id].some(function (part) {
+        return String(part == null ? "" : part).toLocaleLowerCase("ru").includes(query);
       });
-      pricingRuleRows.appendChild(tr);
     });
-    if (!items || !items.length) {
-      const tr = document.createElement("tr");
-      const td = cell("Массовые правила ещё не настроены.");
-      td.colSpan = 5;
-      tr.appendChild(td);
-      pricingRuleRows.appendChild(tr);
+  }
+
+  function selectedNovelChapters() {
+    const query = normalizedSearch(chapterSearch);
+    const novelTitles = new Map(state.novels.map(function (novel) {
+      return [Number(novel.novel_id), novel.title];
+    }));
+    return state.chapters.filter(function (chapter) {
+      if (!state.selectedNovels.has(Number(chapter.novel_id))) return false;
+      if (!query) return true;
+      return [chapter.title, chapter.chapter_id, novelTitles.get(Number(chapter.novel_id))].some(function (part) {
+        return String(part == null ? "" : part).toLocaleLowerCase("ru").includes(query);
+      });
+    });
+  }
+
+  function checkboxCard(kind, id, checked, title, details, priceText, tone) {
+    const label = document.createElement("label");
+    label.className = "admin-pricing-option";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = checked;
+    input.dataset.pricingKind = kind;
+    input.dataset.pricingId = String(id);
+    const copy = document.createElement("span");
+    copy.className = "admin-pricing-option-copy";
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    const small = document.createElement("small");
+    small.textContent = details;
+    copy.append(strong, small);
+    const price = document.createElement("span");
+    price.className = "admin-pricing-price";
+    if (tone) price.dataset.tone = tone;
+    price.textContent = priceText;
+    label.append(input, copy, price);
+    return label;
+  }
+
+  function updateCounts() {
+    novelCount.textContent = "Выбрано новелл: " + state.selectedNovels.size;
+    chapterCount.textContent = "Выбрано глав: " + state.selectedChapters.size;
+  }
+
+  function renderNovels() {
+    const novels = filteredNovels();
+    novelList.replaceChildren();
+    novels.forEach(function (novel) {
+      const hasPrice = novel.has_pricing_rule;
+      const priceText = hasPrice
+        ? "глава " + novel.chapter_coin_price + " 🪙 · книга " + novel.bundle_coin_price + " 🪙"
+        : "цена не задана";
+      const details = "ID " + novel.novel_id + " · глав: " + novel.chapter_count
+        + (novel.is_visible ? "" : " · скрыта в каталоге");
+      novelList.appendChild(checkboxCard(
+        "novel", novel.novel_id, state.selectedNovels.has(Number(novel.novel_id)),
+        novel.title, details, priceText, hasPrice ? "default" : "empty"
+      ));
+    });
+    if (!novels.length) {
+      const empty = document.createElement("p");
+      empty.className = "admin-muted";
+      empty.textContent = "Новеллы по этому запросу не найдены.";
+      novelList.appendChild(empty);
+    }
+    state.lastNovelIndex = null;
+    updateCounts();
+  }
+
+  function renderChapters() {
+    const chapters = selectedNovelChapters();
+    const novelTitles = new Map(state.novels.map(function (novel) {
+      return [Number(novel.novel_id), novel.title];
+    }));
+    chapterList.replaceChildren();
+    chapters.forEach(function (chapter) {
+      let priceText = "цена не задана";
+      let tone = "empty";
+      if (chapter.has_override) {
+        priceText = chapter.override_coin_price + " 🪙 · отдельная";
+        tone = "override";
+      } else if (chapter.effective_coin_price != null) {
+        priceText = chapter.effective_coin_price + " 🪙 · общая";
+        tone = "default";
+      }
+      const details = (novelTitles.get(Number(chapter.novel_id)) || "Новелла " + chapter.novel_id)
+        + " · ID " + chapter.chapter_id;
+      chapterList.appendChild(checkboxCard(
+        "chapter", chapter.chapter_id, state.selectedChapters.has(String(chapter.chapter_id)),
+        chapter.title, details, priceText, tone
+      ));
+    });
+    if (!state.selectedNovels.size) {
+      const empty = document.createElement("p");
+      empty.className = "admin-muted";
+      empty.textContent = "Выберите хотя бы одну новеллу.";
+      chapterList.appendChild(empty);
+    } else if (!chapters.length) {
+      const empty = document.createElement("p");
+      empty.className = "admin-muted";
+      empty.textContent = "В выбранных новеллах нет глав по этому запросу.";
+      chapterList.appendChild(empty);
+    }
+    state.lastChapterIndex = null;
+    updateCounts();
+  }
+
+  function applyCheckboxSelection(input, set, converter) {
+    const id = converter(input.dataset.pricingId);
+    if (input.checked) set.add(id);
+    else set.delete(id);
+  }
+
+  function handleShiftClick(event, kind) {
+    const input = event.target.closest('input[data-pricing-kind="' + kind + '"]');
+    if (!input) return;
+    const container = kind === "novel" ? novelList : chapterList;
+    const inputs = Array.from(container.querySelectorAll('input[data-pricing-kind="' + kind + '"]'));
+    const currentIndex = inputs.indexOf(input);
+    const lastKey = kind === "novel" ? "lastNovelIndex" : "lastChapterIndex";
+    const set = kind === "novel" ? state.selectedNovels : state.selectedChapters;
+    const converter = kind === "novel" ? Number : String;
+    if (event.shiftKey && state[lastKey] != null && currentIndex >= 0) {
+      const start = Math.min(state[lastKey], currentIndex);
+      const end = Math.max(state[lastKey], currentIndex);
+      for (let index = start; index <= end; index += 1) {
+        inputs[index].checked = input.checked;
+        applyCheckboxSelection(inputs[index], set, converter);
+      }
+    } else {
+      applyCheckboxSelection(input, set, converter);
+    }
+    state[lastKey] = currentIndex;
+    if (kind === "novel") {
+      state.chapters.forEach(function (chapter) {
+        if (!state.selectedNovels.has(Number(chapter.novel_id))) {
+          state.selectedChapters.delete(String(chapter.chapter_id));
+        }
+      });
+      renderChapters();
+    } else {
+      updateCounts();
     }
   }
 
   async function loadProducts() {
     try {
       const data = await api("/api/admin/store/products");
-      render(data.items);
+      renderProducts(data.items);
     } catch (error) {
       show("Не удалось загрузить товары: " + error.message, true);
     }
   }
 
-  async function loadPricingRules() {
+  async function loadPricingCatalog() {
     try {
-      const data = await api("/api/admin/store/pricing-rules");
-      renderPricingRules(data.items);
+      const data = await api("/api/admin/store/pricing-catalog");
+      state.novels = Array.isArray(data.novels) ? data.novels : [];
+      state.chapters = Array.isArray(data.chapters) ? data.chapters : [];
+      const validNovels = new Set(state.novels.map(function (novel) { return Number(novel.novel_id); }));
+      const validChapters = new Set(state.chapters.map(function (chapter) { return String(chapter.chapter_id); }));
+      state.selectedNovels.forEach(function (id) { if (!validNovels.has(id)) state.selectedNovels.delete(id); });
+      state.selectedChapters.forEach(function (id) { if (!validChapters.has(id)) state.selectedChapters.delete(id); });
+      renderNovels();
+      renderChapters();
     } catch (error) {
-      showBulk("Не удалось загрузить правила цен: " + error.message, true);
+      novelList.replaceChildren();
+      chapterList.replaceChildren();
+      showBulk("Не удалось загрузить новеллы и главы: " + error.message, true);
     }
   }
 
   async function load() {
-    await Promise.all([loadProducts(), loadPricingRules()]);
+    await Promise.all([loadProducts(), loadPricingCatalog()]);
   }
 
   form.addEventListener("submit", async function (event) {
@@ -145,19 +311,52 @@
         body: JSON.stringify(payload)
       });
       show("Товар сохранён. Цена в Монетках равна цене в рублях.", false);
-      await loadProducts();
+      await Promise.all([loadProducts(), loadPricingCatalog()]);
     } catch (error) {
       show("Не удалось сохранить: " + error.message, true);
     }
   });
 
+  novelSearch.addEventListener("input", renderNovels);
+  chapterSearch.addEventListener("input", renderChapters);
+  novelList.addEventListener("click", function (event) { handleShiftClick(event, "novel"); });
+  chapterList.addEventListener("click", function (event) { handleShiftClick(event, "chapter"); });
+
+  root.querySelector("[data-admin-novel-select-visible]").addEventListener("click", function () {
+    filteredNovels().forEach(function (novel) { state.selectedNovels.add(Number(novel.novel_id)); });
+    renderNovels();
+    renderChapters();
+  });
+  root.querySelector("[data-admin-novel-clear]").addEventListener("click", function () {
+    state.selectedNovels.clear();
+    state.selectedChapters.clear();
+    renderNovels();
+    renderChapters();
+  });
+  root.querySelector("[data-admin-chapter-select-visible]").addEventListener("click", function () {
+    selectedNovelChapters().forEach(function (chapter) { state.selectedChapters.add(String(chapter.chapter_id)); });
+    renderChapters();
+  });
+  root.querySelector("[data-admin-chapter-clear]").addEventListener("click", function () {
+    state.selectedChapters.clear();
+    renderChapters();
+  });
+
   bulkForm.addEventListener("submit", async function (event) {
     event.preventDefault();
-    const novelIds = bulkValue("novel_ids");
+    const novelIds = Array.from(state.selectedNovels).sort(function (a, b) { return a - b; });
+    if (!novelIds.length) {
+      showBulk("Сначала отметьте хотя бы одну новеллу.", true);
+      return;
+    }
+    if (novelIds.length > 100) {
+      showBulk("За один раз можно настроить не больше 100 новелл.", true);
+      return;
+    }
     const chapterPrice = Number(bulkValue("chapter_coin_price"));
     const bundlePrice = Number(bulkValue("bundle_coin_price"));
-    const confirmation = "Выставить выбранным новеллам цену каждой главы " + chapterPrice
-      + " 🪙 и всей книги " + bundlePrice + " 🪙?";
+    const confirmation = "Применить к " + novelIds.length + " новелл. цену каждой главы "
+      + chapterPrice + " 🪙 и всей книги " + bundlePrice + " 🪙? Индивидуальные цены глав сохранятся.";
     if (!window.confirm(confirmation)) return;
     const submit = bulkForm.querySelector('button[type="submit"]');
     submit.disabled = true;
@@ -167,7 +366,7 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          novel_ids: novelIds,
+          novel_ids: novelIds.join(","),
           chapter_coin_price: chapterPrice,
           bundle_coin_price: bundlePrice
         })
@@ -178,12 +377,61 @@
           + ", книжных бандлов — " + result.bundles_priced + ".",
         false
       );
-      await Promise.all([loadProducts(), loadPricingRules()]);
+      await Promise.all([loadProducts(), loadPricingCatalog()]);
     } catch (error) {
       showBulk("Не удалось выставить цены: " + error.message, true);
     } finally {
       submit.disabled = false;
     }
+  });
+
+  async function saveSelectedChapterPrices(resetToDefault) {
+    const chapterIds = Array.from(state.selectedChapters);
+    if (!chapterIds.length) {
+      showChapter("Сначала отметьте хотя бы одну главу.", true);
+      return;
+    }
+    if (chapterIds.length > 500) {
+      showChapter("За один раз можно изменить не больше 500 глав.", true);
+      return;
+    }
+    const price = Number(chapterForm.elements.coin_price.value);
+    const actionText = resetToDefault
+      ? "Вернуть общую цену у " + chapterIds.length + " выбранных глав?"
+      : "Установить цену " + price + " 🪙 для " + chapterIds.length + " выбранных глав?";
+    if (!window.confirm(actionText)) return;
+    const buttons = chapterForm.querySelectorAll("button");
+    buttons.forEach(function (button) { button.disabled = true; });
+    showChapter(resetToDefault ? "Возвращаем общие цены…" : "Сохраняем отдельные цены…", false);
+    try {
+      const result = await api("/api/admin/store/chapter-pricing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chapter_ids: chapterIds,
+          coin_price: resetToDefault ? null : price,
+          reset_to_default: resetToDefault
+        })
+      });
+      showChapter(
+        (resetToDefault ? "Общая цена восстановлена" : "Отдельная цена установлена")
+          + ": глав — " + result.chapters_priced + ".",
+        false
+      );
+      await Promise.all([loadProducts(), loadPricingCatalog()]);
+    } catch (error) {
+      showChapter("Не удалось изменить цены: " + error.message, true);
+    } finally {
+      buttons.forEach(function (button) { button.disabled = false; });
+    }
+  }
+
+  chapterForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    saveSelectedChapterPrices(false);
+  });
+  root.querySelector("[data-admin-chapter-reset]").addEventListener("click", function () {
+    saveSelectedChapterPrices(true);
   });
 
   root.querySelector("[data-admin-store-rollback]").addEventListener("click", async function () {

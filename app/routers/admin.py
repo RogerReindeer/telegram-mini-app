@@ -4,7 +4,12 @@ from fastapi import APIRouter, HTTPException, Request
 
 from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_image_cache, clear_telegraph_cache
 from ..security import require_admin_token
-from ..schemas_commerce import BulkNovelPricingPayload, StoreProductAdminPayload, TestPurchaseRollbackRequest
+from ..schemas_commerce import (
+    BulkNovelPricingPayload,
+    SelectedChapterPricingPayload,
+    StoreProductAdminPayload,
+    TestPurchaseRollbackRequest,
+)
 from ..services.admin_state import build_admin_state
 from ..services.analytics import build_analytics_summary, personal_reading_stats
 from ..services.diagnostics import build_catalog_export, build_content_audit
@@ -17,9 +22,11 @@ from ..services.coins import (
     StoreTemporaryError,
     StoreValidationError,
     list_novel_pricing_rules,
+    list_store_pricing_catalog,
     list_store_products,
     rollback_test_purchases,
     set_bulk_novel_pricing,
+    set_selected_chapter_prices,
     upsert_store_product,
 )
 
@@ -162,6 +169,15 @@ def store_pricing_rules(request: Request):
         raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
 
 
+@router.get("/store/pricing-catalog")
+def store_pricing_catalog(request: Request):
+    _guard(request)
+    try:
+        return list_store_pricing_catalog()
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+
+
 @router.post("/store/bulk-pricing")
 def store_bulk_pricing(request: Request, model: BulkNovelPricingPayload):
     _guard(request)
@@ -170,6 +186,21 @@ def store_bulk_pricing(request: Request, model: BulkNovelPricingPayload):
             model.novel_ids,
             model.chapter_coin_price,
             model.bundle_coin_price,
+        )
+    except StoreValidationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+
+
+@router.post("/store/chapter-pricing")
+def store_chapter_pricing(request: Request, model: SelectedChapterPricingPayload):
+    _guard(request)
+    try:
+        return set_selected_chapter_prices(
+            model.chapter_ids,
+            model.coin_price,
+            reset_to_default=model.reset_to_default,
         )
     except StoreValidationError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

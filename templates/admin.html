@@ -74,47 +74,78 @@
       <section class="admin-bulk-pricing" aria-labelledby="adminBulkPricingTitle">
         <div class="admin-store-subheading">
           <div>
-            <h3 id="adminBulkPricingTitle">Массовые цены по новеллам</h3>
-            <p>Форматы ID: <code>1-3</code> или <code>1,3,5</code>. Цена назначается всем текущим главам и автоматически — новым главам после синхронизации.</p>
+            <h3 id="adminBulkPricingTitle">Визуальная настройка цен</h3>
+            <p>Выберите новеллы галочками. Shift + клик отмечает весь диапазон; новые главы получат общую цену автоматически.</p>
           </div>
           <span>1 ₽ = 1 Монетка</span>
         </div>
+        <div class="admin-pricing-toolbar">
+          <label class="admin-pricing-search">Поиск новеллы<input type="search" data-admin-novel-search placeholder="Название или ID" autocomplete="off"></label>
+          <button type="button" data-admin-novel-select-visible>Выбрать найденные</button>
+          <button type="button" data-admin-novel-clear>Снять выбор</button>
+          <strong data-admin-novel-selected-count>Выбрано: 0</strong>
+        </div>
+        <div class="admin-pricing-list admin-novel-pricing-list" data-admin-novel-list role="group" aria-label="Новеллы">
+          <p class="admin-muted">Загрузка новелл…</p>
+        </div>
         <form class="admin-bulk-pricing-form" data-admin-bulk-pricing-form>
-          <label class="admin-store-wide">ID новелл<input name="novel_ids" maxlength="1000" required placeholder="1-3 или 1,3,5" autocomplete="off"></label>
-          <label>Каждая глава<input name="chapter_coin_price" type="number" min="1" max="1000000" value="5" required><small>Монеток за одну главу</small></label>
-          <label>Вся книга<input name="bundle_coin_price" type="number" min="1" max="1000000" value="530" required><small>Монеток за полный бандл</small></label>
-          <div class="admin-store-form-actions"><button type="submit">Выставить цены</button><span data-admin-bulk-pricing-status role="status"></span></div>
+          <label>Каждая глава<input name="chapter_coin_price" type="number" min="1" max="1000000" value="5" required><small>Общая цена для выбранных новелл</small></label>
+          <label>Вся книга<input name="bundle_coin_price" type="number" min="1" max="1000000" value="530" required><small>Цена полного бандла</small></label>
+          <div class="admin-store-form-actions"><button type="submit">Применить к выбранным новеллам</button><span data-admin-bulk-pricing-status role="status"></span></div>
         </form>
-        <div class="admin-table-wrap admin-pricing-rules-table">
+
+        <section class="admin-chapter-pricing" aria-labelledby="adminChapterPricingTitle">
+          <div class="admin-store-subheading">
+            <div>
+              <h3 id="adminChapterPricingTitle">Отдельная цена выбранных глав</h3>
+              <p>Сначала отметьте новеллы выше — здесь появятся их главы с названиями и текущими ценами.</p>
+            </div>
+          </div>
+          <div class="admin-pricing-toolbar">
+            <label class="admin-pricing-search">Поиск главы<input type="search" data-admin-chapter-search placeholder="Номер, название или ID" autocomplete="off"></label>
+            <button type="button" data-admin-chapter-select-visible>Выбрать найденные</button>
+            <button type="button" data-admin-chapter-clear>Снять выбор</button>
+            <strong data-admin-chapter-selected-count>Выбрано: 0</strong>
+          </div>
+          <div class="admin-pricing-list admin-chapter-pricing-list" data-admin-chapter-list role="group" aria-label="Главы">
+            <p class="admin-muted">Выберите хотя бы одну новеллу.</p>
+          </div>
+          <form class="admin-chapter-pricing-form" data-admin-chapter-pricing-form>
+            <label>Цена выбранных глав<input name="coin_price" type="number" min="1" max="1000000" value="5" required><small>Индивидуальная цена поверх общей</small></label>
+            <div class="admin-store-form-actions">
+              <button type="submit">Установить отдельную цену</button>
+              <button type="button" class="admin-secondary-button" data-admin-chapter-reset>Вернуть общую цену</button>
+              <span data-admin-chapter-pricing-status role="status"></span>
+            </div>
+          </form>
+        </section>
+      </section>
+      <details class="admin-advanced-pricing">
+        <summary>Расширенный режим: товары и подписки</summary>
+        <div class="admin-store-subheading admin-manual-pricing-heading">
+          <div><h3>Ручная настройка товара</h3><p>Для подписок и редких служебных случаев. Цены глав удобнее менять галочками выше.</p></div>
+        </div>
+        <form class="admin-store-form" data-admin-store-form>
+          <label>Код товара<input name="product_code" maxlength="120" required placeholder="subscription-traveler-30"></label>
+          <label>Тип<select name="product_type" required><option value="chapter_unlock">Глава</option><option value="novel_unlock">Вся книга</option><option value="subscription">Подписка</option><option value="subscription_upgrade">Повышение подписки</option></select></label>
+          <label class="admin-store-wide">Название<input name="title" maxlength="240" required placeholder="Подписка Traveler · 30 дней"></label>
+          <label>Цена, Монетки<input name="coin_price" type="number" min="1" max="1000000" required></label>
+          <label>Novel ID<input name="novel_id" type="number" min="1"></label>
+          <label>Chapter ID<input name="chapter_id" maxlength="160"></label>
+          <label>Роль<select name="subscription_role"><option value="">—</option><option value="traveler">Traveler</option><option value="keeper">Keeper</option></select></label>
+          <label>Срок, дней<input name="duration_days" type="number" min="1" max="3650"></label>
+          <label>Повышение с роли<select name="upgrade_from_role"><option value="">—</option><option value="traveler">Traveler</option><option value="keeper">Keeper</option></select></label>
+          <label>Сортировка<input name="sort_order" type="number" value="0"></label>
+          <label><span>Активен</span><input name="is_active" type="checkbox" checked></label>
+          <div class="admin-store-form-actions"><button type="submit">Сохранить товар</button><span data-admin-store-status role="status"></span></div>
+        </form>
+        <div class="admin-table-wrap" style="margin-top:14px">
           <table class="admin-table">
-            <thead><tr><th>Novel ID</th><th>Каждая глава</th><th>Вся книга</th><th>Активно</th><th>Обновлено</th></tr></thead>
-            <tbody data-admin-pricing-rule-rows><tr><td colspan="5">Загрузка…</td></tr></tbody>
+            <thead><tr><th>Код</th><th>Тип</th><th>Название</th><th>Цена</th><th>Novel</th><th>Chapter</th><th>Роль</th><th>Дни</th><th>Активен</th></tr></thead>
+            <tbody data-admin-store-rows><tr><td colspan="9">Загрузка…</td></tr></tbody>
           </table>
         </div>
-      </section>
-      <div class="admin-store-subheading admin-manual-pricing-heading">
-        <div><h3>Ручная настройка отдельного товара</h3><p>Используйте для индивидуальной цены конкретной главы, книги или подписки.</p></div>
-      </div>
-      <form class="admin-store-form" data-admin-store-form>
-        <label>Код товара<input name="product_code" maxlength="120" required placeholder="chapter-123"></label>
-        <label>Тип<select name="product_type" required><option value="chapter_unlock">Глава</option><option value="novel_unlock">Вся книга</option><option value="subscription">Подписка</option><option value="subscription_upgrade">Повышение подписки</option></select></label>
-        <label class="admin-store-wide">Название<input name="title" maxlength="240" required placeholder="Глава 12"></label>
-        <label>Цена, Монетки<input name="coin_price" type="number" min="1" max="1000000" required></label>
-        <label>Novel ID<input name="novel_id" type="number" min="1"></label>
-        <label>Chapter ID<input name="chapter_id" maxlength="160"></label>
-        <label>Роль<select name="subscription_role"><option value="">—</option><option value="traveler">Traveler</option><option value="keeper">Keeper</option></select></label>
-        <label>Срок, дней<input name="duration_days" type="number" min="1" max="3650"></label>
-        <label>Повышение с роли<select name="upgrade_from_role"><option value="">—</option><option value="traveler">Traveler</option><option value="keeper">Keeper</option></select></label>
-        <label>Сортировка<input name="sort_order" type="number" value="0"></label>
-        <label><span>Активен</span><input name="is_active" type="checkbox" checked></label>
-        <div class="admin-store-form-actions"><button type="submit">Сохранить товар</button><span data-admin-store-status role="status"></span></div>
-      </form>
-      <div class="admin-table-wrap" style="margin-top:14px">
-        <table class="admin-table">
-          <thead><tr><th>Код</th><th>Тип</th><th>Название</th><th>Цена</th><th>Novel</th><th>Chapter</th><th>Роль</th><th>Дни</th><th>Активен</th></tr></thead>
-          <tbody data-admin-store-rows><tr><td colspan="9">Загрузка…</td></tr></tbody>
-        </table>
-      </div>
+      </details>
       <div class="admin-store-rollback">
         <button type="button" data-admin-store-rollback>Откатить тестовые покупки</button>
         <p class="admin-muted">Доступы отзываются, потраченные Монетки возвращаются. Начисленный тестовый баланс остаётся.</p>

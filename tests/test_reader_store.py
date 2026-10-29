@@ -9,7 +9,12 @@ from jinja2 import Environment, FileSystemLoader
 from pydantic import ValidationError
 
 from app.database import SupabaseError
-from app.schemas_commerce import BulkNovelPricingPayload, StoreProductAdminPayload, TestCoinGrantRequest as CoinGrantRequest
+from app.schemas_commerce import (
+    BulkNovelPricingPayload,
+    SelectedChapterPricingPayload,
+    StoreProductAdminPayload,
+    TestCoinGrantRequest as CoinGrantRequest,
+)
 from app.services import coins
 
 
@@ -52,6 +57,29 @@ def test_bulk_pricing_schema_uses_requested_example_prices():
     assert model.bundle_coin_price == 530
 
 
+def test_selected_chapter_pricing_schema_normalizes_and_validates_modes():
+    model = SelectedChapterPricingPayload(
+        chapter_ids=[" 1-1 ", "1-1", "1-2"],
+        coin_price=9,
+    )
+    assert model.chapter_ids == ["1-1", "1-2"]
+    assert model.coin_price == 9
+    reset = SelectedChapterPricingPayload(
+        chapter_ids=["1-1"],
+        coin_price=None,
+        reset_to_default=True,
+    )
+    assert reset.reset_to_default is True
+    with pytest.raises(ValidationError):
+        SelectedChapterPricingPayload(chapter_ids=["1-1"], coin_price=None)
+    with pytest.raises(ValidationError):
+        SelectedChapterPricingPayload(
+            chapter_ids=["1-1"],
+            coin_price=5,
+            reset_to_default=True,
+        )
+
+
 @pytest.mark.parametrize(
     ("selector", "expected"),
     [
@@ -89,6 +117,58 @@ def test_bulk_pricing_calls_atomic_rpc_with_normalized_ids(monkeypatch):
         },
     }
     assert result["chapters_priced"] == 42
+
+
+def test_selected_chapter_pricing_calls_atomic_rpc(monkeypatch):
+    captured = {}
+
+    def fake_rpc(name, payload):
+        captured.update({"name": name, "payload": payload})
+        return [{"chapters_priced": 2, "novels_affected": 1, "overrides_reset": False}]
+
+    monkeypatch.setattr(coins, "db_rpc", fake_rpc)
+    result = coins.set_selected_chapter_prices(["1-1", "1-1", "1-2"], 9)
+    assert captured == {
+        "name": "reader_set_selected_chapter_prices",
+        "payload": {
+            "p_chapter_ids": ["1-1", "1-2"],
+            "p_coin_price": 9,
+            "p_reset_to_default": False,
+        },
+    }
+    assert result["chapters_priced"] == 2
+
+
+def test_visual_pricing_catalog_includes_titles_and_effective_prices(monkeypatch):
+    tables = {
+        "novels": [
+            {"novel_id": 1, "code": "alpha", "novel_short": "Альфа", "miniapp_visible": True},
+        ],
+        "chapters": [
+            {"chapter_id": "1-1", "novel_id": 1, "chapter_no": 1, "source_chapter_no": "1", "part_no": None, "chapter_title": "Начало"},
+            {"chapter_id": "1-2", "novel_id": 1, "chapter_no": 2, "source_chapter_no": "2", "part_no": None, "chapter_title": "Продолжение"},
+        ],
+        coins.PRODUCT_TABLE: [
+            {"product_type": "chapter_unlock", "novel_id": 1, "chapter_id": "1-1", "coin_price": 5, "is_active": True},
+            {"product_type": "chapter_unlock", "novel_id": 1, "chapter_id": "1-2", "coin_price": 9, "is_active": True},
+            {"product_type": "novel_unlock", "novel_id": 1, "chapter_id": None, "coin_price": 530, "is_active": True},
+        ],
+        coins.PRICING_RULE_TABLE: [
+            {"novel_id": 1, "chapter_coin_price": 5, "bundle_coin_price": 530, "is_active": True},
+        ],
+        coins.CHAPTER_OVERRIDE_TABLE: [
+            {"chapter_id": "1-2", "coin_price": 9},
+        ],
+    }
+    monkeypatch.setattr(coins, "db_select", lambda table, **_kwargs: tables[table])
+    catalog = coins.list_store_pricing_catalog()
+    assert catalog["novels"][0]["title"] == "Альфа"
+    assert catalog["novels"][0]["chapter_count"] == 2
+    assert catalog["novels"][0]["bundle_coin_price"] == 530
+    assert catalog["chapters"][0]["title"] == "Глава 1 — Начало"
+    assert catalog["chapters"][0]["has_override"] is False
+    assert catalog["chapters"][1]["override_coin_price"] == 9
+    assert catalog["chapters"][1]["effective_coin_price"] == 9
 
 
 def test_context_product_list_includes_chapter_bundle_and_subscriptions(monkeypatch):

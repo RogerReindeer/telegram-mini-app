@@ -105,6 +105,39 @@ class BulkNovelPricingPayload(CommerceInputModel):
         return text
 
 
+class SelectedChapterPricingPayload(CommerceInputModel):
+    chapter_ids: list[str] = Field(..., min_length=1, max_length=500)
+    coin_price: int | None = Field(default=None, ge=1, le=1_000_000)
+    reset_to_default: bool = False
+
+    @field_validator("chapter_ids")
+    @classmethod
+    def normalize_chapter_ids(cls, values: list[str]) -> list[str]:
+        result: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            chapter_id = str(value or "").strip()
+            if not chapter_id:
+                raise ValueError("Пустой ID главы")
+            if len(chapter_id) > 160:
+                raise ValueError("Слишком длинный ID главы")
+            if chapter_id not in seen:
+                seen.add(chapter_id)
+                result.append(chapter_id)
+        if not result:
+            raise ValueError("Выберите хотя бы одну главу")
+        return result
+
+    @model_validator(mode="after")
+    def validate_price_mode(self):
+        if self.reset_to_default:
+            if self.coin_price is not None:
+                raise ValueError("При возврате общей цены coin_price не передаётся")
+        elif self.coin_price is None:
+            raise ValueError("Укажите цену выбранных глав")
+        return self
+
+
 class TestPurchaseRollbackRequest(CommerceInputModel):
     confirmation: Literal["ROLLBACK_TEST_PURCHASES"]
     telegram_user_id: int | None = Field(default=None, gt=0)

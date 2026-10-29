@@ -72,6 +72,20 @@ def test_bulk_novel_pricing_persists_rules_and_prices_future_chapters():
     assert "to service_role" in sql
 
 
+def test_visual_pricing_editor_preserves_per_chapter_overrides():
+    sql = (ROOT / "sql" / "migrations" / "007_reader_visual_pricing_editor.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "create table if not exists public.reader_chapter_pricing_overrides" in sql
+    assert "create or replace function public.reader_set_selected_chapter_prices" in sql
+    assert "coalesce(price_override.coin_price, p_chapter_coin_price)" in sql
+    assert "reader_missing_novel_pricing_rule" in sql
+    assert "pg_advisory_xact_lock" in sql
+    assert "alter table public.reader_chapter_pricing_overrides enable row level security" in sql
+    assert "from public, anon, authenticated" in sql
+    assert "to service_role" in sql
+
+
 def test_security_hardening_removes_duplicate_analytics_trigger_before_rebuild():
     sql = (ROOT / "sql" / "migrations" / "004_security_analytics_hardening.sql").read_text(
         encoding="utf-8"

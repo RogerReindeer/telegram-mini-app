@@ -19,11 +19,13 @@ PRODUCT_TABLE = "reader_store_products"
 PURCHASE_TABLE = "reader_store_purchases"
 ENTITLEMENT_TABLE = "reader_commerce_entitlements"
 PRICING_RULE_TABLE = "reader_novel_pricing_rules"
+CHAPTER_OVERRIDE_TABLE = "reader_chapter_pricing_overrides"
 CREDIT_RPC = "reader_credit_coins_from_qinghe"
 TEST_CREDIT_RPC = "reader_grant_test_coins"
 PURCHASE_RPC = "reader_purchase_product"
 ROLLBACK_RPC = "reader_rollback_test_purchases"
 BULK_PRICING_RPC = "reader_set_bulk_novel_pricing"
+SELECTED_CHAPTER_PRICING_RPC = "reader_set_selected_chapter_prices"
 MAX_BULK_PRICING_NOVELS = 100
 
 
@@ -294,6 +296,129 @@ def list_novel_pricing_rules() -> list[dict[str, Any]]:
     ]
 
 
+def _catalog_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def list_store_pricing_catalog() -> dict[str, Any]:
+    """Return an admin-only visual pricing catalog with effective prices."""
+    try:
+        novels = db_select(
+            "novels",
+            select="novel_id,code,novel_short,title_ru,miniapp_visible",
+            order="novel_id.asc",
+        )
+        chapters = db_select(
+            "chapters",
+            select=(
+                "chapter_id,novel_id,volume_no,volume_title,chapter_no,"
+                "source_chapter_no,part_no,chapter_title"
+            ),
+            order="novel_id.asc,chapter_no.asc,part_no.asc,chapter_id.asc",
+        )
+        products = db_select(
+            PRODUCT_TABLE,
+            select="product_type,novel_id,chapter_id,coin_price,is_active",
+            filters={"is_active": "eq.true"},
+            order="product_code.asc",
+        )
+        rules = db_select(PRICING_RULE_TABLE, order="novel_id.asc")
+        overrides = db_select(CHAPTER_OVERRIDE_TABLE, order="chapter_id.asc")
+    except SupabaseError as error:
+        raise StoreTemporaryError(str(error)) from error
+
+    rules_by_novel = {
+        int(row["novel_id"]): row
+        for row in rules
+        if row.get("novel_id") is not None and bool(row.get("is_active"))
+    }
+    overrides_by_chapter = {
+        _catalog_text(row.get("chapter_id")): int(row.get("coin_price") or 0)
+        for row in overrides
+        if _catalog_text(row.get("chapter_id"))
+    }
+    chapter_prices: dict[str, int] = {}
+    bundle_prices: dict[int, int] = {}
+    for row in products:
+        product_type = _catalog_text(row.get("product_type"))
+        if product_type == "chapter_unlock" and row.get("chapter_id") is not None:
+            chapter_prices[_catalog_text(row.get("chapter_id"))] = int(row.get("coin_price") or 0)
+        elif product_type == "novel_unlock" and row.get("novel_id") is not None:
+            bundle_prices[int(row["novel_id"])] = int(row.get("coin_price") or 0)
+
+    chapter_count_by_novel: dict[int, int] = {}
+    chapter_items: list[dict[str, Any]] = []
+    for row in chapters:
+        chapter_id = _catalog_text(row.get("chapter_id"))
+        novel_id = int(row.get("novel_id") or 0)
+        if not chapter_id or novel_id <= 0:
+            continue
+        chapter_count_by_novel[novel_id] = chapter_count_by_novel.get(novel_id, 0) + 1
+        rule = rules_by_novel.get(novel_id)
+        default_price = int(rule.get("chapter_coin_price") or 0) if rule else None
+        override_price = overrides_by_chapter.get(chapter_id)
+        effective_price = chapter_prices.get(chapter_id)
+        source_number = _catalog_text(row.get("source_chapter_no")) or _catalog_text(row.get("chapter_no"))
+        part_number = _catalog_text(row.get("part_no"))
+        number_label = source_number or chapter_id
+        chapter_title = _catalog_text(row.get("chapter_title"))
+        if chapter_title.casefold().startswith("глава"):
+            label = chapter_title
+        else:
+            label = f"Глава {number_label}"
+            if part_number and part_number != "0":
+                label += f", часть {part_number}"
+            if chapter_title:
+                label += f" — {chapter_title}"
+        chapter_items.append({
+            "chapter_id": chapter_id,
+            "novel_id": novel_id,
+            "title": label,
+            "chapter_title": chapter_title or None,
+            "chapter_no": row.get("chapter_no"),
+            "source_chapter_no": row.get("source_chapter_no"),
+            "part_no": row.get("part_no"),
+            "effective_coin_price": effective_price,
+            "default_coin_price": default_price,
+            "override_coin_price": override_price,
+            "has_override": override_price is not None,
+            "is_priced": effective_price is not None,
+        })
+
+    novel_items: list[dict[str, Any]] = []
+    for row in novels:
+        novel_id = int(row.get("novel_id") or 0)
+        if novel_id <= 0:
+            continue
+        rule = rules_by_novel.get(novel_id)
+        title = (
+            _catalog_text(row.get("novel_short"))
+            or _catalog_text(row.get("title_ru"))
+            or _catalog_text(row.get("code"))
+            or f"Новелла {novel_id}"
+        )
+        novel_items.append({
+            "novel_id": novel_id,
+            "title": title,
+            "code": _catalog_text(row.get("code")) or None,
+            "is_visible": row.get("miniapp_visible") is not False,
+            "chapter_count": chapter_count_by_novel.get(novel_id, 0),
+            "chapter_coin_price": int(rule.get("chapter_coin_price") or 0) if rule else None,
+            "bundle_coin_price": bundle_prices.get(
+                novel_id,
+                int(rule.get("bundle_coin_price") or 0) if rule else None,
+            ),
+            "has_pricing_rule": rule is not None,
+        })
+
+    return {
+        "status": "ok",
+        "exchange_rate_rub": 1,
+        "novels": novel_items,
+        "chapters": chapter_items,
+    }
+
+
 def set_bulk_novel_pricing(
     novel_selector: Any,
     chapter_coin_price: int,
@@ -322,6 +447,41 @@ def set_bulk_novel_pricing(
         "novels_updated": int(row.get("novels_updated") or 0),
         "chapters_priced": int(row.get("chapters_priced") or 0),
         "bundles_priced": int(row.get("bundles_priced") or 0),
+    }
+
+
+def set_selected_chapter_prices(
+    chapter_ids: list[str],
+    coin_price: int | None,
+    *,
+    reset_to_default: bool = False,
+) -> dict[str, Any]:
+    normalized = list(dict.fromkeys(str(value).strip() for value in chapter_ids if str(value).strip()))
+    if not normalized or len(normalized) > 500:
+        raise StoreValidationError("Выберите от 1 до 500 глав")
+    try:
+        row = _rpc_row(db_rpc(SELECTED_CHAPTER_PRICING_RPC, {
+            "p_chapter_ids": normalized,
+            "p_coin_price": None if reset_to_default else int(coin_price or 0),
+            "p_reset_to_default": bool(reset_to_default),
+        }), operation="selected chapter pricing")
+    except SupabaseError as error:
+        message = str(error)
+        if "reader_unknown_chapter_ids" in message:
+            missing = message.split("reader_unknown_chapter_ids:", 1)[-1].split('"', 1)[0]
+            raise StoreValidationError(f"Главы не найдены: {missing}") from error
+        if "reader_missing_novel_pricing_rule" in message:
+            raise StoreValidationError(
+                "Сначала задайте общую цену главы для выбранной новеллы"
+            ) from error
+        if "reader_invalid_selected_chapter_pricing" in message:
+            raise StoreValidationError("Некорректные параметры цен глав") from error
+        raise StoreTemporaryError(message) from error
+    return {
+        "status": "ok",
+        "chapters_priced": int(row.get("chapters_priced") or 0),
+        "novels_affected": int(row.get("novels_affected") or 0),
+        "overrides_reset": bool(row.get("overrides_reset")),
     }
 
 
