@@ -6660,3 +6660,23 @@ body[data-resolved-theme="dark"] .novel-subscription-gate {
   .novel-subscription-toc-blur { max-height: 540px; }
   .novel-subscription-gate { width: calc(100% - 18px); padding: 19px 15px; }
 }
+
+/* v243: one document scroller for mouse wheels in Telegram Desktop.
+   `overflow-x: hidden` on both root elements creates nested scroll containers
+   in some WebView builds; touch still moves while wheel input gets trapped. */
+html,
+body {
+  overflow-x: clip !important;
+}
+
+html {
+  overflow-y: auto !important;
+}
+
+html.reader-scroll-locked {
+  overflow-y: hidden !important;
+}
+
+body:not(.reader-transaction-open):not(.zb-settings-open):not(.reader-quick-settings-open) {
+  overflow-y: visible !important;
+}

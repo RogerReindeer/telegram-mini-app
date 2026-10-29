@@ -34,6 +34,7 @@
 
   document.addEventListener("DOMContentLoaded", async function () {
     initTelegram();
+    initReliableWheelScrolling();
     const reloading = await initTelegramAuth();
     if (reloading) return;
 
@@ -88,6 +89,90 @@
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
     }
+  }
+
+  // Telegram Desktop can leave the document with a non-scrolling body after
+  // overlays or horizontal/vertical reader gestures. Native touch scrolling
+  // still works in that state, but mouse-wheel events no longer move the page.
+  // Keep the browser's native wheel behaviour and only provide a fallback when
+  // the selected scroll container did not move by the next animation frame.
+  function initReliableWheelScrolling() {
+    const root = document.documentElement;
+    if (!root || root.dataset.wheelScrollReady === "true") return;
+    root.dataset.wheelScrollReady = "true";
+
+    let pending = null;
+    let frame = 0;
+
+    function isScrollLocked() {
+      return document.body.classList.contains("reader-transaction-open")
+        || document.body.classList.contains("zb-settings-open")
+        || document.body.classList.contains("reader-quick-settings-open");
+    }
+
+    function syncRootScrollLock() {
+      root.classList.toggle("reader-scroll-locked", isScrollLocked());
+    }
+
+    syncRootScrollLock();
+    new MutationObserver(syncRootScrollLock).observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    function canScroll(element, delta) {
+      if (!element || element.scrollHeight <= element.clientHeight + 1) return false;
+      if (delta < 0) return element.scrollTop > 0;
+      return element.scrollTop + element.clientHeight < element.scrollHeight - 1;
+    }
+
+    function nearestScrollable(start, delta) {
+      let element = start instanceof Element ? start : null;
+      while (element && element !== document.body && element !== root) {
+        const style = window.getComputedStyle(element);
+        if (/^(auto|scroll|overlay)$/.test(style.overflowY) && canScroll(element, delta)) {
+          return element;
+        }
+        element = element.parentElement;
+      }
+
+      if (isScrollLocked()) return null;
+      const scrollingElement = document.scrollingElement || root;
+      return canScroll(scrollingElement, delta) ? scrollingElement : null;
+    }
+
+    function normalizeWheelDelta(event) {
+      let delta = Number(event.deltaY || 0);
+      if (event.deltaMode === 1) delta *= 18;
+      else if (event.deltaMode === 2) delta *= Math.max(1, window.innerHeight * 0.9);
+      return delta;
+    }
+
+    document.addEventListener("wheel", function (event) {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey) return;
+      if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+
+      const delta = normalizeWheelDelta(event);
+      if (!delta) return;
+      const target = nearestScrollable(event.target, delta);
+      if (!target) return;
+
+      if (pending && pending.target === target) {
+        pending.delta += delta;
+      } else {
+        pending = { target: target, delta: delta, before: target.scrollTop };
+      }
+
+      if (frame) return;
+      frame = window.requestAnimationFrame(function () {
+        frame = 0;
+        const current = pending;
+        pending = null;
+        if (!current || current.target.scrollTop !== current.before) return;
+        if (!canScroll(current.target, current.delta)) return;
+        current.target.scrollBy({ top: current.delta, left: 0, behavior: "auto" });
+      });
+    }, { passive: true });
   }
 
   function getTelegramWebApp() {

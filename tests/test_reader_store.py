@@ -358,3 +358,18 @@ def test_reader_has_no_removed_payment_provider_route_or_ui_copy():
                 if re.search(r"\btribute\b", text):
                     matches.append(str(path.relative_to(ROOT)))
     assert matches == []
+
+
+def test_global_mouse_wheel_scroll_has_root_contract_and_runtime_fallback():
+    settings_script = (ROOT / "static" / "settings.js").read_text(encoding="utf-8")
+    enhancements = (ROOT / "static" / "enhancements.css").read_text(encoding="utf-8")
+    assert "initReliableWheelScrolling();" in settings_script
+    assert 'document.addEventListener("wheel"' in settings_script
+    assert "document.scrollingElement || root" in settings_script
+    assert 'root.classList.toggle("reader-scroll-locked", isScrollLocked())' in settings_script
+    assert "new MutationObserver(syncRootScrollLock)" in settings_script
+    assert '{ passive: true }' in settings_script
+    assert "overflow-x: clip !important" in enhancements
+    assert "html.reader-scroll-locked" in enhancements
+    assert "body:not(.reader-transaction-open):not(.zb-settings-open):not(.reader-quick-settings-open)" in enhancements
+    assert "overflow-y: visible !important" in enhancements
