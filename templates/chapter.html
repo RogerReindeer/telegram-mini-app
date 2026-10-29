@@ -77,57 +77,7 @@
                 </button>
                 <p class="chapter-coin-offer-message" data-reader-store-message hidden role="status"></p>
               </section>
-              <div class="reader-transaction-backdrop" data-reader-transaction hidden>
-                <section class="reader-transaction-dialog" role="dialog" aria-modal="true" aria-labelledby="readerTransactionTitle" tabindex="-1">
-                  <header class="reader-transaction-header">
-                    <div><small>Покупка за Монетки</small><h2 id="readerTransactionTitle">Выберите доступ</h2></div>
-                    <button class="reader-transaction-close" type="button" data-reader-transaction-close aria-label="Закрыть">×</button>
-                  </header>
-                  <button class="reader-transaction-balance" type="button" data-reader-topup-open aria-label="Открыть пополнение баланса">
-                    <span><small>Ваш баланс</small><strong><span data-reader-coins-balance>—</span> <span aria-hidden="true">🪙</span></strong></span>
-                    <span class="reader-transaction-balance-action">Пополнить ›</span>
-                  </button>
-
-                  <div class="reader-transaction-view" data-reader-transaction-chooser>
-                    <p class="reader-transaction-intro">Купите только эту главу или откройте всю новеллу навсегда.</p>
-                    <div class="reader-transaction-products" data-reader-transaction-products></div>
-                  </div>
-
-                  <div class="reader-transaction-view" data-reader-transaction-confirm hidden>
-                    <button class="reader-transaction-back" type="button" data-reader-confirm-back>← Назад к вариантам</button>
-                    <div class="reader-transaction-summary">
-                      <small data-reader-confirm-type>Покупка</small>
-                      <h3 data-reader-confirm-title>—</h3>
-                      <div class="reader-transaction-total"><span>К оплате</span><strong><span data-reader-confirm-price>—</span> <span aria-hidden="true">🪙</span></strong></div>
-                      <div class="reader-transaction-after"><span>Останется на балансе</span><b><span data-reader-confirm-after>—</span> <span aria-hidden="true">🪙</span></b></div>
-                    </div>
-                    <p class="reader-transaction-shortage" data-reader-confirm-shortage hidden></p>
-                    <button class="reader-transaction-primary" type="button" data-reader-confirm-purchase>Подтвердить покупку</button>
-                    <button class="reader-transaction-primary" type="button" data-reader-confirm-topup hidden>Пополнить баланс</button>
-                  </div>
-
-                  <div class="reader-transaction-view" data-reader-transaction-topup hidden>
-                    <button class="reader-transaction-back" type="button" data-reader-topup-back>← Назад к покупке</button>
-                    <h3>Пополнить баланс</h3>
-                    <p class="reader-transaction-intro">Выберите сумму. Минимальное пополнение — <span data-reader-topup-min>10</span> Монеток.</p>
-                    <div class="reader-transaction-test-topup" data-reader-test-topup hidden>
-                      <strong>Бесплатно на время теста</strong>
-                      <div class="reader-transaction-presets">
-                        {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-topup-amount="{{ amount }}">+{{ amount }}</button>{% endfor %}
-                      </div>
-                      <div class="reader-transaction-custom">
-                        <input type="number" min="10" step="1" inputmode="numeric" placeholder="Своя сумма" data-reader-topup-custom aria-label="Своя сумма пополнения">
-                        <button type="button" data-reader-topup-submit>Начислить</button>
-                      </div>
-                    </div>
-                    <a class="reader-transaction-shop" href="#" target="_blank" rel="noopener noreferrer" data-reader-topup-shop hidden>Купить Монетки в Qinghe ↗</a>
-                    <p class="reader-transaction-unavailable" data-reader-topup-unavailable hidden>Пополнение пока недоступно. Попробуйте позднее.</p>
-                  </div>
-
-                  <p class="reader-transaction-message" data-reader-transaction-message hidden role="status"></p>
-                  <footer class="reader-transaction-footer">1 ₽ = 1 Монетка · покупки можно откатить до конца теста</footer>
-                </section>
-              </div>
+              {% include "_reader_transaction_modal.html" %}
             {% endif %}
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
               {% if access_paywall.show_subscription_choices %}

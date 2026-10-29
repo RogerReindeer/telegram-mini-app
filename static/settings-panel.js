@@ -210,6 +210,50 @@
       subscriptionSummaryLoading = false;
     }
   }
+  let purchaseHistoryLoaded = false;
+  let purchaseHistoryLoading = false;
+  function purchaseTypeLabel(item) {
+    if (item.product_type === "chapter_unlock") return "Глава";
+    if (item.product_type === "novel_unlock") return "Вся новелла";
+    if (item.product_type === "subscription") return "Подписка";
+    return "Покупка";
+  }
+  function formatPurchaseDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
+  async function loadPurchaseHistory(force) {
+    const box = document.querySelector("[data-zb-purchase-history]");
+    if (!box || (purchaseHistoryLoaded && !force) || purchaseHistoryLoading) return;
+    purchaseHistoryLoading = true;
+    box.innerHTML = `<div class="zb-access-loading">Загружаем покупки…</div>`;
+    try {
+      const response = await fetch("/api/store/purchases?limit=50", { credentials: "same-origin" });
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(data.detail || "Не удалось получить историю покупок");
+      purchaseHistoryLoaded = true;
+      const items = Array.isArray(data.items) ? data.items : [];
+      if (!items.length) {
+        box.innerHTML = `<p class="zb-purchase-history-empty">Покупок за Монетки пока нет.</p>`;
+      } else {
+        box.innerHTML = `<div class="zb-purchase-history-list">${items.map(function (item) {
+          return `<article class="zb-purchase-history-item"><div><small>${escapeHtml(purchaseTypeLabel(item))}</small><strong>${escapeHtml(item.title || item.product_code || "Покупка")}</strong><span>${escapeHtml(formatPurchaseDate(item.purchased_at))}</span></div><b>${Number(item.coin_price || 0).toLocaleString("ru-RU")} 🪙</b></article>`;
+        }).join("")}</div>`;
+      }
+    } catch (error) {
+      box.innerHTML = `<div class="zb-subscription-empty"><strong>Не удалось загрузить покупки</strong><span>${escapeHtml(error && error.message ? error.message : "Попробуйте ещё раз.")}</span><button type="button" class="zb-access-retry" data-zb-purchases-retry>Повторить</button></div>`;
+    } finally {
+      purchaseHistoryLoading = false;
+    }
+  }
   let personalStatsLoaded = false;
   let personalStatsLoading = false;
   function formatStatsDate(value) {
@@ -291,6 +335,7 @@
           </section>
           <section class="zb-settings-pane" data-zb-pane="access">
             <div class="zb-access-box zb-access-box-user"><h3>Подписки</h3><div data-zb-subscription-summary><div class="zb-access-loading">Откройте раздел, чтобы проверить подписки.</div></div></div>
+            <div class="zb-access-box zb-access-box-user zb-purchase-history-box"><h3>История покупок</h3><div data-zb-purchase-history><div class="zb-access-loading">Откройте раздел, чтобы увидеть покупки.</div></div></div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="stats">
             <div class="zb-personal-stats-box" data-zb-personal-stats><div class="zb-stats-loading">Откройте раздел, чтобы увидеть статистику чтения.</div></div>
@@ -355,7 +400,10 @@
     const subtitles = { reader: "Текст, фон и интервалы — без лишних экранов", app: "Тема, размер интерфейса и акцент", access: "Поддержка переводов и ваш текущий доступ", stats: "Ваше чтение в Mini App", about: "Информация о проекте" };
     if (title) title.textContent = titles[tab] || "Настройки";
     if (subtitle) subtitle.textContent = subtitles[tab] || "";
-    if (tab === "access") loadSubscriptionSummary(false);
+    if (tab === "access") {
+      loadSubscriptionSummary(false);
+      loadPurchaseHistory(false);
+    }
     if (tab === "stats") loadPersonalStats(false);
   }
   function bindSheet(overlay) {
@@ -391,6 +439,12 @@
       if (statsRetry) {
         personalStatsLoaded = false;
         loadPersonalStats(true);
+        return;
+      }
+      const purchasesRetry = event.target.closest("[data-zb-purchases-retry]");
+      if (purchasesRetry) {
+        purchaseHistoryLoaded = false;
+        loadPurchaseHistory(true);
         return;
       }
       const reset = event.target.closest("[data-zb-reset]");

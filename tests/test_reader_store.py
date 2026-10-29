@@ -212,6 +212,32 @@ def test_novel_chapter_price_map_fails_closed_on_database_outage(monkeypatch):
         coins.get_novel_chapter_price_map(5)
 
 
+def test_purchase_history_has_titles_and_hides_test_rollbacks(monkeypatch):
+    def fake_select(table, **_kwargs):
+        if table == coins.PURCHASE_TABLE:
+            return [
+                {"id": "purchase-1", "product_code": "chapter:5-1", "coin_price": 5, "status": "completed", "purchased_at": "2026-10-29T10:00:00Z", "reversed_at": None},
+                {"id": "purchase-2", "product_code": "chapter:5-2", "coin_price": 5, "status": "reversed", "purchased_at": "2026-10-29T11:00:00Z", "reversed_at": "2026-10-29T12:00:00Z"},
+            ]
+        if table == coins.PRODUCT_TABLE:
+            return [
+                {"product_code": "chapter:5-1", "product_type": "chapter_unlock", "title": "Глава 1"},
+                {"product_code": "chapter:5-2", "product_type": "chapter_unlock", "title": "Глава 2"},
+            ]
+        return []
+
+    monkeypatch.setattr(coins, "db_select", fake_select)
+    history = coins.list_user_purchases(42)
+    assert history == [{
+        "id": "purchase-1",
+        "product_code": "chapter:5-1",
+        "product_type": "chapter_unlock",
+        "title": "Глава 1",
+        "coin_price": 5,
+        "purchased_at": "2026-10-29T10:00:00Z",
+    }]
+
+
 def test_purchase_maps_insufficient_balance(monkeypatch):
     monkeypatch.setattr(coins, "db_rpc", lambda *_args, **_kwargs: (_ for _ in ()).throw(SupabaseError("reader_insufficient_balance")))
     with pytest.raises(coins.StoreInsufficientBalance):
@@ -294,21 +320,30 @@ def test_all_templates_compile_after_store_ui_changes():
         environment.get_template(path.name)
 
 
-def test_reader_store_ui_is_chapter_only_and_uses_transaction_modal():
+def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     library = (ROOT / "templates" / "library.html").read_text(encoding="utf-8")
     chapter = (ROOT / "templates" / "chapter.html").read_text(encoding="utf-8")
     novel = (ROOT / "templates" / "novel.html").read_text(encoding="utf-8")
     script = (ROOT / "static" / "reader-store.js").read_text(encoding="utf-8")
+    settings_script = (ROOT / "static" / "settings-panel.js").read_text(encoding="utf-8")
+    transaction = (ROOT / "templates" / "_reader_transaction_modal.html").read_text(encoding="utf-8")
     assert "data-reader-store" not in library
     assert "reader-store.js" not in library
-    assert "data-reader-store" not in novel
-    assert "reader-store.js" not in novel
+    assert 'data-store-mode="subscription"' in novel
+    assert "novel-subscription-toc-blur" in novel
+    assert "reader-store.js" in novel
     assert "chapter-coin-price" in novel
     assert 'data-chapter-id="{{ chapter.chapter_id }}"' in chapter
-    assert "data-reader-transaction" in chapter
-    assert "data-reader-coins-balance" in chapter
+    assert '_reader_transaction_modal.html' in chapter
+    assert "data-reader-transaction" in transaction
+    assert "data-reader-coins-balance" in transaction
     assert "Подтверждение покупки" in script
     assert "Купить всю новеллу" in script
+    assert "Все текущие и будущие главы без срока" in script
+    assert 'state.mode === "subscription"' in script
+    assert "state.suggestedTopup" in script
+    assert "data-zb-purchase-history" in settings_script
+    assert "История покупок" in settings_script
     assert "window.confirm" not in script
 
 

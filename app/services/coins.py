@@ -255,13 +255,39 @@ def purchase_store_product(telegram_user_id: int, product_code: str, client_acti
 
 
 def list_user_purchases(telegram_user_id: int, *, limit: int = 100) -> list[dict[str, Any]]:
-    return db_select(
+    rows = db_select(
         PURCHASE_TABLE,
         select="id,product_code,coin_price,status,purchased_at,reversed_at",
         filters={"telegram_user_id": f"eq.{int(telegram_user_id)}"},
         order="purchased_at.desc",
         limit=max(1, min(int(limit), 250)),
     )
+    products = db_select(
+        PRODUCT_TABLE,
+        select="product_code,product_type,title",
+        order="product_code.asc",
+    )
+    products_by_code = {
+        str(product.get("product_code") or ""): product
+        for product in products
+        if product.get("product_code")
+    }
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        # Test rollbacks remain an administrator tool and are not presented as
+        # a user-facing refund flow. The history shows completed purchases only.
+        if str(row.get("status") or "") != "completed" or row.get("reversed_at"):
+            continue
+        product = products_by_code.get(str(row.get("product_code") or ""), {})
+        result.append({
+            "id": str(row.get("id") or ""),
+            "product_code": str(row.get("product_code") or ""),
+            "product_type": str(product.get("product_type") or ""),
+            "title": str(product.get("title") or row.get("product_code") or "Покупка"),
+            "coin_price": int(row.get("coin_price") or 0),
+            "purchased_at": row.get("purchased_at"),
+        })
+    return result
 
 
 def list_user_entitlements(telegram_user_id: int) -> list[dict[str, Any]]:

@@ -14,6 +14,7 @@
   const confirmation = modal.querySelector("[data-reader-transaction-confirm]");
   const topup = modal.querySelector("[data-reader-transaction-topup]");
   const productsContainer = modal.querySelector("[data-reader-transaction-products]");
+  const transactionIntro = modal.querySelector("[data-reader-transaction-intro]");
   const balanceNodes = modal.querySelectorAll("[data-reader-coins-balance]");
   const balanceButton = modal.querySelector("[data-reader-topup-open]");
   const message = modal.querySelector("[data-reader-transaction-message]");
@@ -34,6 +35,7 @@
   const topupUnavailable = modal.querySelector("[data-reader-topup-unavailable]");
 
   const state = {
+    mode: root.dataset.storeMode || "chapter",
     balance: 0,
     products: [],
     selected: null,
@@ -43,6 +45,7 @@
     topupMax: 1000,
     topupUrl: "",
     previousFocus: null,
+    suggestedTopup: 0,
     busy: false,
   };
 
@@ -140,19 +143,36 @@
   }
 
   function productKind(product) {
-    return product.product_type === "chapter_unlock" ? "Глава" : "Вся новелла";
+    if (product.product_type === "chapter_unlock") return "Глава";
+    if (product.product_type === "novel_unlock") return "Вся новелла";
+    return product.subscription_role === "keeper" ? "📜 Подписка" : "🌱 Подписка";
   }
 
   function productAction(product) {
-    return product.product_type === "chapter_unlock" ? "Купить эту главу" : "Купить всю новеллу";
+    if (product.product_type === "chapter_unlock") return "Купить эту главу";
+    if (product.product_type === "novel_unlock") return "Купить всю новеллу";
+    return product.subscription_role === "keeper"
+      ? "Оформить Хранителя свитков"
+      : "Оформить Странствующего читателя";
+  }
+
+  function productDescription(product) {
+    if (product.product_type === "chapter_unlock") return "Доступ к главе без срока";
+    if (product.product_type === "novel_unlock") return "Все текущие и будущие главы без срока";
+    const days = Number(product.duration_days || 0);
+    return days > 0 ? `Доступ на ${number(days)} дней` : "Доступ по подписке";
   }
 
   function relevantProducts(items) {
+    const allowedTypes = state.mode === "subscription"
+      ? new Set(["subscription"])
+      : new Set(["chapter_unlock", "novel_unlock"]);
     return (Array.isArray(items) ? items : [])
-      .filter((item) => item.product_type === "chapter_unlock" || item.product_type === "novel_unlock")
+      .filter((item) => allowedTypes.has(item.product_type))
       .sort((left, right) => {
-        const order = { chapter_unlock: 0, novel_unlock: 1 };
-        return (order[left.product_type] ?? 9) - (order[right.product_type] ?? 9);
+        const order = { chapter_unlock: 0, novel_unlock: 1, subscription: 0 };
+        return (order[left.product_type] ?? 9) - (order[right.product_type] ?? 9)
+          || Number(left.coin_price || 0) - Number(right.coin_price || 0);
       });
   }
 
@@ -170,9 +190,7 @@
       const action = document.createElement("strong");
       action.textContent = productAction(product);
       const description = document.createElement("span");
-      description.textContent = product.product_type === "chapter_unlock"
-        ? "Доступ к главе без срока"
-        : "Все текущие и будущие главы без срока";
+      description.textContent = productDescription(product);
       copy.append(kind, action, description);
 
       const price = document.createElement("b");
@@ -191,15 +209,18 @@
     const enough = state.balance >= Number(product.coin_price || 0);
     confirmAfter.textContent = enough ? number(state.balance - Number(product.coin_price || 0)) : "—";
     shortage.hidden = enough;
+    const deficit = Math.max(0, Number(product.coin_price || 0) - state.balance);
+    state.suggestedTopup = Math.max(state.topupMin, deficit);
     shortage.textContent = enough
       ? ""
-      : `Не хватает ${number(Number(product.coin_price || 0) - state.balance)} Монеток.`;
+      : `Не хватает ${number(deficit)} Монеток.`;
     purchaseButton.hidden = !enough;
     purchaseButton.disabled = !state.purchasesEnabled || state.busy;
     purchaseButton.textContent = state.purchasesEnabled
       ? `Подтвердить · ${number(product.coin_price)} 🪙`
       : "Покупки временно выключены";
     insufficientButton.hidden = enough;
+    insufficientButton.textContent = `Пополнить на ${number(state.suggestedTopup)} 🪙`;
     showView("confirm");
     (enough ? purchaseButton : insufficientButton).focus();
   }
@@ -215,6 +236,7 @@
     topupMinNode.textContent = number(state.topupMin);
     topupCustom.min = String(state.topupMin);
     topupCustom.max = String(state.topupMax);
+    if (state.suggestedTopup) topupCustom.value = String(state.suggestedTopup);
     if (shopLink && state.topupUrl) {
       shopLink.href = state.topupUrl;
       shopLink.hidden = false;
@@ -323,6 +345,14 @@
     }
   }
 
+  function topupSuggestedAmount() {
+    if (state.testTopupEnabled) {
+      grantTestCoins(state.suggestedTopup);
+      return;
+    }
+    showTopup();
+  }
+
   function bindEvents() {
     openButton.addEventListener("click", openModal);
     closeButton.addEventListener("click", closeModal);
@@ -339,7 +369,7 @@
       else showChooser();
     });
     purchaseButton.addEventListener("click", purchaseSelected);
-    insufficientButton.addEventListener("click", showTopup);
+    insufficientButton.addEventListener("click", topupSuggestedAmount);
     modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
       button.addEventListener("click", () => grantTestCoins(button.dataset.readerTopupAmount));
     });
@@ -366,6 +396,11 @@
       state.topupMin = Math.max(10, Number(catalog.test_topup_min || 10));
       state.topupMax = Math.max(state.topupMin, Number(catalog.test_topup_max || 1000));
       state.topupUrl = safeTopupUrl(catalog.topup_url);
+      if (transactionIntro) {
+        transactionIntro.textContent = state.mode === "subscription"
+          ? "Выберите уровень и срок подписки. Доступ откроется сразу после покупки."
+          : "Купите только эту главу или откройте всю новеллу, включая будущие главы.";
+      }
       renderBalance();
       modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
         button.disabled = Number(button.dataset.readerTopupAmount || 0) > state.topupMax;
@@ -373,9 +408,23 @@
 
       const chapterProduct = state.products.find((item) => item.product_type === "chapter_unlock");
       const primaryProduct = chapterProduct || state.products[0];
-      if (!primaryProduct) return;
-      offerLabel.textContent = chapterProduct ? "Купить главу" : "Купить всю новеллу";
-      offerPrice.textContent = number(primaryProduct.coin_price);
+      if (!primaryProduct) {
+        openButton.disabled = true;
+        offerLabel.textContent = state.mode === "subscription"
+          ? "Подписка за Монетки ещё не настроена"
+          : "Цена покупки ещё не настроена";
+        if (offerPrice) offerPrice.hidden = true;
+        showRootMessage("Администратор ещё не добавил активный товар для этой покупки.", "info");
+        root.hidden = false;
+        return;
+      }
+      offerLabel.textContent = state.mode === "subscription"
+        ? "Приобрести подписку"
+        : chapterProduct ? "Купить главу" : "Купить всю новеллу";
+      offerPrice.textContent = state.mode === "subscription"
+        ? `от ${number(primaryProduct.coin_price)} 🪙`
+        : number(primaryProduct.coin_price);
+      offerPrice.hidden = false;
       root.hidden = false;
     } catch (error) {
       root.hidden = false;
