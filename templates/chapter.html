@@ -69,22 +69,22 @@
                 {% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}
               {% endif %}
             </div>
+            {% if reader_coins_enabled %}
+              <section class="reader-store chapter-reader-store chapter-reader-store-direct" data-reader-store data-novel-id="{{ novel.id }}" data-chapter-id="{{ chapter.chapter_id }}" hidden aria-label="Покупка доступа за Монетки">
+                <div class="reader-store-heading"><div><span>Купить доступ за Монетки</span><strong>Баланс: <b data-reader-coins-balance>—</b> 🪙</strong></div><small>1 ₽ = 1 Монетка</small></div>
+                <div class="reader-store-products" data-reader-store-products></div>
+                <p class="reader-store-empty" data-reader-store-empty hidden>Цена для этой главы ещё не настроена.</p>
+                <p class="reader-store-message" data-reader-store-message hidden role="status"></p>
+              </section>
+            {% endif %}
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
-              {% if access_paywall.show_subscription_choices or reader_coins_enabled %}
+              {% if access_paywall.show_subscription_choices %}
                 <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>{{ access_paywall.unlock_button_label or 'Получить доступ' }}</button>
                 <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden>
                   <div class="chapter-unlock-panel-card" role="dialog" aria-modal="false" aria-label="{{ access_paywall.panel_title or 'Доступ к главе' }}">
                     <button class="chapter-unlock-close" type="button" data-paywall-unlock-close aria-label="Закрыть">×</button>
                     <h3>{{ access_paywall.panel_title or 'Доступ к главе' }}</h3>
                     <p>{{ access_paywall.panel_description }}</p>
-                    {% if reader_coins_enabled %}
-                      <section class="reader-store chapter-reader-store" data-reader-store data-novel-id="{{ novel.id }}" data-chapter-id="{{ chapter.chapter_id }}" hidden>
-                        <div class="reader-store-heading"><div><span>Оплата Монетками</span><strong>Баланс: <b data-reader-coins-balance>—</b> 🪙</strong></div><small>1 ₽ = 1 Монетка</small></div>
-                        <div class="reader-store-products" data-reader-store-products></div>
-                        <p class="reader-store-empty" data-reader-store-empty hidden>Цена для этой главы ещё не настроена.</p>
-                        <p class="reader-store-message" data-reader-store-message hidden role="status"></p>
-                      </section>
-                    {% endif %}
                     <div class="chapter-unlock-options">
                       {% if boosty_traveler_url and access_paywall.show_traveler_purchase %}
                         <a class="chapter-access-purchase-button chapter-access-purchase-boosty chapter-access-purchase-traveler" href="{{ boosty_traveler_url }}" target="_blank" rel="noopener noreferrer" data-telegram-link>

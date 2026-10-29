@@ -3064,6 +3064,12 @@ body.dark .library-filter-footer {
 .library-wallet-copy { display: grid; gap: 2px; }
 .library-wallet-copy small { color: var(--muted, #806f67); }
 .chapter-reader-store { text-align: left; }
+.chapter-reader-store-direct {
+  width: min(100%, 620px);
+  margin: 16px auto 2px;
+  box-sizing: border-box;
+}
+.chapter-reader-store-direct .reader-store-product { text-align: left; }
 .admin-store-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
 .admin-store-form label { display: grid; gap: 5px; font-size: 12px; color: var(--muted, #806f67); }
 .admin-bulk-pricing { margin-top: 14px; padding: 14px; border: 1px solid rgba(120, 90, 70, .16); border-radius: 14px; background: color-mix(in srgb, var(--surface, #fff) 94%, var(--accent, #cf7f55) 6%); }

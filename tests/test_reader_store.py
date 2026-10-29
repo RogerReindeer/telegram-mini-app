@@ -264,6 +264,19 @@ def test_all_templates_compile_after_store_ui_changes():
         environment.get_template(path.name)
 
 
+def test_reader_store_ui_exposes_balance_and_purchase_targets():
+    library = (ROOT / "templates" / "library.html").read_text(encoding="utf-8")
+    chapter = (ROOT / "templates" / "chapter.html").read_text(encoding="utf-8")
+    novel = (ROOT / "templates" / "novel.html").read_text(encoding="utf-8")
+    script = (ROOT / "static" / "reader-store.js").read_text(encoding="utf-8")
+    assert "data-reader-coins-balance" in library
+    assert 'data-chapter-id="{{ chapter.chapter_id }}"' in chapter
+    assert "chapter-reader-store-direct" in chapter
+    assert 'data-novel-id="{{ novel.id }}"' in novel
+    assert '"Купить главу"' in script
+    assert '"Купить книгу"' in script
+
+
 def test_reader_has_no_removed_payment_provider_route_or_ui_copy():
     searchable = [ROOT / "app", ROOT / "templates", ROOT / "static", ROOT / ".env.example"]
     matches = []

@@ -68,6 +68,8 @@
     if (code.includes("test_purchases_disabled")) return "Тестовые покупки сейчас отключены.";
     if (code.includes("test_coin_topup_disabled")) return "Бесплатное тестовое пополнение отключено.";
     if (code.includes("amount_must_be_between")) return "Введите допустимую сумму Монеток.";
+    if (code.includes("reader_coins_disabled")) return "Магазин Монеток пока выключен.";
+    if (code.includes("store_temporarily_unavailable")) return "Магазин временно недоступен. Попробуйте обновить страницу.";
     return "Не удалось выполнить операцию. Попробуйте ещё раз.";
   }
 
@@ -104,7 +106,12 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "reader-store-buy";
-      button.textContent = formatCoins(product.coin_price) + " 🪙";
+      const buyLabel = product.product_type === "chapter_unlock"
+        ? "Купить главу"
+        : product.product_type === "novel_unlock"
+          ? "Купить книгу"
+          : "Купить";
+      button.textContent = buyLabel + " · " + formatCoins(product.coin_price) + " 🪙";
       button.disabled = !data.purchases_enabled;
       button.addEventListener("click", async function () {
         if (!window.confirm("Купить «" + product.title + "» за " + formatCoins(product.coin_price) + " Монеток?")) return;
@@ -185,8 +192,11 @@
       root.hidden = false;
       renderProducts(root, data);
       bindTopup(root, data);
-    } catch (_) {
-      root.hidden = true;
+    } catch (error) {
+      root.hidden = false;
+      const empty = root.querySelector("[data-reader-store-empty]");
+      if (empty) empty.hidden = true;
+      message(root, humanError(error), "error");
     }
   }
 

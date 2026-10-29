@@ -49,6 +49,28 @@ def _env(name: str, default: str = "") -> str:
     return (os.getenv(name) or default).strip()
 
 
+def _env_enabled(name: str, default: str = "false") -> bool:
+    return _env(name, default).lower() in {"1", "true", "yes", "on"}
+
+
+def _reader_coins_feature_enabled() -> bool:
+    """Keep the store visible whenever one of its operating modes is active.
+
+    Test top-ups or purchases without the parent switch used to create an
+    inconsistent deployment: admin pricing worked, but the wallet and buy
+    buttons were omitted from every reader page.
+    """
+    return any(
+        _env_enabled(name)
+        for name in (
+            "READER_COINS_ENABLED",
+            "READER_COIN_GRANTS_ENABLED",
+            "READER_TEST_FREE_COINS_ENABLED",
+            "READER_TEST_PURCHASES_ENABLED",
+        )
+    )
+
+
 def _app_version() -> str:
     explicit = _env("APP_VERSION")
     if explicit:
@@ -66,10 +88,10 @@ class Settings:
     sync_token: str = _env("SYNC_TOKEN")
     admin_token: str = _env("ADMIN_TOKEN")
     reader_preview_token: str = _env("READER_PREVIEW_TOKEN")
-    reader_coins_enabled: bool = _env("READER_COINS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
-    reader_coin_grants_enabled: bool = _env("READER_COIN_GRANTS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
-    reader_test_free_coins_enabled: bool = _env("READER_TEST_FREE_COINS_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
-    reader_test_purchases_enabled: bool = _env("READER_TEST_PURCHASES_ENABLED", "false").lower() in {"1", "true", "yes", "on"}
+    reader_coins_enabled: bool = _reader_coins_feature_enabled()
+    reader_coin_grants_enabled: bool = _env_enabled("READER_COIN_GRANTS_ENABLED")
+    reader_test_free_coins_enabled: bool = _env_enabled("READER_TEST_FREE_COINS_ENABLED")
+    reader_test_purchases_enabled: bool = _env_enabled("READER_TEST_PURCHASES_ENABLED")
     reader_test_coin_min_amount: int = int(_env("READER_TEST_COIN_MIN_AMOUNT", "10") or "10")
     reader_test_coin_max_amount: int = int(_env("READER_TEST_COIN_MAX_AMOUNT", "100000") or "100000")
     qinghe_commerce_shared_secret: str = _env("QINGHE_COMMERCE_SHARED_SECRET")
