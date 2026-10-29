@@ -80,6 +80,7 @@ def products(request: Request, novel_id: int | None = None, chapter_id: str | No
         "test_topup_enabled": settings.reader_test_free_coins_enabled and not viewer.get("admin_preview"),
         "test_topup_min": max(10, settings.reader_test_coin_min_amount),
         "test_topup_max": min(100000, max(10, settings.reader_test_coin_max_amount)),
+        "topup_url": settings.qinghe_shop_url or None,
         "items": items,
     }
 

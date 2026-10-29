@@ -17,6 +17,7 @@ from ..services.access import (
 )
 from ..services.auth import public_viewer, viewer_access_profile, viewer_fast_access_profile, viewer_from_request, viewer_has_app_identity
 from ..services.catalog import get_all_novels, get_chapter_by_id, get_chapters_for_novel_ids, get_fox, get_novel_by_id, get_novel_by_slug, get_novel_chapters
+from ..services.coins import StoreTemporaryError, get_novel_chapter_price_map
 from ..services.reader import (
     build_chapter_display_list_for_access,
     get_chapter_index_info_for_access,
@@ -145,8 +146,6 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "fox": get_fox(),
             "viewer": viewer,
             "novels": prepared,
-            "reader_coins_enabled": settings.reader_coins_enabled,
-            "qinghe_shop_url": settings.qinghe_shop_url,
         })
 
     @router.get("/novel/{slug}")
@@ -166,6 +165,22 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
         prepared_novels = prepare_library_novels_for_access([raw_novel], raw_chapters, fast_viewer)
         novel_prepared = prepared_novels[0] if prepared_novels else prepare_novel_for_template(raw_novel)
         chapters, hidden_subscriber_count = build_chapter_display_list_for_access(raw_chapters, raw_novel, page_profile)
+        chapter_coin_prices: dict[str, int] = {}
+        if settings.reader_coins_enabled and novel_id:
+            try:
+                chapter_coin_prices = get_novel_chapter_price_map(novel_id)
+            except StoreTemporaryError:
+                logger.exception(
+                    "Failed to load chapter prices for novel table of contents",
+                    extra={
+                        "request_id": getattr(request.state, "request_id", "unknown"),
+                        "novel_id": novel_id,
+                    },
+                )
+        for chapter_item in chapters:
+            chapter_item["coin_price"] = chapter_coin_prices.get(
+                str(chapter_item.get("chapter_id") or chapter_item.get("id") or "")
+            )
         return templates.TemplateResponse(request, "novel.html", {
             "app_title": app_title,
             "fox": get_fox(),
@@ -173,7 +188,6 @@ def create_catalog_router(*, templates: Jinja2Templates, app_title: str) -> APIR
             "novel": novel_prepared,
             "chapters": chapters,
             "hidden_subscriber_count": hidden_subscriber_count,
-            "reader_coins_enabled": settings.reader_coins_enabled,
         })
 
     @router.get("/chapter/{chapter_id}")

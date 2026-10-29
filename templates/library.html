@@ -34,29 +34,6 @@
         {% endif %}
       </header>
 
-      {% if reader_coins_enabled %}
-        <section class="reader-store library-reader-store" data-reader-store data-store-scope="subscriptions" hidden aria-label="Монетки и подписки">
-          <div class="library-wallet-card" aria-label="Баланс Монеток">
-            <div class="library-wallet-copy">
-              <span class="library-wallet-label">Баланс</span>
-              <strong><span data-reader-coins-balance>—</span> Монеток</strong>
-              <small>Курс: 1 ₽ = 1 Монетка</small>
-            </div>
-          </div>
-          <div class="reader-test-topup" data-reader-test-topup hidden>
-            <strong>Бесплатное пополнение на время теста</strong>
-            <div class="reader-topup-presets">
-              {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-topup-amount="{{ amount }}">+{{ amount }}</button>{% endfor %}
-            </div>
-            <div class="reader-topup-custom"><input type="number" min="10" step="1" inputmode="numeric" placeholder="Своя сумма" data-reader-topup-custom><button type="button" data-reader-topup-submit>Начислить</button></div>
-          </div>
-          <div class="reader-store-heading"><div><span>Подписки за Монетки</span><strong>Доступ на выбранный срок</strong></div></div>
-          <div class="reader-store-products" data-reader-store-products></div>
-          <p class="reader-store-empty" data-reader-store-empty hidden>Подписки за Монетки ещё не настроены администратором.</p>
-          <p class="reader-store-message" data-reader-store-message hidden role="status"></p>
-        </section>
-      {% endif %}
-
       <section class="library-actions library-actions-v4" aria-label="Инструменты библиотеки">
         <button class="library-action-button" type="button" id="librarySearchToggle">
           <span class="library-action-icon">⌕</span>
@@ -427,7 +404,6 @@
     window.ZEFIRKI_FOX = {{ fox | tojson }};
     window.ZEFIRKI_VIEWER = {{ viewer | tojson }};
   </script>
-  {% if reader_coins_enabled %}<script src="{{ static_url('reader-store.js') }}"></script>{% endif %}
   <script src="{{ static_url('settings.js') }}"></script>
   <script src="{{ static_url('settings-panel.js') }}"></script>
   <script src="{{ static_url('reader-experience.js') }}"></script>

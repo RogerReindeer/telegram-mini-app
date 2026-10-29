@@ -1,207 +1,390 @@
-(function () {
-  "use strict";
+(() => {
+  const root = document.querySelector("[data-reader-store]");
+  const modal = document.querySelector("[data-reader-transaction]");
+  if (!root || !modal) return;
 
-  const roots = Array.from(document.querySelectorAll("[data-reader-store]"));
-  const balanceNodes = Array.from(document.querySelectorAll("[data-reader-coins-balance]"));
-  if (!roots.length && !balanceNodes.length) return;
+  const openButton = root.querySelector("[data-reader-transaction-open]");
+  const offerLabel = root.querySelector("[data-reader-offer-label]");
+  const offerPrice = root.querySelector("[data-reader-offer-price]");
+  const rootMessage = root.querySelector("[data-reader-store-message]");
+  const dialog = modal.querySelector(".reader-transaction-dialog");
+  const title = modal.querySelector("#readerTransactionTitle");
+  const closeButton = modal.querySelector("[data-reader-transaction-close]");
+  const chooser = modal.querySelector("[data-reader-transaction-chooser]");
+  const confirmation = modal.querySelector("[data-reader-transaction-confirm]");
+  const topup = modal.querySelector("[data-reader-transaction-topup]");
+  const productsContainer = modal.querySelector("[data-reader-transaction-products]");
+  const balanceNodes = modal.querySelectorAll("[data-reader-coins-balance]");
+  const balanceButton = modal.querySelector("[data-reader-topup-open]");
+  const message = modal.querySelector("[data-reader-transaction-message]");
+  const confirmType = modal.querySelector("[data-reader-confirm-type]");
+  const confirmTitle = modal.querySelector("[data-reader-confirm-title]");
+  const confirmPrice = modal.querySelector("[data-reader-confirm-price]");
+  const confirmAfter = modal.querySelector("[data-reader-confirm-after]");
+  const shortage = modal.querySelector("[data-reader-confirm-shortage]");
+  const purchaseButton = modal.querySelector("[data-reader-confirm-purchase]");
+  const insufficientButton = modal.querySelector("[data-reader-confirm-topup]");
+  const confirmBack = modal.querySelector("[data-reader-confirm-back]");
+  const topupBack = modal.querySelector("[data-reader-topup-back]");
+  const testTopup = modal.querySelector("[data-reader-test-topup]");
+  const topupMinNode = modal.querySelector("[data-reader-topup-min]");
+  const topupCustom = modal.querySelector("[data-reader-topup-custom]");
+  const topupSubmit = modal.querySelector("[data-reader-topup-submit]");
+  const shopLink = modal.querySelector("[data-reader-topup-shop]");
+  const topupUnavailable = modal.querySelector("[data-reader-topup-unavailable]");
 
-  function actionId() {
-    if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (char) {
-      const value = Math.random() * 16 | 0;
-      return (char === "x" ? value : (value & 3 | 8)).toString(16);
-    });
+  const state = {
+    balance: 0,
+    products: [],
+    selected: null,
+    purchasesEnabled: false,
+    testTopupEnabled: false,
+    topupMin: 10,
+    topupMax: 1000,
+    topupUrl: "",
+    previousFocus: null,
+    busy: false,
+  };
+
+  function number(value) {
+    return new Intl.NumberFormat("ru-RU").format(Number(value || 0));
   }
 
-  function pendingActionId(key) {
+  function safeTopupUrl(value) {
     try {
-      const existing = window.sessionStorage.getItem(key);
-      if (existing) return existing;
-      const created = actionId();
-      window.sessionStorage.setItem(key, created);
-      return created;
-    } catch (_) {
-      return actionId();
+      const url = new URL(String(value || ""), window.location.origin);
+      return ["https:", "http:", "tg:"].includes(url.protocol) ? url.href : "";
+    } catch (_error) {
+      return "";
     }
   }
 
-  function clearPendingAction(key) {
-    try { window.sessionStorage.removeItem(key); } catch (_) {}
+  function actionId(storageKey) {
+    const existing = window.sessionStorage.getItem(storageKey);
+    if (existing) return existing;
+    const created = window.crypto?.randomUUID?.()
+      || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    window.sessionStorage.setItem(storageKey, created);
+    return created;
   }
 
-  function requestMayHaveCommitted(error) {
-    return !error || !error.status || Number(error.status) >= 500;
+  function clearAction(storageKey) {
+    window.sessionStorage.removeItem(storageKey);
   }
 
-  async function api(url, options) {
-    const response = await fetch(url, Object.assign({ credentials: "same-origin" }, options || {}));
-    let data = {};
-    try { data = await response.json(); } catch (_) {}
+  async function requestJson(url, options = {}) {
+    const response = await window.fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers: {
+        Accept: "application/json",
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.headers || {}),
+      },
+    });
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch (_error) {
+      payload = {};
+    }
     if (!response.ok) {
-      const error = new Error(String(data.detail || "store_request_failed"));
+      const error = new Error(String(payload.detail || `HTTP ${response.status}`));
       error.status = response.status;
+      error.detail = String(payload.detail || "");
       throw error;
     }
-    return data;
-  }
-
-  function formatCoins(value) {
-    return Number(value || 0).toLocaleString("ru-RU");
-  }
-
-  function setBalance(value) {
-    balanceNodes.forEach(function (node) { node.textContent = formatCoins(value); });
-  }
-
-  function message(root, text, tone) {
-    const node = root.querySelector("[data-reader-store-message]");
-    if (!node) return;
-    node.textContent = text || "";
-    node.dataset.tone = tone || "info";
-    node.hidden = !text;
+    return payload;
   }
 
   function humanError(error) {
-    const code = String(error && error.message || "");
-    if (code.includes("insufficient_reader_coins")) return "Недостаточно Монеток на балансе.";
-    if (code.includes("store_product_already_owned")) return "Этот доступ уже куплен.";
-    if (code.includes("test_purchases_disabled")) return "Тестовые покупки сейчас отключены.";
-    if (code.includes("test_coin_topup_disabled")) return "Бесплатное тестовое пополнение отключено.";
-    if (code.includes("amount_must_be_between")) return "Введите допустимую сумму Монеток.";
-    if (code.includes("reader_coins_disabled")) return "Магазин Монеток пока выключен.";
-    if (code.includes("store_temporarily_unavailable")) return "Магазин временно недоступен. Попробуйте обновить страницу.";
-    return "Не удалось выполнить операцию. Попробуйте ещё раз.";
+    const detail = String(error?.detail || error?.message || "");
+    const known = {
+      insufficient_reader_coins: "На балансе недостаточно Монеток.",
+      store_product_already_owned: "Этот доступ уже куплен. Обновляем страницу…",
+      store_product_not_found: "Предложение больше недоступно. Обновите страницу.",
+      test_coin_topup_disabled: "Тестовое пополнение сейчас выключено.",
+      test_purchases_disabled: "Покупки сейчас временно выключены.",
+      store_temporarily_unavailable: "Магазин временно недоступен. Попробуйте ещё раз.",
+      wallet_temporarily_unavailable: "Не удалось загрузить баланс. Попробуйте ещё раз.",
+    };
+    return known[detail] || "Не удалось выполнить операцию. Попробуйте ещё раз.";
   }
 
-  function typeLabel(product) {
-    if (product.product_type === "chapter_unlock") return "Глава";
-    if (product.product_type === "novel_unlock") return "Вся книга";
-    if (product.product_type === "subscription_upgrade") return "Повышение подписки";
-    return "Подписка";
+  function showRootMessage(text, tone = "error") {
+    if (!rootMessage) return;
+    rootMessage.textContent = text;
+    rootMessage.dataset.tone = tone;
+    rootMessage.hidden = !text;
   }
 
-  function renderProducts(root, data) {
-    const list = root.querySelector("[data-reader-store-products]");
-    if (!list) return;
-    list.replaceChildren();
-    let products = Array.isArray(data.items) ? data.items : [];
-    if (root.dataset.storeScope === "subscriptions") {
-      products = products.filter(function (product) {
-        return product.product_type === "subscription" || product.product_type === "subscription_upgrade";
+  function showMessage(text, tone = "error") {
+    if (!message) return;
+    message.textContent = text;
+    message.dataset.tone = tone;
+    message.hidden = !text;
+  }
+
+  function renderBalance() {
+    balanceNodes.forEach((node) => { node.textContent = number(state.balance); });
+  }
+
+  function showView(view) {
+    chooser.hidden = view !== "chooser";
+    confirmation.hidden = view !== "confirm";
+    topup.hidden = view !== "topup";
+    showMessage("");
+    if (view === "chooser") title.textContent = "Выберите доступ";
+    if (view === "confirm") title.textContent = "Подтверждение покупки";
+    if (view === "topup") title.textContent = "Пополнение баланса";
+  }
+
+  function productKind(product) {
+    return product.product_type === "chapter_unlock" ? "Глава" : "Вся новелла";
+  }
+
+  function productAction(product) {
+    return product.product_type === "chapter_unlock" ? "Купить эту главу" : "Купить всю новеллу";
+  }
+
+  function relevantProducts(items) {
+    return (Array.isArray(items) ? items : [])
+      .filter((item) => item.product_type === "chapter_unlock" || item.product_type === "novel_unlock")
+      .sort((left, right) => {
+        const order = { chapter_unlock: 0, novel_unlock: 1 };
+        return (order[left.product_type] ?? 9) - (order[right.product_type] ?? 9);
       });
-    }
-    products.forEach(function (product) {
-      const card = document.createElement("article");
-      card.className = "reader-store-product";
-      const copy = document.createElement("div");
-      const kind = document.createElement("span");
-      kind.className = "reader-store-product-type";
-      kind.textContent = typeLabel(product);
-      const title = document.createElement("strong");
-      title.textContent = product.title;
-      const details = document.createElement("small");
-      details.textContent = product.duration_days ? product.duration_days + " дн." : "Доступ без срока";
-      copy.append(kind, title, details);
+  }
 
+  function renderProducts() {
+    productsContainer.replaceChildren();
+    state.products.forEach((product) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "reader-store-buy";
-      const buyLabel = product.product_type === "chapter_unlock"
-        ? "Купить главу"
-        : product.product_type === "novel_unlock"
-          ? "Купить книгу"
-          : "Купить";
-      button.textContent = buyLabel + " · " + formatCoins(product.coin_price) + " 🪙";
-      button.disabled = !data.purchases_enabled;
-      button.addEventListener("click", async function () {
-        if (!window.confirm("Купить «" + product.title + "» за " + formatCoins(product.coin_price) + " Монеток?")) return;
-        const pendingKey = "reader-store:purchase:" + product.product_code;
-        const clientActionId = pendingActionId(pendingKey);
-        button.disabled = true;
-        message(root, "Проверяем баланс…", "info");
-        try {
-          const result = await api("/api/store/purchase", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ product_code: product.product_code, client_action_id: clientActionId })
-          });
-          clearPendingAction(pendingKey);
-          setBalance(result.balance);
-          message(root, "Покупка выполнена. Доступ открыт.", "success");
-          window.setTimeout(function () { window.location.reload(); }, 650);
-        } catch (error) {
-          if (!requestMayHaveCommitted(error)) clearPendingAction(pendingKey);
-          message(root, humanError(error), "error");
-          button.disabled = !data.purchases_enabled;
-        }
-      });
-      card.append(copy, button);
-      list.appendChild(card);
+      button.className = "reader-transaction-product";
+
+      const copy = document.createElement("span");
+      copy.className = "reader-transaction-product-copy";
+      const kind = document.createElement("small");
+      kind.textContent = productKind(product);
+      const action = document.createElement("strong");
+      action.textContent = productAction(product);
+      const description = document.createElement("span");
+      description.textContent = product.product_type === "chapter_unlock"
+        ? "Доступ к главе без срока"
+        : "Все текущие и будущие главы без срока";
+      copy.append(kind, action, description);
+
+      const price = document.createElement("b");
+      price.textContent = `${number(product.coin_price)} 🪙`;
+      button.append(copy, price);
+      button.addEventListener("click", () => showConfirmation(product));
+      productsContainer.append(button);
     });
-    const empty = root.querySelector("[data-reader-store-empty]");
-    if (empty) empty.hidden = products.length > 0;
   }
 
-  function bindTopup(root, data) {
-    const topup = root.querySelector("[data-reader-test-topup]");
-    if (!topup) return;
-    topup.hidden = !data.test_topup_enabled;
-    if (!data.test_topup_enabled) return;
-    const input = topup.querySelector("[data-reader-topup-custom]");
-    if (input) {
-      input.min = String(data.test_topup_min || 10);
-      input.max = String(data.test_topup_max || 100000);
+  function showConfirmation(product) {
+    state.selected = product;
+    confirmType.textContent = productKind(product);
+    confirmTitle.textContent = product.title || productAction(product);
+    confirmPrice.textContent = number(product.coin_price);
+    const enough = state.balance >= Number(product.coin_price || 0);
+    confirmAfter.textContent = enough ? number(state.balance - Number(product.coin_price || 0)) : "—";
+    shortage.hidden = enough;
+    shortage.textContent = enough
+      ? ""
+      : `Не хватает ${number(Number(product.coin_price || 0) - state.balance)} Монеток.`;
+    purchaseButton.hidden = !enough;
+    purchaseButton.disabled = !state.purchasesEnabled || state.busy;
+    purchaseButton.textContent = state.purchasesEnabled
+      ? `Подтвердить · ${number(product.coin_price)} 🪙`
+      : "Покупки временно выключены";
+    insufficientButton.hidden = enough;
+    showView("confirm");
+    (enough ? purchaseButton : insufficientButton).focus();
+  }
+
+  function showChooser() {
+    showView("chooser");
+    productsContainer.querySelector("button")?.focus();
+  }
+
+  function showTopup() {
+    showView("topup");
+    testTopup.hidden = !state.testTopupEnabled;
+    topupMinNode.textContent = number(state.topupMin);
+    topupCustom.min = String(state.topupMin);
+    topupCustom.max = String(state.topupMax);
+    if (shopLink && state.topupUrl) {
+      shopLink.href = state.topupUrl;
+      shopLink.hidden = false;
+    } else if (shopLink) {
+      shopLink.hidden = true;
     }
-    topup.addEventListener("click", async function (event) {
-      const button = event.target.closest("[data-reader-topup-amount], [data-reader-topup-submit]");
-      if (!button) return;
-      const amount = button.hasAttribute("data-reader-topup-amount")
-        ? Number(button.dataset.readerTopupAmount)
-        : Number(input && input.value);
-      if (!Number.isInteger(amount) || amount < Number(data.test_topup_min || 10) || amount > Number(data.test_topup_max || 100000)) {
-        message(root, "Минимум 10 Монеток; проверьте введённую сумму.", "error");
-        return;
-      }
-      const pendingKey = "reader-store:test-topup:" + amount;
-      const clientActionId = pendingActionId(pendingKey);
-      button.disabled = true;
-      try {
-        const result = await api("/api/store/test-coins", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: amount, client_action_id: clientActionId })
-        });
-        clearPendingAction(pendingKey);
-        setBalance(result.balance);
-        message(root, "Тестовый баланс пополнен на " + formatCoins(result.credited) + " Монеток.", "success");
-      } catch (error) {
-        if (!requestMayHaveCommitted(error)) clearPendingAction(pendingKey);
-        message(root, humanError(error), "error");
-      } finally {
-        button.disabled = false;
-      }
+    topupUnavailable.hidden = state.testTopupEnabled || Boolean(state.topupUrl);
+    const firstPreset = state.testTopupEnabled
+      ? testTopup.querySelector("[data-reader-topup-amount]:not(:disabled)")
+      : null;
+    const shopTarget = shopLink && !shopLink.hidden ? shopLink : null;
+    (firstPreset || shopTarget || topupBack)?.focus();
+  }
+
+  function openModal() {
+    state.previousFocus = document.activeElement;
+    renderBalance();
+    renderProducts();
+    showView("chooser");
+    modal.hidden = false;
+    document.body.classList.add("reader-transaction-open");
+    window.requestAnimationFrame(() => dialog.focus());
+  }
+
+  function closeModal() {
+    if (state.busy) return;
+    modal.hidden = true;
+    document.body.classList.remove("reader-transaction-open");
+    state.previousFocus?.focus?.();
+  }
+
+  function setBusy(busy) {
+    state.busy = busy;
+    purchaseButton.disabled = busy || !state.purchasesEnabled;
+    topupSubmit.disabled = busy;
+    modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
+      button.disabled = busy || Number(button.dataset.readerTopupAmount || 0) > state.topupMax;
     });
   }
 
-  async function initRoot(root) {
-    const params = new URLSearchParams();
-    if (root.dataset.novelId) params.set("novel_id", root.dataset.novelId);
-    if (root.dataset.chapterId) params.set("chapter_id", root.dataset.chapterId);
+  async function purchaseSelected() {
+    const product = state.selected;
+    if (!product || state.busy || !state.purchasesEnabled) return;
+    if (state.balance < Number(product.coin_price || 0)) {
+      showTopup();
+      return;
+    }
+    const storageKey = `reader-purchase:${product.product_code}`;
+    setBusy(true);
+    showMessage("Проводим покупку…", "info");
     try {
-      const data = await api("/api/store/products" + (params.size ? "?" + params.toString() : ""));
+      const result = await requestJson("/api/store/purchase", {
+        method: "POST",
+        body: JSON.stringify({
+          product_code: product.product_code,
+          client_action_id: actionId(storageKey),
+        }),
+      });
+      clearAction(storageKey);
+      state.balance = Number(result.balance || 0);
+      renderBalance();
+      showMessage("Готово! Открываем купленный доступ…", "success");
+      window.setTimeout(() => window.location.reload(), 650);
+    } catch (error) {
+      if (String(error.detail || "") === "insufficient_reader_coins") {
+        showTopup();
+        showMessage(humanError(error), "error");
+      } else if (String(error.detail || "") === "store_product_already_owned") {
+        showMessage(humanError(error), "success");
+        window.setTimeout(() => window.location.reload(), 650);
+      } else {
+        showMessage(humanError(error), "error");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function grantTestCoins(amount) {
+    const value = Number(amount || 0);
+    if (!Number.isInteger(value) || value < state.topupMin || value > state.topupMax) {
+      showMessage(`Введите сумму от ${number(state.topupMin)} до ${number(state.topupMax)} Монеток.`, "error");
+      return;
+    }
+    const storageKey = `reader-test-topup:${value}`;
+    setBusy(true);
+    showMessage("Начисляем тестовые Монетки…", "info");
+    try {
+      const result = await requestJson("/api/store/test-coins", {
+        method: "POST",
+        body: JSON.stringify({ amount: value, client_action_id: actionId(storageKey) }),
+      });
+      clearAction(storageKey);
+      state.balance = Number(result.balance || 0);
+      renderBalance();
+      if (state.selected) {
+        showConfirmation(state.selected);
+      } else {
+        showChooser();
+      }
+      showMessage(`Баланс пополнен на ${number(result.credited || value)} Монеток.`, "success");
+    } catch (error) {
+      showMessage(humanError(error), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function bindEvents() {
+    openButton.addEventListener("click", openModal);
+    closeButton.addEventListener("click", closeModal);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) closeModal();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !modal.hidden) closeModal();
+    });
+    balanceButton.addEventListener("click", showTopup);
+    confirmBack.addEventListener("click", showChooser);
+    topupBack.addEventListener("click", () => {
+      if (state.selected) showConfirmation(state.selected);
+      else showChooser();
+    });
+    purchaseButton.addEventListener("click", purchaseSelected);
+    insufficientButton.addEventListener("click", showTopup);
+    modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
+      button.addEventListener("click", () => grantTestCoins(button.dataset.readerTopupAmount));
+    });
+    topupSubmit.addEventListener("click", () => grantTestCoins(topupCustom.value));
+    topupCustom.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") grantTestCoins(topupCustom.value);
+    });
+  }
+
+  async function initialize() {
+    bindEvents();
+    const novelId = root.dataset.novelId || "";
+    const chapterId = root.dataset.chapterId || "";
+    const query = new URLSearchParams({ novel_id: novelId, chapter_id: chapterId });
+    try {
+      const [catalog, wallet] = await Promise.all([
+        requestJson(`/api/store/products?${query.toString()}`),
+        requestJson("/api/store/wallet"),
+      ]);
+      state.balance = Number(wallet.balance || 0);
+      state.products = relevantProducts(catalog.items);
+      state.purchasesEnabled = Boolean(catalog.purchases_enabled);
+      state.testTopupEnabled = Boolean(catalog.test_topup_enabled);
+      state.topupMin = Math.max(10, Number(catalog.test_topup_min || 10));
+      state.topupMax = Math.max(state.topupMin, Number(catalog.test_topup_max || 1000));
+      state.topupUrl = safeTopupUrl(catalog.topup_url);
+      renderBalance();
+      modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
+        button.disabled = Number(button.dataset.readerTopupAmount || 0) > state.topupMax;
+      });
+
+      const chapterProduct = state.products.find((item) => item.product_type === "chapter_unlock");
+      const primaryProduct = chapterProduct || state.products[0];
+      if (!primaryProduct) return;
+      offerLabel.textContent = chapterProduct ? "Купить главу" : "Купить всю новеллу";
+      offerPrice.textContent = number(primaryProduct.coin_price);
       root.hidden = false;
-      renderProducts(root, data);
-      bindTopup(root, data);
     } catch (error) {
       root.hidden = false;
-      const empty = root.querySelector("[data-reader-store-empty]");
-      if (empty) empty.hidden = true;
-      message(root, humanError(error), "error");
+      openButton.disabled = true;
+      offerLabel.textContent = "Покупка временно недоступна";
+      offerPrice.textContent = "—";
+      showRootMessage(humanError(error), "error");
     }
   }
 
-  api("/api/store/wallet")
-    .then(function (wallet) { setBalance(wallet.balance); })
-    .catch(function () { balanceNodes.forEach(function (node) { node.textContent = "—"; }); });
-  roots.forEach(initRoot);
+  initialize();
 })();

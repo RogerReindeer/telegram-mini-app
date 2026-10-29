@@ -198,6 +198,31 @@ def list_store_products(
     return result
 
 
+def get_novel_chapter_price_map(novel_id: int) -> dict[str, int]:
+    """Return active per-chapter prices for one novel's table of contents."""
+    target_novel_id = int(novel_id or 0)
+    if target_novel_id <= 0:
+        return {}
+    try:
+        rows = db_select(
+            PRODUCT_TABLE,
+            select="chapter_id,coin_price",
+            filters={
+                "novel_id": f"eq.{target_novel_id}",
+                "product_type": "eq.chapter_unlock",
+                "is_active": "eq.true",
+            },
+            order="chapter_id.asc",
+        )
+    except SupabaseError as error:
+        raise StoreTemporaryError(str(error)) from error
+    return {
+        str(row.get("chapter_id") or ""): int(row.get("coin_price") or 0)
+        for row in rows
+        if row.get("chapter_id") and int(row.get("coin_price") or 0) > 0
+    }
+
+
 def purchase_store_product(telegram_user_id: int, product_code: str, client_action_id: Any) -> dict[str, Any]:
     try:
         row = _rpc_row(db_rpc(PURCHASE_RPC, {

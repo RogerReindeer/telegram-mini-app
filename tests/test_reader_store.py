@@ -182,6 +182,36 @@ def test_context_product_list_includes_chapter_bundle_and_subscriptions(monkeypa
     assert {item["product_code"] for item in items} == {"chapter", "book", "subscription"}
 
 
+def test_novel_chapter_price_map_loads_only_active_chapter_products(monkeypatch):
+    captured = {}
+
+    def fake_select(table, **kwargs):
+        captured.update({"table": table, **kwargs})
+        return [
+            {"chapter_id": "5-1", "coin_price": 5},
+            {"chapter_id": "5-2", "coin_price": 9},
+        ]
+
+    monkeypatch.setattr(coins, "db_select", fake_select)
+    assert coins.get_novel_chapter_price_map(5) == {"5-1": 5, "5-2": 9}
+    assert captured["table"] == coins.PRODUCT_TABLE
+    assert captured["filters"] == {
+        "novel_id": "eq.5",
+        "product_type": "eq.chapter_unlock",
+        "is_active": "eq.true",
+    }
+
+
+def test_novel_chapter_price_map_fails_closed_on_database_outage(monkeypatch):
+    monkeypatch.setattr(
+        coins,
+        "db_select",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(SupabaseError("prices unavailable")),
+    )
+    with pytest.raises(coins.StoreTemporaryError, match="prices unavailable"):
+        coins.get_novel_chapter_price_map(5)
+
+
 def test_purchase_maps_insufficient_balance(monkeypatch):
     monkeypatch.setattr(coins, "db_rpc", lambda *_args, **_kwargs: (_ for _ in ()).throw(SupabaseError("reader_insufficient_balance")))
     with pytest.raises(coins.StoreInsufficientBalance):
@@ -264,17 +294,22 @@ def test_all_templates_compile_after_store_ui_changes():
         environment.get_template(path.name)
 
 
-def test_reader_store_ui_exposes_balance_and_purchase_targets():
+def test_reader_store_ui_is_chapter_only_and_uses_transaction_modal():
     library = (ROOT / "templates" / "library.html").read_text(encoding="utf-8")
     chapter = (ROOT / "templates" / "chapter.html").read_text(encoding="utf-8")
     novel = (ROOT / "templates" / "novel.html").read_text(encoding="utf-8")
     script = (ROOT / "static" / "reader-store.js").read_text(encoding="utf-8")
-    assert "data-reader-coins-balance" in library
+    assert "data-reader-store" not in library
+    assert "reader-store.js" not in library
+    assert "data-reader-store" not in novel
+    assert "reader-store.js" not in novel
+    assert "chapter-coin-price" in novel
     assert 'data-chapter-id="{{ chapter.chapter_id }}"' in chapter
-    assert "chapter-reader-store-direct" in chapter
-    assert 'data-novel-id="{{ novel.id }}"' in novel
-    assert '"Купить главу"' in script
-    assert '"Купить книгу"' in script
+    assert "data-reader-transaction" in chapter
+    assert "data-reader-coins-balance" in chapter
+    assert "Подтверждение покупки" in script
+    assert "Купить всю новеллу" in script
+    assert "window.confirm" not in script
 
 
 def test_reader_has_no_removed_payment_provider_route_or_ui_copy():
