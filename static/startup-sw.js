@@ -1,6 +1,6 @@
 "use strict";
 
-const STARTUP_CACHE = "zefirki-startup-v248";
+const STARTUP_CACHE = "zefirki-startup-v249";
 const STARTUP_SHELL_URL = "/startup-shell";
 const NETWORK_GRACE_MS = 1200;
 
@@ -13,6 +13,25 @@ function isReaderNavigation(request) {
     || url.pathname.startsWith("/novel/")
     || url.pathname.startsWith("/chapter/")
     || url.pathname === "/reader-preview";
+}
+
+async function isReloadOfCurrentPage(event) {
+  if (!event.clientId) return false;
+  try {
+    const client = await self.clients.get(event.clientId);
+    if (!client || !client.url) return false;
+
+    const requested = new URL(event.request.url);
+    const current = new URL(client.url);
+    requested.searchParams.delete("__reader_boot");
+    current.searchParams.delete("__reader_boot");
+
+    return requested.origin === current.origin
+      && requested.pathname === current.pathname
+      && requested.search === current.search;
+  } catch (_) {
+    return false;
+  }
 }
 
 self.addEventListener("install", function (event) {
@@ -49,6 +68,11 @@ self.addEventListener("fetch", function (event) {
   }
 
   event.respondWith((async function () {
+    // Ordinary links between the library, a novel and its chapters must stay
+    // invisible to this worker. The cached shell is only for an actual reload
+    // of the page that is already open when the backend has fallen asleep.
+    if (!(await isReloadOfCurrentPage(event))) return fetch(event.request);
+
     const networkRequest = fetch(event.request).catch(function () { return null; });
     const quickResponse = await Promise.race([
       networkRequest,

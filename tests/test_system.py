@@ -60,7 +60,7 @@ def test_startup_shell_is_minimal_and_wakes_backend():
     assert response.headers["x-robots-tag"] == "noindex, nofollow, noarchive"
 
 
-def test_startup_worker_only_intercepts_reader_navigation():
+def test_startup_worker_only_shows_shell_for_same_page_reload():
     response = system.startup_worker()
     worker = Path(response.path).read_text(encoding="utf-8")
     settings_script = (ROOT / "static" / "settings.js").read_text(encoding="utf-8")
@@ -68,6 +68,9 @@ def test_startup_worker_only_intercepts_reader_navigation():
     assert response.headers["cache-control"] == "no-cache, no-store, must-revalidate"
     assert 'request.mode !== "navigate"' in worker
     assert 'url.pathname.startsWith("/chapter/")' in worker
+    assert "self.clients.get(event.clientId)" in worker
+    assert "requested.pathname === current.pathname" in worker
+    assert "if (!(await isReloadOfCurrentPage(event))) return fetch(event.request);" in worker
     assert "__reader_boot" in worker
     assert 'navigator.serviceWorker.register("/startup-sw.js"' in settings_script
     assert 'url.searchParams.delete("__reader_boot")' in settings_script
