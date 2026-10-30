@@ -52,6 +52,7 @@
 
   document.addEventListener("DOMContentLoaded", async function () {
     initTelegram();
+    initStartupRecovery();
     initReliableWheelScrolling();
     const reloading = await initTelegramAuth();
     if (reloading) return;
@@ -107,6 +108,25 @@
     } catch (error) {
       console.log("Telegram WebApp init skipped:", error);
     }
+  }
+
+  function initStartupRecovery() {
+    const productionHost = "telegram-mini-app-fwq0.onrender.com";
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.delete("__reader_boot")) {
+        window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    } catch (error) {}
+
+    if (window.location.hostname !== productionHost) return;
+    if (!("serviceWorker" in navigator) || window.location.protocol !== "https:") return;
+    navigator.serviceWorker.register("/startup-sw.js", {
+      scope: "/",
+      updateViaCache: "none",
+    }).catch(function (error) {
+      console.debug("Startup recovery worker unavailable", error);
+    });
   }
 
   // Telegram Desktop can leave the document with a non-scrolling body after

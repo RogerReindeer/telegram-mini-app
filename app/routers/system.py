@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from ..assets import static_manifest
 from ..cache import cache_stats
@@ -10,6 +12,34 @@ from ..database import db_select, supabase_ready
 from ..security import require_admin_token
 
 router = APIRouter()
+SITE_ROOT = Path(__file__).resolve().parents[2]
+
+
+@router.get("/startup-shell", include_in_schema=False)
+def startup_shell() -> FileResponse:
+    """Return the branded shell cached by the navigation service worker."""
+    return FileResponse(
+        SITE_ROOT / "launcher" / "index.html",
+        media_type="text/html",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "X-Robots-Tag": "noindex, nofollow, noarchive",
+        },
+    )
+
+
+@router.get("/startup-sw.js", include_in_schema=False)
+def startup_worker() -> FileResponse:
+    """Serve the worker at the origin root so it may protect reader routes."""
+    return FileResponse(
+        SITE_ROOT / "static" / "startup-sw.js",
+        media_type="application/javascript",
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Service-Worker-Allowed": "/",
+            "X-Robots-Tag": "noindex, nofollow, noarchive",
+        },
+    )
 
 
 @router.get("/health")
