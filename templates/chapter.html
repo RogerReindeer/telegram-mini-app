@@ -69,17 +69,17 @@
                 {% if access_paywall.action_hint %}<p class="chapter-paywall-hint">{{ access_paywall.action_hint }}</p>{% endif %}
               {% endif %}
             </div>
-            {% if reader_coins_enabled %}
-              <section class="chapter-coin-offer" data-reader-store data-novel-id="{{ novel.id }}" data-chapter-id="{{ chapter.chapter_id }}" hidden aria-label="Покупка главы за Монетки">
-                <button class="chapter-coin-offer-button" type="button" data-reader-transaction-open>
-                  <span><small>Доступ без срока</small><strong data-reader-offer-label>Купить главу</strong></span>
-                  <b><span data-reader-offer-price>—</span> <span aria-hidden="true">🪙</span></b>
-                </button>
-                <p class="chapter-coin-offer-message" data-reader-store-message hidden role="status"></p>
-              </section>
-              {% include "_reader_transaction_modal.html" %}
-            {% endif %}
             <div class="chapter-paywall-actions chapter-paywall-actions-v141">
+              {% if reader_coins_enabled %}
+                <section class="chapter-coin-offer" data-reader-store data-novel-id="{{ novel.id }}" data-chapter-id="{{ chapter.chapter_id }}" hidden aria-label="Покупка главы за Монетки">
+                  <button class="chapter-coin-offer-button" type="button" data-reader-transaction-open>
+                    <strong data-reader-offer-label>Купить главу</strong>
+                    <span class="chapter-coin-offer-price"><b data-reader-offer-price>—</b> <span aria-hidden="true">🪙</span></span>
+                  </button>
+                  <small class="chapter-coin-offer-note">Доступ без срока</small>
+                  <p class="chapter-coin-offer-message" data-reader-store-message hidden role="status"></p>
+                </section>
+              {% endif %}
               {% if access_paywall.show_subscription_choices %}
                 <button class="chapter-unlock-button" type="button" data-paywall-unlock-open>{{ access_paywall.unlock_button_label or 'Получить доступ' }}</button>
                 <div class="chapter-unlock-panel" data-paywall-unlock-panel hidden>
@@ -101,15 +101,13 @@
                         </a>
                       {% endif %}
                       {% if access_paywall.already_owned_message %}<p class="chapter-access-owned-note">{{ access_paywall.already_owned_message }}</p>{% endif %}
-                      {% if access_paywall.show_refresh %}<button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>{% endif %}
                     </div>
                   </div>
                 </div>
-              {% elif access_paywall.show_refresh %}
-                <button class="subscription-refresh-button" type="button" data-refresh-access>Проверить доступ</button>
               {% endif %}
               <a class="chapter-access-secondary-button" href="/novel/{{ novel.slug }}">К оглавлению</a>
             </div>
+            {% if reader_coins_enabled %}{% include "_reader_transaction_modal.html" %}{% endif %}
           </section>
         </article>
       {% endif %}
@@ -121,10 +119,10 @@
           <div class="chapter-end-gate-kicker">Последняя доступная глава</div>
           {% if next_locked_chapter.is_subscription_chapter %}
             <h2>Упс… следующая глава по платной подписке</h2>
-            <p>Она входит в ранний доступ 📜. Для чтения оформите «Хранителя свитков» или проверьте уже активный доступ.</p>
+            <p>Она входит в ранний доступ 📜. Для чтения оформите «Хранителя свитков» или купите главу за Монетки.</p>
           {% else %}
             <h2>Следующая глава пока закрыта</h2>
-            <p>На странице главы можно увидеть дату открытия и проверить текущий доступ.</p>
+            <p>На странице главы можно увидеть дату открытия и при желании купить доступ без срока.</p>
           {% endif %}
         </div>
         <div class="chapter-end-gate-actions">

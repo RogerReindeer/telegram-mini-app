@@ -379,6 +379,9 @@ def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     assert "reader-store.js" in novel
     assert "chapter-coin-price" in novel
     assert 'data-chapter-id="{{ chapter.chapter_id }}"' in chapter
+    assert "Проверить доступ" not in chapter
+    assert "chapter-coin-offer-price" in chapter
+    assert "купите главу за Монетки" in chapter
     assert '_reader_transaction_modal.html' in chapter
     assert "data-reader-transaction" in transaction
     assert "data-reader-coins-balance" in transaction
