@@ -45,13 +45,14 @@ def test_ready_is_503_when_database_round_trip_fails(monkeypatch):
     assert response.status_code == 503
 
 
-def test_startup_shell_is_branded_and_wakes_backend():
+def test_startup_shell_is_minimal_and_wakes_backend():
     response = system.startup_shell()
     shell = Path(response.path).read_text(encoding="utf-8")
     assert response.media_type == "text/html"
-    assert "Зефиркины баоцзы" in shell
-    assert "Открываем библиотеку" in shell
-    assert "Библиотека проснулась" in shell
+    assert '<button class="loader-shell"' in shell
+    assert '<span class="spinner"' in shell
+    assert "Открываем библиотеку" not in shell
+    assert "Зефиркины баоцзы" not in shell
     assert "telegram-mini-app-fwq0.onrender.com" in shell
     assert "/health" in shell
     assert "Render" not in shell

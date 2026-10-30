@@ -3,25 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#fff4e8" id="themeColor">
+  <meta name="theme-color" content="#fff8f3" id="themeColor">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex, nofollow, noarchive">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src https://telegram-mini-app-fwq0.onrender.com; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Зефиркины баоцзы — загрузка</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline'; connect-src https://telegram-mini-app-fwq0.onrender.com; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Загрузка</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root {
       color-scheme: light;
-      --bg: #fff4e8;
-      --bg-deep: #f6dfca;
-      --surface: rgba(255, 250, 245, .84);
-      --text: #241713;
-      --muted: #7c6a60;
-      --line: rgba(112, 68, 38, .13);
-      --accent: #ff6a00;
-      --accent-soft: rgba(255, 106, 0, .13);
-      --shadow: 0 28px 80px rgba(78, 43, 24, .16);
+      --loader-bg: #fff8f3;
+      --loader-track: rgba(255, 106, 0, .18);
+      --loader-accent: #ff6a00;
     }
     * { box-sizing: border-box; }
     html, body { width: 100%; min-height: 100%; margin: 0; }
@@ -30,249 +24,65 @@
       display: grid;
       place-items: center;
       overflow: hidden;
-      padding: max(20px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
-      background:
-        radial-gradient(circle at 16% 16%, rgba(255,255,255,.94), transparent 30%),
-        radial-gradient(circle at 86% 5%, rgba(255,151,61,.24), transparent 28%),
-        radial-gradient(circle at 78% 92%, rgba(255,204,143,.30), transparent 32%),
-        linear-gradient(160deg, var(--bg), var(--bg-deep));
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-    }
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      opacity: .30;
-      background-image: radial-gradient(rgba(82,47,27,.12) .65px, transparent .65px);
-      background-size: 8px 8px;
-      mask-image: linear-gradient(to bottom, #000, transparent 72%);
+      background: var(--loader-bg);
     }
     body.dark {
       color-scheme: dark;
-      --bg: #120d0a;
-      --bg-deep: #21140d;
-      --surface: rgba(31, 23, 19, .88);
-      --text: #fff4e8;
-      --muted: #cbb9aa;
-      --line: rgba(255,193,124,.16);
-      --accent-soft: rgba(255,132,35,.18);
-      --shadow: 0 30px 90px rgba(0,0,0,.42);
+      --loader-bg: #100d0b;
+      --loader-track: rgba(255, 145, 65, .18);
+      --loader-accent: #ff8128;
     }
-    .ambient {
-      position: fixed;
-      width: min(62vw, 430px);
-      aspect-ratio: 1;
-      border-radius: 50%;
-      pointer-events: none;
-      filter: blur(56px);
-      opacity: .26;
-      background: var(--accent);
-      animation: ambient 5s ease-in-out infinite alternate;
-    }
-    .ambient-one { top: -28%; right: -20%; }
-    .ambient-two { bottom: -34%; left: -24%; animation-delay: -2.4s; opacity: .13; }
-    .boot {
-      position: relative;
-      width: min(430px, calc(100vw - 32px));
+    .loader-shell {
       display: grid;
-      justify-items: center;
-      gap: 17px;
-      padding: clamp(24px, 7vw, 36px);
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 30px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
-      text-align: center;
-      backdrop-filter: blur(24px) saturate(1.1);
-      -webkit-backdrop-filter: blur(24px) saturate(1.1);
-    }
-    .boot::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      background: linear-gradient(135deg, rgba(255,255,255,.24), transparent 45%);
-      pointer-events: none;
-    }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: .075em;
-      text-transform: uppercase;
-    }
-    .brand-mark {
-      display: grid;
-      width: 26px;
-      height: 26px;
       place-items: center;
-      border: 1px solid rgba(255,106,0,.20);
-      border-radius: 9px;
-      background: var(--accent-soft);
-      font-size: 14px;
-    }
-    .mascot { position: relative; width: 126px; height: 112px; display: grid; place-items: center; }
-    .mascot-ring {
-      position: absolute;
-      width: 104px;
-      height: 104px;
-      border: 1px solid rgba(255,106,0,.20);
-      border-radius: 50%;
-      animation: breathe 2.8s ease-in-out infinite;
-    }
-    .mascot-ring::before, .mascot-ring::after {
-      content: "";
-      position: absolute;
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 18px rgba(255,106,0,.65);
-    }
-    .mascot-ring::before { top: 8px; right: 12px; }
-    .mascot-ring::after { bottom: 13px; left: 4px; width: 4px; height: 4px; opacity: .5; }
-    .fox {
-      position: relative;
-      z-index: 1;
-      width: 94px;
-      height: auto;
-      filter: drop-shadow(0 13px 18px rgba(93,51,24,.17));
-      animation: float 2.8s ease-in-out infinite;
-    }
-    .copy { display: grid; gap: 7px; }
-    .eyebrow { margin: 0; color: var(--accent); font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
-    h1 { margin: 0; color: var(--text); font-size: clamp(25px, 7vw, 32px); line-height: 1.05; letter-spacing: -.035em; }
-    .description { min-height: 38px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
-    .progress { width: min(286px, 100%); height: 7px; overflow: hidden; border-radius: 999px; background: rgba(123,74,42,.10); }
-    .progress > span {
-      display: block;
-      width: 8%;
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, #ff8a24, var(--accent));
-      box-shadow: 0 0 16px rgba(255,106,0,.34);
-      transition: width .55s cubic-bezier(.2,.7,.25,1);
-    }
-    .stage {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      min-height: 28px;
-      padding: 5px 10px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 760;
-    }
-    .pulse {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 0 rgba(255,106,0,.36);
-      animation: pulse 1.5s ease-out infinite;
-    }
-    .tip { margin: -5px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.35; opacity: .76; }
-    .error { display: grid; gap: 5px; margin: 0; color: var(--text); font-size: 13px; line-height: 1.35; }
-    .error strong { color: #c65319; font-size: 15px; }
-    .retry {
-      min-height: 46px;
-      padding: 0 19px;
+      width: 72px;
+      height: 72px;
+      padding: 0;
       border: 0;
-      border-radius: 14px;
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 10px 24px rgba(255,106,0,.24);
-      font: inherit;
-      font-size: 13px;
-      font-weight: 900;
-      cursor: pointer;
+      background: transparent;
+      -webkit-tap-highlight-color: transparent;
     }
-    [hidden] { display: none !important; }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-    @keyframes float { 0%, 100% { transform: translateY(3px) rotate(-1deg); } 50% { transform: translateY(-5px) rotate(1deg); } }
-    @keyframes breathe { 0%, 100% { transform: scale(.96); opacity: .58; } 50% { transform: scale(1.04); opacity: 1; } }
-    @keyframes pulse { 75%, 100% { box-shadow: 0 0 0 8px rgba(255,106,0,0); } }
-    @keyframes ambient { to { transform: translate3d(-4%,3%,0) scale(1.1); } }
-    @media (max-height: 620px) {
-      .boot { gap: 12px; padding-block: 20px; }
-      .mascot { width: 98px; height: 84px; }
-      .mascot-ring { width: 80px; height: 80px; }
-      .fox { width: 72px; }
-      .tip { display: none; }
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid var(--loader-track);
+      border-top-color: var(--loader-accent);
+      border-radius: 50%;
+      animation: spin .75s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) {
-      .ambient, .mascot-ring, .fox, .pulse { animation: none !important; }
-      .progress > span { transition: none; }
+      .spinner { animation-duration: 1.8s; }
     }
   </style>
 </head>
 <body>
-  <div class="ambient ambient-one" aria-hidden="true"></div>
-  <div class="ambient ambient-two" aria-hidden="true"></div>
-  <main class="boot" aria-live="polite">
-    <div class="brand"><span class="brand-mark" aria-hidden="true">🥟</span><span>Зефиркины баоцзы</span></div>
-    <div class="mascot" aria-hidden="true">
-      <div class="mascot-ring"></div>
-      <svg class="fox" viewBox="0 0 240 220" role="presentation">
-        <defs><linearGradient id="foxGradient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f0a35d"/><stop offset="1" stop-color="#d76f3d"/></linearGradient></defs>
-        <path d="M54 83 30 23l63 34c18-9 40-9 58 0l61-34-23 61c14 17 21 38 18 61-5 40-39 69-87 69s-82-29-87-69c-3-23 5-45 21-62Z" fill="url(#foxGradient)"/>
-        <path d="m48 45 38 36-49 2 11-38Zm144 0-38 36 49 2-11-38Z" fill="#a94c2c" opacity=".45"/>
-        <path d="M75 132c17 28 71 28 90 0 3 35-14 58-45 58s-48-23-45-58Z" fill="#fff7ee"/>
-        <circle cx="85" cy="113" r="9" fill="#2d211c"/><circle cx="155" cy="113" r="9" fill="#2d211c"/>
-        <path d="M112 135c5 5 11 5 16 0" fill="none" stroke="#2d211c" stroke-width="7" stroke-linecap="round"/>
-        <path d="M121 122c7 0 12 5 9 10-2 4-15 4-18 0-3-5 2-10 9-10Z" fill="#2d211c"/>
-      </svg>
-    </div>
-    <section class="copy">
-      <p class="eyebrow">Читалка</p>
-      <h1 id="bootHeading">Открываем библиотеку</h1>
-      <p class="description" id="bootDescription">Готовим книжные полки и возвращаемся на вашу страницу.</p>
-    </section>
-    <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
-    <div class="stage" id="bootStage"><span class="pulse" aria-hidden="true"></span><span id="stageText">Связываемся с библиотекой…</span></div>
-    <p class="tip" id="bootTip">Обновлять страницу не нужно — она откроется сама.</p>
-    <span class="sr-only" id="bootStatus" role="status">Загрузка библиотеки</span>
-    <p class="error" id="bootError" hidden><strong>Библиотека задержалась</strong><span>Проверьте интернет и попробуйте ещё раз.</span></p>
-    <button class="retry" id="retryButton" type="button" hidden>Попробовать ещё раз</button>
-  </main>
+  <button class="loader-shell" id="loader" type="button" aria-label="Загрузка">
+    <span class="spinner" aria-hidden="true"></span>
+  </button>
   <script>
     (() => {
       "use strict";
       const BACKEND_ORIGIN = "https://telegram-mini-app-fwq0.onrender.com";
       const HEALTH_URL = `${BACKEND_ORIGIN}/health`;
-      const heading = document.getElementById("bootHeading");
-      const description = document.getElementById("bootDescription");
-      const stage = document.getElementById("bootStage");
-      const stageText = document.getElementById("stageText");
-      const status = document.getElementById("bootStatus");
-      const progress = document.getElementById("progressBar");
-      const error = document.getElementById("bootError");
-      const retry = document.getElementById("retryButton");
-      const tip = document.getElementById("bootTip");
+      const loader = document.getElementById("loader");
       const themeColor = document.getElementById("themeColor");
       let runId = 0;
 
-      function applyTelegramTheme() {
+      function applyTheme() {
         try {
           const tg = window.Telegram && window.Telegram.WebApp;
           const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
           const dark = tg ? tg.colorScheme === "dark" : prefersDark;
           document.body.classList.toggle("dark", dark);
-          themeColor.setAttribute("content", dark ? "#120d0a" : "#fff4e8");
+          themeColor.setAttribute("content", dark ? "#100d0b" : "#fff8f3");
           if (tg) {
             tg.ready();
             if (typeof tg.expand === "function") tg.expand();
             const accent = tg.themeParams && tg.themeParams.button_color;
-            if (accent && /^#[0-9a-f]{6}$/i.test(accent)) document.documentElement.style.setProperty("--accent", accent);
+            if (accent && /^#[0-9a-f]{6}$/i.test(accent)) {
+              document.documentElement.style.setProperty("--loader-accent", accent);
+            }
           }
         } catch (_) {}
       }
@@ -289,43 +99,32 @@
         if (current) return current;
         try {
           const tg = window.Telegram && window.Telegram.WebApp;
-          if (tg && tg.initData) {
-            const params = new URLSearchParams();
-            params.set("tgWebAppData", tg.initData);
-            if (tg.version) params.set("tgWebAppVersion", tg.version);
-            if (tg.platform) params.set("tgWebAppPlatform", tg.platform);
-            return params.toString();
-          }
-        } catch (_) {}
-        return "";
+          if (!tg || !tg.initData) return "";
+          const params = new URLSearchParams();
+          params.set("tgWebAppData", tg.initData);
+          if (tg.version) params.set("tgWebAppVersion", tg.version);
+          if (tg.platform) params.set("tgWebAppPlatform", tg.platform);
+          return params.toString();
+        } catch (_) {
+          return "";
+        }
       }
 
       function buildTargetUrl() {
-        const target = new URL(safeTargetPath(), BACKEND_ORIGIN);
+        const path = safeTargetPath();
+        const target = new URL(path, BACKEND_ORIGIN);
         const sourceQuery = new URLSearchParams(window.location.search);
         const next = sourceQuery.get("next");
-        if (safeTargetPath() === "/reader-preview" && next && /^\/(?:library|novel\/|chapter\/)/.test(next)) target.searchParams.set("next", next);
+        if (path === "/reader-preview" && next && /^\/(?:library|novel\/|chapter\/)/.test(next)) {
+          target.searchParams.set("next", next);
+        }
         if (window.location.origin === BACKEND_ORIGIN) target.searchParams.set("__reader_boot", "1");
         const fragment = telegramLaunchFragment();
         if (fragment) target.hash = fragment;
         return target.toString();
       }
 
-      function setProgress(round) {
-        progress.style.width = `${Math.min(90, 10 + round * 6)}%`;
-        if (round >= 3) {
-          heading.textContent = "Будим книжные полки";
-          description.textContent = "Иногда библиотеке нужно немного времени после отдыха.";
-          stageText.textContent = "Собираем главы и настройки…";
-        }
-        if (round >= 8) {
-          heading.textContent = "Уже почти готово";
-          description.textContent = "Ваше место чтения сохранено — скоро продолжим.";
-          stageText.textContent = "Последняя проверка…";
-        }
-      }
-
-      async function probe() {
+      async function isBackendReady() {
         const controller = new AbortController();
         const timer = window.setTimeout(() => controller.abort(), 12000);
         try {
@@ -339,7 +138,7 @@
           });
           if (!response.ok) return false;
           const payload = await response.json();
-          return payload && payload.status === "ok";
+          return Boolean(payload && payload.status === "ok");
         } catch (_) {
           return false;
         } finally {
@@ -347,47 +146,26 @@
         }
       }
 
-      async function wakeAndOpen() {
-        const currentRun = ++runId;
-        error.hidden = true;
-        retry.hidden = true;
-        stage.hidden = false;
-        tip.hidden = false;
-        heading.textContent = navigator.onLine === false ? "Ждём интернет" : "Открываем библиотеку";
-        description.textContent = navigator.onLine === false ? "Как только связь вернётся, попробуем продолжить автоматически." : "Готовим книжные полки и возвращаемся на вашу страницу.";
-        stageText.textContent = navigator.onLine === false ? "Нет соединения" : "Связываемся с библиотекой…";
-        progress.style.width = "8%";
-        status.textContent = "Загрузка библиотеки";
-
-        for (let round = 0; round < 16 && currentRun === runId; round += 1) {
-          setProgress(round);
-          if (await probe()) {
-            if (currentRun !== runId) return;
-            progress.style.width = "100%";
-            heading.textContent = "Всё готово";
-            description.textContent = "Открываем вашу страницу…";
-            stageText.textContent = "Библиотека проснулась";
-            status.textContent = "Библиотека готова";
-            window.setTimeout(() => window.location.replace(buildTargetUrl()), 320);
-            return;
-          }
-          await new Promise((resolve) => window.setTimeout(resolve, Math.min(850 + round * 140, 2300)));
-        }
-
-        if (currentRun !== runId) return;
-        progress.style.width = "100%";
-        stage.hidden = true;
-        tip.hidden = true;
-        error.hidden = false;
-        retry.hidden = false;
-        heading.textContent = "Не получилось открыть";
-        description.textContent = "Ничего не потеряно — можно повторить попытку.";
-        status.textContent = "Не удалось загрузить библиотеку";
+      function wait(delay) {
+        return new Promise((resolve) => window.setTimeout(resolve, delay));
       }
 
-      retry.addEventListener("click", wakeAndOpen);
-      window.addEventListener("online", () => { if (!retry.hidden) wakeAndOpen(); }, { passive: true });
-      applyTelegramTheme();
+      async function wakeAndOpen() {
+        const currentRun = ++runId;
+        let attempt = 0;
+        while (currentRun === runId) {
+          if (await isBackendReady()) {
+            window.location.replace(buildTargetUrl());
+            return;
+          }
+          attempt += 1;
+          await wait(Math.min(4000, 650 + attempt * 350));
+        }
+      }
+
+      loader.addEventListener("click", wakeAndOpen);
+      window.addEventListener("online", wakeAndOpen);
+      applyTheme();
       wakeAndOpen();
     })();
   </script>
