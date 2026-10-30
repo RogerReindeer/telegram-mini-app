@@ -369,6 +369,7 @@ def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     chapter = (ROOT / "templates" / "chapter.html").read_text(encoding="utf-8")
     novel = (ROOT / "templates" / "novel.html").read_text(encoding="utf-8")
     script = (ROOT / "static" / "reader-store.js").read_text(encoding="utf-8")
+    store_router = (ROOT / "app" / "routers" / "store.py").read_text(encoding="utf-8")
     settings_script = (ROOT / "static" / "settings-panel.js").read_text(encoding="utf-8")
     transaction = (ROOT / "templates" / "_reader_transaction_modal.html").read_text(encoding="utf-8")
     assert "data-reader-store" not in library
@@ -383,10 +384,14 @@ def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     assert "data-reader-coins-balance" in transaction
     assert "[10, 50, 100, 250, 500, 1000]" in transaction
     assert 'data-reader-stars-topup-amount="{{ amount }}"' in transaction
+    assert "data-reader-stars-custom" in transaction
+    assert "Купить через Tribute в @qinghe_rpg_bot" in transaction
     assert "1 ⭐ = 1 Монетка" in transaction
-    assert 'url.searchParams.set("provider", "telegram_stars")' in script
-    assert 'url.searchParams.set("coins", String(coins))' in script
+    assert 'url.searchParams.set("provider", "telegram_stars")' not in script
+    assert "Переход в Qinghe доступен только для Tribute" in script
     assert "!state.starsTopupEnabled" in script
+    assert 'TRIBUTE_BOT_URL = "https://t.me/qinghe_rpg_bot"' in store_router
+    assert '"stars_topup_enabled": False' in store_router
     assert "Подтверждение покупки" in script
     assert "Купить всю новеллу" in script
     assert "Все текущие и будущие главы без срока" in script
@@ -406,7 +411,7 @@ def test_admin_has_guarded_finish_test_action():
     assert "FINISH_READER_COMMERCE_TEST" in script
 
 
-def test_reader_has_no_removed_payment_provider_route_or_ui_copy():
+def test_tribute_copy_is_limited_to_the_qinghe_topup_redirect():
     searchable = [ROOT / "app", ROOT / "templates", ROOT / "static", ROOT / ".env.example"]
     matches = []
     for base in searchable:
@@ -416,7 +421,11 @@ def test_reader_has_no_removed_payment_provider_route_or_ui_copy():
                 text = path.read_text(encoding="utf-8", errors="ignore").lower()
                 if re.search(r"\btribute\b", text):
                     matches.append(str(path.relative_to(ROOT)))
-    assert matches == []
+    assert set(matches) == {
+        "app\\routers\\store.py",
+        "static\\reader-store.js",
+        "templates\\_reader_transaction_modal.html",
+    }
 
 
 def test_global_mouse_wheel_scroll_has_root_contract_and_runtime_fallback():

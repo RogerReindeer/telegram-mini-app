@@ -30,6 +30,8 @@
   const testTopup = modal.querySelector("[data-reader-test-topup]");
   const starsTopup = modal.querySelector("[data-reader-stars-topup]");
   const starsHint = modal.querySelector("[data-reader-stars-hint]");
+  const starsCustom = modal.querySelector("[data-reader-stars-custom]");
+  const starsSubmit = modal.querySelector("[data-reader-stars-submit]");
   const topupMinNode = modal.querySelector("[data-reader-topup-min]");
   const topupCustom = modal.querySelector("[data-reader-topup-custom]");
   const topupSubmit = modal.querySelector("[data-reader-topup-submit]");
@@ -252,6 +254,10 @@
       button.disabled = state.busy || !state.starsTopupEnabled || coins < state.starsMinCoins;
       button.title = state.starsTopupEnabled ? "" : "Оплата Stars ещё не подключена";
     });
+    starsCustom.min = String(state.starsMinCoins);
+    starsCustom.max = "1000";
+    starsCustom.disabled = state.busy || !state.starsTopupEnabled;
+    starsSubmit.disabled = state.busy || !state.starsTopupEnabled;
     starsTopup.hidden = false;
     starsHint.hidden = state.starsTopupEnabled;
     if (shopLink && state.topupUrl) {
@@ -290,6 +296,8 @@
     state.busy = busy;
     purchaseButton.disabled = busy || !state.purchasesEnabled;
     topupSubmit.disabled = busy;
+    starsCustom.disabled = busy || !state.starsTopupEnabled;
+    starsSubmit.disabled = busy || !state.starsTopupEnabled;
     modal.querySelectorAll("[data-reader-test-topup-amount]").forEach((button) => {
       button.disabled = busy || Number(button.dataset.readerTestTopupAmount || 0) > state.topupMax;
     });
@@ -301,27 +309,16 @@
 
   function openStarsTopup(amount) {
     const coins = Number(amount || 0);
-    if (!state.starsTopupEnabled || !state.topupUrl || !Number.isInteger(coins) || coins < state.starsMinCoins) return;
-    const stars = Math.ceil(coins / state.starsCoinsPerStar);
-    let target = "";
-    try {
-      const url = new URL(state.topupUrl, window.location.origin);
-      url.searchParams.set("provider", "telegram_stars");
-      url.searchParams.set("coins", String(coins));
-      url.searchParams.set("stars", String(stars));
-      target = url.href;
-    } catch (_error) {
-      showMessage("Не удалось открыть оплату Stars.", "error");
+    if (!Number.isInteger(coins) || coins < state.starsMinCoins || coins > 1000) {
+      showMessage(`Введите сумму от ${number(state.starsMinCoins)} до 1 000 Монеток.`, "error");
       return;
     }
-    const telegram = window.Telegram?.WebApp;
-    if (/^https:\/\/t\.me\//i.test(target) && typeof telegram?.openTelegramLink === "function") {
-      telegram.openTelegramLink(target);
-    } else if (typeof telegram?.openLink === "function") {
-      telegram.openLink(target);
-    } else {
-      window.open(target, "_blank", "noopener,noreferrer");
+    if (!state.starsTopupEnabled) {
+      showMessage("Нативная оплата Stars пока не подключена. Переход в Qinghe доступен только для Tribute.", "info");
+      return;
     }
+    const stars = Math.ceil(coins / state.starsCoinsPerStar);
+    showMessage(`Подготавливаем счёт Telegram на ${number(stars)} ⭐…`, "info");
   }
 
   async function purchaseSelected() {
@@ -422,6 +419,10 @@
     });
     modal.querySelectorAll("[data-reader-stars-topup-amount]").forEach((button) => {
       button.addEventListener("click", () => openStarsTopup(button.dataset.readerStarsTopupAmount));
+    });
+    starsSubmit.addEventListener("click", () => openStarsTopup(starsCustom.value));
+    starsCustom.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") openStarsTopup(starsCustom.value);
     });
     topupSubmit.addEventListener("click", () => grantTestCoins(topupCustom.value));
     topupCustom.addEventListener("keydown", (event) => {

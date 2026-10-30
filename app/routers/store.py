@@ -25,6 +25,7 @@ from ..services.coins import (
 )
 
 router = APIRouter(prefix="/api/store", tags=["reader-coins"])
+TRIBUTE_BOT_URL = "https://t.me/qinghe_rpg_bot"
 
 
 def _require_store_user(request: Request) -> tuple[dict, int]:
@@ -96,8 +97,11 @@ def products(request: Request, novel_id: int | None = None, chapter_id: str | No
         ),
         "test_topup_min": max(10, settings.reader_test_coin_min_amount),
         "test_topup_max": min(100000, max(10, settings.reader_test_coin_max_amount)),
-        "topup_url": settings.qinghe_shop_url or None,
-        "stars_topup_enabled": bool(settings.qinghe_shop_url) and not viewer.get("admin_preview"),
+        "topup_url": TRIBUTE_BOT_URL,
+        "tribute_topup_enabled": not viewer.get("admin_preview"),
+        # Stars must use a native Telegram invoice. Never reuse the Tribute
+        # bot redirect as a Stars checkout URL.
+        "stars_topup_enabled": False,
         "stars_coins_per_star": stars_coins_per_star,
         "stars_min_coin_amount": stars_min_coin_amount,
         "items": items,

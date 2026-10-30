@@ -49,9 +49,13 @@
         <div class="reader-transaction-presets reader-transaction-stars-presets">
           {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-stars-topup-amount="{{ amount }}"><span>+{{ amount }} 🪙</span><b>{{ amount }} ⭐</b></button>{% endfor %}
         </div>
-        <p class="reader-transaction-stars-hint" data-reader-stars-hint hidden>Оплата Stars ещё не подключена. Варианты показаны заранее и пока недоступны.</p>
+        <div class="reader-transaction-custom">
+          <input type="number" min="10" max="1000" step="1" inputmode="numeric" placeholder="Своя сумма · 10–1000" data-reader-stars-custom aria-label="Своя сумма пополнения через Telegram Stars">
+          <button type="button" data-reader-stars-submit>Купить за ⭐</button>
+        </div>
+        <p class="reader-transaction-stars-hint" data-reader-stars-hint hidden>Нативная оплата Stars ещё не подключена. Она не будет перенаправлять вас в Qinghe.</p>
       </div>
-      <a class="reader-transaction-shop" href="#" target="_blank" rel="noopener noreferrer" data-reader-topup-shop hidden>Купить Монетки в Qinghe ↗</a>
+      <a class="reader-transaction-shop" href="https://t.me/qinghe_rpg_bot" target="_blank" rel="noopener noreferrer" data-reader-topup-shop hidden>Купить через Tribute в @qinghe_rpg_bot ↗</a>
       <p class="reader-transaction-unavailable" data-reader-topup-unavailable hidden>Пополнение пока недоступно. Попробуйте позднее.</p>
     </div>
 
