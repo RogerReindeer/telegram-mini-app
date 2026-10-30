@@ -27,8 +27,18 @@ def test_reader_coins_ui_stays_disabled_when_every_mode_is_off(monkeypatch):
     for name in (
         "READER_COINS_ENABLED",
         "READER_COIN_GRANTS_ENABLED",
+        "READER_STORE_PURCHASES_ENABLED",
         "READER_TEST_FREE_COINS_ENABLED",
         "READER_TEST_PURCHASES_ENABLED",
     ):
         monkeypatch.setenv(name, "false")
     assert _reader_coins_feature_enabled() is False
+
+
+def test_production_store_mode_automatically_enables_reader_coins_ui(monkeypatch):
+    monkeypatch.setenv("READER_COINS_ENABLED", "false")
+    monkeypatch.setenv("READER_STORE_PURCHASES_ENABLED", "true")
+    monkeypatch.setenv("READER_COIN_GRANTS_ENABLED", "false")
+    monkeypatch.setenv("READER_TEST_FREE_COINS_ENABLED", "false")
+    monkeypatch.setenv("READER_TEST_PURCHASES_ENABLED", "false")
+    assert _reader_coins_feature_enabled() is True

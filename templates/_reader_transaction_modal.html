@@ -34,18 +34,28 @@
       <div class="reader-transaction-test-topup" data-reader-test-topup hidden>
         <strong>Бесплатно на время теста</strong>
         <div class="reader-transaction-presets">
-          {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-topup-amount="{{ amount }}">+{{ amount }}</button>{% endfor %}
+          {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-test-topup-amount="{{ amount }}">+{{ amount }}</button>{% endfor %}
         </div>
         <div class="reader-transaction-custom">
           <input type="number" min="10" step="1" inputmode="numeric" placeholder="Своя сумма" data-reader-topup-custom aria-label="Своя сумма пополнения">
           <button type="button" data-reader-topup-submit>Начислить</button>
         </div>
       </div>
+      <div class="reader-transaction-stars-topup" data-reader-stars-topup>
+        <div class="reader-transaction-stars-heading">
+          <strong>Telegram Stars</strong>
+          <small>1 ⭐ = 1 Монетка · цену Stars показывает Telegram</small>
+        </div>
+        <div class="reader-transaction-presets reader-transaction-stars-presets">
+          {% for amount in [10, 50, 100, 250, 500, 1000] %}<button type="button" data-reader-stars-topup-amount="{{ amount }}"><span>+{{ amount }} 🪙</span><b>{{ amount }} ⭐</b></button>{% endfor %}
+        </div>
+        <p class="reader-transaction-stars-hint" data-reader-stars-hint hidden>Оплата Stars ещё не подключена. Варианты показаны заранее и пока недоступны.</p>
+      </div>
       <a class="reader-transaction-shop" href="#" target="_blank" rel="noopener noreferrer" data-reader-topup-shop hidden>Купить Монетки в Qinghe ↗</a>
       <p class="reader-transaction-unavailable" data-reader-topup-unavailable hidden>Пополнение пока недоступно. Попробуйте позднее.</p>
     </div>
 
     <p class="reader-transaction-message" data-reader-transaction-message hidden role="status"></p>
-    <footer class="reader-transaction-footer">1 ₽ = 1 Монетка · доступ активируется сразу после подтверждения</footer>
+    <footer class="reader-transaction-footer">1 ⭐ = 1 Монетка · доступ активируется после подтверждения оплаты</footer>
   </section>
 </div>

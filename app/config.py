@@ -1,4 +1,4 @@
-# Build history compatibility markers: v248-branded-cold-start-recovery; v247-static-startup-launcher; v246-browser-direct-teletype-media; v245-user-subscriptions-schema-compat; v244-teletype-mirror-media-recovery; v243-sync-media-repair; v242-reader-coins-foundation; v241-browser-reader-link; v240-production-gate-hardening; v239-miniapp-visible-direct-route; v238-admin-browser-preview; v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
+# Build history compatibility markers: v250-stars-topup-test-finish; v248-branded-cold-start-recovery; v247-static-startup-launcher; v246-browser-direct-teletype-media; v245-user-subscriptions-schema-compat; v244-teletype-mirror-media-recovery; v243-sync-media-repair; v242-reader-coins-foundation; v241-browser-reader-link; v240-production-gate-hardening; v239-miniapp-visible-direct-route; v238-admin-browser-preview; v204-single-miniapp-sync-source; v208-readable-chapter-title-center; v209-unified-corner-radius; v230-subscription-support-copy; v233-access-gate-copy; v234-gift-subscription-level-chooser; v235-gift-support-copy-channel-chooser; v236-role-aware-subscription-paywalls
 # Build history compatibility markers: v229-group-subscriptions-reset-label; v226-persistent-analytics-personal-stats; v227-vertical-chapter-swipe; v228-settings-popup-selects-about-copy
 """Central configuration contract for new modules.
 
@@ -65,6 +65,7 @@ def _reader_coins_feature_enabled() -> bool:
         for name in (
             "READER_COINS_ENABLED",
             "READER_COIN_GRANTS_ENABLED",
+            "READER_STORE_PURCHASES_ENABLED",
             "READER_TEST_FREE_COINS_ENABLED",
             "READER_TEST_PURCHASES_ENABLED",
         )
@@ -90,6 +91,7 @@ class Settings:
     reader_preview_token: str = _env("READER_PREVIEW_TOKEN")
     reader_coins_enabled: bool = _reader_coins_feature_enabled()
     reader_coin_grants_enabled: bool = _env_enabled("READER_COIN_GRANTS_ENABLED")
+    reader_store_purchases_enabled: bool = _env_enabled("READER_STORE_PURCHASES_ENABLED")
     reader_test_free_coins_enabled: bool = _env_enabled("READER_TEST_FREE_COINS_ENABLED")
     reader_test_purchases_enabled: bool = _env_enabled("READER_TEST_PURCHASES_ENABLED")
     reader_test_coin_min_amount: int = int(_env("READER_TEST_COIN_MIN_AMOUNT", "10") or "10")

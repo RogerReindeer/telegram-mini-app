@@ -86,6 +86,29 @@ def test_visual_pricing_editor_preserves_per_chapter_overrides():
     assert "to service_role" in sql
 
 
+def test_stars_rate_and_test_finish_are_atomic_and_service_role_only():
+    sql = (ROOT / "sql" / "migrations" / "008_reader_stars_and_test_finish.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "create table if not exists public.reader_store_runtime_settings" in sql
+    assert "stars_coins_per_star integer not null default 1" in sql
+    assert "stars_min_coin_amount integer not null default 10" in sql
+    assert "create or replace function public.reader_finish_test_commerce" in sql
+    assert "create or replace function public.reader_purchase_product_v2" in sql
+    assert "create or replace function public.reader_grant_test_coins_v2" in sql
+    assert "FINISH_READER_COMMERCE_TEST" in sql
+    assert "reader_real_commerce_present" in sql
+    assert "pg_advisory_xact_lock_shared" in sql
+    assert "set test_mode_enabled = false" in sql
+    assert "set balance = 0" in sql
+    assert "lifetime_credited = 0" in sql
+    assert "set revoked_at = now()" in sql
+    assert "coalesce(entitlement.metadata ->> 'test_mode', 'false') = 'true'" in sql
+    assert "security invoker" in sql
+    assert "from public, anon, authenticated" in sql
+    assert "to service_role" in sql
+
+
 def test_security_hardening_removes_duplicate_analytics_trigger_before_rebuild():
     sql = (ROOT / "sql" / "migrations" / "004_security_analytics_hardening.sql").read_text(
         encoding="utf-8"

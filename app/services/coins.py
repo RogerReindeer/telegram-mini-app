@@ -20,10 +20,12 @@ PURCHASE_TABLE = "reader_store_purchases"
 ENTITLEMENT_TABLE = "reader_commerce_entitlements"
 PRICING_RULE_TABLE = "reader_novel_pricing_rules"
 CHAPTER_OVERRIDE_TABLE = "reader_chapter_pricing_overrides"
+RUNTIME_SETTINGS_TABLE = "reader_store_runtime_settings"
 CREDIT_RPC = "reader_credit_coins_from_qinghe"
-TEST_CREDIT_RPC = "reader_grant_test_coins"
-PURCHASE_RPC = "reader_purchase_product"
+TEST_CREDIT_RPC = "reader_grant_test_coins_v2"
+PURCHASE_RPC = "reader_purchase_product_v2"
 ROLLBACK_RPC = "reader_rollback_test_purchases"
+FINISH_TEST_RPC = "reader_finish_test_commerce"
 BULK_PRICING_RPC = "reader_set_bulk_novel_pricing"
 SELECTED_CHAPTER_PRICING_RPC = "reader_set_selected_chapter_prices"
 MAX_BULK_PRICING_NOVELS = 100
@@ -92,6 +94,32 @@ def get_wallet(telegram_user_id: int) -> dict[str, Any]:
         "balance": int(row.get("balance") or 0),
         "lifetime_credited": int(row.get("lifetime_credited") or 0),
         "lifetime_spent": int(row.get("lifetime_spent") or 0),
+        "updated_at": row.get("updated_at"),
+    }
+
+
+def get_store_runtime_settings() -> dict[str, Any]:
+    """Load the server-only commerce switch and fail closed on outages.
+
+    The database switch lets an administrator end the test atomically without
+    waiting for a Render redeploy. Environment flags remain the outer gate.
+    """
+    try:
+        rows = db_select(
+            RUNTIME_SETTINGS_TABLE,
+            select="test_mode_enabled,stars_coins_per_star,stars_min_coin_amount,updated_at",
+            filters={"id": "eq.1"},
+            limit=1,
+        )
+    except SupabaseError as error:
+        raise StoreTemporaryError(str(error)) from error
+    if not rows:
+        raise StoreTemporaryError("Reader store runtime settings are missing")
+    row = rows[0]
+    return {
+        "test_mode_enabled": bool(row.get("test_mode_enabled")),
+        "stars_coins_per_star": max(1, int(row.get("stars_coins_per_star") or 1)),
+        "stars_min_coin_amount": max(10, int(row.get("stars_min_coin_amount") or 10)),
         "updated_at": row.get("updated_at"),
     }
 
@@ -223,12 +251,19 @@ def get_novel_chapter_price_map(novel_id: int) -> dict[str, int]:
     }
 
 
-def purchase_store_product(telegram_user_id: int, product_code: str, client_action_id: Any) -> dict[str, Any]:
+def purchase_store_product(
+    telegram_user_id: int,
+    product_code: str,
+    client_action_id: Any,
+    *,
+    test_mode: bool,
+) -> dict[str, Any]:
     try:
         row = _rpc_row(db_rpc(PURCHASE_RPC, {
             "p_telegram_user_id": int(telegram_user_id),
             "p_product_code": str(product_code).strip(),
             "p_client_action_id": str(client_action_id),
+            "p_test_mode": bool(test_mode),
         }), operation="purchase")
     except SupabaseError as error:
         message = str(error)
@@ -606,4 +641,31 @@ def rollback_test_purchases(telegram_user_id: int | None = None) -> dict[str, An
         "reversed_purchases": int(row.get("reversed_purchases") or 0),
         "refunded_coins": int(row.get("refunded_coins") or 0),
         "affected_users": int(row.get("affected_users") or 0),
+    }
+
+
+def finish_test_commerce(confirmation: str) -> dict[str, Any]:
+    try:
+        row = _rpc_row(
+            db_rpc(FINISH_TEST_RPC, {"p_confirmation": str(confirmation)}),
+            operation="finish test commerce",
+        )
+    except SupabaseError as error:
+        message = str(error)
+        if "reader_invalid_test_finish_confirmation" in message:
+            raise StoreValidationError(message) from error
+        if "reader_test_mode_already_finished" in message:
+            raise StoreValidationError("Тестовый режим уже завершён") from error
+        if "reader_real_commerce_present" in message:
+            raise StoreValidationError(
+                "В базе уже есть боевые операции: автоматический общий сброс заблокирован"
+            ) from error
+        raise StoreTemporaryError(message) from error
+    return {
+        "status": "completed",
+        "test_mode_enabled": False,
+        "reset_wallets": int(row.get("reset_wallets") or 0),
+        "cleared_coins": int(row.get("cleared_coins") or 0),
+        "reversed_purchases": int(row.get("reversed_purchases") or 0),
+        "revoked_entitlements": int(row.get("revoked_entitlements") or 0),
     }

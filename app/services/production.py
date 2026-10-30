@@ -67,6 +67,16 @@ def _env_checks() -> list[Check]:
         f"Reader Coins {'включены' if settings.reader_coins_enabled else 'выключены'}.",
         severity="warning",
     ))
+    checks.append(_check(
+        "feature.READER_STORE_PURCHASES_ENABLED",
+        "pass" if settings.reader_store_purchases_enabled else "warn",
+        (
+            "Боевые покупки глав, книг и подписок включены."
+            if settings.reader_store_purchases_enabled
+            else "Боевые покупки выключены. Включите после завершения теста."
+        ),
+        severity="warning",
+    ))
     if settings.reader_test_free_coins_enabled or settings.reader_test_purchases_enabled:
         checks.append(_check(
             "feature.READER_TEST_MODE",

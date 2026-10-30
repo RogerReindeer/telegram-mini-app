@@ -67,7 +67,7 @@
       <div class="admin-panel-header">
         <div>
           <h2>Монетки · цены и доступы</h2>
-          <p>Отдельные цены для глав, книжных бандлов и подписок. Курс фиксирован: 1 ₽ = 1 Монетка.</p>
+          <p>Отдельные цены для глав, книжных бандлов и подписок. В Telegram: 1 ⭐ = 1 Монетка.</p>
         </div>
         <span>Тестовый режим</span>
       </div>
@@ -150,6 +150,11 @@
         <button type="button" data-admin-store-rollback>Откатить тестовые покупки</button>
         <p class="admin-muted">Доступы отзываются, потраченные Монетки возвращаются. Начисленный тестовый баланс остаётся.</p>
       </div>
+      <section class="admin-store-finish-test" aria-labelledby="adminFinishTestTitle">
+        <h3 id="adminFinishTestTitle">Завершить тест Reader Coins</h3>
+        <p class="admin-muted">Одним действием выключает бесплатный тест в базе, обнуляет все тестовые балансы, отзывает тестовые главы, книги и подписки. История операций сохраняется для аудита. Боевые операции функция не затрагивает и при их наличии блокирует общий сброс.</p>
+        <button type="button" data-admin-store-finish-test>Выключить тест и очистить тестовые данные</button>
+      </section>
     </section>
 
     <section class="admin-panel">

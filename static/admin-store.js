@@ -455,5 +455,38 @@
     }
   });
 
+  root.querySelector("[data-admin-store-finish-test]").addEventListener("click", async function () {
+    const confirmation = window.prompt(
+      "Это отключит бесплатный тест, обнулит ВСЕ тестовые балансы и отзовёт ВСЕ тестовые доступы. Для подтверждения введите: ЗАВЕРШИТЬ ТЕСТ",
+      ""
+    );
+    if (confirmation === null) return;
+    if (String(confirmation).trim() !== "ЗАВЕРШИТЬ ТЕСТ") {
+      show("Завершение теста отменено: контрольная фраза не совпала.", true);
+      return;
+    }
+    if (!window.confirm("Последнее подтверждение: завершить тест Reader Coins для всех пользователей?")) return;
+    const button = root.querySelector("[data-admin-store-finish-test]");
+    button.disabled = true;
+    try {
+      const result = await api("/api/admin/store/finish-test-commerce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: "FINISH_READER_COMMERCE_TEST" })
+      });
+      show(
+        "Тест завершён: кошельков — " + result.reset_wallets
+          + ", списано тестовых Монеток — " + result.cleared_coins
+          + ", покупок отозвано — " + result.reversed_purchases
+          + ", доступов отозвано — " + result.revoked_entitlements + ".",
+        false
+      );
+    } catch (error) {
+      show("Завершение теста не выполнено: " + error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   load();
 })();

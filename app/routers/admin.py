@@ -6,6 +6,7 @@ from ..cache import cache_stats, clear_all_caches, clear_catalog_cache, clear_im
 from ..security import require_admin_token
 from ..schemas_commerce import (
     BulkNovelPricingPayload,
+    FinishTestCommerceRequest,
     SelectedChapterPricingPayload,
     StoreProductAdminPayload,
     TestPurchaseRollbackRequest,
@@ -21,6 +22,7 @@ from ..services.auth import invalidate_access_cache
 from ..services.coins import (
     StoreTemporaryError,
     StoreValidationError,
+    finish_test_commerce,
     list_novel_pricing_rules,
     list_store_pricing_catalog,
     list_store_products,
@@ -218,4 +220,17 @@ def store_rollback_test_purchases(request: Request, model: TestPurchaseRollbackR
     except StoreTemporaryError as error:
         raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
     invalidate_access_cache(model.telegram_user_id)
+    return result
+
+
+@router.post("/store/finish-test-commerce")
+def store_finish_test_commerce(request: Request, model: FinishTestCommerceRequest):
+    _guard(request)
+    try:
+        result = finish_test_commerce(model.confirmation)
+    except StoreValidationError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+    invalidate_access_cache(None)
     return result

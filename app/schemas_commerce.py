@@ -141,3 +141,7 @@ class SelectedChapterPricingPayload(CommerceInputModel):
 class TestPurchaseRollbackRequest(CommerceInputModel):
     confirmation: Literal["ROLLBACK_TEST_PURCHASES"]
     telegram_user_id: int | None = Field(default=None, gt=0)
+
+
+class FinishTestCommerceRequest(CommerceInputModel):
+    confirmation: Literal["FINISH_READER_COMMERCE_TEST"]

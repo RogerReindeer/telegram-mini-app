@@ -3152,6 +3152,10 @@ body.dark .library-filter-footer {
 .admin-store-rollback button { border: 0; border-radius: 10px; padding: 10px 14px; font: inherit; font-weight: 700; cursor: pointer; }
 .admin-store-rollback { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(120, 90, 70, .16); }
 .admin-store-rollback button { background: #9f3838; color: #fff; }
+.admin-store-finish-test { margin-top: 14px; padding: 16px; border: 1px solid rgba(159, 56, 56, .35); border-radius: 14px; background: rgba(159, 56, 56, .07); }
+.admin-store-finish-test h3 { margin: 0 0 6px; }
+.admin-store-finish-test p { margin: 0 0 12px; }
+.admin-store-finish-test button { border: 0; border-radius: 10px; padding: 11px 15px; background: #7d2525; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 @media (max-width: 720px) {
   .admin-store-form { grid-template-columns: 1fr 1fr; }
   .admin-store-form .admin-store-wide { grid-column: 1 / -1; }
@@ -6332,6 +6336,7 @@ body.reader-transaction-open { overflow: hidden; }
 .reader-transaction-message[hidden],
 .reader-transaction-shortage[hidden],
 .reader-transaction-test-topup[hidden],
+.reader-transaction-stars-topup[hidden],
 .reader-transaction-shop[hidden],
 .reader-transaction-unavailable[hidden] { display: none !important; }
 .reader-transaction-backdrop {
@@ -6489,6 +6494,16 @@ body.reader-transaction-open { overflow: hidden; }
 .reader-transaction-primary:disabled { opacity: .55; cursor: not-allowed; }
 .reader-transaction-test-topup { display: grid; gap: 10px; }
 .reader-transaction-test-topup > strong { font-size: 13px; }
+.reader-transaction-stars-topup { display: grid; gap: 10px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.reader-transaction-stars-heading { display: grid; gap: 3px; }
+.reader-transaction-stars-heading strong { font-size: 14px; }
+.reader-transaction-stars-heading small,
+.reader-transaction-stars-hint { opacity: .72; font-size: 12px; line-height: 1.4; }
+.reader-transaction-stars-hint { margin: 0; }
+.reader-transaction-stars-presets button { display: grid; gap: 2px; min-height: 54px; }
+.reader-transaction-stars-presets button span { font-weight: 800; }
+.reader-transaction-stars-presets button b { font-size: 12px; opacity: .8; }
+.reader-transaction-stars-presets button:disabled { filter: grayscale(1); background: color-mix(in srgb, currentColor 8%, transparent); color: color-mix(in srgb, currentColor 48%, transparent); border-color: color-mix(in srgb, currentColor 14%, transparent); box-shadow: none; }
 .reader-transaction-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .reader-transaction-presets button {
   min-height: 42px;

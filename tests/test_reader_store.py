@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from app.database import SupabaseError
 from app.schemas_commerce import (
     BulkNovelPricingPayload,
+    FinishTestCommerceRequest,
     SelectedChapterPricingPayload,
     StoreProductAdminPayload,
     TestCoinGrantRequest as CoinGrantRequest,
@@ -25,6 +26,14 @@ def test_test_coin_grant_enforces_minimum():
     with pytest.raises(ValidationError):
         CoinGrantRequest(amount=9, client_action_id=uuid4())
     assert CoinGrantRequest(amount=10, client_action_id=uuid4()).amount == 10
+
+
+def test_finish_test_requires_exact_confirmation_phrase():
+    assert FinishTestCommerceRequest(
+        confirmation="FINISH_READER_COMMERCE_TEST"
+    ).confirmation == "FINISH_READER_COMMERCE_TEST"
+    with pytest.raises(ValidationError):
+        FinishTestCommerceRequest(confirmation="finish")
 
 
 def test_store_product_shape_matches_target_type():
@@ -241,7 +250,42 @@ def test_purchase_history_has_titles_and_hides_test_rollbacks(monkeypatch):
 def test_purchase_maps_insufficient_balance(monkeypatch):
     monkeypatch.setattr(coins, "db_rpc", lambda *_args, **_kwargs: (_ for _ in ()).throw(SupabaseError("reader_insufficient_balance")))
     with pytest.raises(coins.StoreInsufficientBalance):
-        coins.purchase_store_product(42, "chapter", uuid4())
+        coins.purchase_store_product(42, "chapter", uuid4(), test_mode=True)
+
+
+def test_store_runtime_settings_are_server_controlled(monkeypatch):
+    monkeypatch.setattr(coins, "db_select", lambda *_args, **_kwargs: [{
+        "test_mode_enabled": False,
+        "stars_coins_per_star": 1,
+        "stars_min_coin_amount": 10,
+        "updated_at": "2026-10-30T00:00:00Z",
+    }])
+    runtime = coins.get_store_runtime_settings()
+    assert runtime["test_mode_enabled"] is False
+    assert runtime["stars_coins_per_star"] == 1
+    assert runtime["stars_min_coin_amount"] == 10
+
+
+def test_finish_test_calls_single_atomic_rpc(monkeypatch):
+    captured = {}
+
+    def fake_rpc(name, payload):
+        captured.update({"name": name, "payload": payload})
+        return [{
+            "reset_wallets": 2,
+            "cleared_coins": 120,
+            "reversed_purchases": 3,
+            "revoked_entitlements": 3,
+        }]
+
+    monkeypatch.setattr(coins, "db_rpc", fake_rpc)
+    result = coins.finish_test_commerce("FINISH_READER_COMMERCE_TEST")
+    assert captured == {
+        "name": "reader_finish_test_commerce",
+        "payload": {"p_confirmation": "FINISH_READER_COMMERCE_TEST"},
+    }
+    assert result["test_mode_enabled"] is False
+    assert result["cleared_coins"] == 120
 
 
 def test_wallet_maps_database_outage(monkeypatch):
@@ -337,6 +381,12 @@ def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     assert '_reader_transaction_modal.html' in chapter
     assert "data-reader-transaction" in transaction
     assert "data-reader-coins-balance" in transaction
+    assert "[10, 50, 100, 250, 500, 1000]" in transaction
+    assert 'data-reader-stars-topup-amount="{{ amount }}"' in transaction
+    assert "1 ⭐ = 1 Монетка" in transaction
+    assert 'url.searchParams.set("provider", "telegram_stars")' in script
+    assert 'url.searchParams.set("coins", String(coins))' in script
+    assert "!state.starsTopupEnabled" in script
     assert "Подтверждение покупки" in script
     assert "Купить всю новеллу" in script
     assert "Все текущие и будущие главы без срока" in script
@@ -345,6 +395,15 @@ def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     assert "data-zb-purchase-history" in settings_script
     assert "История покупок" in settings_script
     assert "window.confirm" not in script
+
+
+def test_admin_has_guarded_finish_test_action():
+    template = (ROOT / "templates" / "admin.html").read_text(encoding="utf-8")
+    script = (ROOT / "static" / "admin-store.js").read_text(encoding="utf-8")
+    assert "data-admin-store-finish-test" in template
+    assert "История операций сохраняется" in template
+    assert "ЗАВЕРШИТЬ ТЕСТ" in script
+    assert "FINISH_READER_COMMERCE_TEST" in script
 
 
 def test_reader_has_no_removed_payment_provider_route_or_ui_copy():

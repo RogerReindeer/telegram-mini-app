@@ -28,6 +28,8 @@
   const confirmBack = modal.querySelector("[data-reader-confirm-back]");
   const topupBack = modal.querySelector("[data-reader-topup-back]");
   const testTopup = modal.querySelector("[data-reader-test-topup]");
+  const starsTopup = modal.querySelector("[data-reader-stars-topup]");
+  const starsHint = modal.querySelector("[data-reader-stars-hint]");
   const topupMinNode = modal.querySelector("[data-reader-topup-min]");
   const topupCustom = modal.querySelector("[data-reader-topup-custom]");
   const topupSubmit = modal.querySelector("[data-reader-topup-submit]");
@@ -41,6 +43,9 @@
     selected: null,
     purchasesEnabled: false,
     testTopupEnabled: false,
+    starsTopupEnabled: false,
+    starsCoinsPerStar: 1,
+    starsMinCoins: 10,
     topupMin: 10,
     topupMax: 1000,
     topupUrl: "",
@@ -108,6 +113,7 @@
       store_product_not_found: "Предложение больше недоступно. Обновите страницу.",
       test_coin_topup_disabled: "Тестовое пополнение сейчас выключено.",
       test_purchases_disabled: "Покупки сейчас временно выключены.",
+      store_purchases_disabled: "Покупки сейчас временно выключены.",
       store_temporarily_unavailable: "Магазин временно недоступен. Попробуйте ещё раз.",
       wallet_temporarily_unavailable: "Не удалось загрузить баланс. Попробуйте ещё раз.",
     };
@@ -237,18 +243,30 @@
     topupCustom.min = String(state.topupMin);
     topupCustom.max = String(state.topupMax);
     if (state.suggestedTopup) topupCustom.value = String(state.suggestedTopup);
+    const starsButtons = modal.querySelectorAll("[data-reader-stars-topup-amount]");
+    starsButtons.forEach((button) => {
+      const coins = Number(button.dataset.readerStarsTopupAmount || 0);
+      const stars = Math.ceil(coins / state.starsCoinsPerStar);
+      const price = button.querySelector("b");
+      if (price) price.textContent = `${number(stars)} ⭐`;
+      button.disabled = state.busy || !state.starsTopupEnabled || coins < state.starsMinCoins;
+      button.title = state.starsTopupEnabled ? "" : "Оплата Stars ещё не подключена";
+    });
+    starsTopup.hidden = false;
+    starsHint.hidden = state.starsTopupEnabled;
     if (shopLink && state.topupUrl) {
       shopLink.href = state.topupUrl;
       shopLink.hidden = false;
     } else if (shopLink) {
       shopLink.hidden = true;
     }
-    topupUnavailable.hidden = state.testTopupEnabled || Boolean(state.topupUrl);
+    topupUnavailable.hidden = state.testTopupEnabled || state.starsTopupEnabled || Boolean(state.topupUrl);
     const firstPreset = state.testTopupEnabled
-      ? testTopup.querySelector("[data-reader-topup-amount]:not(:disabled)")
+      ? testTopup.querySelector("[data-reader-test-topup-amount]:not(:disabled)")
       : null;
+    const firstStarsPreset = starsTopup.querySelector("[data-reader-stars-topup-amount]:not(:disabled)");
     const shopTarget = shopLink && !shopLink.hidden ? shopLink : null;
-    (firstPreset || shopTarget || topupBack)?.focus();
+    (firstPreset || firstStarsPreset || shopTarget || topupBack)?.focus();
   }
 
   function openModal() {
@@ -272,9 +290,38 @@
     state.busy = busy;
     purchaseButton.disabled = busy || !state.purchasesEnabled;
     topupSubmit.disabled = busy;
-    modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
-      button.disabled = busy || Number(button.dataset.readerTopupAmount || 0) > state.topupMax;
+    modal.querySelectorAll("[data-reader-test-topup-amount]").forEach((button) => {
+      button.disabled = busy || Number(button.dataset.readerTestTopupAmount || 0) > state.topupMax;
     });
+    modal.querySelectorAll("[data-reader-stars-topup-amount]").forEach((button) => {
+      const coins = Number(button.dataset.readerStarsTopupAmount || 0);
+      button.disabled = busy || !state.starsTopupEnabled || coins < state.starsMinCoins;
+    });
+  }
+
+  function openStarsTopup(amount) {
+    const coins = Number(amount || 0);
+    if (!state.starsTopupEnabled || !state.topupUrl || !Number.isInteger(coins) || coins < state.starsMinCoins) return;
+    const stars = Math.ceil(coins / state.starsCoinsPerStar);
+    let target = "";
+    try {
+      const url = new URL(state.topupUrl, window.location.origin);
+      url.searchParams.set("provider", "telegram_stars");
+      url.searchParams.set("coins", String(coins));
+      url.searchParams.set("stars", String(stars));
+      target = url.href;
+    } catch (_error) {
+      showMessage("Не удалось открыть оплату Stars.", "error");
+      return;
+    }
+    const telegram = window.Telegram?.WebApp;
+    if (/^https:\/\/t\.me\//i.test(target) && typeof telegram?.openTelegramLink === "function") {
+      telegram.openTelegramLink(target);
+    } else if (typeof telegram?.openLink === "function") {
+      telegram.openLink(target);
+    } else {
+      window.open(target, "_blank", "noopener,noreferrer");
+    }
   }
 
   async function purchaseSelected() {
@@ -370,8 +417,11 @@
     });
     purchaseButton.addEventListener("click", purchaseSelected);
     insufficientButton.addEventListener("click", topupSuggestedAmount);
-    modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
-      button.addEventListener("click", () => grantTestCoins(button.dataset.readerTopupAmount));
+    modal.querySelectorAll("[data-reader-test-topup-amount]").forEach((button) => {
+      button.addEventListener("click", () => grantTestCoins(button.dataset.readerTestTopupAmount));
+    });
+    modal.querySelectorAll("[data-reader-stars-topup-amount]").forEach((button) => {
+      button.addEventListener("click", () => openStarsTopup(button.dataset.readerStarsTopupAmount));
     });
     topupSubmit.addEventListener("click", () => grantTestCoins(topupCustom.value));
     topupCustom.addEventListener("keydown", (event) => {
@@ -393,6 +443,9 @@
       state.products = relevantProducts(catalog.items);
       state.purchasesEnabled = Boolean(catalog.purchases_enabled);
       state.testTopupEnabled = Boolean(catalog.test_topup_enabled);
+      state.starsTopupEnabled = Boolean(catalog.stars_topup_enabled);
+      state.starsCoinsPerStar = Math.max(1, Number(catalog.stars_coins_per_star || 1));
+      state.starsMinCoins = Math.max(10, Number(catalog.stars_min_coin_amount || 10));
       state.topupMin = Math.max(10, Number(catalog.test_topup_min || 10));
       state.topupMax = Math.max(state.topupMin, Number(catalog.test_topup_max || 1000));
       state.topupUrl = safeTopupUrl(catalog.topup_url);
@@ -402,8 +455,8 @@
           : "Купите только эту главу или откройте всю новеллу, включая будущие главы.";
       }
       renderBalance();
-      modal.querySelectorAll("[data-reader-topup-amount]").forEach((button) => {
-        button.disabled = Number(button.dataset.readerTopupAmount || 0) > state.topupMax;
+      modal.querySelectorAll("[data-reader-test-topup-amount]").forEach((button) => {
+        button.disabled = Number(button.dataset.readerTestTopupAmount || 0) > state.topupMax;
       });
 
       const chapterProduct = state.products.find((item) => item.product_type === "chapter_unlock");

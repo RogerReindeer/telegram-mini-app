@@ -16,6 +16,7 @@ from ..services.coins import (
     StoreTemporaryError,
     StoreValidationError,
     get_wallet,
+    get_store_runtime_settings,
     grant_test_coins,
     list_store_products,
     list_user_entitlements,
@@ -38,6 +39,12 @@ def _require_store_user(request: Request) -> tuple[dict, int]:
 def _require_enabled() -> None:
     if not settings.reader_coins_enabled:
         raise HTTPException(status_code=404, detail="reader_coins_disabled")
+
+
+def _purchases_enabled(test_mode_enabled: bool) -> bool:
+    if test_mode_enabled:
+        return settings.reader_test_purchases_enabled
+    return settings.reader_store_purchases_enabled
 
 
 @router.get("/wallet")
@@ -70,17 +77,29 @@ def products(request: Request, novel_id: int | None = None, chapter_id: str | No
         raise HTTPException(status_code=401, detail="Откройте приложение внутри Telegram")
     try:
         items = list_store_products(active_only=True, novel_id=novel_id, chapter_id=chapter_id)
+        runtime = get_store_runtime_settings()
     except Exception as error:
         raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+    test_mode_enabled = bool(runtime["test_mode_enabled"])
+    stars_coins_per_star = max(1, int(runtime["stars_coins_per_star"]))
+    stars_min_coin_amount = max(10, int(runtime["stars_min_coin_amount"]))
     return {
         "status": "ok",
         "currency": "reader_coins",
         "exchange_rate_rub": 1,
-        "purchases_enabled": settings.reader_test_purchases_enabled and not viewer.get("admin_preview"),
-        "test_topup_enabled": settings.reader_test_free_coins_enabled and not viewer.get("admin_preview"),
+        "purchases_enabled": _purchases_enabled(test_mode_enabled) and not viewer.get("admin_preview"),
+        "test_mode_enabled": test_mode_enabled,
+        "test_topup_enabled": (
+            test_mode_enabled
+            and settings.reader_test_free_coins_enabled
+            and not viewer.get("admin_preview")
+        ),
         "test_topup_min": max(10, settings.reader_test_coin_min_amount),
         "test_topup_max": min(100000, max(10, settings.reader_test_coin_max_amount)),
         "topup_url": settings.qinghe_shop_url or None,
+        "stars_topup_enabled": bool(settings.qinghe_shop_url) and not viewer.get("admin_preview"),
+        "stars_coins_per_star": stars_coins_per_star,
+        "stars_min_coin_amount": stars_min_coin_amount,
         "items": items,
     }
 
@@ -88,7 +107,11 @@ def products(request: Request, novel_id: int | None = None, chapter_id: str | No
 @router.post("/test-coins")
 def test_coins(request: Request, model: TestCoinGrantRequest):
     _require_enabled()
-    if not settings.reader_test_free_coins_enabled:
+    try:
+        runtime = get_store_runtime_settings()
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+    if not settings.reader_test_free_coins_enabled or not runtime["test_mode_enabled"]:
         raise HTTPException(status_code=404, detail="test_coin_topup_disabled")
     _, user_id = _require_store_user(request)
     minimum = max(10, settings.reader_test_coin_min_amount)
@@ -108,11 +131,20 @@ def test_coins(request: Request, model: TestCoinGrantRequest):
 @router.post("/purchase")
 def purchase(request: Request, model: StorePurchaseRequest):
     _require_enabled()
-    if not settings.reader_test_purchases_enabled:
-        raise HTTPException(status_code=404, detail="test_purchases_disabled")
+    try:
+        runtime = get_store_runtime_settings()
+    except StoreTemporaryError as error:
+        raise HTTPException(status_code=503, detail="store_temporarily_unavailable") from error
+    if not _purchases_enabled(bool(runtime["test_mode_enabled"])):
+        raise HTTPException(status_code=404, detail="store_purchases_disabled")
     _, user_id = _require_store_user(request)
     try:
-        result = purchase_store_product(user_id, model.product_code, model.client_action_id)
+        result = purchase_store_product(
+            user_id,
+            model.product_code,
+            model.client_action_id,
+            test_mode=bool(runtime["test_mode_enabled"]),
+        )
     except StoreProductNotFound as error:
         raise HTTPException(status_code=404, detail="store_product_not_found") from error
     except StoreInsufficientBalance as error:
