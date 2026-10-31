@@ -210,6 +210,161 @@
       subscriptionSummaryLoading = false;
     }
   }
+  let walletBalanceLoaded = false;
+  let walletBalanceLoading = false;
+  let walletCatalog = {};
+  const pendingWalletActions = new Map();
+  function formatCoins(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toLocaleString("ru-RU") : "—";
+  }
+  function walletActionId(key) {
+    if (pendingWalletActions.has(key)) return pendingWalletActions.get(key);
+    let existing = "";
+    try { existing = window.sessionStorage.getItem(key) || ""; } catch (error) {}
+    const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const created = validUuid.test(existing) ? existing : window.crypto?.randomUUID?.()
+      || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (char) {
+        const value = Math.floor(Math.random() * 16);
+        return (char === "x" ? value : (value & 3) | 8).toString(16);
+      });
+    pendingWalletActions.set(key, created);
+    try { window.sessionStorage.setItem(key, created); } catch (error) {}
+    return created;
+  }
+  function clearWalletAction(key) {
+    pendingWalletActions.delete(key);
+    try { window.sessionStorage.removeItem(key); } catch (error) {}
+  }
+  function setWalletBalance(value) {
+    document.querySelectorAll("[data-zb-wallet-balance]").forEach(function (node) {
+      node.textContent = formatCoins(value);
+    });
+  }
+  function setWalletStatus(text, tone) {
+    const status = document.querySelector("[data-zb-wallet-status]");
+    if (!status) return;
+    status.textContent = text || "";
+    status.dataset.tone = tone || "info";
+    status.hidden = !text;
+  }
+  function safeWalletLink(value) {
+    if (!String(value || "").trim()) return "";
+    try {
+      const url = new URL(String(value || ""), window.location.origin);
+      return url.protocol === "https:" && url.hostname === "t.me" ? url.href : "";
+    } catch (error) {
+      return "";
+    }
+  }
+  function walletErrorMessage(detail) {
+    const messages = {
+      test_coin_topup_disabled: "Тестовое пополнение завершено. Обновите баланс.",
+      test_coin_action_conflict: "Не удалось подтвердить пополнение. Обновите баланс и повторите попытку.",
+      store_temporarily_unavailable: "Пополнение временно недоступно. Попробуйте ещё раз.",
+    };
+    return messages[detail] || "Не удалось пополнить баланс. Проверьте соединение и повторите попытку.";
+  }
+  function renderWalletTopup(catalog, readOnly) {
+    walletCatalog = catalog || {};
+    if (readOnly) walletCatalog = { ...walletCatalog, test_topup_enabled: false };
+    const testEnabled = Boolean(walletCatalog.test_topup_enabled) && !readOnly;
+    const minimum = Math.max(10, Number(walletCatalog.test_topup_min || 10));
+    const maximum = Math.max(minimum, Number(walletCatalog.test_topup_max || 1000));
+    const testSection = document.querySelector("[data-zb-wallet-test-topup]");
+    const custom = document.querySelector("[data-zb-wallet-custom]");
+    const customSubmit = document.querySelector("[data-zb-wallet-custom-submit]");
+    if (testSection) testSection.hidden = !testEnabled;
+    if (custom) {
+      custom.min = String(minimum);
+      custom.max = String(maximum);
+      custom.disabled = !testEnabled;
+    }
+    if (customSubmit) customSubmit.disabled = !testEnabled;
+    document.querySelectorAll("[data-zb-wallet-test-amount]").forEach(function (button) {
+      const amount = Number(button.dataset.zbWalletTestAmount || 0);
+      button.disabled = !testEnabled || amount < minimum || amount > maximum;
+    });
+    const tribute = document.querySelector("[data-zb-wallet-tribute]");
+    const tributeUrl = safeWalletLink(walletCatalog.topup_url);
+    if (tribute) {
+      tribute.href = tributeUrl || "https://t.me/qinghe_rpg_bot";
+      tribute.hidden = readOnly;
+    }
+    document.querySelectorAll("[data-zb-wallet-stars-amount], [data-zb-wallet-stars-custom], [data-zb-wallet-stars-submit]").forEach(function (control) {
+      control.disabled = true;
+    });
+  }
+  async function loadWalletBalance(force) {
+    const box = document.querySelector("[data-zb-wallet-box]");
+    if (!box || (walletBalanceLoaded && !force) || walletBalanceLoading) return;
+    walletBalanceLoading = true;
+    box.classList.add("is-loading");
+    setWalletStatus("Загружаем баланс…", "info");
+    try {
+      const responses = await Promise.allSettled([
+        fetch("/api/store/wallet", { credentials: "same-origin" }),
+        fetch("/api/store/products", { credentials: "same-origin" })
+      ]);
+      if (responses[0].status !== "fulfilled") throw new Error("Не удалось загрузить баланс. Попробуйте ещё раз.");
+      const walletResponse = responses[0].value;
+      const wallet = await walletResponse.json().catch(function () { return {}; });
+      if (!walletResponse.ok) throw new Error("Баланс временно недоступен. Попробуйте ещё раз.");
+      setWalletBalance(wallet.balance || 0);
+      const catalogResponse = responses[1].status === "fulfilled" ? responses[1].value : null;
+      if (!catalogResponse || !catalogResponse.ok) {
+        renderWalletTopup({}, Boolean(wallet.read_only));
+        setWalletStatus("Баланс загружен. Способы пополнения временно недоступны — нажмите на баланс ещё раз.", "error");
+        walletBalanceLoaded = false;
+        return;
+      }
+      const catalog = await catalogResponse.json();
+      walletBalanceLoaded = true;
+      renderWalletTopup(catalog, Boolean(wallet.read_only));
+      setWalletStatus("", "info");
+      const hint = box.querySelector("[data-zb-wallet-hint]");
+      if (hint) hint.textContent = wallet.read_only ? "В режиме просмотра баланс недоступен" : "Нажмите, чтобы пополнить";
+    } catch (error) {
+      setWalletBalance("—");
+      setWalletStatus(error && error.message ? error.message : "Баланс временно недоступен", "error");
+    } finally {
+      walletBalanceLoading = false;
+      box.classList.remove("is-loading");
+    }
+  }
+  async function grantWalletTestCoins(rawAmount) {
+    if (walletBalanceLoading || !walletCatalog.test_topup_enabled) return;
+    const minimum = Math.max(10, Number(walletCatalog.test_topup_min || 10));
+    const maximum = Math.max(minimum, Number(walletCatalog.test_topup_max || 1000));
+    const amount = Number(rawAmount || 0);
+    if (!Number.isInteger(amount) || amount < minimum || amount > maximum) {
+      setWalletStatus(`Введите сумму от ${formatCoins(minimum)} до ${formatCoins(maximum)} Монеток.`, "error");
+      return;
+    }
+    const key = `settings-wallet-test-topup:${amount}`;
+    walletBalanceLoading = true;
+    document.querySelector("[data-zb-wallet-box]")?.classList.add("is-loading");
+    setWalletStatus("Начисляем тестовые Монетки…", "info");
+    try {
+      const response = await fetch("/api/store/test-coins", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amount, client_action_id: walletActionId(key) })
+      });
+      const data = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw new Error(walletErrorMessage(data.detail));
+      clearWalletAction(key);
+      setWalletBalance(data.balance || 0);
+      window.dispatchEvent(new CustomEvent("reader-wallet-updated", { detail: { balance: Number(data.balance || 0) } }));
+      setWalletStatus(data.duplicate ? "Это пополнение уже выполнено. Баланс обновлён." : `Баланс пополнен на ${formatCoins(data.credited || amount)} Монеток.`, "success");
+    } catch (error) {
+      setWalletStatus(error && error.message ? error.message : "Не удалось пополнить баланс", "error");
+    } finally {
+      walletBalanceLoading = false;
+      document.querySelector("[data-zb-wallet-box]")?.classList.remove("is-loading");
+    }
+  }
   let purchaseHistoryLoaded = false;
   let purchaseHistoryLoading = false;
   function purchaseTypeLabel(item) {
@@ -334,6 +489,30 @@
             </div>
           </section>
           <section class="zb-settings-pane" data-zb-pane="access">
+            <div class="zb-access-box zb-access-box-user zb-wallet-box" data-zb-wallet-box>
+              <h3>Баланс</h3>
+              <button class="zb-wallet-balance-card" type="button" data-zb-wallet-open aria-expanded="false">
+                <span class="zb-wallet-coin" aria-hidden="true">🪙</span>
+                <span class="zb-wallet-balance-copy"><small>Ваш баланс</small><strong><span data-zb-wallet-balance>—</span> Монеток</strong><em data-zb-wallet-hint>Нажмите, чтобы пополнить</em></span>
+                <span class="zb-wallet-plus" aria-hidden="true">＋</span>
+              </button>
+              <div class="zb-wallet-topup" data-zb-wallet-topup hidden>
+                <div class="zb-wallet-topup-head"><strong>Пополнить баланс</strong><span>Минимальная сумма — 10 Монеток</span></div>
+                <section class="zb-wallet-method" data-zb-wallet-test-topup hidden>
+                  <div class="zb-wallet-method-title"><strong>Бесплатно на время теста</strong><span>Зачисление сразу</span></div>
+                  <div class="zb-wallet-presets">${[10, 50, 100, 250, 500, 1000].map(function (amount) { return `<button type="button" data-zb-wallet-test-amount="${amount}">+${amount}</button>`; }).join("")}</div>
+                  <div class="zb-wallet-custom"><input type="number" min="10" max="1000" step="1" inputmode="numeric" placeholder="Своя сумма" data-zb-wallet-custom><button type="button" data-zb-wallet-custom-submit>Начислить</button></div>
+                </section>
+                <section class="zb-wallet-method zb-wallet-method-stars">
+                  <div class="zb-wallet-method-title"><strong>Telegram Stars</strong><span>1 ⭐ = 1 Монетка</span></div>
+                  <div class="zb-wallet-presets">${[10, 50, 100, 250, 500, 1000].map(function (amount) { return `<button type="button" data-zb-wallet-stars-amount="${amount}" disabled>${amount} ⭐</button>`; }).join("")}</div>
+                  <div class="zb-wallet-custom"><input type="number" min="10" max="1000" step="1" inputmode="numeric" placeholder="Своя сумма" data-zb-wallet-stars-custom disabled><button type="button" data-zb-wallet-stars-submit disabled>Купить</button></div>
+                  <p>Нативная оплата Stars появится здесь после подключения защищённого инвойса.</p>
+                </section>
+                <a class="zb-wallet-tribute" href="https://t.me/qinghe_rpg_bot" target="_blank" rel="noopener noreferrer" data-zb-wallet-tribute>Купить через Tribute в @qinghe_rpg_bot <span aria-hidden="true">↗</span></a>
+              </div>
+              <p class="zb-wallet-status" data-zb-wallet-status hidden role="status"></p>
+            </div>
             <div class="zb-access-box zb-access-box-user"><h3>Подписки</h3><div data-zb-subscription-summary><div class="zb-access-loading">Откройте раздел, чтобы проверить подписки.</div></div></div>
             <div class="zb-access-box zb-access-box-user zb-purchase-history-box"><h3>История покупок</h3><div data-zb-purchase-history><div class="zb-access-loading">Откройте раздел, чтобы увидеть покупки.</div></div></div>
           </section>
@@ -374,15 +553,19 @@
   }
   function openSheet(tab) {
     const overlay = ensureSheet();
+    if (overlay.hidden) previousSettingsFocus = document.activeElement;
     overlay.hidden = false;
     setTab(tab || "reader");
     updateSheetState();
     document.body.classList.add("zb-settings-open");
+    overlay.querySelector("[data-zb-settings-close]")?.focus();
   }
+  let previousSettingsFocus = null;
   function closeSheet() {
     const overlay = document.querySelector("[data-zb-settings-overlay]");
     if (overlay) overlay.hidden = true;
     document.body.classList.remove("zb-settings-open");
+    previousSettingsFocus?.focus?.();
   }
   function setTab(tab) {
     const overlay = ensureSheet();
@@ -401,12 +584,31 @@
     if (title) title.textContent = titles[tab] || "Настройки";
     if (subtitle) subtitle.textContent = subtitles[tab] || "";
     if (tab === "access") {
+      loadWalletBalance(true);
       loadSubscriptionSummary(false);
       loadPurchaseHistory(false);
     }
     if (tab === "stats") loadPersonalStats(false);
   }
   function bindSheet(overlay) {
+    overlay.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSheet();
+      }
+      if (event.key !== "Tab") return;
+      const controls = Array.from(overlay.querySelectorAll("button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]"))
+        .filter(function (node) { return node.getClientRects().length > 0; });
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    });
     overlay.addEventListener("click", function (event) {
       if (event.target === overlay) closeSheet();
     });
@@ -447,6 +649,31 @@
         loadPurchaseHistory(true);
         return;
       }
+      const walletOpen = event.target.closest("[data-zb-wallet-open]");
+      if (walletOpen) {
+        const panel = overlay.querySelector("[data-zb-wallet-topup]");
+        const open = Boolean(panel && panel.hidden);
+        if (panel) panel.hidden = !open;
+        walletOpen.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) {
+          loadWalletBalance(false);
+          window.setTimeout(function () {
+            panel && panel.querySelector("button:not(:disabled), a[href]")?.focus();
+          }, 30);
+        }
+        return;
+      }
+      const walletPreset = event.target.closest("[data-zb-wallet-test-amount]");
+      if (walletPreset) {
+        grantWalletTestCoins(walletPreset.dataset.zbWalletTestAmount);
+        return;
+      }
+      const walletCustomSubmit = event.target.closest("[data-zb-wallet-custom-submit]");
+      if (walletCustomSubmit) {
+        const input = overlay.querySelector("[data-zb-wallet-custom]");
+        grantWalletTestCoins(input && input.value);
+        return;
+      }
       const reset = event.target.closest("[data-zb-reset]");
       if (reset) {
         writeSettings(DEFAULTS);
@@ -454,6 +681,12 @@
         document.body.classList.remove("reader-controls-hidden");
         applyCleanSettings();
         updateSheetState();
+      }
+    });
+    overlay.querySelector("[data-zb-wallet-custom]")?.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        grantWalletTestCoins(event.currentTarget.value);
       }
     });
   }
@@ -512,6 +745,16 @@
       observer.observe(document.body, { childList: true, subtree: true });
     } catch (error) {}
   }
+  window.addEventListener("reader-wallet-updated", function (event) {
+    const balance = Number(event.detail?.balance);
+    if (Number.isFinite(balance) && balance >= 0) setWalletBalance(balance);
+  });
+  document.addEventListener("visibilitychange", function () {
+    const overlay = document.querySelector("[data-zb-settings-overlay]");
+    if (!document.hidden && overlay && !overlay.hidden && overlay.querySelector('[data-zb-pane="access"].is-active')) {
+      loadWalletBalance(true);
+    }
+  });
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initCleanSettings);
   } else {

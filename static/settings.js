@@ -914,13 +914,25 @@
     }
 
     const telegram = getTelegramWebApp();
-    if (!telegram) {
+    const page = document.documentElement;
+    const browserRequest = page.requestFullscreen || page.webkitRequestFullscreen;
+    const browserExit = document.exitFullscreen || document.webkitExitFullscreen;
+    const browserFullscreenElement = function () {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    };
+    const telegramCanFullscreen = Boolean(
+      telegram && (
+        typeof telegram.requestFullscreen === "function"
+        || typeof telegram.expand === "function"
+      )
+    );
+    if (typeof browserRequest !== "function" && !telegramCanFullscreen) {
       button.hidden = true;
       return;
     }
 
     const update = function () {
-      const isFullscreen = Boolean(telegram.isFullscreen);
+      const isFullscreen = Boolean(browserFullscreenElement() || (telegram && telegram.isFullscreen));
       button.textContent = isFullscreen ? "↙" : "↗";
       button.title = isFullscreen ? "Вернуть обычный размер" : "Открыть на весь экран";
       button.setAttribute("aria-label", button.title);
@@ -928,13 +940,31 @@
     };
 
     button.hidden = false;
-    button.addEventListener("click", function () {
+    button.addEventListener("click", async function () {
       try {
-        if (telegram.isFullscreen && typeof telegram.exitFullscreen === "function") {
+        if (browserFullscreenElement() && typeof browserExit === "function") {
+          await Promise.resolve(browserExit.call(document));
+        } else if (telegram && telegram.isFullscreen && typeof telegram.exitFullscreen === "function") {
           telegram.exitFullscreen();
-        } else if (typeof telegram.requestFullscreen === "function") {
+        } else if (typeof browserRequest === "function") {
+          try {
+            await Promise.resolve(browserRequest.call(page, { navigationUI: "hide" }));
+          } catch (browserError) {
+            try {
+              await Promise.resolve(browserRequest.call(page));
+            } catch (retryError) {
+              if (telegram && typeof telegram.requestFullscreen === "function") {
+                telegram.requestFullscreen();
+              } else if (telegram && typeof telegram.expand === "function") {
+                telegram.expand();
+              } else {
+                throw retryError || browserError;
+              }
+            }
+          }
+        } else if (telegram && typeof telegram.requestFullscreen === "function") {
           telegram.requestFullscreen();
-        } else if (typeof telegram.expand === "function") {
+        } else if (telegram && typeof telegram.expand === "function") {
           telegram.expand();
         }
       } catch (error) {
@@ -943,7 +973,9 @@
       window.setTimeout(update, 120);
     });
 
-    if (typeof telegram.onEvent === "function") {
+    document.addEventListener("fullscreenchange", update);
+    document.addEventListener("webkitfullscreenchange", update);
+    if (telegram && typeof telegram.onEvent === "function") {
       telegram.onEvent("fullscreenChanged", update);
       telegram.onEvent("fullscreenFailed", update);
     }

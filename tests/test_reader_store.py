@@ -402,6 +402,11 @@ def test_reader_store_ui_uses_chapter_and_subscription_transaction_modals():
     assert "state.suggestedTopup" in script
     assert "data-zb-purchase-history" in settings_script
     assert "История покупок" in settings_script
+    assert "data-zb-wallet-balance" in settings_script
+    assert 'fetch("/api/store/wallet"' in settings_script
+    assert 'fetch("/api/store/products"' in settings_script
+    assert 'fetch("/api/store/test-coins"' in settings_script
+    assert "Купить через Tribute в @qinghe_rpg_bot" in settings_script
     assert "window.confirm" not in script
 
 
@@ -426,7 +431,9 @@ def test_tribute_copy_is_limited_to_the_qinghe_topup_redirect():
                     matches.append(str(path.relative_to(ROOT)))
     assert set(matches) == {
         "app\\routers\\store.py",
+        "static\\enhancements.css",
         "static\\reader-store.js",
+        "static\\settings-panel.js",
         "templates\\_reader_transaction_modal.html",
     }
 
@@ -444,6 +451,15 @@ def test_global_mouse_wheel_scroll_has_root_contract_and_runtime_fallback():
     assert "html.reader-scroll-locked" in enhancements
     assert "body:not(.reader-transaction-open):not(.zb-settings-open):not(.reader-quick-settings-open)" in enhancements
     assert "overflow-y: visible !important" in enhancements
+
+
+def test_desktop_expand_button_uses_real_browser_fullscreen_with_telegram_fallback():
+    settings_script = (ROOT / "static" / "settings.js").read_text(encoding="utf-8")
+    assert "page.requestFullscreen || page.webkitRequestFullscreen" in settings_script
+    assert "document.exitFullscreen || document.webkitExitFullscreen" in settings_script
+    assert 'document.addEventListener("fullscreenchange", update)' in settings_script
+    assert 'browserRequest.call(page, { navigationUI: "hide" })' in settings_script
+    assert 'typeof telegram.requestFullscreen === "function"' in settings_script
 
 
 def test_library_discovery_has_grouped_filters_dynamic_tags_and_fuzzy_search():
@@ -465,3 +481,5 @@ def test_library_discovery_has_grouped_filters_dynamic_tags_and_fuzzy_search():
     assert "library-filter-open" in settings_script
     assert "v244 — thoughtful library discovery" in enhancements
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in enhancements
+    assert ".library-discovery-summary {" in enhancements
+    assert "border-bottom: 0;" in enhancements

@@ -61,6 +61,7 @@
   }
 
   function safeTopupUrl(value) {
+    if (!String(value || "").trim()) return "";
     try {
       const url = new URL(String(value || ""), window.location.origin);
       return ["https:", "http:", "tg:"].includes(url.protocol) ? url.href : "";
@@ -69,17 +70,25 @@
     }
   }
 
+  const pendingActions = new Map();
   function actionId(storageKey) {
-    const existing = window.sessionStorage.getItem(storageKey);
-    if (existing) return existing;
-    const created = window.crypto?.randomUUID?.()
-      || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    window.sessionStorage.setItem(storageKey, created);
+    if (pendingActions.has(storageKey)) return pendingActions.get(storageKey);
+    let existing = "";
+    try { existing = window.sessionStorage.getItem(storageKey) || ""; } catch (_error) {}
+    const validUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const created = validUuid.test(existing) ? existing : window.crypto?.randomUUID?.()
+      || "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (char) => {
+        const value = Math.floor(Math.random() * 16);
+        return (char === "x" ? value : (value & 3) | 8).toString(16);
+      });
+    pendingActions.set(storageKey, created);
+    try { window.sessionStorage.setItem(storageKey, created); } catch (_error) {}
     return created;
   }
 
   function clearAction(storageKey) {
-    window.sessionStorage.removeItem(storageKey);
+    pendingActions.delete(storageKey);
+    try { window.sessionStorage.removeItem(storageKey); } catch (_error) {}
   }
 
   async function requestJson(url, options = {}) {
@@ -138,6 +147,22 @@
 
   function renderBalance() {
     balanceNodes.forEach((node) => { node.textContent = number(state.balance); });
+  }
+
+  function publishBalance() {
+    window.dispatchEvent(new CustomEvent("reader-wallet-updated", { detail: { balance: state.balance } }));
+  }
+
+  async function refreshBalance() {
+    try {
+      const wallet = await requestJson("/api/store/wallet");
+      if (state.busy) return;
+      state.balance = Number(wallet.balance || 0);
+      renderBalance();
+      if (!confirmation.hidden && state.selected) showConfirmation(state.selected);
+    } catch (error) {
+      showMessage(humanError(error));
+    }
   }
 
   function showView(view) {
@@ -283,6 +308,7 @@
     modal.hidden = false;
     document.body.classList.add("reader-transaction-open");
     window.requestAnimationFrame(() => dialog.focus());
+    refreshBalance();
   }
 
   function closeModal() {
@@ -295,11 +321,12 @@
   function setBusy(busy) {
     state.busy = busy;
     purchaseButton.disabled = busy || !state.purchasesEnabled;
-    topupSubmit.disabled = busy;
+    topupSubmit.disabled = busy || !state.testTopupEnabled;
     starsCustom.disabled = busy || !state.starsTopupEnabled;
     starsSubmit.disabled = busy || !state.starsTopupEnabled;
     modal.querySelectorAll("[data-reader-test-topup-amount]").forEach((button) => {
-      button.disabled = busy || Number(button.dataset.readerTestTopupAmount || 0) > state.topupMax;
+      const amount = Number(button.dataset.readerTestTopupAmount || 0);
+      button.disabled = busy || !state.testTopupEnabled || amount < state.topupMin || amount > state.topupMax;
     });
     modal.querySelectorAll("[data-reader-stars-topup-amount]").forEach((button) => {
       const coins = Number(button.dataset.readerStarsTopupAmount || 0);
@@ -342,6 +369,7 @@
       clearAction(storageKey);
       state.balance = Number(result.balance || 0);
       renderBalance();
+      publishBalance();
       showMessage("Готово! Открываем купленный доступ…", "success");
       window.setTimeout(() => window.location.reload(), 650);
     } catch (error) {
@@ -360,6 +388,7 @@
   }
 
   async function grantTestCoins(amount) {
+    if (state.busy || !state.testTopupEnabled) return;
     const value = Number(amount || 0);
     if (!Number.isInteger(value) || value < state.topupMin || value > state.topupMax) {
       showMessage(`Введите сумму от ${number(state.topupMin)} до ${number(state.topupMax)} Монеток.`, "error");
@@ -376,12 +405,13 @@
       clearAction(storageKey);
       state.balance = Number(result.balance || 0);
       renderBalance();
+      publishBalance();
       if (state.selected) {
         showConfirmation(state.selected);
       } else {
         showChooser();
       }
-      showMessage(`Баланс пополнен на ${number(result.credited || value)} Монеток.`, "success");
+      showMessage(result.duplicate ? "Это пополнение уже выполнено. Баланс обновлён." : `Баланс пополнен на ${number(result.credited || value)} Монеток.`, "success");
     } catch (error) {
       showMessage(humanError(error), "error");
     } finally {
@@ -398,6 +428,16 @@
   }
 
   function bindEvents() {
+    window.addEventListener("reader-wallet-updated", (event) => {
+      const balance = Number(event.detail?.balance);
+      if (!Number.isFinite(balance) || balance < 0) return;
+      state.balance = balance;
+      renderBalance();
+      if (!confirmation.hidden && state.selected) showConfirmation(state.selected);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && !modal.hidden && !state.busy) refreshBalance();
+    });
     openButton.addEventListener("click", openModal);
     closeButton.addEventListener("click", closeModal);
     modal.addEventListener("click", (event) => {
@@ -405,6 +445,18 @@
     });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && !modal.hidden) closeModal();
+      if (event.key !== "Tab" || modal.hidden) return;
+      const controls = Array.from(dialog.querySelectorAll("button:not(:disabled), input:not(:disabled), a[href]"))
+        .filter((node) => node.getClientRects().length > 0);
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
     });
     balanceButton.addEventListener("click", showTopup);
     confirmBack.addEventListener("click", showChooser);
